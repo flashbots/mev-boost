@@ -31,6 +31,7 @@ type CodecRequest interface {
 	// Writes response using the RPC method reply. The error parameter is
 	// the error returned by the method call, if any.
 	WriteResponse(http.ResponseWriter, interface{}, error) error
+	RawRequest() []byte
 }
 
 // ----------------------------------------------------------------------------
@@ -51,15 +52,17 @@ type RequestInfo struct {
 	Error      error
 	Request    *http.Request
 	StatusCode int
+	Body       []byte
 }
 
 // Server serves registered RPC services using registered codecs.
 type Server struct {
-	codecs        map[string]Codec
-	services      *serviceMap
-	interceptFunc func(i *RequestInfo) *http.Request
-	beforeFunc    func(i *RequestInfo)
-	afterFunc     func(i *RequestInfo)
+	codecs             map[string]Codec
+	services           *serviceMap
+	interceptFunc      func(i *RequestInfo) *http.Request
+	methodNotFoundFunc func(i *RequestInfo, w http.ResponseWriter) error
+	beforeFunc         func(i *RequestInfo)
+	afterFunc          func(i *RequestInfo)
 }
 
 // RegisterCodec adds a new codec to the server.
@@ -132,6 +135,15 @@ func (s *Server) RegisterInterceptFunc(f func(i *RequestInfo) *http.Request) {
 	s.interceptFunc = f
 }
 
+// RegisterMethodNotFoundFunc registers the specified function as the function
+// that will be called when method lookup fails.
+//
+// Note: Only one function can be registered, subsequent calls to this
+// method will overwrite all the previous functions.
+func (s *Server) RegisterMethodNotFoundFunc(f func(i *RequestInfo, w http.ResponseWriter) error) {
+	s.methodNotFoundFunc = f
+}
+
 // RegisterBeforeFunc registers the specified function as the function
 // that will be called before every request.
 //
@@ -182,6 +194,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	serviceSpec, methodSpec, errGet := s.services.get(method)
 	if errGet != nil {
+		// Call the registered MethodNotFound Function
+		if s.methodNotFoundFunc != nil {
+			errNotFound := s.methodNotFoundFunc(&RequestInfo{
+				Request: r,
+				Method:  method,
+				Body:    codecReq.RawRequest(),
+			}, w)
+			if errNotFound != nil {
+				s.writeError(w, 400, errNotFound.Error())
+			}
+			return
+		}
 		s.writeError(w, 400, errGet.Error())
 		return
 	}

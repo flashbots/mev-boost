@@ -104,6 +104,9 @@ func (r MockCodecRequest) ReadRequest(args interface{}) error {
 	req.A, req.B = r.A, r.B
 	return nil
 }
+func (r MockCodecRequest) RawRequest() []byte {
+	return nil
+}
 
 func (r MockCodecRequest) WriteResponse(w http.ResponseWriter, reply interface{}, methodErr error) error {
 	if methodErr != nil {

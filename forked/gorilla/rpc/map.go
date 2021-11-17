@@ -49,6 +49,14 @@ type serviceMap struct {
 	services map[string]*service
 }
 
+func formatName(name string) string {
+	if len(name) == 0 {
+		return name
+	}
+
+	return strings.ToLower(name[0:1]) + name[1:]
+}
+
 // register adds a new service using reflection to extract its methods.
 func (m *serviceMap) register(rcvr interface{}, name string, passReq bool) error {
 	// Setup service.
@@ -117,7 +125,7 @@ func (m *serviceMap) register(rcvr interface{}, name string, passReq bool) error
 		if returnType := mtype.Out(0); returnType != typeOfError {
 			continue
 		}
-		s.methods[method.Name] = &serviceMethod{
+		s.methods[formatName(method.Name)] = &serviceMethod{
 			method:    method,
 			argsType:  args.Elem(),
 			replyType: reply.Elem(),
@@ -143,7 +151,7 @@ func (m *serviceMap) register(rcvr interface{}, name string, passReq bool) error
 //
 // The method name uses a dotted notation as in "Service.Method".
 func (m *serviceMap) get(method string) (*service, *serviceMethod, error) {
-	parts := strings.Split(method, ".")
+	parts := strings.Split(method, "_")
 	if len(parts) != 2 {
 		err := fmt.Errorf("rpc: service/method request ill-formed: %q", method)
 		return nil, nil, err

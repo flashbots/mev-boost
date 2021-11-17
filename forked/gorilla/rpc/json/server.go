@@ -8,6 +8,7 @@ package json
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/rpc"
@@ -68,14 +69,18 @@ func (c *Codec) NewRequest(r *http.Request) rpc.CodecRequest {
 func newCodecRequest(r *http.Request) rpc.CodecRequest {
 	// Decode the request body and check if RPC method is valid.
 	req := new(serverRequest)
-	err := json.NewDecoder(r.Body).Decode(req)
+	body, err := ioutil.ReadAll(r.Body)
+	if err == nil {
+		err = json.Unmarshal(body, req)
+	}
 	r.Body.Close()
-	return &CodecRequest{request: req, err: err}
+	return &CodecRequest{request: req, err: err, rawBody: body}
 }
 
 // CodecRequest decodes and encodes a single request.
 type CodecRequest struct {
 	request *serverRequest
+	rawBody []byte
 	err     error
 }
 
@@ -102,6 +107,11 @@ func (c *CodecRequest) ReadRequest(args interface{}) error {
 		}
 	}
 	return c.err
+}
+
+// RawRequest returns the bytes of the request
+func (c *CodecRequest) RawRequest() []byte {
+	return c.rawBody
 }
 
 // WriteResponse encodes the response and writes it to the ResponseWriter.
