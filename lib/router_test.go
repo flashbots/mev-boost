@@ -154,7 +154,7 @@ func TestMevService_GetPayload(t *testing.T) {
 		{
 			"basic success",
 			[]interface{}{"0x1"},
-			catalyst.ExecutableData{
+			catalyst.ExecutableDataV1{
 				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 				BaseFeePerGas: big.NewInt(4),
 				Transactions:  [][]byte{},
@@ -174,12 +174,12 @@ func TestMevService_ExecutePayload(t *testing.T) {
 	tests := []httpTest{
 		{
 			"basic success",
-			[]interface{}{catalyst.ExecutableData{
+			[]interface{}{catalyst.ExecutableDataV1{
 				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 				BaseFeePerGas: big.NewInt(4),
 				Transactions:  [][]byte{},
 			}},
-			ExecutePayloadResponse{
+			catalyst.ExecutePayloadResponse{
 				Status: "VALID",
 			},
 			200,
@@ -197,12 +197,12 @@ func TestMevService_ProposePayload(t *testing.T) {
 	tests := []httpTest{
 		{
 			"basic success",
-			[]interface{}{catalyst.ExecutableData{
+			[]interface{}{catalyst.ExecutableDataV1{
 				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 				BaseFeePerGas: big.NewInt(4),
 				Transactions:  [][]byte{},
 			}},
-			ExecutePayloadResponse{
+			catalyst.ExecutePayloadResponse{
 				Status: "VALID",
 			},
 			200,

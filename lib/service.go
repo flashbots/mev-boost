@@ -66,7 +66,8 @@ func (m *MevService) makeRequest(url string, method string, params []interface{}
 }
 
 // GetPayloadV1 TODO
-func (m *MevService) GetPayloadV1(r *http.Request, args *hexutil.Uint64, result *catalyst.ExecutableData) error {
+// TODO: PayloadID is changed to hexutil.Bytes in upstream?
+func (m *MevService) GetPayloadV1(r *http.Request, args *hexutil.Uint64, result *catalyst.ExecutableDataV1) error {
 	executionResp, executionErr := m.makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{args.String()})
 	relayResp, relayErr := m.makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{args.String()})
 
@@ -95,7 +96,7 @@ func (m *MevService) GetPayloadV1(r *http.Request, args *hexutil.Uint64, result 
 }
 
 // ExecutePayloadV1 TODO
-func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.ExecutableData, result *ExecutePayloadResponse) error {
+func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.ExecutableDataV1, result *catalyst.ExecutePayloadResponse) error {
 	executionResp, executionErr := m.makeRequest(m.executionURL, "engine_executePayloadV1", []interface{}{args})
 	relayResp, relayErr := m.makeRequest(m.relayURL, "engine_executePayloadV1", []interface{}{args})
 
@@ -124,7 +125,7 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.Executable
 }
 
 // ProposePayloadV1 TODO
-func (m *MevService) ProposePayloadV1(r *http.Request, args *catalyst.ExecutableData, result *ExecutePayloadResponse) error {
+func (m *MevService) ProposePayloadV1(r *http.Request, args *catalyst.ExecutableDataV1, result *catalyst.ExecutePayloadResponse) error {
 	relayResp, relayErr := m.makeRequest(m.relayURL, "engine_proposePayloadV1", []interface{}{args})
 	if relayErr != nil {
 		return relayErr

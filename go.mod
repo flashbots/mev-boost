@@ -10,6 +10,6 @@ require (
 )
 
 replace (
-	github.com/ethereum/go-ethereum => github.com/MariusVanDerWijden/go-ethereum v1.8.22-0.20211009100437-ac736f93f769
+	github.com/ethereum/go-ethereum => github.com/MariusVanDerWijden/go-ethereum v1.8.22-0.20211118170604-969d47de8301
 	github.com/gorilla/rpc => ./forked/gorilla/rpc
 )
