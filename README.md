@@ -13,23 +13,23 @@ simple middleware logic with minimal consensus client changes, simple networking
 - [x] middleware selects best payload that matches expected `payloadId` and requests signature from consensus client, this requires passing header object to the consensus client and flagging that it should be returned to the middleware once signed
 - [x] middleware returns signed block + initial payload header to relay with direct request
 
-### milestone 2 - authentication & privacy
-
-add authentication and p2p comms mechanisms
-
-- [ ] middleware imports staking keys locally (dangerous)
-- [ ] middleware signs `feeRecipient` message and gossips over p2p at regular interval
-- [ ] middleware gossips signed block + initial payload header over p2p
-- [ ] consider adding direct `engine_forkchoiceUpdatedV1` call to relay and returning full payload directly to validator as optimization
-
-### milestone 3 - security & reputation
+### milestone 2 - security & reputation
 
 cleanup consensus client and add security fallbacks
 
-- [ ] add signing domain to VC to avoid need to export keys to middleware
 - [ ] add middleware bypass mechanism to BN as a fallback
 - [ ] add middleware module for verifying previous relay payload validity and accuracy with hard or statistical blacklist (may require modifications to execution client)
-- [ ] add middleware module for relaycops to allow outsourcing of relay monitoring to trusted 3rd party
+- [ ] add middleware module for subscribing to 3rd party relay monitoring service
+
+### milestone 3 - authentication & privacy
+
+add authentication and p2p comms mechanisms
+
+- [ ] add signing domain to VC for `feeRecipient` authentication
+- [ ] middleware signs `feeRecipient` message and gossips over p2p at regular interval
+- [ ] middleware gossips signed block + initial payload header over p2p
+- [ ] consider adding direct `engine_forkchoiceUpdatedV1` call to relay for syncing state
+- [ ] consider returning full payload directly to validator as optimization
 - [ ] consider adding merkle proof of payment to shift verification requirements to the relay
 
 ## Build
