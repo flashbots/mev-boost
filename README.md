@@ -23,7 +23,7 @@ cleanup consensus client and add security fallbacks
 
 ### milestone 3 - authentication & privacy
 
-add authentication and p2p comms mechanisms
+add authentication and p2p comms mechanisms to prevent miner deanonymization
 
 - [ ] add signing domain to VC for `feeRecipient` authentication
 - [ ] middleware signs `feeRecipient` message and gossips over p2p at regular interval
