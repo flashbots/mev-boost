@@ -50,6 +50,69 @@ add optional configurations to provide alternative guarantees
 - [ ] consider returning full payload directly to validator as optimization
 - [ ] consider adding merkle proof of payment to shift verification requirements to the relay
 
+## API Docs
+
+### relay_proposePayloadV1
+
+#### Request
+
+- method: `relay_proposePayloadV1`
+- params:
+  1. [`SignedBeaconBlockHeader`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#signedbeaconblockheader)
+
+#### Response
+
+- result: `object`
+  - `status`: `enum` - `"VALID" | "INVALID" | "SYNCING"`
+  - `latestValidHash`: `DATA|null`, 32 Bytes - the hash of the most recent _valid_ block in the branch defined by payload and its ancestors
+  - `validationError`: `String|null` - a message providing additional details on the validation error if the payload is deemed `INVALID`
+- error: code and message set in case an exception happens while executing the payload.
+
+### engine_executePayloadV1
+
+#### Request
+
+- method: `engine_executePayloadV1`
+- params:
+  1. [`ExecutionPayloadV1`](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#ExecutionPayloadV1)
+
+#### Response
+
+- result: `object`
+  - `status`: `enum` - `"VALID" | "INVALID" | "SYNCING"`
+  - `latestValidHash`: `DATA|null`, 32 Bytes - the hash of the most recent _valid_ block in the branch defined by payload and its ancestors
+  - `validationError`: `String|null` - a message providing additional details on the validation error if the payload is deemed `INVALID`
+- error: code and message set in case an exception happens while executing the payload.
+
+### engine_forkchoiceUpdatedV1
+
+#### Request
+
+- method: "engine_forkchoiceUpdatedV1"
+- params:
+  1. `forkchoiceState`: `Object` - instance of [`ForkchoiceStateV1`](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#ForkchoiceStateV1)
+  2. `payloadAttributes`: `Object|null` - instance of [`PayloadAttributesV1`](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#PayloadAttributesV1) or `null`
+
+#### Response
+
+- result: `object`
+  - `status`: `enum` - `"SUCCESS" | "SYNCING"`
+  - `payloadId`: `DATA|null`, 8 Bytes - identifier of the payload build process or `null`
+- error: code and message set in case an exception happens while updating the forkchoice or initiating the payload build process.
+
+### engine_getPayloadV1
+
+#### Request
+
+- method: `engine_getPayloadV1`
+- params:
+  1. `payloadId`: `DATA`, 8 Bytes - Identifier of the payload build process
+
+#### Response
+
+- result: [`ExecutionPayloadV1`](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#ExecutionPayloadV1)
+- error: code and message set in case an exception happens while getting the payload.
+
 ## Build
 
 ```
