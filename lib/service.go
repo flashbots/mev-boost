@@ -95,6 +95,35 @@ func (m *MevService) GetPayloadV1(r *http.Request, args *hexutil.Uint64, result 
 	return nil
 }
 
+// ForkchoiceUpdatedV1 TODO
+func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *catalyst.PayloadAttributesV1, result *catalyst.ForkChoiceResponse) error {
+	executionResp, executionErr := m.makeRequest(m.executionURL, "engine_forkchoiceUpdatedV1", []interface{}{args})
+	relayResp, relayErr := m.makeRequest(m.relayURL, "engine_forkchoiceUpdatedV1", []interface{}{args})
+
+	bestResponse := relayResp
+	if relayErr != nil {
+		log.Print("error in relay resp", relayErr, string(relayResp))
+		if executionErr != nil {
+			// both clients errored, abort
+			return relayErr
+		}
+
+		bestResponse = executionResp
+	}
+	resp, err := parseRPCResponse(bestResponse)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(resp.Result, result)
+	if err != nil {
+		fmt.Println("error unmarshaling result", err)
+		return err
+	}
+
+	return nil
+}
+
 // ExecutePayloadV1 TODO
 func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.ExecutableDataV1, result *catalyst.ExecutePayloadResponse) error {
 	executionResp, executionErr := m.makeRequest(m.executionURL, "engine_executePayloadV1", []interface{}{args})

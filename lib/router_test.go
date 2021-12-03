@@ -3,6 +3,7 @@ package lib
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -167,6 +169,33 @@ func TestMevService_GetPayload(t *testing.T) {
 	}
 	for _, tt := range tests {
 		testHTTPMethod(t, "engine_getPayloadV1", &tt)
+	}
+}
+
+func strToBytes(s string) *hexutil.Bytes {
+	ret := hexutil.Bytes(common.Hex2Bytes(s))
+	return &ret
+}
+func TestMevService_ForckChoiceUpdated(t *testing.T) {
+	b, e := json.Marshal([]interface{}{catalyst.PayloadAttributesV1{
+		FeeRecipient: common.HexToAddress("0x0000000000000000000000000000000000000001"),
+	}})
+	fmt.Println(string(b), e)
+	tests := []httpTest{
+		{
+			"basic success",
+			[]interface{}{catalyst.PayloadAttributesV1{
+				FeeRecipient: common.HexToAddress("0x0000000000000000000000000000000000000001"),
+			}},
+			catalyst.ForkChoiceResponse{PayloadID: strToBytes("0x1")},
+			200,
+			200,
+			1,
+			1,
+		},
+	}
+	for _, tt := range tests {
+		testHTTPMethod(t, "engine_forkchoiceUpdatedV1", &tt)
 	}
 }
 
