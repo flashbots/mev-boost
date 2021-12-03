@@ -159,7 +159,7 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.Executable
 }
 
 // ProposePayloadV1 TODO
-func (m *RelayService) ProposePayloadV1(r *http.Request, args *catalyst.ExecutableDataV1, result *catalyst.ExecutePayloadResponse) error {
+func (m *RelayService) ProposePayloadV1(r *http.Request, args *SignedBeaconBlockHeader, result *catalyst.ExecutePayloadResponse) error {
 	relayResp, relayErr := makeRequest(m.relayURL, "relay_proposePayloadV1", []interface{}{args})
 	if relayErr != nil {
 		return relayErr

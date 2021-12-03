@@ -226,10 +226,11 @@ func TestMevService_ProposePayload(t *testing.T) {
 	tests := []httpTest{
 		{
 			"basic success",
-			[]interface{}{catalyst.ExecutableDataV1{
-				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-				BaseFeePerGas: big.NewInt(4),
-				Transactions:  [][]byte{},
+			[]interface{}{SignedBeaconBlockHeader{
+				Header: &BeaconBlockHeader{
+					ParentRoot: "0x0000000000000000000000000000000000000000000000000000000000000001",
+				},
+				Signature: "0x0000000000000000000000000000000000000000000000000000000000000002",
 			}},
 			catalyst.ExecutePayloadResponse{
 				Status: "VALID",

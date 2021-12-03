@@ -6,7 +6,7 @@ import (
 	"github.com/gorilla/rpc/json"
 )
 
-// NewRouter TODO
+// NewRouter creates a json rpc router that handles all methods
 func NewRouter(executionURL string, relayURL string) (*mux.Router, error) {
 	mev, err := newMevService(executionURL, relayURL)
 	if err != nil {
