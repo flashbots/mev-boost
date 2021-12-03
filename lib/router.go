@@ -12,6 +12,10 @@ func NewRouter(executionURL string, relayURL string) (*mux.Router, error) {
 	if err != nil {
 		return nil, err
 	}
+	relay, err := newRelayService(relayURL)
+	if err != nil {
+		return nil, err
+	}
 
 	rpcServer := rpc.NewServer()
 
@@ -19,6 +23,7 @@ func NewRouter(executionURL string, relayURL string) (*mux.Router, error) {
 	rpcServer.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
 
 	rpcServer.RegisterService(mev, "engine")
+	rpcServer.RegisterService(relay, "relay")
 	rpcServer.RegisterMethodNotFoundFunc(mev.methodNotFound)
 
 	router := mux.NewRouter()

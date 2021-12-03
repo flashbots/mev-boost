@@ -241,7 +241,7 @@ func TestMevService_ProposePayload(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethod(t, "engine_proposePayloadV1", &tt)
+		testHTTPMethod(t, "relay_proposePayloadV1", &tt)
 	}
 }
 func TestMevService_MethodFallback(t *testing.T) {

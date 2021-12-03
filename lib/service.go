@@ -21,6 +21,11 @@ type MevService struct {
 	relayURL     string
 }
 
+// RelayService TODO
+type RelayService struct {
+	relayURL string
+}
+
 // GetPayloadArgs TODO
 type GetPayloadArgs struct {
 	Foo string
@@ -39,7 +44,7 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
-func (m *MevService) makeRequest(url string, method string, params []interface{}) ([]byte, error) {
+func makeRequest(url string, method string, params []interface{}) ([]byte, error) {
 	reqJSON := rpcRequest{
 		ID:      "1",
 		JSONRPC: "2.0",
@@ -68,8 +73,8 @@ func (m *MevService) makeRequest(url string, method string, params []interface{}
 // GetPayloadV1 TODO
 // TODO: PayloadID is changed to hexutil.Bytes in upstream?
 func (m *MevService) GetPayloadV1(r *http.Request, args *hexutil.Uint64, result *catalyst.ExecutableDataV1) error {
-	executionResp, executionErr := m.makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{args.String()})
-	relayResp, relayErr := m.makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{args.String()})
+	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{args.String()})
+	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{args.String()})
 
 	bestResponse := relayResp
 	if relayErr != nil {
@@ -97,8 +102,8 @@ func (m *MevService) GetPayloadV1(r *http.Request, args *hexutil.Uint64, result 
 
 // ForkchoiceUpdatedV1 TODO
 func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *catalyst.PayloadAttributesV1, result *catalyst.ForkChoiceResponse) error {
-	executionResp, executionErr := m.makeRequest(m.executionURL, "engine_forkchoiceUpdatedV1", []interface{}{args})
-	relayResp, relayErr := m.makeRequest(m.relayURL, "engine_forkchoiceUpdatedV1", []interface{}{args})
+	executionResp, executionErr := makeRequest(m.executionURL, "engine_forkchoiceUpdatedV1", []interface{}{args})
+	relayResp, relayErr := makeRequest(m.relayURL, "engine_forkchoiceUpdatedV1", []interface{}{args})
 
 	bestResponse := relayResp
 	if relayErr != nil {
@@ -126,8 +131,8 @@ func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *catalyst.Payload
 
 // ExecutePayloadV1 TODO
 func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.ExecutableDataV1, result *catalyst.ExecutePayloadResponse) error {
-	executionResp, executionErr := m.makeRequest(m.executionURL, "engine_executePayloadV1", []interface{}{args})
-	relayResp, relayErr := m.makeRequest(m.relayURL, "engine_executePayloadV1", []interface{}{args})
+	executionResp, executionErr := makeRequest(m.executionURL, "engine_executePayloadV1", []interface{}{args})
+	relayResp, relayErr := makeRequest(m.relayURL, "engine_executePayloadV1", []interface{}{args})
 
 	bestResponse := relayResp
 	if relayErr != nil {
@@ -154,8 +159,8 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.Executable
 }
 
 // ProposePayloadV1 TODO
-func (m *MevService) ProposePayloadV1(r *http.Request, args *catalyst.ExecutableDataV1, result *catalyst.ExecutePayloadResponse) error {
-	relayResp, relayErr := m.makeRequest(m.relayURL, "engine_proposePayloadV1", []interface{}{args})
+func (m *RelayService) ProposePayloadV1(r *http.Request, args *catalyst.ExecutableDataV1, result *catalyst.ExecutePayloadResponse) error {
+	relayResp, relayErr := makeRequest(m.relayURL, "relay_proposePayloadV1", []interface{}{args})
 	if relayErr != nil {
 		return relayErr
 	}
@@ -209,5 +214,16 @@ func newMevService(executionURL string, relayURL string) (*MevService, error) {
 	return &MevService{
 		executionURL: executionURL,
 		relayURL:     relayURL,
+	}, nil
+}
+
+func newRelayService(relayURL string) (*RelayService, error) {
+
+	if relayURL == "" {
+		return nil, errors.New("NewRouter must have an relayURL")
+	}
+
+	return &RelayService{
+		relayURL: relayURL,
 	}, nil
 }
