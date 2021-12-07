@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/gorilla/rpc"
 )
@@ -72,9 +71,9 @@ func makeRequest(url string, method string, params []interface{}) ([]byte, error
 
 // GetPayloadV1 TODO
 // TODO: PayloadID is changed to hexutil.Bytes in upstream?
-func (m *MevService) GetPayloadV1(r *http.Request, args *hexutil.Uint64, result *catalyst.ExecutableDataV1) error {
-	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{args.String()})
-	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{args.String()})
+func (m *MevService) GetPayloadV1(r *http.Request, args *string, result *catalyst.ExecutableDataV1) error {
+	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
+	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{*args})
 
 	bestResponse := relayResp
 	if relayErr != nil {
