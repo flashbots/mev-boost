@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 
 	"github.com/gorilla/rpc"
 )
@@ -94,14 +95,21 @@ func (c *CodecRequest) Method() (string, error) {
 	return "", c.err
 }
 
+var genericInterfaceExample *[]interface{}
+var genericInterface = reflect.TypeOf(genericInterfaceExample)
+
 // ReadRequest fills the request object for the RPC method.
 func (c *CodecRequest) ReadRequest(args interface{}) error {
 	if c.err == nil {
 		if c.request.Params != nil {
 			// JSON params is array value. RPC params is struct.
 			// Unmarshal into array containing the request struct.
-			params := [1]interface{}{args}
-			c.err = json.Unmarshal(*c.request.Params, &params)
+			if reflect.TypeOf(args) == genericInterface {
+				c.err = json.Unmarshal(*c.request.Params, &args)
+			} else {
+				params := [1]interface{}{args}
+				c.err = json.Unmarshal(*c.request.Params, &params)
+			}
 		} else {
 			c.err = errors.New("rpc: method request ill-formed: missing params field")
 		}
