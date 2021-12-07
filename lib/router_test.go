@@ -184,7 +184,7 @@ func TestMevService_ForckChoiceUpdated(t *testing.T) {
 	tests := []httpTest{
 		{
 			"basic success",
-			[]interface{}{catalyst.PayloadAttributesV1{
+			[]interface{}{catalyst.ForkchoiceStateV1{}, catalyst.PayloadAttributesV1{
 				FeeRecipient: common.HexToAddress("0x0000000000000000000000000000000000000001"),
 			}},
 			catalyst.ForkChoiceResponse{PayloadID: strToBytes("0x1")},

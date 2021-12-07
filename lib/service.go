@@ -81,6 +81,7 @@ func (m *MevService) GetPayloadV1(r *http.Request, args *hexutil.Uint64, result 
 		log.Print("error in relay resp", relayErr, string(relayResp))
 		if executionErr != nil {
 			// both clients errored, abort
+			log.Print("error in both resp", executionResp, string(executionResp))
 			return relayErr
 		}
 
@@ -101,15 +102,16 @@ func (m *MevService) GetPayloadV1(r *http.Request, args *hexutil.Uint64, result 
 }
 
 // ForkchoiceUpdatedV1 TODO
-func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *catalyst.PayloadAttributesV1, result *catalyst.ForkChoiceResponse) error {
-	executionResp, executionErr := makeRequest(m.executionURL, "engine_forkchoiceUpdatedV1", []interface{}{args})
-	relayResp, relayErr := makeRequest(m.relayURL, "engine_forkchoiceUpdatedV1", []interface{}{args})
+func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result *catalyst.ForkChoiceResponse) error {
+	executionResp, executionErr := makeRequest(m.executionURL, "engine_forkchoiceUpdatedV1", *args)
+	relayResp, relayErr := makeRequest(m.relayURL, "engine_forkchoiceUpdatedV1", *args)
 
 	bestResponse := relayResp
 	if relayErr != nil {
 		log.Print("error in relay resp", relayErr, string(relayResp))
 		if executionErr != nil {
 			// both clients errored, abort
+			log.Print("error in both resp", executionResp, string(executionResp))
 			return relayErr
 		}
 
@@ -139,6 +141,7 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.Executable
 		log.Print("error in relay resp", relayErr, string(relayResp))
 		if executionErr != nil {
 			// both clients errored, abort
+			log.Print("error in both resp", executionResp, string(executionResp))
 			return relayErr
 		}
 
