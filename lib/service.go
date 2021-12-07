@@ -102,7 +102,7 @@ func (m *MevService) GetPayloadV1(r *http.Request, args *hexutil.Uint64, result 
 }
 
 // ForkchoiceUpdatedV1 TODO
-func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result *catalyst.ForkChoiceResponse) error {
+func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result *interface{}) error {
 	executionResp, executionErr := makeRequest(m.executionURL, "engine_forkchoiceUpdatedV1", *args)
 	relayResp, relayErr := makeRequest(m.relayURL, "engine_forkchoiceUpdatedV1", *args)
 
