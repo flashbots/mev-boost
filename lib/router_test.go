@@ -119,18 +119,24 @@ type httpTest struct {
 }
 
 func testHTTPMethod(t *testing.T, jsonRPCMethod string, tt *httpTest) {
+	testHTTPMethodWithDifferentRPC(t, jsonRPCMethod, jsonRPCMethod, tt)
+}
+
+func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, jsonRPCMethodProxy string, tt *httpTest) {
 	t.Run(tt.name, func(t *testing.T) {
 		// Format JSON-RPC body with the provided method and array of args
-		body, err := formatRequestBody(jsonRPCMethod, tt.requestArray)
+		body, err := formatRequestBody(jsonRPCMethodCaller, tt.requestArray)
+		require.Nil(t, err, "error formatting json body")
+		bodyProxy, err := formatRequestBody(jsonRPCMethodProxy, tt.requestArray)
 		require.Nil(t, err, "error formatting json body")
 
 		// Format JSON-RPC response
 		resp, err := formatResponse(tt.expectedResponseResult)
 		require.Nil(t, err, "error formatting json response")
 
-		// Create mock http server that expects the above body and returns the above response
-		mockExecution, mockExecutionHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(body), string(resp))
-		mockRelay, mockRelayHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(body), string(resp))
+		// Create mock http server that expects the above bodyProxy and returns the above response
+		mockExecution, mockExecutionHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyProxy), string(resp))
+		mockRelay, mockRelayHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyProxy), string(resp))
 
 		// Create the router pointing at the mock server
 		r, err := NewRouter(mockExecutionHTTP.URL, mockRelayHTTP.URL)
@@ -149,27 +155,6 @@ func testHTTPMethod(t *testing.T, jsonRPCMethod string, tt *httpTest) {
 		assert.Equal(t, tt.expectedRequestsToExecution, mockExecution.reqCount, "expected request count to execution to be equal")
 		assert.Equal(t, tt.expectedRequestsToRelay, mockRelay.reqCount, "expected request count to relay to be equal")
 	})
-}
-
-func TestMevService_GetPayload(t *testing.T) {
-	tests := []httpTest{
-		{
-			"basic success",
-			[]interface{}{"0x1"},
-			catalyst.ExecutableDataV1{
-				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-				BaseFeePerGas: big.NewInt(4),
-				Transactions:  [][]byte{},
-			},
-			200,
-			200,
-			1,
-			1,
-		},
-	}
-	for _, tt := range tests {
-		testHTTPMethod(t, "engine_getPayloadV1", &tt)
-	}
 }
 
 func strToBytes(s string) *hexutil.Bytes {
@@ -222,7 +207,7 @@ func TestMevService_ExecutePayload(t *testing.T) {
 	}
 }
 
-func TestMevService_ProposePayload(t *testing.T) {
+func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 	tests := []httpTest{
 		{
 			"basic success",
@@ -242,9 +227,31 @@ func TestMevService_ProposePayload(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethod(t, "relay_proposePayloadV1", &tt)
+		testHTTPMethod(t, "builder_proposeBlindedBlockV1", &tt)
 	}
 }
+
+func TestRelayervice_GetPayloadHeaderV1(t *testing.T) {
+	tests := []httpTest{
+		{
+			"basic success",
+			[]interface{}{"0x1"},
+			catalyst.ExecutableDataV1{
+				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+				BaseFeePerGas: big.NewInt(4),
+				Transactions:  [][]byte{},
+			},
+			200,
+			200,
+			1,
+			1,
+		},
+	}
+	for _, tt := range tests {
+		testHTTPMethodWithDifferentRPC(t, "builder_getPayloadHeaderV1", "engine_getPayloadV1", &tt)
+	}
+}
+
 func TestMevService_MethodFallback(t *testing.T) {
 	tests := []httpTest{
 		{

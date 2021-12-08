@@ -11,12 +11,14 @@ A summary of consensus client changes can be found [here](https://hackmd.io/@pau
 simple middleware logic with minimal consensus client changes, simple networking, no authentication, and manual safety mechanism
 
 #### middleware behavior
+
 - [x] middleware sends `feeRecipient` to relay with direct `engine_forkchoiceUpdatedV1` request at beginning of block
 - [x] middleware fetches signed payloads from relay using unauthenticated `getPayloadHeader` request
 - [x] middleware selects best payload that matches expected `payloadId` and requests signature from consensus client, this requires passing header object to the consensus client and flagging that it should be returned to the middleware once signed
 - [x] middleware returns signed block + initial payload header to relay with direct request
 
 #### required client modifications
+
 - consensus client must implement [blind transaction signing](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-1-Blind-Transaction-Signing)
 
 ### milestone 2 - security & reputation
@@ -24,10 +26,12 @@ simple middleware logic with minimal consensus client changes, simple networking
 cleanup consensus client and add security fallbacks
 
 #### middleware behavior
+
 - [ ] add middleware module for verifying previous relay payload validity and accuracy with hard or statistical blacklist (may require modifications to execution client)
 - [ ] add middleware module for subscribing to 3rd party relay monitoring service
 
 #### required client modifications
+
 - in event of middleware crash, consensus client must be able to bypass the middleware to reach a local or remote execution client
 
 ### milestone 3 - authentication & privacy (optional)
@@ -35,10 +39,12 @@ cleanup consensus client and add security fallbacks
 add authentication and p2p comms mechanisms to prevent validator deanonymization
 
 #### middleware behavior
+
 - [ ] middleware signs `feeRecipient` message and gossips over p2p at regular interval
 - [ ] middleware gossips signed block + initial payload header over p2p
 
 #### required client modifications
+
 - consensus client must implement [Proposal Promises](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-2-Proposal-Promises)
 - consensus client must implement [New Gossipsub Topics](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-3-New-Gossipsub-Topics)
 
@@ -52,13 +58,13 @@ add optional configurations to provide alternative guarantees
 
 ## API Docs
 
-### relay_proposePayloadV1
+### builder_proposeBlindedBlockV1
 
 #### Request
 
-- method: `relay_proposePayloadV1`
+- method: `builder_proposeBlindedBlockV1`
 - params:
-  1. [`SignedBeaconBlockHeader`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#signedbeaconblockheader)
+  1. [`SignedBeaconBlock`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#signedbeaconblock)
 
 #### Response
 
@@ -67,6 +73,20 @@ add optional configurations to provide alternative guarantees
   - `latestValidHash`: `DATA|null`, 32 Bytes - the hash of the most recent _valid_ block in the branch defined by payload and its ancestors
   - `validationError`: `String|null` - a message providing additional details on the validation error if the payload is deemed `INVALID`
 - error: code and message set in case an exception happens while executing the payload.
+
+### builder_getPayloadHeaderV1
+
+#### Request
+
+- method: `builder_getPayloadHeaderV1`
+- params:
+  1. `payloadId`: `DATA`, 8 Bytes - Identifier of the payload build process
+
+#### Response
+
+- result: [`ExecutionPayloadV1`](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#ExecutionPayloadV1)
+  - NOTE: this slightly varies from the upstream `ExecutionPayloadV1`, in that the `transactions` field is optional and not meant to be used by the caller.
+- error: code and message set in case an exception happens while getting the payload.
 
 ### engine_executePayloadV1
 
@@ -99,19 +119,6 @@ add optional configurations to provide alternative guarantees
   - `status`: `enum` - `"SUCCESS" | "SYNCING"`
   - `payloadId`: `DATA|null`, 8 Bytes - identifier of the payload build process or `null`
 - error: code and message set in case an exception happens while updating the forkchoice or initiating the payload build process.
-
-### engine_getPayloadV1
-
-#### Request
-
-- method: `engine_getPayloadV1`
-- params:
-  1. `payloadId`: `DATA`, 8 Bytes - Identifier of the payload build process
-
-#### Response
-
-- result: [`ExecutionPayloadV1`](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#ExecutionPayloadV1)
-- error: code and message set in case an exception happens while getting the payload.
 
 ## Build
 

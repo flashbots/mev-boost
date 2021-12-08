@@ -22,7 +22,8 @@ type MevService struct {
 
 // RelayService TODO
 type RelayService struct {
-	relayURL string
+	executionURL string
+	relayURL     string
 }
 
 // GetPayloadArgs TODO
@@ -67,37 +68,6 @@ func makeRequest(url string, method string, params []interface{}) ([]byte, error
 	}
 
 	return ioutil.ReadAll(resp.Body)
-}
-
-// GetPayloadV1 TODO
-// TODO: PayloadID is changed to hexutil.Bytes in upstream?
-func (m *MevService) GetPayloadV1(r *http.Request, args *string, result *catalyst.ExecutableDataV1) error {
-	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
-	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{*args})
-
-	bestResponse := relayResp
-	if relayErr != nil {
-		log.Print("error in relay resp", relayErr, string(relayResp))
-		if executionErr != nil {
-			// both clients errored, abort
-			log.Print("error in both resp", executionResp, string(executionResp))
-			return relayErr
-		}
-
-		bestResponse = executionResp
-	}
-	resp, err := parseRPCResponse(bestResponse)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(resp.Result, result)
-	if err != nil {
-		fmt.Println("error unmarshaling result", err)
-		return err
-	}
-
-	return nil
 }
 
 // ForkchoiceUpdatedV1 TODO
@@ -161,13 +131,43 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.Executable
 }
 
 // ProposePayloadV1 TODO
-func (m *RelayService) ProposePayloadV1(r *http.Request, args *SignedBeaconBlockHeader, result *catalyst.ExecutePayloadResponse) error {
-	relayResp, relayErr := makeRequest(m.relayURL, "relay_proposePayloadV1", []interface{}{args})
+func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBeaconBlockHeader, result *catalyst.ExecutePayloadResponse) error {
+	relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
 	if relayErr != nil {
 		return relayErr
 	}
 
 	resp, err := parseRPCResponse(relayResp)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(resp.Result, result)
+	if err != nil {
+		fmt.Println("error unmarshaling result", err)
+		return err
+	}
+
+	return nil
+}
+
+// GetPayloadHeaderV1 TODO
+func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *catalyst.ExecutableDataV1) error {
+	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
+	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{*args})
+
+	bestResponse := relayResp
+	if relayErr != nil {
+		log.Print("error in relay resp", relayErr, string(relayResp))
+		if executionErr != nil {
+			// both clients errored, abort
+			log.Print("error in both resp", executionResp, string(executionResp))
+			return relayErr
+		}
+
+		bestResponse = executionResp
+	}
+	resp, err := parseRPCResponse(bestResponse)
 	if err != nil {
 		return err
 	}
@@ -219,13 +219,16 @@ func newMevService(executionURL string, relayURL string) (*MevService, error) {
 	}, nil
 }
 
-func newRelayService(relayURL string) (*RelayService, error) {
-
+func newRelayService(executionURL string, relayURL string) (*RelayService, error) {
+	if executionURL == "" {
+		return nil, errors.New("NewRouter must have an executionURL")
+	}
 	if relayURL == "" {
 		return nil, errors.New("NewRouter must have an relayURL")
 	}
 
 	return &RelayService{
-		relayURL: relayURL,
+		executionURL: executionURL,
+		relayURL:     relayURL,
 	}, nil
 }
