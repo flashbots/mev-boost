@@ -211,8 +211,8 @@ func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 	tests := []httpTest{
 		{
 			"basic success",
-			[]interface{}{SignedBeaconBlockHeader{
-				Header: &BeaconBlockHeader{
+			[]interface{}{SignedBlindedBeaconBlock{
+				Message: &BlindedBeaconBlock{
 					ParentRoot: "0x0000000000000000000000000000000000000000000000000000000000000001",
 				},
 				Signature: "0x0000000000000000000000000000000000000000000000000000000000000002",
@@ -236,10 +236,10 @@ func TestRelayervice_GetPayloadHeaderV1(t *testing.T) {
 		{
 			"basic success",
 			[]interface{}{"0x1"},
-			catalyst.ExecutableDataV1{
-				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-				BaseFeePerGas: big.NewInt(4),
-				Transactions:  [][]byte{},
+			ExecutionPayloadHeaderV1{
+				BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+				BaseFeePerGas:    big.NewInt(4),
+				TransactionsRoot: common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
 			},
 			200,
 			200,

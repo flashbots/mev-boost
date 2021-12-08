@@ -64,7 +64,7 @@ add optional configurations to provide alternative guarantees
 
 - method: `builder_proposeBlindedBlockV1`
 - params:
-  1. [`SignedBeaconBlock`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#signedbeaconblock)
+  1. [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock)
 
 #### Response
 
@@ -84,7 +84,7 @@ add optional configurations to provide alternative guarantees
 
 #### Response
 
-- result: [`ExecutionPayloadV1`](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#ExecutionPayloadV1)
+- result: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
   - NOTE: this slightly varies from the upstream `ExecutionPayloadV1`, in that the `transactions` field is optional and not meant to be used by the caller.
 - error: code and message set in case an exception happens while getting the payload.
 
@@ -119,6 +119,40 @@ add optional configurations to provide alternative guarantees
   - `status`: `enum` - `"SUCCESS" | "SYNCING"`
   - `payloadId`: `DATA|null`, 8 Bytes - identifier of the payload build process or `null`
 - error: code and message set in case an exception happens while updating the forkchoice or initiating the payload build process.
+
+### Types
+
+#### SignedBlindedBeaconBlock
+
+See https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types for the definition of fields like `BLSSignature`
+
+- message: BlindedBeaconBlock
+- signature: BLSSignature
+
+#### BlindedBeaconBlock
+
+This is forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock with `body` replaced with `BlindedBeaconBlockBody`
+
+- slot: Slot
+- proposer_index: ValidatorIndex
+- parent_root: Root
+- state_root: Root
+- body: BlindedBeaconBlockBody
+
+#### BlindedBeaconBlockBody
+
+This is forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#beaconblockbody with `execution_payload` replaced with [execution_payload_header](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
+
+- randao_reveal: BLSSignature
+- eth1_data: Eth1Data
+- graffiti: Bytes32
+- proposer_slashings: List[ProposerSlashing, MAX_PROPOSER_SLASHINGS]
+- attester_slashings: List[AttesterSlashing, MAX_ATTESTER_SLASHINGS]
+- attestations: List[Attestation, MAX_ATTESTATIONS]
+- deposits: List[Deposit, MAX_DEPOSITS]
+- voluntary_exits: List[SignedVoluntaryExit, MAX_VOLUNTARY_EXITS]
+- sync_aggregate: SyncAggregate
+- execution_payload_header: ExecutionPayloadHeader
 
 ## Build
 

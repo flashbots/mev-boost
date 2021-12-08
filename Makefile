@@ -7,5 +7,8 @@ test:
 lint:
 	revive ./lib ./cmd
 
+generate:
+	go generate ./...
+
 run:
 	go run cmd/mev-boost/main.go
