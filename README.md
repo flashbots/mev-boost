@@ -21,31 +21,31 @@ simple middleware logic with minimal consensus client changes, simple networking
 
 - consensus client must implement [blind transaction signing](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-1-Blind-Transaction-Signing)
 
-### milestone 2 - security & reputation
+### milestone 2 - security, authentication & reputation
 
 cleanup consensus client and add security fallbacks
 
 #### middleware behavior
 
+- [ ] middleware requests authenticated `feeRecipient` message from consensus client and gossips over p2p at regular interval
 - [ ] add middleware module for verifying previous relay payload validity and accuracy with hard or statistical blacklist (may require modifications to execution client)
 - [ ] add middleware module for subscribing to 3rd party relay monitoring service
 
 #### required client modifications
 
 - in event of middleware crash, consensus client must be able to bypass the middleware to reach a local or remote execution client
+- consensus client must implement [Proposal Promises](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-2-Proposal-Promises)
 
-### milestone 3 - authentication & privacy (optional)
+### milestone 3 - privacy (optional)
 
-add authentication and p2p comms mechanisms to prevent validator deanonymization
+add p2p comms mechanisms to prevent validator deanonymization
 
 #### middleware behavior
 
-- [ ] middleware signs `feeRecipient` message and gossips over p2p at regular interval
 - [ ] middleware gossips signed block + initial payload header over p2p
 
 #### required client modifications
 
-- consensus client must implement [Proposal Promises](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-2-Proposal-Promises)
 - consensus client must implement [New Gossipsub Topics](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-3-New-Gossipsub-Topics)
 
 ### milestone 4 - configurations (optional)
