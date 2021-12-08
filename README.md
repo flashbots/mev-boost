@@ -179,3 +179,13 @@ We use `revive` as a linter. You need to install it with `go install github.com/
 ```
 make lint
 ```
+
+## Running with mergemock
+
+```
+cd mergemock
+./mergemock engine &
+./mergemock consensus --slot-time=4s --engine http://127.0.0.1:18550 &
+cd ../mev-boost
+make run
+```
