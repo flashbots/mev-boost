@@ -131,7 +131,7 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.Executable
 }
 
 // ProposePayloadV1 TODO
-func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBeaconBlockHeader, result *catalyst.ExecutePayloadResponse) error {
+func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *catalyst.ExecutePayloadResponse) error {
 	relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
 	if relayErr != nil {
 		return relayErr
@@ -152,7 +152,7 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBeacon
 }
 
 // GetPayloadHeaderV1 TODO
-func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *catalyst.ExecutableDataV1) error {
+func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *ExecutionPayloadHeaderV1) error {
 	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
 	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{*args})
 
