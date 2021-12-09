@@ -182,10 +182,20 @@ make lint
 
 ## Running with mergemock
 
+Make sure you've setup and built mergemock first, refer to its [README](https://github.com/protolambda/mergemock#quick-start)
+
 ```
-cd mergemock
-./mergemock engine &
-./mergemock consensus --slot-time=4s --engine http://127.0.0.1:18550 &
-cd ../mev-boost
-make run
+make run-mergemock-integration
+```
+
+The path to the mergemock repo is assumed to be `../mergemock`, you can override like so:
+
+```
+make MERGEMOCK_DIR=/PATH-TO-MERGEMOCK-REPO run-mergemock-integration
+```
+
+to run mergemock in dev mode:
+
+```
+make MERGEMOCK_BIN='go run .' run-mergemock-integration
 ```
