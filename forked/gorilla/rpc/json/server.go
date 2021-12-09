@@ -32,6 +32,12 @@ type serverRequest struct {
 	Id *json.RawMessage `json:"id"`
 }
 
+type jsonError struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}
+
 // serverResponse represents a JSON-RPC response returned by the server.
 type serverResponse struct {
 	// The Object that was returned by the invoked method. This must be null
@@ -39,7 +45,7 @@ type serverResponse struct {
 	Result interface{} `json:"result"`
 	// An Error object if there was an error invoking the method. It must be
 	// null if there was no error.
-	Error interface{} `json:"error"`
+	Error *jsonError `json:"error"`
 	// This must be the same id as the request it is responding to.
 	Id *json.RawMessage `json:"id"`
 }
@@ -132,12 +138,12 @@ func (c *CodecRequest) WriteResponse(w http.ResponseWriter, reply interface{}, m
 	}
 	res := &serverResponse{
 		Result: reply,
-		Error:  &null,
+		Error:  nil,
 		Id:     c.request.Id,
 	}
 	if methodErr != nil {
 		// Propagate error message as string.
-		res.Error = methodErr.Error()
+		res.Error = &jsonError{Message: methodErr.Error()}
 		// Result must be null if there was an error invoking the method.
 		// http://json-rpc.org/wiki/specification#a1.2Response
 		res.Result = &null
