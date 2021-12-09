@@ -10,7 +10,11 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/davecgh/go-spew/spew"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/gorilla/rpc"
 )
 
@@ -93,7 +97,7 @@ func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, r
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		fmt.Println("error unmarshaling result", err)
+		log.Print("error unmarshaling result", err)
 		return err
 	}
 
@@ -123,14 +127,14 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.Executable
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		fmt.Println("error unmarshaling result", err)
+		log.Print("error unmarshaling result", err)
 		return err
 	}
 
 	return nil
 }
 
-// ProposePayloadV1 TODO
+// ProposeBlindedBlockV1 TODO
 func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *catalyst.ExecutePayloadResponse) error {
 	relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
 	if relayErr != nil {
@@ -144,12 +148,14 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		fmt.Println("error unmarshaling result", err)
+		log.Print("error unmarshaling result", err)
 		return err
 	}
 
 	return nil
 }
+
+var nilHash = common.Hash{}
 
 // GetPayloadHeaderV1 TODO
 func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *ExecutionPayloadHeaderV1) error {
@@ -174,9 +180,23 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		fmt.Println("error unmarshaling result", err)
+		log.Print("error unmarshaling result", err)
 		return err
 	}
+	result.Transactions = nil
+
+	if result.TransactionsRoot == nilHash {
+		txs := types.Transactions{}
+		for i, otx := range result.Transactions {
+			var tx types.Transaction
+			if err := tx.UnmarshalBinary(otx); err != nil {
+				return fmt.Errorf("failed to decode tx %d: %v", i, err)
+			}
+			txs = append(txs, &tx)
+		}
+		result.TransactionsRoot = types.DeriveSha(txs, trie.NewStackTrie(nil))
+	}
+	spew.Dump(result)
 
 	return nil
 }

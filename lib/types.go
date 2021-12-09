@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-// SignedBeaconBlockHeader forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#signedbeaconblockheader
+// SignedBlindedBeaconBlock forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#signedbeaconblockheader
 type SignedBlindedBeaconBlock struct {
 	Message   *BlindedBeaconBlock `json:"message"`
 	Signature string              `json:"signature"`
@@ -27,20 +27,21 @@ type BlindedBeaconBlock struct {
 
 // ExecutionPayloadHeaderV1 is the same as ExecutionPayloadV1 with a transactionsRoot in place of transactions
 type ExecutionPayloadHeaderV1 struct {
-	ParentHash       common.Hash    `json:"parentHash"    gencodec:"required"`
-	Coinbase         common.Address `json:"coinbase"      gencodec:"required"`
-	StateRoot        common.Hash    `json:"stateRoot"     gencodec:"required"`
-	ReceiptRoot      common.Hash    `json:"receiptRoot"   gencodec:"required"`
-	LogsBloom        []byte         `json:"logsBloom"     gencodec:"required"`
-	Random           common.Hash    `json:"random"        gencodec:"required"`
-	Number           uint64         `json:"blockNumber"   gencodec:"required"`
-	GasLimit         uint64         `json:"gasLimit"      gencodec:"required"`
-	GasUsed          uint64         `json:"gasUsed"       gencodec:"required"`
-	Timestamp        uint64         `json:"timestamp"     gencodec:"required"`
-	ExtraData        []byte         `json:"extraData"     gencodec:"required"`
+	ParentHash       common.Hash    `json:"parentHash" gencodec:"required"`
+	Coinbase         common.Address `json:"coinbase" gencodec:"required"`
+	StateRoot        common.Hash    `json:"stateRoot" gencodec:"required"`
+	ReceiptRoot      common.Hash    `json:"receiptRoot" gencodec:"required"`
+	LogsBloom        []byte         `json:"logsBloom" gencodec:"required"`
+	Random           common.Hash    `json:"random" gencodec:"required"`
+	Number           uint64         `json:"blockNumber" gencodec:"required"`
+	GasLimit         uint64         `json:"gasLimit" gencodec:"required"`
+	GasUsed          uint64         `json:"gasUsed" gencodec:"required"`
+	Timestamp        uint64         `json:"timestamp" gencodec:"required"`
+	ExtraData        []byte         `json:"extraData" gencodec:"required"`
 	BaseFeePerGas    *big.Int       `json:"baseFeePerGas" gencodec:"required"`
-	BlockHash        common.Hash    `json:"blockHash"     gencodec:"required"`
-	TransactionsRoot common.Hash    `json:"transactionsRoot"  gencodec:"required"`
+	BlockHash        common.Hash    `json:"blockHash" gencodec:"required"`
+	Transactions     [][]byte       `json:"transactions,omitempty"`
+	TransactionsRoot common.Hash    `json:"transactionsRoot"`
 }
 
 // JSON type overrides for executableData.
@@ -52,4 +53,5 @@ type executionPayloadHeaderMarshaling struct {
 	BaseFeePerGas *hexutil.Big
 	ExtraData     hexutil.Bytes
 	LogsBloom     hexutil.Bytes
+	Transactions  []hexutil.Bytes
 }

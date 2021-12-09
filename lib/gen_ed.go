@@ -16,20 +16,21 @@ var _ = (*executionPayloadHeaderMarshaling)(nil)
 // MarshalJSON marshals as JSON.
 func (e ExecutionPayloadHeaderV1) MarshalJSON() ([]byte, error) {
 	type ExecutionPayloadHeaderV1 struct {
-		ParentHash       common.Hash    `json:"parentHash"    gencodec:"required"`
-		Coinbase         common.Address `json:"coinbase"      gencodec:"required"`
-		StateRoot        common.Hash    `json:"stateRoot"     gencodec:"required"`
-		ReceiptRoot      common.Hash    `json:"receiptRoot"   gencodec:"required"`
-		LogsBloom        hexutil.Bytes  `json:"logsBloom"     gencodec:"required"`
-		Random           common.Hash    `json:"random"        gencodec:"required"`
-		Number           hexutil.Uint64 `json:"blockNumber"   gencodec:"required"`
-		GasLimit         hexutil.Uint64 `json:"gasLimit"      gencodec:"required"`
-		GasUsed          hexutil.Uint64 `json:"gasUsed"       gencodec:"required"`
-		Timestamp        hexutil.Uint64 `json:"timestamp"     gencodec:"required"`
-		ExtraData        hexutil.Bytes  `json:"extraData"     gencodec:"required"`
-		BaseFeePerGas    *hexutil.Big   `json:"baseFeePerGas" gencodec:"required"`
-		BlockHash        common.Hash    `json:"blockHash"     gencodec:"required"`
-		TransactionsRoot common.Hash    `json:"transactionsRoot"  gencodec:"required"`
+		ParentHash       common.Hash     `json:"parentHash" gencodec:"required"`
+		Coinbase         common.Address  `json:"coinbase" gencodec:"required"`
+		StateRoot        common.Hash     `json:"stateRoot" gencodec:"required"`
+		ReceiptRoot      common.Hash     `json:"receiptRoot" gencodec:"required"`
+		LogsBloom        hexutil.Bytes   `json:"logsBloom" gencodec:"required"`
+		Random           common.Hash     `json:"random" gencodec:"required"`
+		Number           hexutil.Uint64  `json:"blockNumber" gencodec:"required"`
+		GasLimit         hexutil.Uint64  `json:"gasLimit" gencodec:"required"`
+		GasUsed          hexutil.Uint64  `json:"gasUsed" gencodec:"required"`
+		Timestamp        hexutil.Uint64  `json:"timestamp" gencodec:"required"`
+		ExtraData        hexutil.Bytes   `json:"extraData" gencodec:"required"`
+		BaseFeePerGas    *hexutil.Big    `json:"baseFeePerGas" gencodec:"required"`
+		BlockHash        common.Hash     `json:"blockHash" gencodec:"required"`
+		Transactions     []hexutil.Bytes `json:"transactions,omitempty" gencodec:"required"`
+		TransactionsRoot common.Hash     `json:"transactionsRoot"`
 	}
 	var enc ExecutionPayloadHeaderV1
 	enc.ParentHash = e.ParentHash
@@ -45,6 +46,12 @@ func (e ExecutionPayloadHeaderV1) MarshalJSON() ([]byte, error) {
 	enc.ExtraData = e.ExtraData
 	enc.BaseFeePerGas = (*hexutil.Big)(e.BaseFeePerGas)
 	enc.BlockHash = e.BlockHash
+	if e.Transactions != nil {
+		enc.Transactions = make([]hexutil.Bytes, len(e.Transactions))
+		for k, v := range e.Transactions {
+			enc.Transactions[k] = v
+		}
+	}
 	enc.TransactionsRoot = e.TransactionsRoot
 	return json.Marshal(&enc)
 }
@@ -52,20 +59,21 @@ func (e ExecutionPayloadHeaderV1) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON unmarshals from JSON.
 func (e *ExecutionPayloadHeaderV1) UnmarshalJSON(input []byte) error {
 	type ExecutionPayloadHeaderV1 struct {
-		ParentHash       *common.Hash    `json:"parentHash"    gencodec:"required"`
-		Coinbase         *common.Address `json:"coinbase"      gencodec:"required"`
-		StateRoot        *common.Hash    `json:"stateRoot"     gencodec:"required"`
-		ReceiptRoot      *common.Hash    `json:"receiptRoot"   gencodec:"required"`
-		LogsBloom        *hexutil.Bytes  `json:"logsBloom"     gencodec:"required"`
-		Random           *common.Hash    `json:"random"        gencodec:"required"`
-		Number           *hexutil.Uint64 `json:"blockNumber"   gencodec:"required"`
-		GasLimit         *hexutil.Uint64 `json:"gasLimit"      gencodec:"required"`
-		GasUsed          *hexutil.Uint64 `json:"gasUsed"       gencodec:"required"`
-		Timestamp        *hexutil.Uint64 `json:"timestamp"     gencodec:"required"`
-		ExtraData        *hexutil.Bytes  `json:"extraData"     gencodec:"required"`
+		ParentHash       *common.Hash    `json:"parentHash" gencodec:"required"`
+		Coinbase         *common.Address `json:"coinbase" gencodec:"required"`
+		StateRoot        *common.Hash    `json:"stateRoot" gencodec:"required"`
+		ReceiptRoot      *common.Hash    `json:"receiptRoot" gencodec:"required"`
+		LogsBloom        *hexutil.Bytes  `json:"logsBloom" gencodec:"required"`
+		Random           *common.Hash    `json:"random" gencodec:"required"`
+		Number           *hexutil.Uint64 `json:"blockNumber" gencodec:"required"`
+		GasLimit         *hexutil.Uint64 `json:"gasLimit" gencodec:"required"`
+		GasUsed          *hexutil.Uint64 `json:"gasUsed" gencodec:"required"`
+		Timestamp        *hexutil.Uint64 `json:"timestamp" gencodec:"required"`
+		ExtraData        *hexutil.Bytes  `json:"extraData" gencodec:"required"`
 		BaseFeePerGas    *hexutil.Big    `json:"baseFeePerGas" gencodec:"required"`
-		BlockHash        *common.Hash    `json:"blockHash"     gencodec:"required"`
-		TransactionsRoot *common.Hash    `json:"transactionsRoot"  gencodec:"required"`
+		BlockHash        *common.Hash    `json:"blockHash" gencodec:"required"`
+		Transactions     []hexutil.Bytes `json:"transactions,omitempty" gencodec:"required"`
+		TransactionsRoot *common.Hash    `json:"transactionsRoot"`
 	}
 	var dec ExecutionPayloadHeaderV1
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -123,9 +131,15 @@ func (e *ExecutionPayloadHeaderV1) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'blockHash' for ExecutionPayloadHeaderV1")
 	}
 	e.BlockHash = *dec.BlockHash
-	if dec.TransactionsRoot == nil {
-		return errors.New("missing required field 'transactionsRoot' for ExecutionPayloadHeaderV1")
+	if dec.Transactions == nil {
+		return errors.New("missing required field 'transactions' for ExecutionPayloadHeaderV1")
 	}
-	e.TransactionsRoot = *dec.TransactionsRoot
+	e.Transactions = make([][]byte, len(dec.Transactions))
+	for k, v := range dec.Transactions {
+		e.Transactions[k] = v
+	}
+	if dec.TransactionsRoot != nil {
+		e.TransactionsRoot = *dec.TransactionsRoot
+	}
 	return nil
 }
