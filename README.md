@@ -179,7 +179,9 @@ make lint
 
 ## Running with mergemock
 
-Make sure you've setup and built mergemock first, refer to its [README](https://github.com/protolambda/mergemock#quick-start)
+We are currently testing using a forked version of mergemock, see https://github.com/flashbots/mergemock
+
+Make sure you've setup and built mergemock first, refer to its [README](https://github.com/flashbots/mergemock#quick-start)
 
 ```
 make run-mergemock-integration
