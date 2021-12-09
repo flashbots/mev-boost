@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,7 +15,12 @@ const port = 18550
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	router, err := lib.NewRouter("http://127.0.0.1:8550", "http://127.0.0.1:28550")
+	executionURL := flag.String("executionURL", "http://127.0.0.1:8550", "url to execution client")
+	consensusURL := flag.String("consensusURL", "http://127.0.0.1:28550", "url to consensus client")
+
+	flag.Parse()
+
+	router, err := lib.NewRouter(*executionURL, *consensusURL)
 	if err != nil {
 		panic(err)
 	}
