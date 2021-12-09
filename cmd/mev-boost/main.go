@@ -13,6 +13,7 @@ const port = 18550
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetPrefix("mev-boost: ")
 
 	executionURL := flag.String("executionURL", "http://127.0.0.1:8550", "url to execution client")
 	consensusURL := flag.String("consensusURL", "http://127.0.0.1:28550", "url to consensus client")
