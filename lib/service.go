@@ -82,10 +82,10 @@ func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, r
 
 	bestResponse := relayResp
 	if relayErr != nil {
-		log.Print("error in relay resp", relayErr, string(relayResp))
+		log.Println("error in relay resp: ", relayErr, string(relayResp))
 		if executionErr != nil {
 			// both clients errored, abort
-			log.Print("error in both resp", executionResp, string(executionResp))
+			log.Println("error in both resp: ", executionResp, string(executionResp))
 			return relayErr
 		}
 
@@ -98,7 +98,7 @@ func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, r
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Print("error unmarshaling result", err)
+		log.Println("error unmarshaling result: ", err)
 		return err
 	}
 
@@ -112,10 +112,10 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWit
 
 	bestResponse := relayResp
 	if relayErr != nil {
-		log.Print("error in relay resp", relayErr, string(relayResp))
+		log.Println("error in relay resp: ", relayErr, string(relayResp))
 		if executionErr != nil {
 			// both clients errored, abort
-			log.Print("error in both resp", executionResp, string(executionResp))
+			log.Println("error in both resp: ", executionResp, string(executionResp))
 			return relayErr
 		}
 
@@ -128,7 +128,7 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWit
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Print("error unmarshaling result", err)
+		log.Println("error unmarshaling result: ", err)
 		return err
 	}
 
@@ -139,7 +139,7 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWit
 func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadWithTxRootV1) error {
 	payload, ok := m.payloadMap[common.HexToHash(args.Message.StateRoot)]
 	if ok {
-		log.Println("proposed previous block from execution client", payload.BlockHash, payload.Number)
+		log.Println("proposed previous block from execution client: ", payload.BlockHash, payload.Number)
 		*result = *payload
 		return nil
 	}
@@ -155,11 +155,11 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Print("error unmarshaling result", err)
+		log.Println("error unmarshaling result: ", err)
 		return err
 	}
 
-	log.Println("proposed from relay", result.BlockHash, result.Number)
+	log.Println("proposed from relay: ", result.BlockHash, result.Number)
 	return nil
 }
 
@@ -172,10 +172,10 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 
 	bestResponse := relayResp
 	if relayErr != nil {
-		log.Print("error in relay resp", relayErr, string(relayResp))
+		log.Println("error in relay resp: ", relayErr, string(relayResp))
 		if executionErr != nil {
 			// both clients errored, abort
-			log.Print("error in both resp", executionResp, string(executionResp))
+			log.Println("error in both resp: ", executionResp, string(executionResp))
 			return relayErr
 		}
 
@@ -188,7 +188,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Print("error unmarshaling result", err)
+		log.Println("error unmarshaling result: ", err)
 		return err
 	}
 	result.Transactions = nil
@@ -209,23 +209,23 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		result.TransactionsRoot = types.DeriveSha(txs, trie.NewStackTrie(nil))
 	}
 
-	log.Println("got payload header", result.BlockHash, result.Number)
+	log.Println("got payload header: ", result.BlockHash, result.Number)
 	return nil
 }
 
 func (m *MevService) methodNotFound(i *rpc.RequestInfo, w http.ResponseWriter) error {
-	log.Print("method not found, forwarding to execution client: ", i.Method)
+	log.Println("method not found, forwarding to execution client: ", i.Method)
 
 	req, err := http.NewRequest(http.MethodPost, m.executionURL, bytes.NewReader(i.Body))
 	if err != nil {
-		log.Print("error in method not found: creating request", i.Method, err)
+		log.Println("error in method not found: creating request: ", i.Method, err)
 		return err
 	}
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Print("error in method not found: doing request", i.Method, err)
+		log.Println("error in method not found: doing request: ", i.Method, err)
 		return err
 	}
 	defer resp.Body.Close()

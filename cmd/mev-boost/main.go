@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -25,9 +24,9 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("listening on", port)
+	log.Println("listening on: ", port)
 	err = http.ListenAndServe(":"+strconv.Itoa(port), router)
 
-	fmt.Println("error in server", err)
+	log.Println("error in server: ", err)
 	panic(err)
 }
