@@ -20,7 +20,7 @@ type BlindedBeaconBlock struct {
 	ProposerIndex string          `json:"proposer_index"`
 	ParentRoot    string          `json:"parent_root"`
 	StateRoot     string          `json:"state_root"`
-	BodyRoot      json.RawMessage `json:"body_root"`
+	Body          json.RawMessage `json:"body"`
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutionPayloadHeaderV1 -field-override executionPayloadHeaderMarshaling -out gen_ed.go
