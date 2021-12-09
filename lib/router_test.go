@@ -217,8 +217,11 @@ func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 				},
 				Signature: "0x0000000000000000000000000000000000000000000000000000000000000002",
 			}},
-			catalyst.ExecutePayloadResponse{
-				Status: "VALID",
+
+			ExecutionPayloadHeaderV1{
+				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+				BaseFeePerGas: big.NewInt(4),
+				Transactions:  [][]byte{},
 			},
 			200,
 			200,

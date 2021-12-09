@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
@@ -28,6 +27,8 @@ type MevService struct {
 type RelayService struct {
 	executionURL string
 	relayURL     string
+	payloadMap   map[common.Hash]*ExecutionPayloadHeaderV1 // map stateRoot to ExecutionPayloadHeaderV1. TODO: this has issues, in that stateRoot could actually be the same between different payloads
+	// TODO: clean this up periodically
 }
 
 // GetPayloadArgs TODO
@@ -135,7 +136,12 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.Executable
 }
 
 // ProposeBlindedBlockV1 TODO
-func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *catalyst.ExecutePayloadResponse) error {
+func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadHeaderV1) error {
+	payload, ok := m.payloadMap[common.HexToHash(args.Message.StateRoot)]
+	if ok {
+		*result = *payload
+		return nil
+	}
 	relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
 	if relayErr != nil {
 		return relayErr
@@ -186,6 +192,10 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 	result.Transactions = nil
 
 	if result.TransactionsRoot == nilHash {
+		// copy this payload for later retrieval in proposeBlindedBlock
+		m.payloadMap[result.StateRoot] = new(ExecutionPayloadHeaderV1)
+		*m.payloadMap[result.StateRoot] = *result
+
 		txs := types.Transactions{}
 		for i, otx := range result.Transactions {
 			var tx types.Transaction
@@ -196,7 +206,6 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		}
 		result.TransactionsRoot = types.DeriveSha(txs, trie.NewStackTrie(nil))
 	}
-	spew.Dump(result)
 
 	return nil
 }
@@ -250,5 +259,6 @@ func newRelayService(executionURL string, relayURL string) (*RelayService, error
 	return &RelayService{
 		executionURL: executionURL,
 		relayURL:     relayURL,
+		payloadMap:   map[common.Hash]*ExecutionPayloadHeaderV1{},
 	}, nil
 }

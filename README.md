@@ -68,11 +68,8 @@ add optional configurations to provide alternative guarantees
 
 #### Response
 
-- result: `object`
-  - `status`: `enum` - `"VALID" | "INVALID" | "SYNCING"`
-  - `latestValidHash`: `DATA|null`, 32 Bytes - the hash of the most recent _valid_ block in the branch defined by payload and its ancestors
-  - `validationError`: `String|null` - a message providing additional details on the validation error if the payload is deemed `INVALID`
-- error: code and message set in case an exception happens while executing the payload.
+- result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload)
+- error: code and message set in case an exception happens while proposing the payload.
 
 ### builder_getPayloadHeaderV1
 

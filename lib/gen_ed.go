@@ -29,7 +29,7 @@ func (e ExecutionPayloadHeaderV1) MarshalJSON() ([]byte, error) {
 		ExtraData        hexutil.Bytes   `json:"extraData" gencodec:"required"`
 		BaseFeePerGas    *hexutil.Big    `json:"baseFeePerGas" gencodec:"required"`
 		BlockHash        common.Hash     `json:"blockHash" gencodec:"required"`
-		Transactions     []hexutil.Bytes `json:"transactions,omitempty" gencodec:"required"`
+		Transactions     []hexutil.Bytes `json:"transactions,omitempty"`
 		TransactionsRoot common.Hash     `json:"transactionsRoot"`
 	}
 	var enc ExecutionPayloadHeaderV1
@@ -72,7 +72,7 @@ func (e *ExecutionPayloadHeaderV1) UnmarshalJSON(input []byte) error {
 		ExtraData        *hexutil.Bytes  `json:"extraData" gencodec:"required"`
 		BaseFeePerGas    *hexutil.Big    `json:"baseFeePerGas" gencodec:"required"`
 		BlockHash        *common.Hash    `json:"blockHash" gencodec:"required"`
-		Transactions     []hexutil.Bytes `json:"transactions,omitempty" gencodec:"required"`
+		Transactions     []hexutil.Bytes `json:"transactions,omitempty"`
 		TransactionsRoot *common.Hash    `json:"transactionsRoot"`
 	}
 	var dec ExecutionPayloadHeaderV1
@@ -131,12 +131,11 @@ func (e *ExecutionPayloadHeaderV1) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'blockHash' for ExecutionPayloadHeaderV1")
 	}
 	e.BlockHash = *dec.BlockHash
-	if dec.Transactions == nil {
-		return errors.New("missing required field 'transactions' for ExecutionPayloadHeaderV1")
-	}
-	e.Transactions = make([][]byte, len(dec.Transactions))
-	for k, v := range dec.Transactions {
-		e.Transactions[k] = v
+	if dec.Transactions != nil {
+		e.Transactions = make([][]byte, len(dec.Transactions))
+		for k, v := range dec.Transactions {
+			e.Transactions[k] = v
+		}
 	}
 	if dec.TransactionsRoot != nil {
 		e.TransactionsRoot = *dec.TransactionsRoot
