@@ -181,7 +181,14 @@ make lint
 
 We are currently testing using a forked version of mergemock, see https://github.com/flashbots/mergemock
 
-Make sure you've setup and built mergemock first, refer to its [README](https://github.com/flashbots/mergemock#quick-start)
+Make sure you've setup and built mergemock first, refer to its [README](https://github.com/flashbots/mergemock#quick-start) but here's a quick setup guide:
+
+```
+git clone https://github.com/flashbots/mergemock.git
+cd mergemock
+go build . mergemock
+wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d3e3d/raw/2e8824fa8d9d9b040f351b86b75c66868fb9b115/genesis.json
+```
 
 ```
 make run-mergemock-integration
