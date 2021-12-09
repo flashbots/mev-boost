@@ -28,9 +28,9 @@ type BlindedBeaconBlock struct {
 // ExecutionPayloadWithTxRootV1 is the same as ExecutionPayloadV1 with a transactionsRoot in addition to transactions
 type ExecutionPayloadWithTxRootV1 struct {
 	ParentHash       common.Hash    `json:"parentHash" gencodec:"required"`
-	Coinbase         common.Address `json:"coinbase" gencodec:"required"`
+	FeeRecipient     common.Address `json:"feeRecipient" gencodec:"required"`
 	StateRoot        common.Hash    `json:"stateRoot" gencodec:"required"`
-	ReceiptRoot      common.Hash    `json:"receiptRoot" gencodec:"required"`
+	ReceiptsRoot     common.Hash    `json:"receiptsRoot" gencodec:"required"`
 	LogsBloom        []byte         `json:"logsBloom" gencodec:"required"`
 	Random           common.Hash    `json:"random" gencodec:"required"`
 	Number           uint64         `json:"blockNumber" gencodec:"required"`

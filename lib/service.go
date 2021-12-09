@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/gorilla/rpc"
 )
 
@@ -76,7 +76,7 @@ func makeRequest(url string, method string, params []interface{}) ([]byte, error
 }
 
 // ForkchoiceUpdatedV1 TODO
-func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result *interface{}) error {
+func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result catalyst.ForkChoiceResponse) error {
 	executionResp, executionErr := makeRequest(m.executionURL, "engine_forkchoiceUpdatedV1", *args)
 	relayResp, relayErr := makeRequest(m.relayURL, "engine_forkchoiceUpdatedV1", *args)
 
@@ -168,19 +168,12 @@ var nilHash = common.Hash{}
 // GetPayloadHeaderV1 TODO
 func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *ExecutionPayloadWithTxRootV1) error {
 	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
-	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{*args})
 
-	bestResponse := relayResp
-	if relayErr != nil {
-		log.Println("error in relay resp: ", relayErr, string(relayResp))
-		if executionErr != nil {
-			// both clients errored, abort
-			log.Println("error in both resp: ", executionResp, string(executionResp))
-			return relayErr
-		}
-
-		bestResponse = executionResp
+	if executionErr != nil {
+		log.Println("error in exec resp: ", executionResp, string(executionResp))
+		return executionErr
 	}
+	bestResponse := executionResp
 	resp, err := parseRPCResponse(bestResponse)
 	if err != nil {
 		return err

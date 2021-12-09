@@ -36,6 +36,8 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/MariusVanDerWijden/go-ethereum v1.8.22-0.20211203090255-c65940378e9f h1:+AIEL9f+8u9ikynx9O2NO1qi9dk/7p6tLOdeNIqW+9A=
 github.com/MariusVanDerWijden/go-ethereum v1.8.22-0.20211203090255-c65940378e9f/go.mod h1:W3yfrFyL9C1pHcwY5hmRHVDaorTiQxhYBkKyu5mEDHw=
+github.com/MariusVanDerWijden/go-ethereum v1.8.22-0.20211208130742-dd90624af970 h1:5LBUQ4bwwam0O6ztBwXb7vSJWuitJ9poV780cqbLPAs=
+github.com/MariusVanDerWijden/go-ethereum v1.8.22-0.20211208130742-dd90624af970/go.mod h1:W3yfrFyL9C1pHcwY5hmRHVDaorTiQxhYBkKyu5mEDHw=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 h1:fLjPD/aNc3UIOA6tDi6QXUemppXK3P9BI7mr2hd6gx8=
 github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6/go.mod h1:3eOhrUMpNV+6aFIbp5/iudMxNCF27Vw2OZgy4xEx0Fg=
