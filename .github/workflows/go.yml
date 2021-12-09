@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Install revive linter
-        run: go install github.com/mgechev/revive@latest
+        run: go install github.com/mgechev/revive@43d0e31c4cba9878e3b23ebefee90a287d1e6ca8
 
       - name: Revive Lint
         run: make lint

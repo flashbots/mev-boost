@@ -8,7 +8,7 @@ test:
 	go test ./lib/... ./cmd/...
 
 lint:
-	revive ./lib ./cmd
+	revive -set_exit_status ./lib ./cmd
 
 generate:
 	go generate ./...
