@@ -188,7 +188,7 @@ func TestMevService_ExecutePayload(t *testing.T) {
 	tests := []httpTest{
 		{
 			"basic success",
-			[]interface{}{catalyst.ExecutableDataV1{
+			[]interface{}{ExecutionPayloadWithTxRootV1{
 				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 				BaseFeePerGas: big.NewInt(4),
 				Transactions:  [][]byte{},
@@ -218,7 +218,7 @@ func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 				Signature: "0x0000000000000000000000000000000000000000000000000000000000000002",
 			}},
 
-			ExecutionPayloadHeaderV1{
+			ExecutionPayloadWithTxRootV1{
 				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 				BaseFeePerGas: big.NewInt(4),
 				Transactions:  [][]byte{},
@@ -239,7 +239,7 @@ func TestRelayervice_GetPayloadHeaderV1(t *testing.T) {
 		{
 			"basic success",
 			[]interface{}{"0x1"},
-			ExecutionPayloadHeaderV1{
+			ExecutionPayloadWithTxRootV1{
 				BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 				BaseFeePerGas:    big.NewInt(4),
 				TransactionsRoot: common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),

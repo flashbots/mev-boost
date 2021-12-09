@@ -23,10 +23,10 @@ type BlindedBeaconBlock struct {
 	Body          json.RawMessage `json:"body"`
 }
 
-//go:generate go run github.com/fjl/gencodec -type ExecutionPayloadHeaderV1 -field-override executionPayloadHeaderMarshaling -out gen_ed.go
+//go:generate go run github.com/fjl/gencodec -type ExecutionPayloadWithTxRootV1 -field-override executionPayloadHeaderMarshaling -out gen_ed.go
 
-// ExecutionPayloadHeaderV1 is the same as ExecutionPayloadV1 with a transactionsRoot in place of transactions
-type ExecutionPayloadHeaderV1 struct {
+// ExecutionPayloadWithTxRootV1 is the same as ExecutionPayloadV1 with a transactionsRoot in addition to transactions
+type ExecutionPayloadWithTxRootV1 struct {
 	ParentHash       common.Hash    `json:"parentHash" gencodec:"required"`
 	Coinbase         common.Address `json:"coinbase" gencodec:"required"`
 	StateRoot        common.Hash    `json:"stateRoot" gencodec:"required"`

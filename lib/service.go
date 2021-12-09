@@ -27,7 +27,7 @@ type MevService struct {
 type RelayService struct {
 	executionURL string
 	relayURL     string
-	payloadMap   map[common.Hash]*ExecutionPayloadHeaderV1 // map stateRoot to ExecutionPayloadHeaderV1. TODO: this has issues, in that stateRoot could actually be the same between different payloads
+	payloadMap   map[common.Hash]*ExecutionPayloadWithTxRootV1 // map stateRoot to ExecutionPayloadWithTxRootV1. TODO: this has issues, in that stateRoot could actually be the same between different payloads
 	// TODO: clean this up periodically
 }
 
@@ -106,7 +106,7 @@ func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, r
 }
 
 // ExecutePayloadV1 TODO
-func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.ExecutableDataV1, result *catalyst.ExecutePayloadResponse) error {
+func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWithTxRootV1, result *catalyst.ExecutePayloadResponse) error {
 	executionResp, executionErr := makeRequest(m.executionURL, "engine_executePayloadV1", []interface{}{args})
 	relayResp, relayErr := makeRequest(m.relayURL, "engine_executePayloadV1", []interface{}{args})
 
@@ -136,9 +136,10 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *catalyst.Executable
 }
 
 // ProposeBlindedBlockV1 TODO
-func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadHeaderV1) error {
+func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadWithTxRootV1) error {
 	payload, ok := m.payloadMap[common.HexToHash(args.Message.StateRoot)]
 	if ok {
+		log.Println("proposed previous block from execution client", payload.BlockHash, payload.Number)
 		*result = *payload
 		return nil
 	}
@@ -158,13 +159,14 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 		return err
 	}
 
+	log.Println("proposed from relay", result.BlockHash, result.Number)
 	return nil
 }
 
 var nilHash = common.Hash{}
 
 // GetPayloadHeaderV1 TODO
-func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *ExecutionPayloadHeaderV1) error {
+func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *ExecutionPayloadWithTxRootV1) error {
 	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
 	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{*args})
 
@@ -193,7 +195,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 
 	if result.TransactionsRoot == nilHash {
 		// copy this payload for later retrieval in proposeBlindedBlock
-		m.payloadMap[result.StateRoot] = new(ExecutionPayloadHeaderV1)
+		m.payloadMap[result.StateRoot] = new(ExecutionPayloadWithTxRootV1)
 		*m.payloadMap[result.StateRoot] = *result
 
 		txs := types.Transactions{}
@@ -207,6 +209,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		result.TransactionsRoot = types.DeriveSha(txs, trie.NewStackTrie(nil))
 	}
 
+	log.Println("got payload header", result.BlockHash, result.Number)
 	return nil
 }
 
@@ -259,6 +262,6 @@ func newRelayService(executionURL string, relayURL string) (*RelayService, error
 	return &RelayService{
 		executionURL: executionURL,
 		relayURL:     relayURL,
-		payloadMap:   map[common.Hash]*ExecutionPayloadHeaderV1{},
+		payloadMap:   map[common.Hash]*ExecutionPayloadWithTxRootV1{},
 	}, nil
 }
