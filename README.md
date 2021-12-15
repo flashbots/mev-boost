@@ -2,6 +2,8 @@
 
 A middleware server written in Go, that sits between an ethereum PoS consensus client and an execution client. It allows consensus clients to outsource block construction to third party block builders as well as fallback to execution clients. See [ethresearch post](https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/) for the high level architecture.
 
+![architecture](/docs/architecture.png)
+
 ## Implementation Plan
 
 A summary of consensus client changes can be found [here](https://hackmd.io/@paulhauner/H1XifIQ_t).
@@ -193,6 +195,7 @@ wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d
 Then you can run an integration test with mergemock, spawning both a mergemock execution engine and a mergemock consensuse client as well as mev-boost:
 
 ```
+cd mev-boost
 make run-mergemock-integration
 ```
 
