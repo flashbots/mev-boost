@@ -5,17 +5,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/trie"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/fatih/color"
 	"github.com/gorilla/rpc"
 )
+
+var green = color.New(color.FgGreen).SprintFunc()
 
 // MevService TODO
 type MevService struct {
@@ -76,16 +79,16 @@ func makeRequest(url string, method string, params []interface{}) ([]byte, error
 }
 
 // ForkchoiceUpdatedV1 TODO
-func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result catalyst.ForkChoiceResponse) error {
+func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result *catalyst.ForkChoiceResponse) error {
 	executionResp, executionErr := makeRequest(m.executionURL, "engine_forkchoiceUpdatedV1", *args)
 	relayResp, relayErr := makeRequest(m.relayURL, "engine_forkchoiceUpdatedV1", *args)
 
 	bestResponse := relayResp
 	if relayErr != nil {
-		log.Println("error in relay resp: ", relayErr, string(relayResp))
+		log.Println("ForkchoiceUpdatedV1: error in relay resp: ", relayErr, string(relayResp))
 		if executionErr != nil {
 			// both clients errored, abort
-			log.Println("error in both resp: ", executionResp, string(executionResp))
+			log.Println("ForkchoiceUpdatedV1: error in both resp: ", executionResp, string(executionResp))
 			return relayErr
 		}
 
@@ -98,7 +101,7 @@ func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, r
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Println("error unmarshaling result: ", err)
+		log.Println("ForkchoiceUpdatedV1: error unmarshaling result: ", err)
 		return err
 	}
 
@@ -112,10 +115,10 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWit
 
 	bestResponse := relayResp
 	if relayErr != nil {
-		log.Println("error in relay resp: ", relayErr, string(relayResp))
+		log.Println("ExecutePayloadV1: error in relay resp: ", relayErr, string(relayResp))
 		if executionErr != nil {
 			// both clients errored, abort
-			log.Println("error in both resp: ", executionResp, string(executionResp))
+			log.Println("ExecutePayloadV1: error in both resp: ", executionResp, string(executionResp))
 			return relayErr
 		}
 
@@ -128,7 +131,7 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWit
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Println("error unmarshaling result: ", err)
+		log.Println("ExecutePayloadV1: error unmarshaling result: ", err)
 		return err
 	}
 
@@ -139,27 +142,27 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWit
 func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadWithTxRootV1) error {
 	payload, ok := m.payloadMap[common.HexToHash(args.Message.StateRoot)]
 	if ok {
-		log.Println("proposed previous block from execution client: ", payload.BlockHash, payload.Number)
+		log.Println(green("ProposeBlindedBlockV1: ✓ revealing previous payload from execution client: "), payload.BlockHash, payload.Number)
 		*result = *payload
 		return nil
 	}
-	//relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
-	//if relayErr != nil {
-	//	return relayErr
-	//}
-	//
-	//resp, err := parseRPCResponse(relayResp)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//err = json.Unmarshal(resp.Result, result)
-	//if err != nil {
-	//	log.Println("error unmarshaling result: ", err)
-	//	return err
-	//}
+	relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
+	if relayErr != nil {
+		return relayErr
+	}
 
-	log.Println("proposed from relay: ", result.BlockHash, result.Number)
+	resp, err := parseRPCResponse(relayResp)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(resp.Result, result)
+	if err != nil {
+		log.Println("ProposeBlindedBlockV1: error unmarshaling result: ", err)
+		return err
+	}
+
+	log.Println(green("ProposeBlindedBlockV1: ✓ revealing payload from relay: "), result.BlockHash, result.Number)
 	return nil
 }
 
@@ -168,24 +171,23 @@ var nilHash = common.Hash{}
 // GetPayloadHeaderV1 TODO
 func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *ExecutionPayloadWithTxRootV1) error {
 	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
+	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{*args})
 
-	//bestResponse := relayResp
-	//if relayErr != nil {
-	//	log.Println("error in relay resp: ", relayErr, string(relayResp))
-	//	if executionErr != nil {
-	//		// both clients errored, abort
-	//		log.Println("error in both resp: ", executionResp, string(executionResp))
-	//		return relayErr
-	//	}
-	//
-	//	bestResponse = executionResp
-	//}
+	bestResponse := relayResp
+	if relayErr != nil {
+		log.Println("GetPayloadHeaderV1: error in relay resp: ", relayErr, string(relayResp))
+		if executionErr != nil {
+			// both clients errored, abort
+			log.Println("GetPayloadHeaderV1: error in both resp: ", executionResp, string(executionResp))
+			return relayErr
+		}
 
-	if executionErr != nil {
+		bestResponse = executionResp
+	} else if executionErr != nil {
 		log.Println("error in exec resp: ", executionResp, string(executionResp))
 		return executionErr
 	}
-	bestResponse := executionResp
+
 	resp, err := parseRPCResponse(bestResponse)
 	if err != nil {
 		return err
@@ -193,12 +195,14 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Println("error unmarshaling result: ", err)
+		log.Println("GetPayloadHeaderV1: error unmarshaling result: ", err)
 		return err
 	}
-	result.Transactions = nil
 
+	result.Transactions = nil
 	if result.TransactionsRoot == nilHash {
+		log.Println("GetPayloadHeaderV1: no TransactionsRoot found, calculating it from Transactions list instead: ", *args, result.BlockHash, result.Number)
+
 		// copy this payload for later retrieval in proposeBlindedBlock
 		m.payloadMap[result.StateRoot] = new(ExecutionPayloadWithTxRootV1)
 		*m.payloadMap[result.StateRoot] = *result
@@ -214,7 +218,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		result.TransactionsRoot = types.DeriveSha(txs, trie.NewStackTrie(nil))
 	}
 
-	log.Println("got payload header: ", result.BlockHash, result.Number)
+	log.Println(green("GetPayloadHeaderV1: ✓ got payload header successfully: "), *args, result.BlockHash, result.Number)
 	return nil
 }
 

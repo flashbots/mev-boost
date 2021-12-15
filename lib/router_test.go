@@ -102,9 +102,10 @@ func formatRequestBody(method string, requestArray []interface{}) ([]byte, error
 
 func formatResponse(responseResult interface{}) ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"id":     "1",
-		"error":  nil,
-		"result": responseResult,
+		"jsonrpc": "2.0",
+		"id":      "1",
+		"error":   nil,
+		"result":  responseResult,
 	})
 }
 
@@ -163,14 +164,14 @@ func strToBytes(s string) *hexutil.Bytes {
 }
 func TestMevService_ForckChoiceUpdated(t *testing.T) {
 	b, e := json.Marshal([]interface{}{catalyst.PayloadAttributesV1{
-		FeeRecipient: common.HexToAddress("0x0000000000000000000000000000000000000001"),
+		SuggestedFeeRecipient: common.HexToAddress("0x0000000000000000000000000000000000000001"),
 	}})
 	fmt.Println(string(b), e)
 	tests := []httpTest{
 		{
 			"basic success",
 			[]interface{}{catalyst.ForkchoiceStateV1{}, catalyst.PayloadAttributesV1{
-				FeeRecipient: common.HexToAddress("0x0000000000000000000000000000000000000001"),
+				SuggestedFeeRecipient: common.HexToAddress("0x0000000000000000000000000000000000000001"),
 			}},
 			catalyst.ForkChoiceResponse{PayloadID: strToBytes("0x1")},
 			200,

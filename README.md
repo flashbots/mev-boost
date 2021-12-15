@@ -4,6 +4,27 @@ A middleware server written in Go, that sits between an ethereum PoS consensus c
 
 ![architecture](/docs/architecture.png)
 
+## Table of Contents
+- [mev-boost](#mev-boost)
+  - [Implementation Plan](#implementation-plan)
+    - [milestone 1 - kintsugi testnet](#milestone-1---kintsugi-testnet)
+    - [milestone 2 - security, authentication & reputation](#milestone-2---security-authentication--reputation)
+    - [milestone 3 - privacy (optional)](#milestone-3---privacy-optional)
+    - [milestone 4 - configurations (optional)](#milestone-4---configurations-optional)
+  - [API Docs](#api-docs)
+    - [builder_proposeBlindedBlockV1](#builder_proposeblindedblockv1)
+    - [builder_getPayloadHeaderV1](#builder_getpayloadheaderv1)
+    - [engine_executePayloadV1](#engine_executepayloadv1)
+    - [engine_forkchoiceUpdatedV1](#engine_forkchoiceupdatedv1)
+    - [Types](#types)
+      - [SignedBlindedBeaconBlock](#signedblindedbeaconblock)
+      - [BlindedBeaconBlock](#blindedbeaconblock)
+      - [BlindedBeaconBlockBody](#blindedbeaconblockbody)
+  - [Build](#build)
+  - [Test](#test)
+  - [Lint](#lint)
+  - [Running with mergemock](#running-with-mergemock)
+
 ## Implementation Plan
 
 A summary of consensus client changes can be found [here](https://hackmd.io/@paulhauner/H1XifIQ_t).
@@ -84,7 +105,6 @@ add optional configurations to provide alternative guarantees
 #### Response
 
 - result: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
-  - NOTE: this slightly varies from the upstream `ExecutionPayloadV1`, in that the `transactions` field is optional and not meant to be used by the caller.
 - error: code and message set in case an exception happens while getting the payload.
 
 ### engine_executePayloadV1
