@@ -143,21 +143,21 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 		*result = *payload
 		return nil
 	}
-	relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
-	if relayErr != nil {
-		return relayErr
-	}
-
-	resp, err := parseRPCResponse(relayResp)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(resp.Result, result)
-	if err != nil {
-		log.Println("error unmarshaling result: ", err)
-		return err
-	}
+	//relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
+	//if relayErr != nil {
+	//	return relayErr
+	//}
+	//
+	//resp, err := parseRPCResponse(relayResp)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//err = json.Unmarshal(resp.Result, result)
+	//if err != nil {
+	//	log.Println("error unmarshaling result: ", err)
+	//	return err
+	//}
 
 	log.Println("proposed from relay: ", result.BlockHash, result.Number)
 	return nil
@@ -168,6 +168,18 @@ var nilHash = common.Hash{}
 // GetPayloadHeaderV1 TODO
 func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *ExecutionPayloadWithTxRootV1) error {
 	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
+
+	//bestResponse := relayResp
+	//if relayErr != nil {
+	//	log.Println("error in relay resp: ", relayErr, string(relayResp))
+	//	if executionErr != nil {
+	//		// both clients errored, abort
+	//		log.Println("error in both resp: ", executionResp, string(executionResp))
+	//		return relayErr
+	//	}
+	//
+	//	bestResponse = executionResp
+	//}
 
 	if executionErr != nil {
 		log.Println("error in exec resp: ", executionResp, string(executionResp))
