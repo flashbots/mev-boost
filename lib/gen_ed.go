@@ -17,9 +17,9 @@ var _ = (*executionPayloadHeaderMarshaling)(nil)
 func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 	type ExecutionPayloadWithTxRootV1 struct {
 		ParentHash       common.Hash     `json:"parentHash" gencodec:"required"`
-		Coinbase         common.Address  `json:"coinbase" gencodec:"required"`
+		FeeRecipient     common.Address  `json:"feeRecipient" gencodec:"required"`
 		StateRoot        common.Hash     `json:"stateRoot" gencodec:"required"`
-		ReceiptRoot      common.Hash     `json:"receiptRoot" gencodec:"required"`
+		ReceiptsRoot     common.Hash     `json:"receiptsRoot" gencodec:"required"`
 		LogsBloom        hexutil.Bytes   `json:"logsBloom" gencodec:"required"`
 		Random           common.Hash     `json:"random" gencodec:"required"`
 		Number           hexutil.Uint64  `json:"blockNumber" gencodec:"required"`
@@ -34,9 +34,9 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 	}
 	var enc ExecutionPayloadWithTxRootV1
 	enc.ParentHash = e.ParentHash
-	enc.Coinbase = e.Coinbase
+	enc.FeeRecipient = e.FeeRecipient
 	enc.StateRoot = e.StateRoot
-	enc.ReceiptRoot = e.ReceiptRoot
+	enc.ReceiptsRoot = e.ReceiptsRoot
 	enc.LogsBloom = e.LogsBloom
 	enc.Random = e.Random
 	enc.Number = hexutil.Uint64(e.Number)
@@ -60,9 +60,9 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 	type ExecutionPayloadWithTxRootV1 struct {
 		ParentHash       *common.Hash    `json:"parentHash" gencodec:"required"`
-		Coinbase         *common.Address `json:"coinbase" gencodec:"required"`
+		FeeRecipient     *common.Address `json:"feeRecipient" gencodec:"required"`
 		StateRoot        *common.Hash    `json:"stateRoot" gencodec:"required"`
-		ReceiptRoot      *common.Hash    `json:"receiptRoot" gencodec:"required"`
+		ReceiptsRoot     *common.Hash    `json:"receiptsRoot" gencodec:"required"`
 		LogsBloom        *hexutil.Bytes  `json:"logsBloom" gencodec:"required"`
 		Random           *common.Hash    `json:"random" gencodec:"required"`
 		Number           *hexutil.Uint64 `json:"blockNumber" gencodec:"required"`
@@ -83,18 +83,18 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'parentHash' for ExecutionPayloadWithTxRootV1")
 	}
 	e.ParentHash = *dec.ParentHash
-	if dec.Coinbase == nil {
-		return errors.New("missing required field 'coinbase' for ExecutionPayloadWithTxRootV1")
+	if dec.FeeRecipient == nil {
+		return errors.New("missing required field 'feeRecipient' for ExecutionPayloadWithTxRootV1")
 	}
-	e.Coinbase = *dec.Coinbase
+	e.FeeRecipient = *dec.FeeRecipient
 	if dec.StateRoot == nil {
 		return errors.New("missing required field 'stateRoot' for ExecutionPayloadWithTxRootV1")
 	}
 	e.StateRoot = *dec.StateRoot
-	if dec.ReceiptRoot == nil {
-		return errors.New("missing required field 'receiptRoot' for ExecutionPayloadWithTxRootV1")
+	if dec.ReceiptsRoot == nil {
+		return errors.New("missing required field 'receiptsRoot' for ExecutionPayloadWithTxRootV1")
 	}
-	e.ReceiptRoot = *dec.ReceiptRoot
+	e.ReceiptsRoot = *dec.ReceiptsRoot
 	if dec.LogsBloom == nil {
 		return errors.New("missing required field 'logsBloom' for ExecutionPayloadWithTxRootV1")
 	}
