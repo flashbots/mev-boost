@@ -40,6 +40,7 @@ type jsonError struct {
 
 // serverResponse represents a JSON-RPC response returned by the server.
 type serverResponse struct {
+	JSONRPC string `json:"jsonrpc"`
 	// The Object that was returned by the invoked method. This must be null
 	// in case there was an error invoking the method.
 	Result interface{} `json:"result"`
@@ -137,9 +138,10 @@ func (c *CodecRequest) WriteResponse(w http.ResponseWriter, reply interface{}, m
 		return c.err
 	}
 	res := &serverResponse{
-		Result: reply,
-		Error:  nil,
-		Id:     c.request.Id,
+		JSONRPC: "2.0",
+		Result:  reply,
+		Error:   nil,
+		Id:      c.request.Id,
 	}
 	if methodErr != nil {
 		// Propagate error message as string.
