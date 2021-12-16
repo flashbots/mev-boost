@@ -139,10 +139,22 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWit
 
 // ProposeBlindedBlockV1 TODO
 func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadWithTxRootV1) error {
-	payload := m.store.Get(common.HexToHash(args.Message.StateRoot))
-	if payload != nil {
-		log.Println(green("ProposeBlindedBlockV1: ✓ revealing previous payload from execution client: "), payload.BlockHash, payload.Number, payload.TransactionsRoot)
-		*result = *payload
+	if args == nil || args.Message == nil {
+		fmt.Printf("ProposeBlindedBlockV1: blinded block missing body: %+v\n", args)
+		return fmt.Errorf("blinded block missing body")
+	}
+
+	var body BlindedBeaconBlockBodyPartial
+	err := json.Unmarshal(args.Message.Body, &body)
+	if err != nil {
+		fmt.Printf("ProposeBlindedBlockV1: error parsing body: %+v\n", string(args.Message.Body))
+		return err
+	}
+
+	payloadCached := m.store.Get(body.ExecutionPayload.BlockHash)
+	if payloadCached != nil {
+		log.Println(green("ProposeBlindedBlockV1: ✓ revealing previous payload from execution client: "), payloadCached.BlockHash, payloadCached.Number, payloadCached.TransactionsRoot)
+		*result = *payloadCached
 		return nil
 	}
 	relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
@@ -229,7 +241,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		// copy this payload for later retrieval in proposeBlindedBlock
 		payload := new(ExecutionPayloadWithTxRootV1)
 		*payload = *result
-		m.store.Set(result.StateRoot, payload)
+		m.store.Set(result.BlockHash, payload)
 	}
 	result.Transactions = nil
 

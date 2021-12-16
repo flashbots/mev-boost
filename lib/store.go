@@ -2,14 +2,14 @@ package lib
 
 import "github.com/ethereum/go-ethereum/common"
 
-// Store stores payloads and retrieves them based on stateRoot hashes
+// Store stores payloads and retrieves them based on blockHash hashes
 type Store interface {
-	Get(stateRoot common.Hash) *ExecutionPayloadWithTxRootV1
-	Set(stateRoot common.Hash, payload *ExecutionPayloadWithTxRootV1)
+	Get(blockHash common.Hash) *ExecutionPayloadWithTxRootV1
+	Set(blockHash common.Hash, payload *ExecutionPayloadWithTxRootV1)
 }
 
 // map[common.Hash]*ExecutionPayloadWithTxRootV1
-// map stateRoot to ExecutionPayloadWithTxRootV1. TODO: this has issues, in that stateRoot could actually be the same between different payloads
+// map blockHash to ExecutionPayloadWithTxRootV1. TODO: this has issues, in that blockHash could actually be the same between different payloads
 // TODO: clean this up periodically
 
 type store struct {
@@ -21,8 +21,8 @@ func NewStore() Store {
 	return &store{map[common.Hash]*ExecutionPayloadWithTxRootV1{}}
 }
 
-func (s *store) Get(stateRoot common.Hash) *ExecutionPayloadWithTxRootV1 {
-	payload, ok := s.payloads[stateRoot]
+func (s *store) Get(blockHash common.Hash) *ExecutionPayloadWithTxRootV1 {
+	payload, ok := s.payloads[blockHash]
 	if !ok {
 		return nil
 	}
@@ -30,10 +30,10 @@ func (s *store) Get(stateRoot common.Hash) *ExecutionPayloadWithTxRootV1 {
 	return payload
 }
 
-func (s *store) Set(stateRoot common.Hash, payload *ExecutionPayloadWithTxRootV1) {
+func (s *store) Set(blockHash common.Hash, payload *ExecutionPayloadWithTxRootV1) {
 	if payload == nil {
 		return
 	}
 
-	s.payloads[stateRoot] = payload
+	s.payloads[blockHash] = payload
 }
