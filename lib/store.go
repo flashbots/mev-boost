@@ -41,12 +41,12 @@ func (s *store) Get(blockHash common.Hash) *ExecutionPayloadWithTxRootV1 {
 }
 
 func (s *store) Set(blockHash common.Hash, payload *ExecutionPayloadWithTxRootV1) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	if payload == nil {
 		return
 	}
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	s.payloads[blockHash] = payload
 }
