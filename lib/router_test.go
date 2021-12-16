@@ -344,13 +344,14 @@ func TestMevService_MethodFallback(t *testing.T) {
 func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 	store := NewStore()
 
-	payloadBytes, err := json.Marshal(ExecutionPayloadWithTxRootV1{
+	payload := ExecutionPayloadWithTxRootV1{
 		BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 		StateRoot:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
 		BaseFeePerGas:    big.NewInt(4),
 		Transactions:     &[]string{},
 		TransactionsRoot: common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
-	})
+	}
+	payloadBytes, err := json.Marshal(payload)
 	require.Nil(t, err)
 
 	tests := []httpTestWithMethods{
@@ -358,13 +359,7 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 			httpTest{
 				"get payload from execution and store it",
 				[]interface{}{"0x1"},
-				ExecutionPayloadWithTxRootV1{
-					BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-					BaseFeePerGas:    big.NewInt(4),
-					Transactions:     &[]string{}, // non nil Transactions will trigger the block caching behavior
-					TransactionsRoot: common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
-					StateRoot:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
-				},
+				payload,
 				200,
 				200,
 				1,
@@ -387,13 +382,7 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 					},
 					Signature: "0x0000000000000000000000000000000000000000000000000000000000000002",
 				}},
-				ExecutionPayloadWithTxRootV1{
-					BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-					StateRoot:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
-					BaseFeePerGas:    big.NewInt(4),
-					Transactions:     &[]string{},
-					TransactionsRoot: common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
-				},
+				payload,
 				200,
 				200,
 				0,
