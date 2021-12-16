@@ -40,7 +40,7 @@ type ExecutionPayloadWithTxRootV1 struct {
 	ExtraData        []byte         `json:"extraData" gencodec:"required"`
 	BaseFeePerGas    *big.Int       `json:"baseFeePerGas" gencodec:"required"`
 	BlockHash        common.Hash    `json:"blockHash" gencodec:"required"`
-	Transactions     [][]byte       `json:"transactions,omitempty"`
+	Transactions     *[]string      `json:"transactions,omitempty"`
 	TransactionsRoot common.Hash    `json:"transactionsRoot"`
 }
 
@@ -53,5 +53,4 @@ type executionPayloadHeaderMarshaling struct {
 	BaseFeePerGas *hexutil.Big
 	ExtraData     hexutil.Bytes
 	LogsBloom     hexutil.Bytes
-	Transactions  []hexutil.Bytes
 }

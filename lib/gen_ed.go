@@ -16,21 +16,21 @@ var _ = (*executionPayloadHeaderMarshaling)(nil)
 // MarshalJSON marshals as JSON.
 func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 	type ExecutionPayloadWithTxRootV1 struct {
-		ParentHash       common.Hash     `json:"parentHash" gencodec:"required"`
-		FeeRecipient     common.Address  `json:"feeRecipient" gencodec:"required"`
-		StateRoot        common.Hash     `json:"stateRoot" gencodec:"required"`
-		ReceiptsRoot     common.Hash     `json:"receiptsRoot" gencodec:"required"`
-		LogsBloom        hexutil.Bytes   `json:"logsBloom" gencodec:"required"`
-		Random           common.Hash     `json:"random" gencodec:"required"`
-		Number           hexutil.Uint64  `json:"blockNumber" gencodec:"required"`
-		GasLimit         hexutil.Uint64  `json:"gasLimit" gencodec:"required"`
-		GasUsed          hexutil.Uint64  `json:"gasUsed" gencodec:"required"`
-		Timestamp        hexutil.Uint64  `json:"timestamp" gencodec:"required"`
-		ExtraData        hexutil.Bytes   `json:"extraData" gencodec:"required"`
-		BaseFeePerGas    *hexutil.Big    `json:"baseFeePerGas" gencodec:"required"`
-		BlockHash        common.Hash     `json:"blockHash" gencodec:"required"`
-		Transactions     []hexutil.Bytes `json:"transactions,omitempty"`
-		TransactionsRoot common.Hash     `json:"transactionsRoot"`
+		ParentHash       common.Hash    `json:"parentHash" gencodec:"required"`
+		FeeRecipient     common.Address `json:"feeRecipient" gencodec:"required"`
+		StateRoot        common.Hash    `json:"stateRoot" gencodec:"required"`
+		ReceiptsRoot     common.Hash    `json:"receiptsRoot" gencodec:"required"`
+		LogsBloom        hexutil.Bytes  `json:"logsBloom" gencodec:"required"`
+		Random           common.Hash    `json:"random" gencodec:"required"`
+		Number           hexutil.Uint64 `json:"blockNumber" gencodec:"required"`
+		GasLimit         hexutil.Uint64 `json:"gasLimit" gencodec:"required"`
+		GasUsed          hexutil.Uint64 `json:"gasUsed" gencodec:"required"`
+		Timestamp        hexutil.Uint64 `json:"timestamp" gencodec:"required"`
+		ExtraData        hexutil.Bytes  `json:"extraData" gencodec:"required"`
+		BaseFeePerGas    *hexutil.Big   `json:"baseFeePerGas" gencodec:"required"`
+		BlockHash        common.Hash    `json:"blockHash" gencodec:"required"`
+		Transactions     *[]string      `json:"transactions,omitempty"`
+		TransactionsRoot common.Hash    `json:"transactionsRoot"`
 	}
 	var enc ExecutionPayloadWithTxRootV1
 	enc.ParentHash = e.ParentHash
@@ -46,12 +46,7 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 	enc.ExtraData = e.ExtraData
 	enc.BaseFeePerGas = (*hexutil.Big)(e.BaseFeePerGas)
 	enc.BlockHash = e.BlockHash
-	if e.Transactions != nil {
-		enc.Transactions = make([]hexutil.Bytes, len(e.Transactions))
-		for k, v := range e.Transactions {
-			enc.Transactions[k] = v
-		}
-	}
+	enc.Transactions = e.Transactions
 	enc.TransactionsRoot = e.TransactionsRoot
 	return json.Marshal(&enc)
 }
@@ -72,7 +67,7 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 		ExtraData        *hexutil.Bytes  `json:"extraData" gencodec:"required"`
 		BaseFeePerGas    *hexutil.Big    `json:"baseFeePerGas" gencodec:"required"`
 		BlockHash        *common.Hash    `json:"blockHash" gencodec:"required"`
-		Transactions     []hexutil.Bytes `json:"transactions,omitempty"`
+		Transactions     *[]string       `json:"transactions,omitempty"`
 		TransactionsRoot *common.Hash    `json:"transactionsRoot"`
 	}
 	var dec ExecutionPayloadWithTxRootV1
@@ -132,10 +127,7 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 	}
 	e.BlockHash = *dec.BlockHash
 	if dec.Transactions != nil {
-		e.Transactions = make([][]byte, len(dec.Transactions))
-		for k, v := range dec.Transactions {
-			e.Transactions[k] = v
-		}
+		e.Transactions = dec.Transactions
 	}
 	if dec.TransactionsRoot != nil {
 		e.TransactionsRoot = *dec.TransactionsRoot
