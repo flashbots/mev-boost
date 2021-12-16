@@ -7,12 +7,12 @@ import (
 )
 
 // NewRouter creates a json rpc router that handles all methods
-func NewRouter(executionURL string, relayURL string) (*mux.Router, error) {
+func NewRouter(executionURL string, relayURL string, store Store) (*mux.Router, error) {
 	mev, err := newMevService(executionURL, relayURL)
 	if err != nil {
 		return nil, err
 	}
-	relay, err := newRelayService(executionURL, relayURL)
+	relay, err := newRelayService(executionURL, relayURL, store)
 	if err != nil {
 		return nil, err
 	}

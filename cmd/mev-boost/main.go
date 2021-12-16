@@ -20,7 +20,8 @@ func main() {
 
 	flag.Parse()
 
-	router, err := lib.NewRouter(*executionURL, *relayURL)
+	store := lib.NewStore()
+	router, err := lib.NewRouter(*executionURL, *relayURL, store)
 	if err != nil {
 		panic(err)
 	}

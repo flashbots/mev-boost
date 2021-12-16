@@ -3,7 +3,6 @@ package lib
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -23,9 +22,17 @@ type mockHTTPServer struct {
 	expectedRequest string
 	response        string
 	reqCount        int
+	shouldError     bool
 }
 
 func (m *mockHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if m.shouldError {
+		w.WriteHeader(200)
+		resp, err := formatErrorResponse("errored intentionally for test")
+		require.Nil(m.t, err, "error formatting error")
+		w.Write([]byte(resp))
+		return
+	}
 	body, err := ioutil.ReadAll(r.Body)
 	require.Nil(m.t, err, "error reading body")
 
@@ -36,19 +43,20 @@ func (m *mockHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.reqCount++
 }
 
-func newMockHTTPServer(t *testing.T, statusCode int, expectedRequest string, response string) (*mockHTTPServer, *httptest.Server) {
+func newMockHTTPServer(t *testing.T, statusCode int, expectedRequest string, response string, shouldError bool) (*mockHTTPServer, *httptest.Server) {
 	server := &mockHTTPServer{
 		t:               t,
 		statusCode:      statusCode,
 		expectedRequest: expectedRequest,
 		response:        response,
+		shouldError:     shouldError,
 	}
 
 	return server, httptest.NewServer(server)
 }
 
 func TestNewRouter(t *testing.T) {
-	_, mockHTTPServer := newMockHTTPServer(t, 200, "", "{}")
+	_, mockHTTPServer := newMockHTTPServer(t, 200, "", "{}", false)
 
 	type args struct {
 		executionURL string
@@ -82,7 +90,7 @@ func TestNewRouter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewRouter(tt.args.executionURL, tt.args.relayURL)
+			_, err := NewRouter(tt.args.executionURL, tt.args.relayURL, NewStore())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewRouter() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -109,6 +117,14 @@ func formatResponse(responseResult interface{}) ([]byte, error) {
 	})
 }
 
+func formatErrorResponse(err string) ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      "1",
+		"error":   map[string]interface{}{"code": -32000, "message": err},
+	})
+}
+
 type httpTest struct {
 	name                        string
 	requestArray                []interface{}
@@ -117,13 +133,24 @@ type httpTest struct {
 	mockStatusCode              int
 	expectedRequestsToExecution int
 	expectedRequestsToRelay     int
+
+	errorExecution bool
+	errorRelay     bool
+}
+
+type httpTestWithMethods struct {
+	httpTest
+
+	jsonRPCMethodCaller string
+	jsonRPCMethodProxy  string
+	skipRespCheck       bool
 }
 
 func testHTTPMethod(t *testing.T, jsonRPCMethod string, tt *httpTest) {
-	testHTTPMethodWithDifferentRPC(t, jsonRPCMethod, jsonRPCMethod, tt)
+	testHTTPMethodWithDifferentRPC(t, jsonRPCMethod, jsonRPCMethod, tt, false, nil)
 }
 
-func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, jsonRPCMethodProxy string, tt *httpTest) {
+func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, jsonRPCMethodProxy string, tt *httpTest, skipRespCheck bool, store Store) {
 	t.Run(tt.name, func(t *testing.T) {
 		// Format JSON-RPC body with the provided method and array of args
 		body, err := formatRequestBody(jsonRPCMethodCaller, tt.requestArray)
@@ -136,11 +163,14 @@ func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, js
 		require.Nil(t, err, "error formatting json response")
 
 		// Create mock http server that expects the above bodyProxy and returns the above response
-		mockExecution, mockExecutionHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyProxy), string(resp))
-		mockRelay, mockRelayHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyProxy), string(resp))
+		mockExecution, mockExecutionHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyProxy), string(resp), tt.errorExecution)
+		mockRelay, mockRelayHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyProxy), string(resp), tt.errorRelay)
 
+		if store == nil {
+			store = NewStore()
+		}
 		// Create the router pointing at the mock server
-		r, err := NewRouter(mockExecutionHTTP.URL, mockRelayHTTP.URL)
+		r, err := NewRouter(mockExecutionHTTP.URL, mockRelayHTTP.URL, store)
 		require.Nil(t, err, "error creating router")
 
 		// Craft a JSON-RPC request to the router
@@ -151,7 +181,9 @@ func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, js
 		// Actually send the request, testing the router
 		r.ServeHTTP(w, req)
 
-		assert.JSONEq(t, string(resp), w.Body.String(), "expected response to be json equal")
+		if !skipRespCheck {
+			assert.JSONEq(t, string(resp), w.Body.String(), "expected response to be json equal")
+		}
 		assert.Equal(t, tt.expectedStatusCode, w.Result().StatusCode, "expected status code to be equal")
 		assert.Equal(t, tt.expectedRequestsToExecution, mockExecution.reqCount, "expected request count to execution to be equal")
 		assert.Equal(t, tt.expectedRequestsToRelay, mockRelay.reqCount, "expected request count to relay to be equal")
@@ -163,10 +195,6 @@ func strToBytes(s string) *hexutil.Bytes {
 	return &ret
 }
 func TestMevService_ForckChoiceUpdated(t *testing.T) {
-	b, e := json.Marshal([]interface{}{catalyst.PayloadAttributesV1{
-		SuggestedFeeRecipient: common.HexToAddress("0x0000000000000000000000000000000000000001"),
-	}})
-	fmt.Println(string(b), e)
 	tests := []httpTest{
 		{
 			"basic success",
@@ -178,6 +206,8 @@ func TestMevService_ForckChoiceUpdated(t *testing.T) {
 			200,
 			1,
 			1,
+			false,
+			false,
 		},
 	}
 	for _, tt := range tests {
@@ -192,7 +222,7 @@ func TestMevService_ExecutePayload(t *testing.T) {
 			[]interface{}{ExecutionPayloadWithTxRootV1{
 				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 				BaseFeePerGas: big.NewInt(4),
-				Transactions:  [][]byte{},
+				Transactions:  &[]string{},
 			}},
 			catalyst.ExecutePayloadResponse{
 				Status: "VALID",
@@ -201,6 +231,8 @@ func TestMevService_ExecutePayload(t *testing.T) {
 			200,
 			1,
 			1,
+			false,
+			false,
 		},
 	}
 	for _, tt := range tests {
@@ -222,12 +254,14 @@ func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 			ExecutionPayloadWithTxRootV1{
 				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 				BaseFeePerGas: big.NewInt(4),
-				Transactions:  [][]byte{},
+				Transactions:  &[]string{},
 			},
 			200,
 			200,
 			0,
 			1,
+			false,
+			false,
 		},
 	}
 	for _, tt := range tests {
@@ -249,10 +283,42 @@ func TestRelayervice_GetPayloadHeaderV1(t *testing.T) {
 			200,
 			1,
 			1,
+			false,
+			false,
+		},
+		{
+			"error in relay but still success",
+			[]interface{}{"0x1"},
+			ExecutionPayloadWithTxRootV1{
+				BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+				BaseFeePerGas:    big.NewInt(4),
+				TransactionsRoot: common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
+			},
+			200,
+			200,
+			1,
+			0,
+			false,
+			true,
+		},
+		{
+			"error in execution but still success",
+			[]interface{}{"0x1"},
+			ExecutionPayloadWithTxRootV1{
+				BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+				BaseFeePerGas:    big.NewInt(4),
+				TransactionsRoot: common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
+			},
+			200,
+			200,
+			0,
+			1,
+			true,
+			false,
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethodWithDifferentRPC(t, "builder_getPayloadHeaderV1", "engine_getPayloadV1", &tt)
+		testHTTPMethodWithDifferentRPC(t, "builder_getPayloadHeaderV1", "engine_getPayloadV1", &tt, false, nil)
 	}
 }
 
@@ -266,9 +332,81 @@ func TestMevService_MethodFallback(t *testing.T) {
 			200,
 			1,
 			0,
+			false,
+			false,
 		},
 	}
 	for _, tt := range tests {
 		testHTTPMethod(t, "engine_foo", &tt)
+	}
+}
+
+func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
+	store := NewStore()
+
+	payloadBytes, err := json.Marshal(ExecutionPayloadWithTxRootV1{
+		BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+		StateRoot:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
+		BaseFeePerGas:    big.NewInt(4),
+		Transactions:     &[]string{},
+		TransactionsRoot: common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
+	})
+	require.Nil(t, err)
+
+	tests := []httpTestWithMethods{
+		{
+			httpTest{
+				"get payload from execution and store it",
+				[]interface{}{"0x1"},
+				ExecutionPayloadWithTxRootV1{
+					BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+					BaseFeePerGas:    big.NewInt(4),
+					Transactions:     &[]string{}, // non nil Transactions will trigger the block caching behavior
+					TransactionsRoot: common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
+					StateRoot:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
+				},
+				200,
+				200,
+				1,
+				0,
+				false,
+				true,
+			},
+			"builder_getPayloadHeaderV1",
+			"engine_getPayloadV1",
+			true, // this endpoint transforms Transactions into TransactionsRoot, so skip equality check
+		},
+		{
+			httpTest{
+				"block cache hit",
+				[]interface{}{SignedBlindedBeaconBlock{
+					Message: &BlindedBeaconBlock{
+						ParentRoot: "0x0000000000000000000000000000000000000000000000000000000000000001",
+						StateRoot:  "0x0000000000000000000000000000000000000000000000000000000000000003",
+						Body:       []byte(`{"execution_payload": ` + string(payloadBytes) + `}`),
+					},
+					Signature: "0x0000000000000000000000000000000000000000000000000000000000000002",
+				}},
+				ExecutionPayloadWithTxRootV1{
+					BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+					StateRoot:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
+					BaseFeePerGas:    big.NewInt(4),
+					Transactions:     &[]string{},
+					TransactionsRoot: common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
+				},
+				200,
+				200,
+				0,
+				0,
+				false,
+				false,
+			},
+			"builder_proposeBlindedBlockV1",
+			"builder_proposeBlindedBlockV1",
+			false,
+		},
+	}
+	for _, tt := range tests {
+		testHTTPMethodWithDifferentRPC(t, tt.jsonRPCMethodCaller, tt.jsonRPCMethodProxy, &tt.httpTest, tt.skipRespCheck, store)
 	}
 }

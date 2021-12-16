@@ -30,8 +30,7 @@ type MevService struct {
 type RelayService struct {
 	executionURL string
 	relayURL     string
-	payloadMap   map[common.Hash]*ExecutionPayloadWithTxRootV1 // map stateRoot to ExecutionPayloadWithTxRootV1. TODO: this has issues, in that stateRoot could actually be the same between different payloads
-	// TODO: clean this up periodically
+	store        Store
 }
 
 // GetPayloadArgs TODO
@@ -140,10 +139,22 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWit
 
 // ProposeBlindedBlockV1 TODO
 func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadWithTxRootV1) error {
-	payload, ok := m.payloadMap[common.HexToHash(args.Message.StateRoot)]
-	if ok {
-		log.Println(green("ProposeBlindedBlockV1: ✓ revealing previous payload from execution client: "), payload.BlockHash, payload.Number)
-		*result = *payload
+	if args == nil || args.Message == nil {
+		fmt.Printf("ProposeBlindedBlockV1: blinded block missing body: %+v\n", args)
+		return fmt.Errorf("blinded block missing body")
+	}
+
+	var body BlindedBeaconBlockBodyPartial
+	err := json.Unmarshal(args.Message.Body, &body)
+	if err != nil {
+		fmt.Printf("ProposeBlindedBlockV1: error parsing body: %+v\n", string(args.Message.Body))
+		return err
+	}
+
+	payloadCached := m.store.Get(body.ExecutionPayload.BlockHash)
+	if payloadCached != nil {
+		log.Println(green("ProposeBlindedBlockV1: ✓ revealing previous payload from execution client: "), payloadCached.BlockHash, payloadCached.Number, payloadCached.TransactionsRoot)
+		*result = *payloadCached
 		return nil
 	}
 	relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
@@ -195,28 +206,44 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Println("GetPayloadHeaderV1: error unmarshaling result: ", err)
-		return err
-	}
+		resp, err = parseRPCResponse(executionResp)
+		if err != nil {
+			return err
+		}
 
-	result.Transactions = nil
-	if result.TransactionsRoot == nilHash {
+		err = json.Unmarshal(resp.Result, result)
+		if err != nil {
+			log.Println("GetPayloadHeaderV1: error unmarshaling result: ", err)
+			return err
+		}
+	}
+	fmt.Printf("result.Transactions: %+v\n", result.Transactions == nil)
+
+	if result.Transactions != nil {
 		log.Println("GetPayloadHeaderV1: no TransactionsRoot found, calculating it from Transactions list instead: ", *args, result.BlockHash, result.Number)
 
-		// copy this payload for later retrieval in proposeBlindedBlock
-		m.payloadMap[result.StateRoot] = new(ExecutionPayloadWithTxRootV1)
-		*m.payloadMap[result.StateRoot] = *result
-
 		txs := types.Transactions{}
-		for i, otx := range result.Transactions {
+		for i, otx := range *result.Transactions {
 			var tx types.Transaction
-			if err := tx.UnmarshalBinary(otx); err != nil {
+			if err := tx.UnmarshalBinary(common.Hex2Bytes(otx)); err != nil {
 				return fmt.Errorf("failed to decode tx %d: %v", i, err)
 			}
 			txs = append(txs, &tx)
 		}
-		result.TransactionsRoot = types.DeriveSha(txs, trie.NewStackTrie(nil))
+		newRoot := types.DeriveSha(txs, trie.NewStackTrie(nil))
+		if result.TransactionsRoot != nilHash {
+			if newRoot != result.TransactionsRoot {
+				return fmt.Errorf("calculated different transactionsRoot %s: %s", newRoot.String(), result.TransactionsRoot.String())
+			}
+		}
+		result.TransactionsRoot = newRoot
+
+		// copy this payload for later retrieval in proposeBlindedBlock
+		payload := new(ExecutionPayloadWithTxRootV1)
+		*payload = *result
+		m.store.Set(result.BlockHash, payload)
 	}
+	result.Transactions = nil
 
 	log.Println(green("GetPayloadHeaderV1: ✓ got payload header successfully: "), *args, result.BlockHash, result.Number)
 	return nil
@@ -260,7 +287,7 @@ func newMevService(executionURL string, relayURL string) (*MevService, error) {
 	}, nil
 }
 
-func newRelayService(executionURL string, relayURL string) (*RelayService, error) {
+func newRelayService(executionURL string, relayURL string, store Store) (*RelayService, error) {
 	if executionURL == "" {
 		return nil, errors.New("NewRouter must have an executionURL")
 	}
@@ -271,6 +298,6 @@ func newRelayService(executionURL string, relayURL string) (*RelayService, error
 	return &RelayService{
 		executionURL: executionURL,
 		relayURL:     relayURL,
-		payloadMap:   map[common.Hash]*ExecutionPayloadWithTxRootV1{},
+		store:        store,
 	}, nil
 }
