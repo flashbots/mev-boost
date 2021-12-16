@@ -378,7 +378,7 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 					Message: &BlindedBeaconBlock{
 						ParentRoot: "0x0000000000000000000000000000000000000000000000000000000000000001",
 						StateRoot:  "0x0000000000000000000000000000000000000000000000000000000000000003",
-						Body:       []byte(`{"execution_payload": ` + string(payloadBytes) + `}`),
+						Body:       []byte(`{"execution_payload_header": ` + string(payloadBytes) + `}`),
 					},
 					Signature: "0x0000000000000000000000000000000000000000000000000000000000000002",
 				}},
