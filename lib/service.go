@@ -153,7 +153,7 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 		return err
 	}
 
-	payloadCached := m.store.Get(body.ExecutionPayload.BlockHash)
+	payloadCached := m.store.Get(common.HexToHash(body.ExecutionPayload.BlockHash))
 	if payloadCached != nil {
 		log.Println(green("ProposeBlindedBlockV1: ✓ revealing previous payload from execution client: "), payloadCached.BlockHash, payloadCached.Number, payloadCached.TransactionsRoot)
 		*result = *payloadCached

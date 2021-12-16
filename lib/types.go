@@ -25,7 +25,7 @@ type BlindedBeaconBlock struct {
 
 // BlindedBeaconBlockBodyPartial a partial block body only containing a payload
 type BlindedBeaconBlockBodyPartial struct {
-	ExecutionPayload ExecutionPayloadWithTxRootV1 `json:"execution_payload_header"`
+	ExecutionPayload ExecutionPayloadHeaderOnlyBlockHash `json:"execution_payload_header"`
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutionPayloadWithTxRootV1 -field-override executionPayloadHeaderMarshaling -out gen_ed.go
@@ -47,6 +47,11 @@ type ExecutionPayloadWithTxRootV1 struct {
 	BlockHash        common.Hash    `json:"blockHash" gencodec:"required"`
 	Transactions     *[]string      `json:"transactions,omitempty"`
 	TransactionsRoot common.Hash    `json:"transactionsRoot"`
+}
+
+// ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindedBeaconBlockBodyPartial
+type ExecutionPayloadHeaderOnlyBlockHash struct {
+	BlockHash string `json:"blockHash"`
 }
 
 // JSON type overrides for executableData.
