@@ -95,6 +95,7 @@ func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, r
 	}
 	resp, err := parseRPCResponse(bestResponse)
 	if err != nil {
+		log.Println("ForkchoiceUpdatedV1: error parsing result: ", err)
 		return err
 	}
 
@@ -125,6 +126,7 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWit
 	}
 	resp, err := parseRPCResponse(bestResponse)
 	if err != nil {
+		log.Println("ExecutePayloadV1: error parsing result: ", err)
 		return err
 	}
 
@@ -159,11 +161,13 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 	}
 	relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
 	if relayErr != nil {
+		log.Println("ProposeBlindedBlockV1: error fetching block from relay: ", err)
 		return relayErr
 	}
 
 	resp, err := parseRPCResponse(relayResp)
 	if err != nil {
+		log.Println("ProposeBlindedBlockV1: error parsing result: ", err)
 		return err
 	}
 
@@ -194,13 +198,11 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		}
 
 		bestResponse = executionResp
-	} else if executionErr != nil {
-		log.Println("error in exec resp: ", executionResp, string(executionResp))
-		return executionErr
 	}
 
 	resp, err := parseRPCResponse(bestResponse)
 	if err != nil {
+		log.Println("GetPayloadHeaderV1: error parsing result: ", err)
 		return err
 	}
 
@@ -208,6 +210,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 	if err != nil {
 		resp, err = parseRPCResponse(executionResp)
 		if err != nil {
+			log.Println("GetPayloadHeaderV1: error parsing result: ", err)
 			return err
 		}
 
@@ -217,7 +220,6 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 			return err
 		}
 	}
-	fmt.Printf("result.Transactions: %+v\n", result.Transactions == nil)
 
 	if result.Transactions != nil {
 		log.Println("GetPayloadHeaderV1: no TransactionsRoot found, calculating it from Transactions list instead: ", *args, result.BlockHash, result.Number)
@@ -226,6 +228,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		for i, otx := range *result.Transactions {
 			var tx types.Transaction
 			if err := tx.UnmarshalBinary(common.Hex2Bytes(otx)); err != nil {
+				log.Println("GetPayloadHeaderV1: error decoding tx: ", err)
 				return fmt.Errorf("failed to decode tx %d: %v", i, err)
 			}
 			txs = append(txs, &tx)
@@ -233,6 +236,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		newRoot := types.DeriveSha(txs, trie.NewStackTrie(nil))
 		if result.TransactionsRoot != nilHash {
 			if newRoot != result.TransactionsRoot {
+				log.Println("GetPayloadHeaderV1: mismatched tx root: ", newRoot.String(), result.TransactionsRoot.String())
 				return fmt.Errorf("calculated different transactionsRoot %s: %s", newRoot.String(), result.TransactionsRoot.String())
 			}
 		}
