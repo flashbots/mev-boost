@@ -51,7 +51,7 @@ type ExecutionPayloadWithTxRootV1 struct {
 
 // ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindedBeaconBlockBodyPartial
 type ExecutionPayloadHeaderOnlyBlockHash struct {
-	BlockHash string `json:"blockHash"`
+	BlockHash string `json:"block_hash"`
 }
 
 // JSON type overrides for executableData.
