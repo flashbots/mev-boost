@@ -1,6 +1,10 @@
 package lib
 
-import "github.com/ethereum/go-ethereum/common"
+import (
+	"sync"
+
+	"github.com/ethereum/go-ethereum/common"
+)
 
 // Store stores payloads and retrieves them based on blockHash hashes
 type Store interface {
@@ -13,15 +17,21 @@ type Store interface {
 // TODO: clean this up periodically
 
 type store struct {
+	mutex    sync.RWMutex
 	payloads map[common.Hash]*ExecutionPayloadWithTxRootV1
 }
 
 // NewStore creates an in-mem store
 func NewStore() Store {
-	return &store{map[common.Hash]*ExecutionPayloadWithTxRootV1{}}
+	return &store{
+		payloads: map[common.Hash]*ExecutionPayloadWithTxRootV1{},
+	}
 }
 
 func (s *store) Get(blockHash common.Hash) *ExecutionPayloadWithTxRootV1 {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	payload, ok := s.payloads[blockHash]
 	if !ok {
 		return nil
@@ -31,6 +41,9 @@ func (s *store) Get(blockHash common.Hash) *ExecutionPayloadWithTxRootV1 {
 }
 
 func (s *store) Set(blockHash common.Hash, payload *ExecutionPayloadWithTxRootV1) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	if payload == nil {
 		return
 	}
