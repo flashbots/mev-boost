@@ -350,7 +350,7 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 		StateRoot:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
 		BaseFeePerGas:    big.NewInt(4),
 		Transactions:     &[]string{},
-		TransactionsRoot: common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
+		TransactionsRoot: common.HexToHash("0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"),
 	}
 	payloadBytes, err := json.Marshal(payload)
 	// make block_hash be snake_case
@@ -411,7 +411,7 @@ func TestRelayervice_GetPayloadAndProposeCamelCase(t *testing.T) {
 		StateRoot:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
 		BaseFeePerGas:    big.NewInt(4),
 		Transactions:     &[]string{},
-		TransactionsRoot: common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
+		TransactionsRoot: common.HexToHash("0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"),
 	}
 	payloadBytes, err := json.Marshal(payload)
 	require.Nil(t, err)

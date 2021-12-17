@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/fatih/color"
 	"github.com/gorilla/rpc"
 )
@@ -237,15 +236,25 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		log.Println("GetPayloadHeaderV1: no TransactionsRoot found, calculating it from Transactions list instead: ", *args, result.BlockHash, result.Number)
 
 		txs := types.Transactions{}
+		sszTxs := TransactionsSSZ{}
 		for i, otx := range *result.Transactions {
 			var tx types.Transaction
-			if err := tx.UnmarshalBinary(common.Hex2Bytes(otx)); err != nil {
+			bytesTx := common.Hex2Bytes(otx)
+			if err := tx.UnmarshalBinary(bytesTx); err != nil {
 				log.Println("GetPayloadHeaderV1: error decoding tx: ", err)
 				return fmt.Errorf("failed to decode tx %d: %v", i, err)
 			}
 			txs = append(txs, &tx)
+			sszTxs.Transactions = append(sszTxs.Transactions, bytesTx)
 		}
-		newRoot := types.DeriveSha(txs, trie.NewStackTrie(nil))
+
+		newRootBytes, err := sszTxs.HashTreeRoot()
+		if err != nil {
+			log.Println("GetPayloadHeaderV1: error calculating transactions root: ", err)
+			return err
+		}
+		newRoot := common.BytesToHash(newRootBytes[:])
+
 		if result.TransactionsRoot != nilHash {
 			if newRoot != result.TransactionsRoot {
 				log.Println("GetPayloadHeaderV1: mismatched tx root: ", newRoot.String(), result.TransactionsRoot.String())

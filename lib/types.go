@@ -50,6 +50,13 @@ type ExecutionPayloadWithTxRootV1 struct {
 	TransactionsRoot common.Hash    `json:"transactionsRoot"`
 }
 
+//go:generate go run github.com/ferranbt/fastssz/sszgen --path $GOFILE --objs TransactionsSSZ
+
+// TransactionsSSZ is a struct for ssz serializing/hashing a transactions list
+type TransactionsSSZ struct {
+	Transactions [][]byte `ssz-max:"1048576,1073741824" ssz-size:"?,?"`
+}
+
 // ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindedBeaconBlockBodyPartial
 type ExecutionPayloadHeaderOnlyBlockHash struct {
 	BlockHash      string `json:"block_hash"`
