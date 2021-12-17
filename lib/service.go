@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/fatih/color"
 	"github.com/gorilla/rpc"
 )
@@ -153,7 +152,19 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 		return err
 	}
 
-	payloadCached := m.store.Get(common.HexToHash(body.ExecutionPayload.BlockHash))
+	var blockHash string
+	// Deal with allowing both camelCase and snake_case in BlindedBlock
+	if body.ExecutionPayload.BlockHash != "" {
+		blockHash = body.ExecutionPayload.BlockHash
+	} else if body.ExecutionPayload.BlockHashCamel != "" {
+		blockHash = body.ExecutionPayload.BlockHashCamel
+	} else if body.ExecutionPayloadCamel.BlockHash != "" {
+		blockHash = body.ExecutionPayloadCamel.BlockHash
+	} else if body.ExecutionPayloadCamel.BlockHashCamel != "" {
+		blockHash = body.ExecutionPayloadCamel.BlockHashCamel
+	}
+
+	payloadCached := m.store.Get(common.HexToHash(blockHash))
 	if payloadCached != nil {
 		log.Println(green("ProposeBlindedBlockV1: ✓ revealing previous payload from execution client: "), payloadCached.BlockHash, payloadCached.Number, payloadCached.TransactionsRoot)
 		*result = *payloadCached
@@ -225,15 +236,25 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		log.Println("GetPayloadHeaderV1: no TransactionsRoot found, calculating it from Transactions list instead: ", *args, result.BlockHash, result.Number)
 
 		txs := types.Transactions{}
+		sszTxs := TransactionsSSZ{}
 		for i, otx := range *result.Transactions {
 			var tx types.Transaction
-			if err := tx.UnmarshalBinary(common.Hex2Bytes(otx)); err != nil {
+			bytesTx := common.Hex2Bytes(otx)
+			if err := tx.UnmarshalBinary(bytesTx); err != nil {
 				log.Println("GetPayloadHeaderV1: error decoding tx: ", err)
 				return fmt.Errorf("failed to decode tx %d: %v", i, err)
 			}
 			txs = append(txs, &tx)
+			sszTxs.Transactions = append(sszTxs.Transactions, bytesTx)
 		}
-		newRoot := types.DeriveSha(txs, trie.NewStackTrie(nil))
+
+		newRootBytes, err := sszTxs.HashTreeRoot()
+		if err != nil {
+			log.Println("GetPayloadHeaderV1: error calculating transactions root: ", err)
+			return err
+		}
+		newRoot := common.BytesToHash(newRootBytes[:])
+
 		if result.TransactionsRoot != nilHash {
 			if newRoot != result.TransactionsRoot {
 				log.Println("GetPayloadHeaderV1: mismatched tx root: ", newRoot.String(), result.TransactionsRoot.String())

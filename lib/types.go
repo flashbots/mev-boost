@@ -23,9 +23,10 @@ type BlindedBeaconBlock struct {
 	Body          json.RawMessage `json:"body"`
 }
 
-// BlindedBeaconBlockBodyPartial a partial block body only containing a payload
+// BlindedBeaconBlockBodyPartial a partial block body only containing a payload, in both snake_case and camelCase
 type BlindedBeaconBlockBodyPartial struct {
-	ExecutionPayload ExecutionPayloadHeaderOnlyBlockHash `json:"execution_payload_header"`
+	ExecutionPayload      ExecutionPayloadHeaderOnlyBlockHash `json:"execution_payload_header"`
+	ExecutionPayloadCamel ExecutionPayloadHeaderOnlyBlockHash `json:"executionPayloadHeader"`
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutionPayloadWithTxRootV1 -field-override executionPayloadHeaderMarshaling -out gen_ed.go
@@ -49,9 +50,17 @@ type ExecutionPayloadWithTxRootV1 struct {
 	TransactionsRoot common.Hash    `json:"transactionsRoot"`
 }
 
+//go:generate go run github.com/ferranbt/fastssz/sszgen --path $GOFILE --objs TransactionsSSZ
+
+// TransactionsSSZ is a struct for ssz serializing/hashing a transactions list
+type TransactionsSSZ struct {
+	Transactions [][]byte `ssz-max:"1048576,1073741824" ssz-size:"?,?"`
+}
+
 // ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindedBeaconBlockBodyPartial
 type ExecutionPayloadHeaderOnlyBlockHash struct {
-	BlockHash string `json:"block_hash"`
+	BlockHash      string `json:"block_hash"`
+	BlockHashCamel string `json:"blockHash"`
 }
 
 // JSON type overrides for executableData.
