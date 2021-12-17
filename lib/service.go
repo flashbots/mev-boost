@@ -153,7 +153,19 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 		return err
 	}
 
-	payloadCached := m.store.Get(common.HexToHash(body.ExecutionPayload.BlockHash))
+	var blockHash string
+	// Deal with allowing both camelCase and snake_case in BlindedBlock
+	if body.ExecutionPayload.BlockHash != "" {
+		blockHash = body.ExecutionPayload.BlockHash
+	} else if body.ExecutionPayload.BlockHashCamel != "" {
+		blockHash = body.ExecutionPayload.BlockHashCamel
+	} else if body.ExecutionPayloadCamel.BlockHash != "" {
+		blockHash = body.ExecutionPayloadCamel.BlockHash
+	} else if body.ExecutionPayloadCamel.BlockHashCamel != "" {
+		blockHash = body.ExecutionPayloadCamel.BlockHashCamel
+	}
+
+	payloadCached := m.store.Get(common.HexToHash(blockHash))
 	if payloadCached != nil {
 		log.Println(green("ProposeBlindedBlockV1: ✓ revealing previous payload from execution client: "), payloadCached.BlockHash, payloadCached.Number, payloadCached.TransactionsRoot)
 		*result = *payloadCached

@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -352,6 +353,8 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 		TransactionsRoot: common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
 	}
 	payloadBytes, err := json.Marshal(payload)
+	// make block_hash be snake_case
+	payloadBytes = []byte(strings.Replace(string(payloadBytes), "blockHash", "block_hash", -1))
 	require.Nil(t, err)
 
 	tests := []httpTestWithMethods{
@@ -379,6 +382,65 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 						ParentRoot: "0x0000000000000000000000000000000000000000000000000000000000000001",
 						StateRoot:  "0x0000000000000000000000000000000000000000000000000000000000000003",
 						Body:       []byte(`{"execution_payload_header": ` + string(payloadBytes) + `}`),
+					},
+					Signature: "0x0000000000000000000000000000000000000000000000000000000000000002",
+				}},
+				payload,
+				200,
+				200,
+				0,
+				0,
+				false,
+				false,
+			},
+			"builder_proposeBlindedBlockV1",
+			"builder_proposeBlindedBlockV1",
+			false,
+		},
+	}
+	for _, tt := range tests {
+		testHTTPMethodWithDifferentRPC(t, tt.jsonRPCMethodCaller, tt.jsonRPCMethodProxy, &tt.httpTest, tt.skipRespCheck, store)
+	}
+}
+
+func TestRelayervice_GetPayloadAndProposeCamelCase(t *testing.T) {
+	store := NewStore()
+
+	payload := ExecutionPayloadWithTxRootV1{
+		BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+		StateRoot:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
+		BaseFeePerGas:    big.NewInt(4),
+		Transactions:     &[]string{},
+		TransactionsRoot: common.HexToHash("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),
+	}
+	payloadBytes, err := json.Marshal(payload)
+	require.Nil(t, err)
+
+	tests := []httpTestWithMethods{
+		{
+			httpTest{
+				"get payload from execution and store it",
+				[]interface{}{"0x1"},
+				payload,
+				200,
+				200,
+				1,
+				0,
+				false,
+				true,
+			},
+			"builder_getPayloadHeaderV1",
+			"engine_getPayloadV1",
+			true, // this endpoint transforms Transactions into TransactionsRoot, so skip equality check
+		},
+		{
+			httpTest{
+				"block cache hit",
+				[]interface{}{SignedBlindedBeaconBlock{
+					Message: &BlindedBeaconBlock{
+						ParentRoot: "0x0000000000000000000000000000000000000000000000000000000000000001",
+						StateRoot:  "0x0000000000000000000000000000000000000000000000000000000000000003",
+						Body:       []byte(`{"executionPayloadHeader": ` + string(payloadBytes) + `}`),
 					},
 					Signature: "0x0000000000000000000000000000000000000000000000000000000000000002",
 				}},

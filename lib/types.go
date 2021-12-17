@@ -23,9 +23,10 @@ type BlindedBeaconBlock struct {
 	Body          json.RawMessage `json:"body"`
 }
 
-// BlindedBeaconBlockBodyPartial a partial block body only containing a payload
+// BlindedBeaconBlockBodyPartial a partial block body only containing a payload, in both snake_case and camelCase
 type BlindedBeaconBlockBodyPartial struct {
-	ExecutionPayload ExecutionPayloadHeaderOnlyBlockHash `json:"execution_payload_header"`
+	ExecutionPayload      ExecutionPayloadHeaderOnlyBlockHash `json:"execution_payload_header"`
+	ExecutionPayloadCamel ExecutionPayloadHeaderOnlyBlockHash `json:"executionPayloadHeader"`
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutionPayloadWithTxRootV1 -field-override executionPayloadHeaderMarshaling -out gen_ed.go
@@ -51,7 +52,8 @@ type ExecutionPayloadWithTxRootV1 struct {
 
 // ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindedBeaconBlockBodyPartial
 type ExecutionPayloadHeaderOnlyBlockHash struct {
-	BlockHash string `json:"block_hash"`
+	BlockHash      string `json:"block_hash"`
+	BlockHashCamel string `json:"blockHash"`
 }
 
 // JSON type overrides for executableData.
