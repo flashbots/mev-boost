@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/fatih/color"
+	"github.com/flashbots/mev-middleware/lib/txroot"
 	"github.com/gorilla/rpc"
 )
 
@@ -236,7 +237,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		log.Println("GetPayloadHeaderV1: no TransactionsRoot found, calculating it from Transactions list instead: ", *args, result.BlockHash, result.Number)
 
 		txs := types.Transactions{}
-		sszTxs := TransactionsSSZ{}
+		byteTxs := [][]byte{}
 		for i, otx := range *result.Transactions {
 			var tx types.Transaction
 			bytesTx := common.Hex2Bytes(otx)
@@ -245,10 +246,10 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 				return fmt.Errorf("failed to decode tx %d: %v", i, err)
 			}
 			txs = append(txs, &tx)
-			sszTxs.Transactions = append(sszTxs.Transactions, bytesTx)
+			byteTxs = append(byteTxs, bytesTx)
 		}
 
-		newRootBytes, err := sszTxs.HashTreeRoot()
+		newRootBytes, err := txroot.TransactionsRoot(byteTxs)
 		if err != nil {
 			log.Println("GetPayloadHeaderV1: error calculating transactions root: ", err)
 			return err

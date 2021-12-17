@@ -1,0 +1,1 @@
+The files inside this directory are all copied from https://github.com/prysmaticlabs/prysm/tree/41f5fa7524e35c895f3cda0783de6b4a2ab1d25a and upstream is licensed under GPLv3, see https://github.com/prysmaticlabs/prysm/blob/41f5fa7524e35c895f3cda0783de6b4a2ab1d25a/LICENSE.md
