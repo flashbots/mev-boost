@@ -237,7 +237,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 		log.Println("GetPayloadHeaderV1: no TransactionsRoot found, calculating it from Transactions list instead: ", *args, result.BlockHash, result.Number)
 
 		txs := types.Transactions{}
-		byteTxs := [][]byte{}
+		var byteTxs [][]byte
 		for i, otx := range *result.Transactions {
 			var tx types.Transaction
 			bytesTx := common.Hex2Bytes(otx)
@@ -290,7 +290,11 @@ func (m *MevService) methodNotFound(i *rpc.RequestInfo, w http.ResponseWriter) e
 		log.Println("error in method not found: doing request: ", i.Method, err)
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			return
+		}
+	}()
 
 	copyHeader(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
