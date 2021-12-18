@@ -212,7 +212,7 @@ go build . mergemock
 wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d3e3d/raw/2e8824fa8d9d9b040f351b86b75c66868fb9b115/genesis.json
 ```
 
-Then you can run an integration test with mergemock, spawning both a mergemock execution engine and a mergemock consensuse client as well as mev-boost:
+Then you can run an integration test with mergemock, spawning both a mergemock execution engine and a mergemock consensus client as well as mev-boost:
 
 ```
 cd mev-boost

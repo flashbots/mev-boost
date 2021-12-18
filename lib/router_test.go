@@ -31,7 +31,7 @@ func (m *mockHTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		resp, err := formatErrorResponse("errored intentionally for test")
 		require.Nil(m.t, err, "error formatting error")
-		w.Write([]byte(resp))
+		w.Write(resp)
 		return
 	}
 	body, err := ioutil.ReadAll(r.Body)

@@ -15,7 +15,7 @@ import (
 	"github.com/gorilla/rpc"
 )
 
-var null = json.RawMessage([]byte("null"))
+var null = json.RawMessage("null")
 
 // ----------------------------------------------------------------------------
 // Request and Response

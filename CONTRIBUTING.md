@@ -8,7 +8,7 @@ Write here the instructions to set up the development environment.
 
 ## Test
 
-Write here the intructions to run the tests.
+Write here the instructions to run the tests.
 
 ## Code style
 
