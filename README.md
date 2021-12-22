@@ -35,7 +35,7 @@ simple middleware logic with minimal consensus client changes, simple networking
 
 #### middleware behavior
 
-- [x] middleware sends `feeRecipient` to relay with direct `relay_forkchoiceUpdatedV1` request at beginning of block
+- [x] middleware sends `feeRecipient` to relay with direct `engine_forkchoiceUpdatedV1` request at beginning of block
 - [x] middleware fetches signed payloads from relay using unauthenticated `getPayloadHeader` request
 - [x] middleware selects best payload that matches expected `payloadId` and requests signature from consensus client, this requires passing header object to the consensus client and flagging that it should be returned to the middleware once signed
 - [x] middleware returns signed block + initial payload header to relay with direct request
