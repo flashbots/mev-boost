@@ -47,6 +47,7 @@ consensus->network: propose block
 ### required client modifications
 
 - consensus client must implement [blind transaction signing](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-1-Blind-Transaction-Signing)
+- execution client must implement [`feeRecipientDiff`](https://github.com/ethereum/execution-apis/pull/150)
 
 ## API Docs
 
