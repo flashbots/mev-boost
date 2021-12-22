@@ -2,8 +2,6 @@
 
 A middleware server written in Go, that sits between an ethereum PoS consensus client and an execution client. It allows consensus clients to outsource block construction to third party block builders as well as fallback to execution clients. See [ethresearch post](https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/) for the high level architecture.
 
-![architecture](/docs/architecture.png)
-
 ## Table of Contents
 - [mev-boost](#mev-boost)
   - [Implementation Plan](#implementation-plan)
@@ -11,12 +9,18 @@ A middleware server written in Go, that sits between an ethereum PoS consensus c
     - [milestone 2 - security, authentication & reputation](#milestone-2---security-authentication--reputation)
     - [milestone 3 - privacy (optional)](#milestone-3---privacy-optional)
     - [milestone 4 - configurations (optional)](#milestone-4---configurations-optional)
+  - [Architecture](#architecture)
+    - [Block Proposal](#block-proposal)
   - [API Docs](#api-docs)
-    - [builder_proposeBlindedBlockV1](#builder_proposeblindedblockv1)
-    - [builder_getPayloadHeaderV1](#builder_getpayloadheaderv1)
     - [engine_executePayloadV1](#engine_executepayloadv1)
     - [engine_forkchoiceUpdatedV1](#engine_forkchoiceupdatedv1)
+    - [builder_proposeBlindedBlockV1](#builder_proposeblindedblockv1)
+    - [builder_getPayloadHeaderV1](#builder_getpayloadheaderv1)
+    - [relay_getPayloadHeaderV1](#relay_getpayloadheaderv1)
+    - [relay_proposeBlindedBlockV1](#relay_proposeblindedblockv1)
     - [Types](#types)
+      - [SignedMEVPayloadHeader](#signedmevpayloadheader)
+      - [MEVPayloadHeader](#mevpayloadheader)
       - [SignedBlindedBeaconBlock](#signedblindedbeaconblock)
       - [BlindedBeaconBlock](#blindedbeaconblock)
       - [BlindedBeaconBlockBody](#blindedbeaconblockbody)
@@ -78,6 +82,12 @@ add optional configurations to provide alternative guarantees
 - [ ] consider adding direct `relay_forkchoiceUpdatedV1` call to relay for syncing state
 - [ ] consider returning full payload directly to validator as optimization
 - [ ] consider adding merkle proof of payment to shift verification requirements to the relay
+
+## Architecture
+
+### Block Proposal
+
+![block-proposal](/docs/block-proposal.png)
 
 ## API Docs
 
@@ -163,7 +173,7 @@ See [here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/
 
 #### SignedBlindedBeaconBlock
 
-See[here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types) for the definition of fields like `BLSSignature`
+See [here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types) for the definition of fields like `BLSSignature`
 
 - message: [BlindedBeaconBlock](#blindedbeaconblock)
 - signature: BLSSignature
