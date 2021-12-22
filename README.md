@@ -92,7 +92,7 @@ See [engine_executePayloadV1](https://github.com/ethereum/execution-apis/blob/v1
 
 ### engine_forkchoiceUpdatedV1
 
-See [engine_executePayloadV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#engine_forkchoiceupdatedv1).
+See [engine_forkchoiceUpdatedV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#engine_forkchoiceupdatedv1).
 
 ### builder_proposeBlindedBlockV1
 
@@ -120,22 +120,6 @@ See [engine_executePayloadV1](https://github.com/ethereum/execution-apis/blob/v1
 - result: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
 - error: code and message set in case an exception happens while getting the payload.
 
-### relay_forkChoiceUpdatedV1
-
-#### Request
-
-- method: `relay_forkChoiceUpdatedV1`
-- params: 
-  1. `forkchoiceState`: `Object` - instance of [`ForkchoiceStateV1`](#ForkchoiceStateV1)
-  2. `payloadAttributes`: `Object|null` - instance of [`PayloadAttributesV1`](#PayloadAttributesV1) or `null`
-
-#### Response
-
-- result: `object`
-    - `status`: `enum` - `"SUCCESS" | "SYNCING"`
-    - `payloadId`: `DATA|null`, 8 Bytes - identifier of the payload build process or `null`
-- error: code and message set in case an exception happens while updating the forkchoice or initiating the payload build process.
-
 ### relay_getPayloadHeaderV1
 
 #### Request
@@ -146,7 +130,7 @@ See [engine_executePayloadV1](https://github.com/ethereum/execution-apis/blob/v1
 
 #### Response
 
-- result: [`SignedMEVPayloadHeader`](#SignedMEVPayloadHeader)
+- result: [`SignedMEVPayloadHeader`](#signedmevpayloadheader)
 - error: code and message set in case an exception happens while getting the payload.
 
 ### relay_proposeBlindedBlockV1
@@ -156,7 +140,7 @@ See [engine_executePayloadV1](https://github.com/ethereum/execution-apis/blob/v1
 - method: `relay_proposeBlindedBlockV1`
 - params:
   1. [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock)
-  2. [`SignedMEVPayloadHeader`](#SignedMEVPayloadHeader)
+  2. [`SignedMEVPayloadHeader`](#signedmevpayloadheader)
 
 #### Response
 
@@ -167,9 +151,9 @@ See [engine_executePayloadV1](https://github.com/ethereum/execution-apis/blob/v1
 
 #### SignedMEVPayloadHeader
 
-See https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types for the definition of fields like `BLSSignature`
+See [here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types) for the definition of fields like `BLSSignature`
 
-- message: [MEVPayloadHeader](#MEVPayloadHeader)
+- message: [MEVPayloadHeader](#mevpayloadheader)
 - signature: BLSSignature
 
 #### MEVPayloadHeader
@@ -179,14 +163,14 @@ See https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-
 
 #### SignedBlindedBeaconBlock
 
-See https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types for the definition of fields like `BLSSignature`
+See[here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types) for the definition of fields like `BLSSignature`
 
-- message: [BlindedBeaconBlock](#BlindedBeaconBlock)
+- message: [BlindedBeaconBlock](#blindedbeaconblock)
 - signature: BLSSignature
 
 #### BlindedBeaconBlock
 
-This is forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock with `body` replaced with `BlindedBeaconBlockBody`
+This is forked from [here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock) with `body` replaced with `BlindedBeaconBlockBody`
 
 - slot: Slot
 - proposer_index: ValidatorIndex
@@ -196,7 +180,7 @@ This is forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/spec
 
 #### BlindedBeaconBlockBody
 
-This is forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#beaconblockbody with `execution_payload` replaced with [execution_payload_header](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
+This is forked from [here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#beaconblockbody) with `execution_payload` replaced with [execution_payload_header](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
 
 - randao_reveal: BLSSignature
 - eth1_data: Eth1Data
