@@ -35,7 +35,7 @@ simple middleware logic with minimal consensus client changes, simple networking
 
 #### middleware behavior
 
-- [x] middleware sends `feeRecipient` to relay with direct `engine_forkchoiceUpdatedV1` request at beginning of block
+- [x] middleware sends `feeRecipient` to relay with direct `relay_forkchoiceUpdatedV1` request at beginning of block
 - [x] middleware fetches signed payloads from relay using unauthenticated `getPayloadHeader` request
 - [x] middleware selects best payload that matches expected `payloadId` and requests signature from consensus client, this requires passing header object to the consensus client and flagging that it should be returned to the middleware once signed
 - [x] middleware returns signed block + initial payload header to relay with direct request
@@ -75,11 +75,24 @@ add p2p comms mechanisms to prevent validator deanonymization
 
 add optional configurations to provide alternative guarantees
 
-- [ ] consider adding direct `engine_forkchoiceUpdatedV1` call to relay for syncing state
+- [ ] consider adding direct `relay_forkchoiceUpdatedV1` call to relay for syncing state
 - [ ] consider returning full payload directly to validator as optimization
 - [ ] consider adding merkle proof of payment to shift verification requirements to the relay
 
 ## API Docs
+
+Methods are prefixed using the following convention:
+- `engine` prefix indicates calls made to the execution client. These methods are specified in the [execution engine APIs](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md).
+- `builder` prefix indicates calls made to the mev-boost middleware.
+- `relay` prefix indicates calls made to a relay.
+
+### engine_executePayloadV1
+
+See [engine_executePayloadV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#engine_executepayloadv1).
+
+### engine_forkchoiceUpdatedV1
+
+See [engine_executePayloadV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#engine_forkchoiceupdatedv1).
 
 ### builder_proposeBlindedBlockV1
 
@@ -107,45 +120,68 @@ add optional configurations to provide alternative guarantees
 - result: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
 - error: code and message set in case an exception happens while getting the payload.
 
-### engine_executePayloadV1
+### relay_forkChoiceUpdatedV1
 
 #### Request
 
-- method: `engine_executePayloadV1`
-- params:
-  1. [`ExecutionPayloadV1`](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#ExecutionPayloadV1)
+- method: `relay_forkChoiceUpdatedV1`
+- params: 
+  1. `forkchoiceState`: `Object` - instance of [`ForkchoiceStateV1`](#ForkchoiceStateV1)
+  2. `payloadAttributes`: `Object|null` - instance of [`PayloadAttributesV1`](#PayloadAttributesV1) or `null`
 
 #### Response
 
 - result: `object`
-  - `status`: `enum` - `"VALID" | "INVALID" | "SYNCING"`
-  - `latestValidHash`: `DATA|null`, 32 Bytes - the hash of the most recent _valid_ block in the branch defined by payload and its ancestors
-  - `validationError`: `String|null` - a message providing additional details on the validation error if the payload is deemed `INVALID`
-- error: code and message set in case an exception happens while executing the payload.
-
-### engine_forkchoiceUpdatedV1
-
-#### Request
-
-- method: "engine_forkchoiceUpdatedV1"
-- params:
-  1. `forkchoiceState`: `Object` - instance of [`ForkchoiceStateV1`](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#ForkchoiceStateV1)
-  2. `payloadAttributes`: `Object|null` - instance of [`PayloadAttributesV1`](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#PayloadAttributesV1) or `null`
-
-#### Response
-
-- result: `object`
-  - `status`: `enum` - `"SUCCESS" | "SYNCING"`
-  - `payloadId`: `DATA|null`, 8 Bytes - identifier of the payload build process or `null`
+    - `status`: `enum` - `"SUCCESS" | "SYNCING"`
+    - `payloadId`: `DATA|null`, 8 Bytes - identifier of the payload build process or `null`
 - error: code and message set in case an exception happens while updating the forkchoice or initiating the payload build process.
 
+### relay_getPayloadHeaderV1
+
+#### Request
+
+- method: `relay_getPayloadHeaderV1`
+- params:
+  1. `payloadId`: `DATA`, 8 Bytes - Identifier of the payload build process
+
+#### Response
+
+- result: [`SignedMEVPayloadHeader`](#SignedMEVPayloadHeader)
+- error: code and message set in case an exception happens while getting the payload.
+
+### relay_proposeBlindedBlockV1
+
+#### Request
+
+- method: `relay_proposeBlindedBlockV1`
+- params:
+  1. [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock)
+  2. [`SignedMEVPayloadHeader`](#SignedMEVPayloadHeader)
+
+#### Response
+
+- result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload)
+- error: code and message set in case an exception happens while proposing the payload.
+
 ### Types
+
+#### SignedMEVPayloadHeader
+
+See https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types for the definition of fields like `BLSSignature`
+
+- message: [MEVPayloadHeader](#MEVPayloadHeader)
+- signature: BLSSignature
+
+#### MEVPayloadHeader
+
+- payloadHeader: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
+- feeRecipientDiff: Quantity, 256 Bits - the change in balance of the feeRecipient address
 
 #### SignedBlindedBeaconBlock
 
 See https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types for the definition of fields like `BLSSignature`
 
-- message: BlindedBeaconBlock
+- message: [BlindedBeaconBlock](#BlindedBeaconBlock)
 - signature: BLSSignature
 
 #### BlindedBeaconBlock
