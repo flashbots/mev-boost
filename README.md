@@ -108,8 +108,10 @@ See [engine_forkchoiceUpdatedV1](https://github.com/ethereum/execution-apis/blob
 
 #### Response
 
-- result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload)
+- result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload).
 - error: code and message set in case an exception happens while proposing the payload.
+
+Technically, this call only needs to return the `transactions` field of [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload), but we return the full payload for simplicity. 
 
 ### builder_getPayloadHeaderV1
 
@@ -150,6 +152,8 @@ See [engine_forkchoiceUpdatedV1](https://github.com/ethereum/execution-apis/blob
 
 - result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload)
 - error: code and message set in case an exception happens while proposing the payload.
+
+Technically, this call only needs to return the `transactions` field of [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload), but we return the full payload for simplicity. 
 
 ### Types
 
