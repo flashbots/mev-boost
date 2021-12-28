@@ -29,6 +29,5 @@ func main() {
 	log.Println("listening on: ", port)
 	err = http.ListenAndServe(":"+strconv.Itoa(port), router)
 
-	log.Println("error in server: ", err)
-	panic(err)
+	log.Fatalf("error in server: %v", err)
 }
