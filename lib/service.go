@@ -7,18 +7,17 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
-	"github.com/fatih/color"
 	"github.com/flashbots/mev-middleware/lib/txroot"
 	"github.com/gorilla/rpc"
+	"github.com/sirupsen/logrus"
 )
 
-var green = color.New(color.FgGreen).SprintFunc()
+var log = logrus.WithField("prefix", "lib/service")
 
 // MevService TODO
 type MevService struct {
@@ -79,29 +78,40 @@ func makeRequest(url string, method string, params []interface{}) ([]byte, error
 
 // ForkchoiceUpdatedV1 TODO
 func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result *catalyst.ForkChoiceResponse) error {
-	executionResp, executionErr := makeRequest(m.executionURL, "engine_forkchoiceUpdatedV1", *args)
-	relayResp, relayErr := makeRequest(m.relayURL, "engine_forkchoiceUpdatedV1", *args)
-
+	method := "engine_forkchoiceUpdatedV1"
+	executionResp, executionErr := makeRequest(m.executionURL, method, *args)
+	relayResp, relayErr := makeRequest(m.relayURL, method, *args)
 	bestResponse := relayResp
 	if relayErr != nil {
-		log.Println("ForkchoiceUpdatedV1: error in relay resp: ", relayErr, string(relayResp))
+		log.WithFields(logrus.Fields{
+			"error":   relayErr,
+			"url":     m.relayURL,
+			"respond": string(relayResp),
+			"method":  method,
+		}).Warn("Could not make request to relay")
+
 		if executionErr != nil {
 			// both clients errored, abort
-			log.Println("ForkchoiceUpdatedV1: error in both resp: ", executionResp, string(executionResp))
-			return relayErr
+			log.WithFields(logrus.Fields{
+				"error":   executionErr,
+				"url":     m.executionURL,
+				"respond": string(executionResp),
+				"method":  method,
+			}).Error("Could not make request to execution")
+			return fmt.Errorf("relay error: %v, execution error: %v", relayErr, executionErr)
 		}
 
 		bestResponse = executionResp
 	}
 	resp, err := parseRPCResponse(bestResponse)
 	if err != nil {
-		log.Println("ForkchoiceUpdatedV1: error parsing result: ", err)
+		log.Errorf("Could not parse %s response: %v", method, err)
 		return err
 	}
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Println("ForkchoiceUpdatedV1: error unmarshaling result: ", err)
+		log.Errorf("Could not unmarshal %s response: %v", method, err)
 		return err
 	}
 
@@ -110,29 +120,40 @@ func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, r
 
 // ExecutePayloadV1 TODO
 func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWithTxRootV1, result *catalyst.ExecutePayloadResponse) error {
-	executionResp, executionErr := makeRequest(m.executionURL, "engine_executePayloadV1", []interface{}{args})
-	relayResp, relayErr := makeRequest(m.relayURL, "engine_executePayloadV1", []interface{}{args})
-
+	method := "engine_executePayloadV1"
+	executionResp, executionErr := makeRequest(m.executionURL, method, []interface{}{args})
+	relayResp, relayErr := makeRequest(m.relayURL, method, []interface{}{args})
 	bestResponse := relayResp
 	if relayErr != nil {
-		log.Println("ExecutePayloadV1: error in relay resp: ", relayErr, string(relayResp))
+		log.WithFields(logrus.Fields{
+			"error":   relayErr,
+			"url":     m.relayURL,
+			"respond": string(relayResp),
+			"method":  method,
+		}).Warn("Could not make request to relay")
+
 		if executionErr != nil {
 			// both clients errored, abort
-			log.Println("ExecutePayloadV1: error in both resp: ", executionResp, string(executionResp))
-			return relayErr
+			log.WithFields(logrus.Fields{
+				"error":   executionErr,
+				"url":     m.executionURL,
+				"respond": string(executionResp),
+				"method":  method,
+			}).Error("Could not make request to execution")
+			return fmt.Errorf("relay error: %v, execution error: %v", relayErr, executionErr)
 		}
 
 		bestResponse = executionResp
 	}
 	resp, err := parseRPCResponse(bestResponse)
 	if err != nil {
-		log.Println("ExecutePayloadV1: error parsing result: ", err)
+		log.Errorf("Could not parse %s response: %v", method, err)
 		return err
 	}
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Println("ExecutePayloadV1: error unmarshaling result: ", err)
+		log.Errorf("Could not unmarshal %s response: %v", method, err)
 		return err
 	}
 
@@ -142,14 +163,13 @@ func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWit
 // ProposeBlindedBlockV1 TODO
 func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadWithTxRootV1) error {
 	if args == nil || args.Message == nil {
-		fmt.Printf("ProposeBlindedBlockV1: blinded block missing body: %+v\n", args)
-		return fmt.Errorf("blinded block missing body")
+		return errors.New("SignedBlindedBeaconBlock or SignedBlindedBeaconBlock.Message is nil")
 	}
 
 	var body BlindedBeaconBlockBodyPartial
 	err := json.Unmarshal(args.Message.Body, &body)
 	if err != nil {
-		fmt.Printf("ProposeBlindedBlockV1: error parsing body: %+v\n", string(args.Message.Body))
+		log.Errorf("Could not unmarshal blinded body: %v", err)
 		return err
 	}
 
@@ -167,29 +187,43 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 
 	payloadCached := m.store.Get(common.HexToHash(blockHash))
 	if payloadCached != nil {
-		log.Println(green("ProposeBlindedBlockV1: ✓ revealing previous payload from execution client: "), payloadCached.BlockHash, payloadCached.Number, payloadCached.TransactionsRoot)
+		log.WithFields(logrus.Fields{
+			"blockHash": payloadCached.BlockHash,
+			"number":    payloadCached.Number,
+			"txRoot":    fmt.Sprintf("%#x", payloadCached.TransactionsRoot),
+		}).Info("ProposeBlindedBlockV1: revealed previous payload from execution client")
 		*result = *payloadCached
 		return nil
 	}
-	relayResp, relayErr := makeRequest(m.relayURL, "builder_proposeBlindedBlockV1", []interface{}{args})
-	if relayErr != nil {
-		log.Println("ProposeBlindedBlockV1: error fetching block from relay: ", err)
-		return relayErr
+
+	method := "builder_proposeBlindedBlockV1"
+	relayResp, err := makeRequest(m.relayURL, method, []interface{}{args})
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"error":  err,
+			"url":    m.relayURL,
+			"method": method,
+		}).Error("Could not make request to relay")
+		return err
 	}
 
 	resp, err := parseRPCResponse(relayResp)
 	if err != nil {
-		log.Println("ProposeBlindedBlockV1: error parsing result: ", err)
+		log.Errorf("Could not parse %s response: %v", method, err)
 		return err
 	}
 
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
-		log.Println("ProposeBlindedBlockV1: error unmarshaling result: ", err)
+		log.Errorf("Could not unmarshal %s response: %v", method, err)
 		return err
 	}
 
-	log.Println(green("ProposeBlindedBlockV1: ✓ revealing payload from relay: "), result.BlockHash, result.Number)
+	log.WithFields(logrus.Fields{
+		"blockHash": result.BlockHash,
+		"number":    result.Number,
+		"txRoot":    fmt.Sprintf("%#x", result.TransactionsRoot),
+	}).Info("ProposeBlindedBlockV1: revealed new payload from relay")
 	return nil
 }
 
@@ -197,16 +231,26 @@ var nilHash = common.Hash{}
 
 // GetPayloadHeaderV1 TODO
 func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *ExecutionPayloadWithTxRootV1) error {
+	method := "engine_getPayloadV1"
 	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
 	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{*args})
-
 	bestResponse := relayResp
 	if relayErr != nil {
-		log.Println("GetPayloadHeaderV1: error in relay resp: ", relayErr, string(relayResp))
+		log.WithFields(logrus.Fields{
+			"error":   relayErr,
+			"url":     m.relayURL,
+			"respond": string(relayResp),
+			"method":  method,
+		}).Warn("Could not make request to relay")
 		if executionErr != nil {
 			// both clients errored, abort
-			log.Println("GetPayloadHeaderV1: error in both resp: ", executionResp, string(executionResp))
-			return relayErr
+			log.WithFields(logrus.Fields{
+				"error":   executionErr,
+				"url":     m.executionURL,
+				"respond": string(executionResp),
+				"method":  method,
+			}).Error("Could not make request to execution")
+			return fmt.Errorf("relay error: %v, execution error: %v", relayErr, executionErr)
 		}
 
 		bestResponse = executionResp
@@ -214,7 +258,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 
 	resp, err := parseRPCResponse(bestResponse)
 	if err != nil {
-		log.Println("GetPayloadHeaderV1: error parsing result: ", err)
+		log.Errorf("Could not parse %s response: %v", method, err)
 		return err
 	}
 
@@ -222,19 +266,22 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 	if err != nil {
 		resp, err = parseRPCResponse(executionResp)
 		if err != nil {
-			log.Println("GetPayloadHeaderV1: error parsing result: ", err)
+			log.Errorf("GetPayloadHeaderV1: error parsing result: %v", err)
 			return err
 		}
 
 		err = json.Unmarshal(resp.Result, result)
 		if err != nil {
-			log.Println("GetPayloadHeaderV1: error unmarshaling result: ", err)
+			log.Errorf("GetPayloadHeaderV1: error unmarshaling result: %v", err)
 			return err
 		}
 	}
 
 	if result.Transactions != nil {
-		log.Println("GetPayloadHeaderV1: no TransactionsRoot found, calculating it from Transactions list instead: ", *args, result.BlockHash, result.Number)
+		log.WithFields(logrus.Fields{
+			"blockHash": result.BlockHash,
+			"number":    result.Number,
+		}).Info("GetPayloadHeaderV1: calculating tx root from tx list")
 
 		txs := types.Transactions{}
 		var byteTxs [][]byte
@@ -242,7 +289,6 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 			var tx types.Transaction
 			bytesTx := common.Hex2Bytes(otx)
 			if err := tx.UnmarshalBinary(bytesTx); err != nil {
-				log.Println("GetPayloadHeaderV1: error decoding tx: ", err)
 				return fmt.Errorf("failed to decode tx %d: %v", i, err)
 			}
 			txs = append(txs, &tx)
@@ -251,15 +297,16 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 
 		newRootBytes, err := txroot.TransactionsRoot(byteTxs)
 		if err != nil {
-			log.Println("GetPayloadHeaderV1: error calculating transactions root: ", err)
+			log.Errorf("GetPayloadHeaderV1: error calculating tx root: %v", err)
 			return err
 		}
 		newRoot := common.BytesToHash(newRootBytes[:])
 
 		if result.TransactionsRoot != nilHash {
 			if newRoot != result.TransactionsRoot {
-				log.Println("GetPayloadHeaderV1: mismatched tx root: ", newRoot.String(), result.TransactionsRoot.String())
-				return fmt.Errorf("calculated different transactionsRoot %s: %s", newRoot.String(), result.TransactionsRoot.String())
+				err := fmt.Errorf("mismatched tx root: %s, %s", newRoot.String(), result.TransactionsRoot.String())
+				log.Errorf("GetPayloadHeaderV1: %v", err)
+				return err
 			}
 		}
 		result.TransactionsRoot = newRoot
@@ -271,23 +318,27 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 	}
 	result.Transactions = nil
 
-	log.Println(green("GetPayloadHeaderV1: ✓ got payload header successfully: "), *args, result.BlockHash, result.Number)
+	log.WithFields(logrus.Fields{
+		"blockHash": result.BlockHash,
+		"number":    result.Number,
+		"txRoot":    fmt.Sprintf("%#x", result.TransactionsRoot),
+	}).Info("GetPayloadHeaderV1: successfully got payload header")
 	return nil
 }
 
 func (m *MevService) methodNotFound(i *rpc.RequestInfo, w http.ResponseWriter) error {
-	log.Println("method not found, forwarding to execution client: ", i.Method)
+	log.Warnf("method %s not found, forwarding to execution client: ", i.Method)
 
 	req, err := http.NewRequest(http.MethodPost, m.executionURL, bytes.NewReader(i.Body))
 	if err != nil {
-		log.Println("error in method not found: creating request: ", i.Method, err)
+		log.Errorf("error in method %s: creating request: %v", i.Method, err)
 		return err
 	}
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Println("error in method not found: doing request: ", i.Method, err)
+		log.Errorf("error in method %s: doing request: %v", i.Method, err)
 		return err
 	}
 	defer func() {
@@ -305,10 +356,10 @@ func (m *MevService) methodNotFound(i *rpc.RequestInfo, w http.ResponseWriter) e
 
 func newMevService(executionURL string, relayURL string) (*MevService, error) {
 	if executionURL == "" {
-		return nil, errors.New("NewRouter must have an executionURL")
+		return nil, errors.New("NewMevService must have an executionURL")
 	}
 	if relayURL == "" {
-		return nil, errors.New("NewRouter must have an relayURL")
+		return nil, errors.New("NewMevService must have an relayURL")
 	}
 
 	return &MevService{
@@ -319,10 +370,10 @@ func newMevService(executionURL string, relayURL string) (*MevService, error) {
 
 func newRelayService(executionURL string, relayURL string, store Store) (*RelayService, error) {
 	if executionURL == "" {
-		return nil, errors.New("NewRouter must have an executionURL")
+		return nil, errors.New("NewRelayService must have an executionURL")
 	}
 	if relayURL == "" {
-		return nil, errors.New("NewRouter must have an relayURL")
+		return nil, errors.New("NewRelayService must have an relayURL")
 	}
 
 	return &RelayService{
