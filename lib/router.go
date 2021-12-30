@@ -4,15 +4,16 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/rpc"
 	"github.com/gorilla/rpc/json"
+	"github.com/sirupsen/logrus"
 )
 
 // NewRouter creates a json rpc router that handles all methods
-func NewRouter(executionURL string, relayURL string, store Store) (*mux.Router, error) {
-	mev, err := newMevService(executionURL, relayURL)
+func NewRouter(executionURL string, relayURL string, store Store, log *logrus.Entry) (*mux.Router, error) {
+	mev, err := newMevService(executionURL, relayURL, log)
 	if err != nil {
 		return nil, err
 	}
-	relay, err := newRelayService(executionURL, relayURL, store)
+	relay, err := newRelayService(executionURL, relayURL, store, log)
 	if err != nil {
 		return nil, err
 	}

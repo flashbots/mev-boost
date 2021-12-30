@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -91,7 +92,7 @@ func TestNewRouter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewRouter(tt.args.executionURL, tt.args.relayURL, NewStore())
+			_, err := NewRouter(tt.args.executionURL, tt.args.relayURL, NewStore(), logrus.WithField("testing", true))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewRouter() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -171,7 +172,7 @@ func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, js
 			store = NewStore()
 		}
 		// Create the router pointing at the mock server
-		r, err := NewRouter(mockExecutionHTTP.URL, mockRelayHTTP.URL, store)
+		r, err := NewRouter(mockExecutionHTTP.URL, mockRelayHTTP.URL, store, logrus.WithField("testing", true))
 		require.Nil(t, err, "error creating router")
 
 		// Craft a JSON-RPC request to the router

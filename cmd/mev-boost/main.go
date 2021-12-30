@@ -2,18 +2,17 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/flashbots/mev-middleware/lib"
+	"github.com/sirupsen/logrus"
 )
 
 const port = 18550
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.SetPrefix("mev-boost: ")
+	log := logrus.WithField("prefix", "cmd/mev-boost")
 
 	executionURL := flag.String("executionUrl", "http://127.0.0.1:18545", "url to execution client")
 	relayURL := flag.String("relayUrl", "http://127.0.0.1:28545", "url to relay")
@@ -21,7 +20,7 @@ func main() {
 	flag.Parse()
 
 	store := lib.NewStore()
-	router, err := lib.NewRouter(*executionURL, *relayURL, store)
+	router, err := lib.NewRouter(*executionURL, *relayURL, store, log)
 	if err != nil {
 		panic(err)
 	}
