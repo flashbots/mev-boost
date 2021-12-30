@@ -14,4 +14,11 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+# Ignore VI/Vim swapfiles
+.*.sw?
+
+# IntelliJ
+.idea
+.ijwb
+
 mev-boost
