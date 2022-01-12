@@ -202,7 +202,7 @@ func TestMevService_ForckChoiceUpdated(t *testing.T) {
 			[]interface{}{catalyst.ForkchoiceStateV1{}, catalyst.PayloadAttributesV1{
 				SuggestedFeeRecipient: common.HexToAddress("0x0000000000000000000000000000000000000001"),
 			}},
-			catalyst.ForkChoiceResponse{PayloadID: strToBytes("0x1")},
+			ForkChoiceResponse{PayloadID: strToBytes("0x1")},
 			200,
 			200,
 			1,

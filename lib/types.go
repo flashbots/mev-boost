@@ -66,3 +66,9 @@ type executionPayloadHeaderMarshaling struct {
 	ExtraData     hexutil.Bytes
 	LogsBloom     hexutil.Bytes
 }
+
+// ForkChoiceResponse is a workaround for mergemock allowing these fields to be null
+type ForkChoiceResponse struct {
+	Status    string         `json:"status,omitempty"`
+	PayloadID *hexutil.Bytes `json:"payloadId,omitempty"`
+}

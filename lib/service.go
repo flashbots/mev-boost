@@ -77,7 +77,7 @@ func makeRequest(url string, method string, params []interface{}) ([]byte, error
 }
 
 // ForkchoiceUpdatedV1 TODO
-func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result *catalyst.ForkChoiceResponse) error {
+func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result *ForkChoiceResponse) error {
 	method := "engine_forkchoiceUpdatedV1"
 	executionResp, executionErr := makeRequest(m.executionURL, method, *args)
 	relayResp, relayErr := makeRequest(m.relayURL, method, *args)
