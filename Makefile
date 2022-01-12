@@ -16,6 +16,9 @@ generate:
 run:
 	./mev-boost
 
+run-boost-with-mergemock:
+	./mev-boost -executionUrl http://127.0.0.1:8550
+
 run-dev:
 	go run cmd/mev-boost/main.go
 
@@ -26,4 +29,4 @@ run-mergemock-consensus:
 	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) consensus --slot-time=4s --engine http://127.0.0.1:18550
 
 run-mergemock-integration: build
-	make -j3 run run-mergemock-engine run-mergemock-consensus
+	make -j3 run-boost-with-mergemock run-mergemock-engine run-mergemock-consensus
