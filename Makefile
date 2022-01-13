@@ -19,6 +19,9 @@ run:
 run-boost-with-mergemock:
 	./mev-boost -executionUrl http://127.0.0.1:8550
 
+run-boost-with-relay:
+	./mev-boost -relayUrl http://127.0.0.1:18545
+
 run-dev:
 	go run cmd/mev-boost/main.go
 
@@ -30,3 +33,6 @@ run-mergemock-consensus:
 
 run-mergemock-integration: build
 	make -j3 run-boost-with-mergemock run-mergemock-engine run-mergemock-consensus
+
+run-mergemock-integration-relay: build
+	make -j3 run-boost-with-relay run-mergemock-engine run-mergemock-consensus
