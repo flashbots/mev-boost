@@ -212,7 +212,7 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 		logMethod.WithFields(logrus.Fields{
 			"error":  err,
 			"url":    m.relayURL,
-			"method": method,
+			"method": "relay_proposeBlindedBlockV1",
 		}).Error("Could not make request to relay")
 		return err
 	}
@@ -252,7 +252,7 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 			"error":   relayErr,
 			"url":     m.relayURL,
 			"respond": string(relayResp),
-			"method":  method,
+			"method":  "relay_getPayloadHeaderV1",
 		}).Warn("Could not make request to relay")
 		if executionErr != nil {
 			// both clients errored, abort
