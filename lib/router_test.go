@@ -143,21 +143,24 @@ type httpTest struct {
 type httpTestWithMethods struct {
 	httpTest
 
-	jsonRPCMethodCaller string
-	jsonRPCMethodProxy  string
-	skipRespCheck       bool
+	jsonRPCMethodCaller     string
+	jsonRPCMethodProxy      string
+	jsonRPCMethodRelayProxy string
+	skipRespCheck           bool
 }
 
 func testHTTPMethod(t *testing.T, jsonRPCMethod string, tt *httpTest) {
-	testHTTPMethodWithDifferentRPC(t, jsonRPCMethod, jsonRPCMethod, tt, false, nil)
+	testHTTPMethodWithDifferentRPC(t, jsonRPCMethod, jsonRPCMethod, jsonRPCMethod, tt, false, nil)
 }
 
-func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, jsonRPCMethodProxy string, tt *httpTest, skipRespCheck bool, store Store) {
+func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, jsonRPCMethodProxy string, jsonRPCMethodRelay string, tt *httpTest, skipRespCheck bool, store Store) {
 	t.Run(tt.name, func(t *testing.T) {
 		// Format JSON-RPC body with the provided method and array of args
 		body, err := formatRequestBody(jsonRPCMethodCaller, tt.requestArray)
 		require.Nil(t, err, "error formatting json body")
 		bodyProxy, err := formatRequestBody(jsonRPCMethodProxy, tt.requestArray)
+		require.Nil(t, err, "error formatting json body")
+		bodyRelayProxy, err := formatRequestBody(jsonRPCMethodRelay, tt.requestArray)
 		require.Nil(t, err, "error formatting json body")
 
 		// Format JSON-RPC response
@@ -166,7 +169,7 @@ func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, js
 
 		// Create mock http server that expects the above bodyProxy and returns the above response
 		mockExecution, mockExecutionHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyProxy), string(resp), tt.errorExecution)
-		mockRelay, mockRelayHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyProxy), string(resp), tt.errorRelay)
+		mockRelay, mockRelayHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyRelayProxy), string(resp), tt.errorRelay)
 
 		if store == nil {
 			store = NewStore()
@@ -267,7 +270,7 @@ func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethod(t, "builder_proposeBlindedBlockV1", &tt)
+		testHTTPMethodWithDifferentRPC(t, "builder_proposeBlindedBlockV1", "builder_proposeBlindedBlockV1", "relay_proposeBlindedBlockV1", &tt, false, nil)
 	}
 }
 
@@ -320,7 +323,7 @@ func TestRelayervice_GetPayloadHeaderV1(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethodWithDifferentRPC(t, "builder_getPayloadHeaderV1", "engine_getPayloadV1", &tt, false, nil)
+		testHTTPMethodWithDifferentRPC(t, "builder_getPayloadHeaderV1", "engine_getPayloadV1", "relay_getPayloadHeaderV1", &tt, false, nil)
 	}
 }
 
@@ -373,6 +376,7 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 			},
 			"builder_getPayloadHeaderV1",
 			"engine_getPayloadV1",
+			"relay_getPayloadHeaderV1",
 			true, // this endpoint transforms Transactions into TransactionsRoot, so skip equality check
 		},
 		{
@@ -396,11 +400,12 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 			},
 			"builder_proposeBlindedBlockV1",
 			"builder_proposeBlindedBlockV1",
+			"relay_proposeBlindedBlockV1",
 			false,
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethodWithDifferentRPC(t, tt.jsonRPCMethodCaller, tt.jsonRPCMethodProxy, &tt.httpTest, tt.skipRespCheck, store)
+		testHTTPMethodWithDifferentRPC(t, tt.jsonRPCMethodCaller, tt.jsonRPCMethodProxy, tt.jsonRPCMethodRelayProxy, &tt.httpTest, tt.skipRespCheck, store)
 	}
 }
 
@@ -432,6 +437,7 @@ func TestRelayervice_GetPayloadAndProposeCamelCase(t *testing.T) {
 			},
 			"builder_getPayloadHeaderV1",
 			"engine_getPayloadV1",
+			"relay_getPayloadHeaderV1",
 			true, // this endpoint transforms Transactions into TransactionsRoot, so skip equality check
 		},
 		{
@@ -455,10 +461,11 @@ func TestRelayervice_GetPayloadAndProposeCamelCase(t *testing.T) {
 			},
 			"builder_proposeBlindedBlockV1",
 			"builder_proposeBlindedBlockV1",
+			"relay_proposeBlindedBlockV1",
 			false,
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethodWithDifferentRPC(t, tt.jsonRPCMethodCaller, tt.jsonRPCMethodProxy, &tt.httpTest, tt.skipRespCheck, store)
+		testHTTPMethodWithDifferentRPC(t, tt.jsonRPCMethodCaller, tt.jsonRPCMethodProxy, tt.jsonRPCMethodRelayProxy, &tt.httpTest, tt.skipRespCheck, store)
 	}
 }
