@@ -207,7 +207,7 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 		return nil
 	}
 
-	relayResp, err := makeRequest(m.relayURL, method, []interface{}{args})
+	relayResp, err := makeRequest(m.relayURL, "relay_proposeBlindedBlockV1", []interface{}{args})
 	if err != nil {
 		logMethod.WithFields(logrus.Fields{
 			"error":  err,
@@ -244,8 +244,8 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 	method := "engine_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
 
-	executionResp, executionErr := makeRequest(m.executionURL, "engine_getPayloadV1", []interface{}{*args})
-	relayResp, relayErr := makeRequest(m.relayURL, "engine_getPayloadV1", []interface{}{*args})
+	executionResp, executionErr := makeRequest(m.executionURL, method, []interface{}{*args})
+	relayResp, relayErr := makeRequest(m.relayURL, "relay_getPayloadHeaderV1", []interface{}{*args})
 	bestResponse := relayResp
 	if relayErr != nil {
 		logMethod.WithFields(logrus.Fields{
