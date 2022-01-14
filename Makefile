@@ -29,7 +29,7 @@ run-mergemock-engine:
 	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) engine
 
 run-mergemock-consensus:
-	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) consensus --slot-time=4s --engine http://127.0.0.1:18550
+	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) consensus --slot-time=4s --engine http://127.0.0.1:18550 --test-runs 10
 
 run-mergemock-integration: build
 	make -j3 run-boost-with-mergemock run-mergemock-engine run-mergemock-consensus
