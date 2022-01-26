@@ -33,7 +33,7 @@ mev_boost-->consensus: builder_proposeBlindedBlockV1 response
 
 ## Specification
 
-1. mev-boost must be initialized with a list of (BLSPublicKey, IP address) pairs representing trusted relays.
+1. mev-boost must be initialized with a list of (`BLSPublicKey`, `RelayURI`) pairs representing trusted relays.
 2. mev-boost must intercept [`engine_forkchoiceUpdatedV1`](#engine_forkchoiceupdatedv1) call from the BN -> EC and forward it to all connected relays to communicate `feeRecipient`.
 3. mev-boost must begin polling connected relays for their [`SignedMEVPayloadHeader`](#signedmevpayloadheader) using [`relay_getPayloadHeaderV1`](#relay_getpayloadheaderv1) requests.
 4. mev-boost must verify the returned [`SignedMEVPayloadHeader`](#signedmevpayloadheader) signature matches the BLS key associated with the IP of the relay and has a matching `payloadId`.
