@@ -220,31 +220,6 @@ func TestMevService_ForckChoiceUpdated(t *testing.T) {
 	}
 }
 
-func TestMevService_ExecutePayload(t *testing.T) {
-	tests := []httpTest{
-		{
-			"basic success",
-			[]interface{}{ExecutionPayloadWithTxRootV1{
-				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-				BaseFeePerGas: big.NewInt(4),
-				Transactions:  &[]string{},
-			}},
-			catalyst.ExecutePayloadResponse{
-				Status: "VALID",
-			},
-			200,
-			200,
-			1,
-			1,
-			false,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		testHTTPMethod(t, "engine_executePayloadV1", &tt)
-	}
-}
-
 func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 	tests := []httpTest{
 		{

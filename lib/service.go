@@ -11,7 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/flashbots/mev-middleware/lib/txroot"
 	"github.com/gorilla/rpc"
 	"github.com/sirupsen/logrus"
@@ -116,51 +115,6 @@ func (m *MevService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, r
 	err = json.Unmarshal(resp.Result, result)
 	if err != nil {
 		logMethod.WithField("err", err).Error("Could not unmarshal response", method, err)
-		return err
-	}
-
-	return nil
-}
-
-// ExecutePayloadV1 TODO
-func (m *MevService) ExecutePayloadV1(r *http.Request, args *ExecutionPayloadWithTxRootV1, result *catalyst.ExecutePayloadResponse) error {
-	method := "engine_executePayloadV1"
-	logMethod := m.log.WithField("method", method)
-
-	executionResp, executionErr := makeRequest(m.executionURL, method, []interface{}{args})
-	relayResp, relayErr := makeRequest(m.relayURL, method, []interface{}{args})
-	bestResponse := relayResp
-	if relayErr != nil {
-		logMethod.WithFields(logrus.Fields{
-			"error":   relayErr,
-			"url":     m.relayURL,
-			"respond": string(relayResp),
-			"method":  method,
-		}).Warn("Could not make request to relay")
-
-		if executionErr != nil {
-			// both clients errored, abort
-			logMethod.WithFields(logrus.Fields{
-				"error":      executionErr,
-				"relayError": relayErr,
-				"url":        m.executionURL,
-				"respond":    string(executionResp),
-				"method":     method,
-			}).Error("Could not make request to execution")
-			return fmt.Errorf("relay error: %v, execution error: %v", relayErr, executionErr)
-		}
-
-		bestResponse = executionResp
-	}
-	resp, err := parseRPCResponse(bestResponse)
-	if err != nil {
-		logMethod.WithField("err", err).Error("Could not parse response")
-		return err
-	}
-
-	err = json.Unmarshal(resp.Result, result)
-	if err != nil {
-		logMethod.WithField("err", err).Error("Could not unmarshal response")
 		return err
 	}
 
