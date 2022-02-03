@@ -249,7 +249,6 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 			"number":    result.Number,
 		}).Info("GetPayloadHeaderV1: calculating tx root from tx list")
 
-		txs := types.Transactions{}
 		var byteTxs [][]byte
 		for i, otx := range *result.Transactions {
 			var tx types.Transaction
@@ -262,7 +261,6 @@ func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result 
 				}).Error("Failed to decode tx")
 				return fmt.Errorf("failed to decode tx %d: %v", i, err)
 			}
-			txs = append(txs, &tx)
 			byteTxs = append(byteTxs, bytesTx)
 		}
 
