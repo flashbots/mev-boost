@@ -1,6 +1,8 @@
 # Contributing guide
 
-Welcome to the Flashbots collective! We just ask you to be nice when you play with us. TODO: Code of conduct.
+Welcome to the Flashbots collective! We just ask you to be nice when you play with us.
+
+Please start by reading our [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Set up
 
