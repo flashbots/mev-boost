@@ -38,7 +38,7 @@ type ExecutionPayloadWithTxRootV1 struct {
 	StateRoot        common.Hash    `json:"stateRoot" gencodec:"required"`
 	ReceiptsRoot     common.Hash    `json:"receiptsRoot" gencodec:"required"`
 	LogsBloom        []byte         `json:"logsBloom" gencodec:"required"`
-	Random           common.Hash    `json:"random" gencodec:"required"`
+	PrevRandao       common.Hash    `json:"prevRandao" gencodec:"required"`
 	Number           uint64         `json:"blockNumber" gencodec:"required"`
 	GasLimit         uint64         `json:"gasLimit" gencodec:"required"`
 	GasUsed          uint64         `json:"gasUsed" gencodec:"required"`
@@ -69,6 +69,13 @@ type executionPayloadHeaderMarshaling struct {
 
 // ForkChoiceResponse is a workaround for mergemock allowing these fields to be null
 type ForkChoiceResponse struct {
-	Status    string         `json:"status,omitempty"`
-	PayloadID *hexutil.Bytes `json:"payloadId,omitempty"`
+	PayloadStatus PayloadStatus  `json:"payloadStatus,omitempty"`
+	PayloadID     *hexutil.Bytes `json:"payloadId,omitempty"`
+}
+
+// PayloadStatus is used in ForkChoiceResponse
+type PayloadStatus struct {
+	Status          string `json:"status,omitempty"`
+	LatestValidHash string `json:"latestValidHash,omitempty"`
+	ValidationError string `json:"validationError,omitempty"`
 }
