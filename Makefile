@@ -10,6 +10,9 @@ build:
 test:
 	go test ./lib/... ./cmd/...
 
+test-coverage:
+	go test ./lib/... ./cmd/... -v -covermode=count -coverprofile=coverage.out
+
 lint:
 	revive -set_exit_status ./lib ./cmd
 	go vet ./...
