@@ -60,39 +60,30 @@ func newMockHTTPServer(t *testing.T, statusCode int, expectedRequest string, res
 func TestNewRouter(t *testing.T) {
 	_, mockHTTPServer := newMockHTTPServer(t, 200, "", "{}", false)
 
-	type args struct {
-		executionURL string
-		relayURL     string
-	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name     string
+		relayURL string
+		wantErr  bool
 	}{
 		{
 			"success",
-			args{"http://foo", "http://bar"},
+			"http://bar",
 			false,
 		},
 		{
 			"MockHTTPServer success",
-			args{mockHTTPServer.URL, mockHTTPServer.URL},
+			mockHTTPServer.URL,
 			false,
 		},
 		{
-			"fails with empty executionURL",
-			args{"", "http://bar"},
-			true,
-		},
-		{
 			"fails with empty relayURL",
-			args{"http://foo", ""},
+			"",
 			true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewRouter(tt.args.executionURL, tt.args.relayURL, NewStore(), logrus.WithField("testing", true))
+			_, err := NewRouter(tt.relayURL, NewStore(), logrus.WithField("testing", true))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewRouter() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -128,37 +119,31 @@ func formatErrorResponse(err string) ([]byte, error) {
 }
 
 type httpTest struct {
-	name                        string
-	requestArray                []interface{}
-	expectedResponseResult      interface{}
-	expectedStatusCode          int
-	mockStatusCode              int
-	expectedRequestsToExecution int
-	expectedRequestsToRelay     int
-
-	errorExecution bool
-	errorRelay     bool
+	name                    string
+	requestArray            []interface{}
+	expectedResponseResult  interface{}
+	expectedStatusCode      int
+	mockStatusCode          int
+	expectedRequestsToRelay int
+	errorRelay              bool
 }
 
 type httpTestWithMethods struct {
 	httpTest
 
 	jsonRPCMethodCaller     string
-	jsonRPCMethodProxy      string
 	jsonRPCMethodRelayProxy string
 	skipRespCheck           bool
 }
 
 func testHTTPMethod(t *testing.T, jsonRPCMethod string, tt *httpTest) {
-	testHTTPMethodWithDifferentRPC(t, jsonRPCMethod, jsonRPCMethod, jsonRPCMethod, tt, false, nil)
+	testHTTPMethodWithDifferentRPC(t, jsonRPCMethod, jsonRPCMethod, tt, false, nil)
 }
 
-func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, jsonRPCMethodProxy string, jsonRPCMethodRelay string, tt *httpTest, skipRespCheck bool, store Store) {
+func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, jsonRPCMethodRelay string, tt *httpTest, skipRespCheck bool, store Store) {
 	t.Run(tt.name, func(t *testing.T) {
 		// Format JSON-RPC body with the provided method and array of args
 		body, err := formatRequestBody(jsonRPCMethodCaller, tt.requestArray)
-		require.Nil(t, err, "error formatting json body")
-		bodyProxy, err := formatRequestBody(jsonRPCMethodProxy, tt.requestArray)
 		require.Nil(t, err, "error formatting json body")
 		bodyRelayProxy, err := formatRequestBody(jsonRPCMethodRelay, tt.requestArray)
 		require.Nil(t, err, "error formatting json body")
@@ -168,14 +153,13 @@ func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, js
 		require.Nil(t, err, "error formatting json response")
 
 		// Create mock http server that expects the above bodyProxy and returns the above response
-		mockExecution, mockExecutionHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyProxy), string(resp), tt.errorExecution)
 		mockRelay, mockRelayHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyRelayProxy), string(resp), tt.errorRelay)
 
 		if store == nil {
 			store = NewStore()
 		}
 		// Create the router pointing at the mock server
-		r, err := NewRouter(mockExecutionHTTP.URL, mockRelayHTTP.URL, store, logrus.WithField("testing", true))
+		r, err := NewRouter(mockRelayHTTP.URL, store, logrus.WithField("testing", true))
 		require.Nil(t, err, "error creating router")
 
 		// Craft a JSON-RPC request to the router
@@ -190,7 +174,6 @@ func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, js
 			assert.JSONEq(t, string(resp), w.Body.String(), "expected response to be json equal")
 		}
 		assert.Equal(t, tt.expectedStatusCode, w.Result().StatusCode, "expected status code to be equal")
-		assert.Equal(t, tt.expectedRequestsToExecution, mockExecution.reqCount, "expected request count to execution to be equal")
 		assert.Equal(t, tt.expectedRequestsToRelay, mockRelay.reqCount, "expected request count to relay to be equal")
 	})
 }
@@ -210,8 +193,6 @@ func TestMevService_ForckChoiceUpdated(t *testing.T) {
 			200,
 			200,
 			1,
-			1,
-			false,
 			false,
 		},
 	}
@@ -238,14 +219,12 @@ func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 			},
 			200,
 			200,
-			0,
 			1,
-			false,
 			false,
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethodWithDifferentRPC(t, "builder_proposeBlindedBlockV1", "builder_proposeBlindedBlockV1", "relay_proposeBlindedBlockV1", &tt, false, nil)
+		testHTTPMethodWithDifferentRPC(t, "builder_proposeBlindedBlockV1", "relay_proposeBlindedBlockV1", &tt, false, nil)
 	}
 }
 
@@ -262,62 +241,11 @@ func TestRelayervice_GetPayloadHeaderV1(t *testing.T) {
 			200,
 			200,
 			1,
-			1,
-			false,
-			false,
-		},
-		{
-			"error in relay but still success",
-			[]interface{}{"0x1"},
-			ExecutionPayloadWithTxRootV1{
-				BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-				BaseFeePerGas:    big.NewInt(4),
-				TransactionsRoot: common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
-			},
-			200,
-			200,
-			1,
-			0,
-			false,
-			true,
-		},
-		{
-			"error in execution but still success",
-			[]interface{}{"0x1"},
-			ExecutionPayloadWithTxRootV1{
-				BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-				BaseFeePerGas:    big.NewInt(4),
-				TransactionsRoot: common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
-			},
-			200,
-			200,
-			0,
-			1,
-			true,
 			false,
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethodWithDifferentRPC(t, "builder_getPayloadHeaderV1", "engine_getPayloadV1", "relay_getPayloadHeaderV1", &tt, false, nil)
-	}
-}
-
-func TestMevService_MethodFallback(t *testing.T) {
-	tests := []httpTest{
-		{
-			"basic success",
-			[]interface{}{"0x1"},
-			[]string{"0x2"},
-			200,
-			200,
-			1,
-			0,
-			false,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		testHTTPMethod(t, "engine_foo", &tt)
+		testHTTPMethodWithDifferentRPC(t, "builder_getPayloadHeaderV1", "relay_getPayloadHeaderV1", &tt, false, nil)
 	}
 }
 
@@ -339,18 +267,15 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 	tests := []httpTestWithMethods{
 		{
 			httpTest{
-				"get payload from execution and store it",
+				"get payload and store it",
 				[]interface{}{"0x1"},
 				payload,
 				200,
 				200,
-				1,
 				0,
-				false,
 				true,
 			},
 			"builder_getPayloadHeaderV1",
-			"engine_getPayloadV1",
 			"relay_getPayloadHeaderV1",
 			true, // this endpoint transforms Transactions into TransactionsRoot, so skip equality check
 		},
@@ -368,19 +293,16 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 				payload,
 				200,
 				200,
-				0,
-				0,
-				false,
+				1,
 				false,
 			},
-			"builder_proposeBlindedBlockV1",
 			"builder_proposeBlindedBlockV1",
 			"relay_proposeBlindedBlockV1",
 			false,
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethodWithDifferentRPC(t, tt.jsonRPCMethodCaller, tt.jsonRPCMethodProxy, tt.jsonRPCMethodRelayProxy, &tt.httpTest, tt.skipRespCheck, store)
+		testHTTPMethodWithDifferentRPC(t, tt.jsonRPCMethodCaller, tt.jsonRPCMethodRelayProxy, &tt.httpTest, tt.skipRespCheck, store)
 	}
 }
 
@@ -400,18 +322,15 @@ func TestRelayervice_GetPayloadAndProposeCamelCase(t *testing.T) {
 	tests := []httpTestWithMethods{
 		{
 			httpTest{
-				"get payload from execution and store it",
+				"get payload and store it",
 				[]interface{}{"0x1"},
 				payload,
 				200,
 				200,
-				1,
 				0,
-				false,
 				true,
 			},
 			"builder_getPayloadHeaderV1",
-			"engine_getPayloadV1",
 			"relay_getPayloadHeaderV1",
 			true, // this endpoint transforms Transactions into TransactionsRoot, so skip equality check
 		},
@@ -429,18 +348,15 @@ func TestRelayervice_GetPayloadAndProposeCamelCase(t *testing.T) {
 				payload,
 				200,
 				200,
-				0,
-				0,
-				false,
+				1,
 				false,
 			},
-			"builder_proposeBlindedBlockV1",
 			"builder_proposeBlindedBlockV1",
 			"relay_proposeBlindedBlockV1",
 			false,
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethodWithDifferentRPC(t, tt.jsonRPCMethodCaller, tt.jsonRPCMethodProxy, tt.jsonRPCMethodRelayProxy, &tt.httpTest, tt.skipRespCheck, store)
+		testHTTPMethodWithDifferentRPC(t, tt.jsonRPCMethodCaller, tt.jsonRPCMethodRelayProxy, &tt.httpTest, tt.skipRespCheck, store)
 	}
 }

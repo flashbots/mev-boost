@@ -24,8 +24,8 @@ generate:
 run:
 	./mev-boost
 
-run-boost-with-mergemock:
-	./mev-boost -executionUrl http://127.0.0.1:8550
+#run-boost-with-mergemock:
+#	./mev-boost -executionUrl http://127.0.0.1:8550
 
 run-boost-with-relay:
 	./mev-boost -relayUrl http://127.0.0.1:18545

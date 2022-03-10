@@ -14,14 +14,12 @@ var (
 	version = "dev" // is set during build process
 
 	// defaults
-	defaultPort         = 18550
-	defaultExecutionURL = getEnv("EXECUTION_URL", "http://127.0.0.1:18545")
-	defaultRelayURL     = getEnv("RELAY_URL", "http://127.0.0.1:28545")
+	defaultPort     = 18550
+	defaultRelayURL = getEnv("RELAY_URL", "http://127.0.0.1:28545")
 
 	// cli flags
-	port         = flag.Int("port", defaultPort, "port for mev-boost to listen on")
-	executionURL = flag.String("executionUrl", defaultExecutionURL, "url to execution client")
-	relayURL     = flag.String("relayUrl", defaultRelayURL, "url to relay")
+	port     = flag.Int("port", defaultPort, "port for mev-boost to listen on")
+	relayURL = flag.String("relayUrl", defaultRelayURL, "url to relay")
 )
 
 func main() {
@@ -30,7 +28,7 @@ func main() {
 	log.Printf("mev-boost %s\n", version)
 
 	store := lib.NewStore()
-	router, err := lib.NewRouter(*executionURL, *relayURL, store, log)
+	router, err := lib.NewRouter(*relayURL, store, log)
 	if err != nil {
 		panic(err)
 	}
