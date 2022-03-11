@@ -8,6 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
+var nilHash = common.Hash{}
+
 // SignedBlindedBeaconBlock forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#signedbeaconblockheader
 type SignedBlindedBeaconBlock struct {
 	Message   *BlindedBeaconBlock `json:"message"`
@@ -48,6 +50,7 @@ type ExecutionPayloadWithTxRootV1 struct {
 	BlockHash        common.Hash    `json:"blockHash" gencodec:"required"`
 	Transactions     *[]string      `json:"transactions,omitempty"`
 	TransactionsRoot common.Hash    `json:"transactionsRoot"`
+	FeeRecipientDiff *big.Int       `json:"feeRecipientDiff" gencodec:"required"`
 }
 
 // ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindedBeaconBlockBodyPartial
@@ -67,6 +70,29 @@ type executionPayloadHeaderMarshaling struct {
 	LogsBloom     hexutil.Bytes
 }
 
+// ForkchoiceStatus as defined in the engine spec: https://github.com/ethereum/execution-apis/blob/main/src/engine/specification.md#engine_forkchoiceupdatedv1
+type ForkchoiceStatus string
+
+var (
+	// ForkchoiceStatusValid indicates the fork choice is valid
+	ForkchoiceStatusValid ForkchoiceStatus = "VALID"
+
+	// ForkchoiceStatusInvalid indicates the fork choice is invalid
+	ForkchoiceStatusInvalid ForkchoiceStatus = "INVALID"
+
+	// ForkchoiceStatusAccepted indicates the fork choice is accepted
+	ForkchoiceStatusAccepted ForkchoiceStatus = "ACCEPTED"
+
+	// ForkchoiceStatusSyncing indicates the node is still syncing
+	ForkchoiceStatusSyncing ForkchoiceStatus = "SYNCING"
+
+	// ForkchoiceStatusInvalidBlockHash indicates supplied blockhash is unknown
+	ForkchoiceStatusInvalidBlockHash ForkchoiceStatus = "INVALID_BLOCK_HASH"
+
+	// ForkchoiceStatusInvalidTerminalBlock indicates the latest valid ancestor is not a descendant of configured TTD block
+	ForkchoiceStatusInvalidTerminalBlock ForkchoiceStatus = "INVALID_TERMINAL_BLOCK"
+)
+
 // ForkChoiceResponse is a workaround for mergemock allowing these fields to be null
 type ForkChoiceResponse struct {
 	PayloadStatus PayloadStatus  `json:"payloadStatus,omitempty"`
@@ -75,7 +101,7 @@ type ForkChoiceResponse struct {
 
 // PayloadStatus is used in ForkChoiceResponse
 type PayloadStatus struct {
-	Status          string `json:"status,omitempty"`
-	LatestValidHash string `json:"latestValidHash,omitempty"`
-	ValidationError string `json:"validationError,omitempty"`
+	Status          ForkchoiceStatus `json:"status,omitempty"`
+	LatestValidHash string           `json:"latestValidHash,omitempty"`
+	ValidationError string           `json:"validationError,omitempty"`
 }

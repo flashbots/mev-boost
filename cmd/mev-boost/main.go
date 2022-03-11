@@ -2,9 +2,12 @@ package main
 
 import (
 	"flag"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/flashbots/mev-middleware/lib"
 	"github.com/sirupsen/logrus"
@@ -14,21 +17,28 @@ var (
 	version = "dev" // is set during build process
 
 	// defaults
-	defaultPort     = 18550
-	defaultRelayURL = getEnv("RELAY_URL", "http://127.0.0.1:28545")
+	defaultPort      = 18550
+	defaultRelayURLs = getEnv("RELAY_URLS", "http://127.0.0.1:28545")
 
 	// cli flags
-	port     = flag.Int("port", defaultPort, "port for mev-boost to listen on")
-	relayURL = flag.String("relayUrl", defaultRelayURL, "url to relay")
+	port      = flag.Int("port", defaultPort, "port for mev-boost to listen on")
+	relayURLs = flag.String("relayUrl", defaultRelayURLs, "relay urls - single entry or comma-separated list")
 )
 
 func main() {
+	rand.Seed(time.Now().UnixNano()) // warning: not a cryptographically secure seed
+
 	flag.Parse()
 	log := logrus.WithField("prefix", "cmd/mev-boost")
 	log.Printf("mev-boost %s\n", version)
 
+	_relayURLs := []string{}
+	for _, entry := range strings.Split(*relayURLs, ",") {
+		_relayURLs = append(_relayURLs, strings.Trim(entry, " "))
+	}
+
 	store := lib.NewStore()
-	router, err := lib.NewRouter(*relayURL, store, log)
+	router, err := lib.NewRouter(_relayURLs, store, log)
 	if err != nil {
 		panic(err)
 	}

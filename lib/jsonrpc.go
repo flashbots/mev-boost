@@ -29,7 +29,8 @@ type rpcRequest struct {
 	Params  []interface{} `json:"params"`
 }
 
-func parseRPCResponse(data []byte) (ret rpcResponse, err error) {
+func parseRPCResponse(data []byte) (ret *rpcResponse, err error) {
+	ret = new(rpcResponse)
 	err = json.Unmarshal(data, &ret)
 	return
 }
