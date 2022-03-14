@@ -8,12 +8,8 @@ import (
 )
 
 // NewRouter creates a json rpc router that handles all methods
-func NewRouter(executionURL string, relayURL string, store Store, log *logrus.Entry) (*mux.Router, error) {
-	mev, err := newMevService(executionURL, relayURL, log)
-	if err != nil {
-		return nil, err
-	}
-	relay, err := newRelayService(executionURL, relayURL, store, log)
+func NewRouter(relayURL string, store Store, log *logrus.Entry) (*mux.Router, error) {
+	relay, err := newRelayService(relayURL, store, log)
 	if err != nil {
 		return nil, err
 	}
@@ -23,13 +19,15 @@ func NewRouter(executionURL string, relayURL string, store Store, log *logrus.En
 	rpcServer.RegisterCodec(json.NewCodec(), "application/json")
 	rpcServer.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
 
-	if err := rpcServer.RegisterService(mev, "engine"); err != nil {
+	if err := rpcServer.RegisterService(relay, "engine"); err != nil {
 		return nil, err
 	}
 	if err := rpcServer.RegisterService(relay, "builder"); err != nil {
 		return nil, err
 	}
-	rpcServer.RegisterMethodNotFoundFunc(mev.methodNotFound)
+	if err := rpcServer.RegisterService(relay, "relay"); err != nil {
+		return nil, err
+	}
 
 	router := mux.NewRouter()
 	router.Handle("/", rpcServer)
