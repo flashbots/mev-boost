@@ -21,7 +21,7 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 		StateRoot        common.Hash    `json:"stateRoot" gencodec:"required"`
 		ReceiptsRoot     common.Hash    `json:"receiptsRoot" gencodec:"required"`
 		LogsBloom        hexutil.Bytes  `json:"logsBloom" gencodec:"required"`
-		Random           common.Hash    `json:"random" gencodec:"required"`
+		PrevRandao       common.Hash    `json:"prevRandao" gencodec:"required"`
 		Number           hexutil.Uint64 `json:"blockNumber" gencodec:"required"`
 		GasLimit         hexutil.Uint64 `json:"gasLimit" gencodec:"required"`
 		GasUsed          hexutil.Uint64 `json:"gasUsed" gencodec:"required"`
@@ -38,7 +38,7 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 	enc.StateRoot = e.StateRoot
 	enc.ReceiptsRoot = e.ReceiptsRoot
 	enc.LogsBloom = e.LogsBloom
-	enc.Random = e.Random
+	enc.PrevRandao = e.PrevRandao
 	enc.Number = hexutil.Uint64(e.Number)
 	enc.GasLimit = hexutil.Uint64(e.GasLimit)
 	enc.GasUsed = hexutil.Uint64(e.GasUsed)
@@ -59,7 +59,7 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 		StateRoot        *common.Hash    `json:"stateRoot" gencodec:"required"`
 		ReceiptsRoot     *common.Hash    `json:"receiptsRoot" gencodec:"required"`
 		LogsBloom        *hexutil.Bytes  `json:"logsBloom" gencodec:"required"`
-		Random           *common.Hash    `json:"random" gencodec:"required"`
+		PrevRandao       *common.Hash    `json:"prevRandao" gencodec:"required"`
 		Number           *hexutil.Uint64 `json:"blockNumber" gencodec:"required"`
 		GasLimit         *hexutil.Uint64 `json:"gasLimit" gencodec:"required"`
 		GasUsed          *hexutil.Uint64 `json:"gasUsed" gencodec:"required"`
@@ -94,10 +94,10 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'logsBloom' for ExecutionPayloadWithTxRootV1")
 	}
 	e.LogsBloom = *dec.LogsBloom
-	if dec.Random == nil {
-		return errors.New("missing required field 'random' for ExecutionPayloadWithTxRootV1")
+	if dec.PrevRandao == nil {
+		return errors.New("missing required field 'prevRandao' for ExecutionPayloadWithTxRootV1")
 	}
-	e.Random = *dec.Random
+	e.PrevRandao = *dec.PrevRandao
 	if dec.Number == nil {
 		return errors.New("missing required field 'blockNumber' for ExecutionPayloadWithTxRootV1")
 	}
