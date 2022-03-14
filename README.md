@@ -14,8 +14,8 @@ A middleware server written in Go, that sits between an ethereum PoS consensus c
     - [milestone 3 - privacy (optional)](#milestone-3---privacy-optional)
     - [milestone 4 - configurations (optional)](#milestone-4---configurations-optional)
   - [API Docs](#api-docs)
-    - [engine_executePayloadV1](#engine_executepayloadv1)
     - [engine_forkchoiceUpdatedV1](#engine_forkchoiceupdatedv1)
+    - [engine_getPayloadV1](#engine_getPayloadV1)
     - [builder_proposeBlindedBlockV1](#builder_proposeblindedblockv1)
     - [builder_getPayloadHeaderV1](#builder_getpayloadheaderv1)
     - [relay_getPayloadHeaderV1](#relay_getpayloadheaderv1)
@@ -92,13 +92,13 @@ Methods are prefixed using the following convention:
 - `builder` prefix indicates calls made to the mev-boost middleware.
 - `relay` prefix indicates calls made to a relay.
 
-### engine_executePayloadV1
-
-See [engine_executePayloadV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#engine_executepayloadv1).
-
 ### engine_forkchoiceUpdatedV1
 
-See [engine_forkchoiceUpdatedV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md#engine_forkchoiceupdatedv1).
+See [engine_forkchoiceUpdatedV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.8/src/engine/specification.md#engine_forkchoiceupdatedv1).
+
+### engine_getPayloadV1
+
+See [engine_getPayloadV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.8/src/engine/specification.md#engine_getPayloadV1).
 
 ### builder_proposeBlindedBlockV1
 
