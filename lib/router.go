@@ -8,8 +8,8 @@ import (
 )
 
 // NewRouter creates a json rpc router that handles all methods
-func NewRouter(relayURL string, store Store, log *logrus.Entry) (*mux.Router, error) {
-	relay, err := newRelayService(relayURL, store, log)
+func NewRouter(relayURLs []string, store Store, log *logrus.Entry) (*mux.Router, error) {
+	relay, err := newRelayService(relayURLs, store, log)
 	if err != nil {
 		return nil, err
 	}
