@@ -1,5 +1,7 @@
 # mev-boost
 
+[![Test status](https://github.com/flashbots/mev-boost/workflows/Go/badge.svg)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Go%22)
+[![Discord](https://img.shields.io/discord/755466764501909692)](https://discord.gg/7hvTycdNcK)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
 A middleware server written in Go, that sits between an ethereum PoS consensus client and an execution client. It allows consensus clients to outsource block construction to third party block builders as well as fallback to execution clients. See [ethresearch post](https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/) for the high level architecture.
@@ -7,20 +9,20 @@ A middleware server written in Go, that sits between an ethereum PoS consensus c
 ```mermaid
 sequenceDiagram
     Title: Block Proposal
-    consensus->>mev_boost: engine_forkchoiceUpdatedV1
-    mev_boost->>relays: engine_forkchoiceUpdatedV1
+    consensus-->+mev_boost: engine_forkchoiceUpdatedV1
+    mev_boost->>-relays: engine_forkchoiceUpdatedV1
     Note over consensus: wait for allocated slot
-    consensus->>mev_boost: builder_getPayloadHeaderV1
+    consensus->>+mev_boost: builder_getPayloadHeaderV1
     mev_boost->>relays: relay_getPayloadHeaderV1
     Note over mev_boost: select most valuable payload
-    mev_boost-->>consensus: builder_getPayloadHeaderV1 response
+    mev_boost-->>-consensus: builder_getPayloadHeaderV1 response
     Note over consensus: sign the block
-    consensus->>mev_boost: builder_proposeBlindedBlockV1
+    consensus->>+mev_boost: builder_proposeBlindedBlockV1
     Note over mev_boost: identify payload source
     mev_boost->>relays: relay_proposeBlindedBlockV1
     Note over relays: validate signature
     relays-->>mev_boost: relay_proposeBlindedBlockV1 response
-    mev_boost-->>consensus: builder_proposeBlindedBlockV1 response
+    mev_boost-->>-consensus: builder_proposeBlindedBlockV1 response
 ```
 
 ## Table of Contents
