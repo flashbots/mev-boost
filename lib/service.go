@@ -80,12 +80,14 @@ type rpcResponseContainer struct {
 }
 
 // ForkchoiceUpdatedV1 TODO
-func (m *RelayService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{}, result *ForkChoiceResponse) error {
+func (m *RelayService) ForkchoiceUpdatedV1(_ *http.Request, args *[]interface{}, result *ForkChoiceResponse) error {
 	method := "engine_forkchoiceUpdatedV1"
 	logMethod := m.log.WithField("method", method)
 
 	boostPayloadID := make(hexutil.Bytes, 8)
-	rand.Read(boostPayloadID)
+	if _, err := rand.Read(boostPayloadID); err != nil {
+		return err
+	}
 
 	var wg sync.WaitGroup
 	hasValidResponse := false
@@ -142,7 +144,7 @@ func (m *RelayService) ForkchoiceUpdatedV1(r *http.Request, args *[]interface{},
 }
 
 // ProposeBlindedBlockV1 TODO
-func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadWithTxRootV1) error {
+func (m *RelayService) ProposeBlindedBlockV1(_ *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadWithTxRootV1) error {
 	method := "builder_proposeBlindedBlockV1"
 	logMethod := m.log.WithField("method", method)
 
@@ -232,7 +234,7 @@ func (m *RelayService) ProposeBlindedBlockV1(r *http.Request, args *SignedBlinde
 }
 
 // GetPayloadHeaderV1 TODO
-func (m *RelayService) GetPayloadHeaderV1(r *http.Request, args *string, result *ExecutionPayloadWithTxRootV1) error {
+func (m *RelayService) GetPayloadHeaderV1(_ *http.Request, args *string, result *ExecutionPayloadWithTxRootV1) error {
 	method := "engine_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
 

@@ -198,7 +198,7 @@ func TestStrToBytes(t *testing.T) {
 	require.Equal(t, a, b)
 }
 
-func TestMevService_ForckChoiceUpdated(t *testing.T) {
+func TestMevService_ForkChoiceUpdated(t *testing.T) {
 	tests := []httpTest{
 		{
 			"basic success",
@@ -252,7 +252,7 @@ func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 	}
 }
 
-func TestRelayervice_GetPayloadHeaderV1(t *testing.T) {
+func TestRelayService_GetPayloadHeaderV1(t *testing.T) {
 	tests := []httpTest{
 		{
 			"basic success",
@@ -274,7 +274,7 @@ func TestRelayervice_GetPayloadHeaderV1(t *testing.T) {
 	}
 }
 
-func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
+func TestRelayService_GetPayloadAndPropose(t *testing.T) {
 	store := NewStore()
 
 	payload := ExecutionPayloadWithTxRootV1{
@@ -333,7 +333,7 @@ func TestRelayervice_GetPayloadAndPropose(t *testing.T) {
 	}
 }
 
-func TestRelayervice_GetPayloadAndProposeCamelCase(t *testing.T) {
+func TestRelayService_GetPayloadAndProposeCamelCase(t *testing.T) {
 	store := NewStore()
 
 	payload := ExecutionPayloadWithTxRootV1{
