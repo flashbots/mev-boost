@@ -34,7 +34,6 @@ sequenceDiagram
     - [milestone 4 - configurations (optional)](#milestone-4---configurations-optional)
   - [API Docs](#api-docs)
     - [engine_forkchoiceUpdatedV1](#engine_forkchoiceupdatedv1)
-    - [engine_getPayloadV1](#engine_getPayloadV1)
     - [builder_proposeBlindedBlockV1](#builder_proposeblindedblockv1)
     - [builder_getPayloadHeaderV1](#builder_getpayloadheaderv1)
     - [relay_getPayloadHeaderV1](#relay_getpayloadheaderv1)
@@ -107,17 +106,13 @@ add optional configurations to provide alternative guarantees
 ## API Docs
 
 Methods are prefixed using the following convention:
-- `engine` prefix indicates calls made to the execution client. These methods are specified in the [execution engine APIs](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.5/src/engine/specification.md).
+- `engine` prefix indicates calls made to the execution client. These methods are specified in the [execution engine APIs](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.8/src/engine/specification.md).
 - `builder` prefix indicates calls made to the mev-boost middleware.
 - `relay` prefix indicates calls made to a relay.
 
 ### engine_forkchoiceUpdatedV1
 
 See [engine_forkchoiceUpdatedV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.8/src/engine/specification.md#engine_forkchoiceupdatedv1).
-
-### engine_getPayloadV1
-
-See [engine_getPayloadV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.8/src/engine/specification.md#engine_getPayloadV1).
 
 ### builder_proposeBlindedBlockV1
 
@@ -129,10 +124,10 @@ See [engine_getPayloadV1](https://github.com/ethereum/execution-apis/blob/v1.0.0
 
 #### Response
 
-- result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload).
+- result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayload).
 - error: code and message set in case an exception happens while proposing the payload.
 
-Technically, this call only needs to return the `transactions` field of [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload), but we return the full payload for simplicity.
+Technically, this call only needs to return the `transactions` field of [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayload), but we return the full payload for simplicity.
 
 ### builder_getPayloadHeaderV1
 
@@ -144,7 +139,7 @@ Technically, this call only needs to return the `transactions` field of [`Execut
 
 #### Response
 
-- result: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
+- result: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayloadheader)
 - error: code and message set in case an exception happens while getting the payload.
 
 ### relay_getPayloadHeaderV1
@@ -171,35 +166,35 @@ Technically, this call only needs to return the `transactions` field of [`Execut
 
 #### Response
 
-- result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload)
+- result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayload)
 - error: code and message set in case an exception happens while proposing the payload.
 
-Technically, this call only needs to return the `transactions` field of [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload), but we return the full payload for simplicity.
+Technically, this call only needs to return the `transactions` field of [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayload), but we return the full payload for simplicity.
 
 ### Types
 
 #### SignedMEVPayloadHeader
 
-See [here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types) for the definition of fields like `BLSSignature`
+See [here](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/phase0/beacon-chain.md#custom-types) for the definition of fields like `BLSSignature`
 
 - message: [MEVPayloadHeader](#mevpayloadheader)
 - signature: BLSSignature
 
 #### MEVPayloadHeader
 
-- payloadHeader: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
+- payloadHeader: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayloadheader)
 - feeRecipientDiff: Quantity, 256 Bits - the change in balance of the feeRecipient address
 
 #### SignedBlindedBeaconBlock
 
-See [here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#custom-types) for the definition of fields like `BLSSignature`
+See [here](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/phase0/beacon-chain.md#custom-types) for the definition of fields like `BLSSignature`
 
 - message: [BlindedBeaconBlock](#blindedbeaconblock)
 - signature: BLSSignature
 
 #### BlindedBeaconBlock
 
-This is forked from [here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock) with `body` replaced with `BlindedBeaconBlockBody`
+This is forked from [here](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/phase0/beacon-chain.md#beaconblock) with `body` replaced with `BlindedBeaconBlockBody`
 
 - slot: Slot
 - proposer_index: ValidatorIndex
@@ -209,7 +204,7 @@ This is forked from [here](https://github.com/ethereum/consensus-specs/blob/v1.1
 
 #### BlindedBeaconBlockBody
 
-This is forked from [here](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#beaconblockbody) with `execution_payload` replaced with [execution_payload_header](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader)
+This is forked from [here](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/merge/beacon-chain.md#beaconblockbody) with `execution_payload` replaced with [execution_payload_header](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayloadheader)
 
 - randao_reveal: BLSSignature
 - eth1_data: Eth1Data
