@@ -83,7 +83,7 @@ func TestNewRouter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewRouter(tt.relayURLs, NewStore(), logrus.WithField("testing", true))
+			_, err := NewRouter(tt.relayURLs, NewStore(false), logrus.WithField("testing", true))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewRouter() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -157,7 +157,7 @@ func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, js
 		mockRelay, mockRelayHTTP := newMockHTTPServer(t, tt.mockStatusCode, string(bodyRelayProxy), string(resp), tt.errorRelay)
 
 		if store == nil {
-			store = NewStore()
+			store = NewStore(false)
 			store.SetForkchoiceResponse("0x01", mockRelayHTTP.URL, "0x01")
 		}
 
@@ -275,7 +275,7 @@ func TestRelayService_GetPayloadHeaderV1(t *testing.T) {
 }
 
 func TestRelayService_GetPayloadAndPropose(t *testing.T) {
-	store := NewStore()
+	store := NewStore(false)
 
 	payload := ExecutionPayloadWithTxRootV1{
 		BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
@@ -334,7 +334,7 @@ func TestRelayService_GetPayloadAndPropose(t *testing.T) {
 }
 
 func TestRelayService_GetPayloadAndProposeCamelCase(t *testing.T) {
-	store := NewStore()
+	store := NewStore(false)
 
 	payload := ExecutionPayloadWithTxRootV1{
 		BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),

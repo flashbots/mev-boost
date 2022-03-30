@@ -9,7 +9,7 @@ import (
 )
 
 func Test_store_SetGetExecutionPayload(t *testing.T) {
-	s := NewStore()
+	s := NewStore(false)
 	h := common.HexToHash("0x1")
 	payload := s.GetExecutionPayload(h)
 	if payload != nil {
@@ -30,7 +30,7 @@ func Test_store_SetGetExecutionPayload(t *testing.T) {
 }
 
 func Test_store_SetGetGetForkchoiceResponse(t *testing.T) {
-	s := NewStore()
+	s := NewStore(false)
 	id := "0x1"
 	_, ok := s.GetForkchoiceResponse(id)
 	require.Equal(t, false, ok)

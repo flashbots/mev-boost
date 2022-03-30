@@ -2,9 +2,32 @@ package lib
 
 import (
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 )
+
+var (
+	cleanupLoopInterval = 5 * time.Minute
+	stateExpiry         = 7 * time.Minute // a bit more than an epoch with 6.4 min
+)
+
+type executionPayloadContainer struct {
+	Payload *ExecutionPayloadWithTxRootV1
+	AddedAt time.Time
+}
+
+type forkchoiceResponseContainer struct {
+	Payload map[string]string // map[relayURL]relayPayloadID
+	AddedAt time.Time
+}
+
+func newForkchoiceResponseContainer() forkchoiceResponseContainer {
+	return forkchoiceResponseContainer{
+		Payload: make(map[string]string),
+		AddedAt: time.Now(),
+	}
+}
 
 // Store stores payloads and retrieves them based on blockHash hashes
 type Store interface {
@@ -13,6 +36,8 @@ type Store interface {
 
 	SetForkchoiceResponse(boostPayloadID, relayURL, relayPayloadID string)
 	GetForkchoiceResponse(boostPayloadID string) (map[string]string, bool)
+
+	Cleanup()
 }
 
 // map[common.Hash]*ExecutionPayloadWithTxRootV1
@@ -20,19 +45,30 @@ type Store interface {
 // TODO: clean this up periodically
 
 type store struct {
-	payloads     map[common.Hash]*ExecutionPayloadWithTxRootV1
+	payloads     map[common.Hash]executionPayloadContainer
 	payloadMutex sync.RWMutex
 
-	forkchoices     map[string]map[string]string // map[boostPayloadID]map[relayURL]relayPayloadID
+	forkchoices     map[string]forkchoiceResponseContainer // key=boostPayloadID
 	forkchoiceMutex sync.RWMutex
 }
 
-// NewStore creates an in-mem store
-func NewStore() Store {
-	return &store{
-		payloads:    map[common.Hash]*ExecutionPayloadWithTxRootV1{},
-		forkchoices: make(map[string]map[string]string),
+// NewStore creates an in-mem store. If startCleanupLoop is true, a goroutine is started that periodically removes old entries.
+func NewStore(startCleanupLoop bool) Store {
+	s := &store{
+		payloads:    make(map[common.Hash]executionPayloadContainer),
+		forkchoices: make(map[string]forkchoiceResponseContainer),
 	}
+
+	if startCleanupLoop {
+		go func() {
+			for {
+				time.Sleep(cleanupLoopInterval)
+				s.Cleanup()
+			}
+		}()
+	}
+
+	return s
 }
 
 func (s *store) GetExecutionPayload(blockHash common.Hash) *ExecutionPayloadWithTxRootV1 {
@@ -44,7 +80,7 @@ func (s *store) GetExecutionPayload(blockHash common.Hash) *ExecutionPayloadWith
 		return nil
 	}
 
-	return payload
+	return payload.Payload
 }
 
 func (s *store) SetExecutionPayload(blockHash common.Hash, payload *ExecutionPayloadWithTxRootV1) {
@@ -55,21 +91,42 @@ func (s *store) SetExecutionPayload(blockHash common.Hash, payload *ExecutionPay
 	s.payloadMutex.Lock()
 	defer s.payloadMutex.Unlock()
 
-	s.payloads[blockHash] = payload
+	s.payloads[blockHash] = executionPayloadContainer{payload, time.Now()}
 }
 
 func (s *store) GetForkchoiceResponse(payloadID string) (map[string]string, bool) {
 	s.forkchoiceMutex.RLock()
 	defer s.forkchoiceMutex.RUnlock()
 	forkchoiceResponses, found := s.forkchoices[payloadID]
-	return forkchoiceResponses, found
+	return forkchoiceResponses.Payload, found
 }
 
 func (s *store) SetForkchoiceResponse(boostPayloadID, relayURL, relayPayloadID string) {
 	s.forkchoiceMutex.Lock()
 	defer s.forkchoiceMutex.Unlock()
 	if _, ok := s.forkchoices[boostPayloadID]; !ok {
-		s.forkchoices[boostPayloadID] = make(map[string]string)
+		s.forkchoices[boostPayloadID] = newForkchoiceResponseContainer()
 	}
-	s.forkchoices[boostPayloadID][relayURL] = relayPayloadID
+	s.forkchoices[boostPayloadID].Payload[relayURL] = relayPayloadID
+}
+
+// Cleanup removes all payloads older than 7 minutes (a bit more than an epoch, which is 6.4 minutes)
+func (s *store) Cleanup() {
+	// Cleanup ExecutionPayload
+	s.payloadMutex.Lock()
+	for entry := range s.payloads {
+		if time.Since(s.payloads[entry].AddedAt) > stateExpiry {
+			delete(s.payloads, entry)
+		}
+	}
+	s.payloadMutex.Unlock()
+
+	// Cleanup ForkchoiceResponse
+	s.forkchoiceMutex.Lock()
+	for entry := range s.forkchoices {
+		if time.Since(s.forkchoices[entry].AddedAt) > stateExpiry {
+			delete(s.forkchoices, entry)
+		}
+	}
+	s.forkchoiceMutex.Unlock()
 }

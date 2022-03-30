@@ -37,7 +37,7 @@ func main() {
 		_relayURLs = append(_relayURLs, strings.Trim(entry, " "))
 	}
 
-	store := lib.NewStore()
+	store := lib.NewStore(true)
 	router, err := lib.NewRouter(_relayURLs, store, log)
 	if err != nil {
 		panic(err)
