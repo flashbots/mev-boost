@@ -4,7 +4,11 @@
 [![Discord](https://img.shields.io/discord/755466764501909692)](https://discord.gg/7hvTycdNcK)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-A middleware server written in Go, that sits between an ethereum PoS consensus client and an execution client. It allows consensus clients to outsource block construction to third party block builders as well as fallback to execution clients. See [ethresearch post](https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/) for the high level architecture.
+A service that allows Ethereum PoS consensus clients to outsource block construction to third party block builders in addition to execution clients. See [ethresearch post](https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/) for the high level architecture.
+
+![mev-boost service integration overview](docs/mev-boost-integration-overview.png)
+
+Request flow:
 
 ```mermaid
 sequenceDiagram
