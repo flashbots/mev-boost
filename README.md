@@ -6,7 +6,7 @@
 
 A service that allows Ethereum PoS consensus clients to outsource block construction to third party block builders in addition to execution clients. See [ethresearch post](https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/) for the high level architecture.
 
-![mev-boost service integration overview](docs/mev-boost-integration-overview.png)
+![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/docs-cleanup/docs/mev-boost-integration-overview.png)
 
 Request flow:
 
@@ -30,12 +30,10 @@ sequenceDiagram
 ```
 
 ## Table of Contents
-- [mev-boost](#mev-boost)
-  - [Implementation Plan](#implementation-plan)
-  - [Build](#build)
-  - [Test](#test)
-  - [Lint](#lint)
-  - [Running with mergemock](#running-with-mergemock)
+- [Implementation Plan](#implementation-plan)
+- [Build](#build)
+- [Test](#test)
+- [Lint](#lint)
 
 ## Implementation Plan
 
@@ -103,9 +101,16 @@ make test
 
 ## Lint
 
-We use `revive` as a linter. You need to install it with `go install github.com/mgechev/revive@latest`
+We use `revive` as a linter and [staticcheck](https://staticcheck.io/). You need to install them with
 
+```bash
+go install github.com/mgechev/revive@latest
+go install honnef.co/go/tools/cmd/staticcheck@master
 ```
+
+Lint and check the project:
+
+```bash
 make lint
 ```
 
