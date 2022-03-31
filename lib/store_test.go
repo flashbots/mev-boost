@@ -3,6 +3,7 @@ package lib
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -52,4 +53,35 @@ func Test_store_SetGetGetForkchoiceResponse(t *testing.T) {
 	res, ok = s.GetForkchoiceResponse(id)
 	require.Equal(t, true, ok)
 	require.Equal(t, res[relayURL], relayPayloadID)
+}
+
+func Test_store_Cleanup(t *testing.T) {
+	// Reset 'now' after this test
+	defer func() { now = time.Now }()
+
+	s := NewStoreWithCleanup()
+	id1 := "123"
+	id2 := "234"
+
+	// Add a store item 20 minutes in the past
+	now = func() time.Time { return time.Now().Add(-20 * time.Minute) }
+	s.SetForkchoiceResponse(id1, "abc", "0x2")
+
+	// Add a store item 5 minutes in the past
+	now = func() time.Time { return time.Now().Add(-5 * time.Minute) }
+	s.SetForkchoiceResponse(id2, "abc", "0x2")
+
+	_, ok := s.GetForkchoiceResponse(id1)
+	require.Equal(t, true, ok)
+	_, ok = s.GetForkchoiceResponse(id2)
+	require.Equal(t, true, ok)
+
+	// Cleanup should remove 1 item, because it was added long enough in the past
+	s.Cleanup()
+
+	// Test for items
+	_, ok = s.GetForkchoiceResponse(id1)
+	require.Equal(t, false, ok)
+	_, ok = s.GetForkchoiceResponse(id2)
+	require.Equal(t, true, ok)
 }
