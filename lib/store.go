@@ -9,7 +9,13 @@ import (
 
 var (
 	cleanupLoopInterval = 5 * time.Minute
-	stateExpiry         = 7 * time.Minute // a bit more than an epoch with 6.4 min
+
+	secondsPerSlot = 12
+	slotsPerEpoch  = 32
+	stateExpiry    = time.Second * time.Duration(secondsPerSlot*slotsPerEpoch*2) // ~2 epochs
+
+	// local now function, used instead of time.Now so it can be overwritten in tests
+	now = time.Now
 )
 
 type executionPayloadContainer struct {
@@ -25,7 +31,7 @@ type forkchoiceResponseContainer struct {
 func newForkchoiceResponseContainer() forkchoiceResponseContainer {
 	return forkchoiceResponseContainer{
 		Payload: make(map[string]string),
-		AddedAt: time.Now(),
+		AddedAt: now(),
 	}
 }
 
@@ -52,23 +58,26 @@ type store struct {
 	forkchoiceMutex sync.RWMutex
 }
 
-// NewStore creates an in-mem store. If startCleanupLoop is true, a goroutine is started that periodically removes old entries.
-func NewStore(startCleanupLoop bool) Store {
-	s := &store{
+// NewStore creates an in-mem store. Does not call Store.Cleanup() by default, so memory will build up. Use NewStoreWithCleanup if you want to start a cleanup loop as well.
+func NewStore() Store {
+	return &store{
 		payloads:    make(map[common.Hash]executionPayloadContainer),
 		forkchoices: make(map[string]forkchoiceResponseContainer),
 	}
+}
 
-	if startCleanupLoop {
-		go func() {
-			for {
-				time.Sleep(cleanupLoopInterval)
-				s.Cleanup()
-			}
-		}()
-	}
+// NewStoreWithCleanup creates an in-mem store, and starts goroutine that periodically removes old entries.
+func NewStoreWithCleanup() Store {
+	store := NewStore()
 
-	return s
+	go func() {
+		for {
+			time.Sleep(cleanupLoopInterval)
+			store.Cleanup()
+		}
+	}()
+
+	return store
 }
 
 func (s *store) GetExecutionPayload(blockHash common.Hash) *ExecutionPayloadWithTxRootV1 {
@@ -91,7 +100,7 @@ func (s *store) SetExecutionPayload(blockHash common.Hash, payload *ExecutionPay
 	s.payloadMutex.Lock()
 	defer s.payloadMutex.Unlock()
 
-	s.payloads[blockHash] = executionPayloadContainer{payload, time.Now()}
+	s.payloads[blockHash] = executionPayloadContainer{payload, now()}
 }
 
 func (s *store) GetForkchoiceResponse(payloadID string) (map[string]string, bool) {
