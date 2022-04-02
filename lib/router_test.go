@@ -236,9 +236,10 @@ func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 			}},
 
 			ExecutionPayloadWithTxRootV1{
-				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-				BaseFeePerGas: big.NewInt(4),
-				Transactions:  &[]string{},
+				BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+				BaseFeePerGas:    big.NewInt(4),
+				Transactions:     &[]string{},
+				FeeRecipientDiff: big.NewInt(0),
 			},
 			nil,
 			200,
@@ -261,6 +262,7 @@ func TestRelayService_GetPayloadHeaderV1(t *testing.T) {
 				BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 				BaseFeePerGas:    big.NewInt(4),
 				TransactionsRoot: common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002"),
+				FeeRecipientDiff: big.NewInt(0),
 			},
 			nil,
 			200,
@@ -283,6 +285,7 @@ func TestRelayService_GetPayloadAndPropose(t *testing.T) {
 		BaseFeePerGas:    big.NewInt(4),
 		Transactions:     &[]string{},
 		TransactionsRoot: common.HexToHash("0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"),
+		FeeRecipientDiff: big.NewInt(0),
 	}
 	payloadBytes, err := json.Marshal(payload)
 	// make block_hash be snake_case
@@ -342,6 +345,7 @@ func TestRelayService_GetPayloadAndProposeCamelCase(t *testing.T) {
 		BaseFeePerGas:    big.NewInt(4),
 		Transactions:     &[]string{},
 		TransactionsRoot: common.HexToHash("0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"),
+		FeeRecipientDiff: big.NewInt(0),
 	}
 	payloadBytes, err := json.Marshal(payload)
 	require.Nil(t, err)

@@ -31,6 +31,7 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 		BlockHash        common.Hash    `json:"blockHash" gencodec:"required"`
 		Transactions     *[]string      `json:"transactions,omitempty"`
 		TransactionsRoot common.Hash    `json:"transactionsRoot"`
+		FeeRecipientDiff *big.Int       `json:"feeRecipientDiff" gencodec:"required"`
 	}
 	var enc ExecutionPayloadWithTxRootV1
 	enc.ParentHash = e.ParentHash
@@ -48,6 +49,7 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 	enc.BlockHash = e.BlockHash
 	enc.Transactions = e.Transactions
 	enc.TransactionsRoot = e.TransactionsRoot
+	enc.FeeRecipientDiff = e.FeeRecipientDiff
 	return json.Marshal(&enc)
 }
 
@@ -69,6 +71,7 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 		BlockHash        *common.Hash    `json:"blockHash" gencodec:"required"`
 		Transactions     *[]string       `json:"transactions,omitempty"`
 		TransactionsRoot *common.Hash    `json:"transactionsRoot"`
+		FeeRecipientDiff *big.Int        `json:"feeRecipientDiff" gencodec:"required"`
 	}
 	var dec ExecutionPayloadWithTxRootV1
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -132,5 +135,9 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 	if dec.TransactionsRoot != nil {
 		e.TransactionsRoot = *dec.TransactionsRoot
 	}
+	if dec.FeeRecipientDiff == nil {
+		return errors.New("missing required field 'feeRecipientDiff' for ExecutionPayloadWithTxRootV1")
+	}
+	e.FeeRecipientDiff = dec.FeeRecipientDiff
 	return nil
 }
