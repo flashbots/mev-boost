@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flashbots/mev-middleware/lib"
+	"github.com/flashbots/mev-boost/lib"
 	"github.com/sirupsen/logrus"
 )
 

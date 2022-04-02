@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/flashbots/mev-middleware/lib/txroot"
+	"github.com/flashbots/mev-boost/lib/txroot"
 	"github.com/sirupsen/logrus"
 )
 
