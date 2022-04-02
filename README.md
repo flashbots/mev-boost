@@ -13,9 +13,6 @@ Request flow:
 ```mermaid
 sequenceDiagram
     Title: Block Proposal
-    consensus-->+mev_boost: engine_forkchoiceUpdatedV1
-    mev_boost->>-relays: engine_forkchoiceUpdatedV1
-    Note over consensus: wait for allocated slot
     consensus->>+mev_boost: builder_getPayloadHeaderV1
     mev_boost->>relays: relay_getPayloadHeaderV1
     Note over mev_boost: select most valuable payload

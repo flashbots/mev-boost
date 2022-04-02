@@ -12,7 +12,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -137,9 +136,9 @@ type httpTestWithMethods struct {
 	skipRespCheck           bool
 }
 
-func testHTTPMethod(t *testing.T, jsonRPCMethod string, tt *httpTest) {
-	testHTTPMethodWithDifferentRPC(t, jsonRPCMethod, jsonRPCMethod, tt, false, nil)
-}
+// func testHTTPMethod(t *testing.T, jsonRPCMethod string, tt *httpTest) {
+// 	testHTTPMethodWithDifferentRPC(t, jsonRPCMethod, jsonRPCMethod, tt, false, nil)
+// }
 
 func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, jsonRPCMethodRelay string, tt *httpTest, skipRespCheck bool, store Store) {
 	t.Run(tt.name, func(t *testing.T) {
@@ -158,7 +157,6 @@ func testHTTPMethodWithDifferentRPC(t *testing.T, jsonRPCMethodCaller string, js
 
 		if store == nil {
 			store = NewStore()
-			store.SetForkchoiceResponse("0x01", mockRelayHTTP.URL, "0x01")
 		}
 
 		// Create the router pointing at the mock server
@@ -198,32 +196,6 @@ func TestStrToBytes(t *testing.T) {
 	require.Equal(t, a, b)
 }
 
-func TestMevService_ForkChoiceUpdated(t *testing.T) {
-	tests := []httpTest{
-		{
-			"basic success",
-			[]interface{}{catalyst.ForkchoiceStateV1{}, catalyst.PayloadAttributesV1{
-				SuggestedFeeRecipient: common.HexToAddress("0x0000000000000000000000000000000000000001"),
-			}},
-			ForkChoiceResponse{PayloadID: strToBytes("0x1"), PayloadStatus: PayloadStatus{Status: ForkchoiceStatusValid}},
-			func(t *testing.T, rpcResp *rpcResponse) {
-				var resp ForkChoiceResponse
-				err := json.Unmarshal(rpcResp.Result, &resp)
-				require.Nil(t, err, err)
-				assert.Equal(t, 8, len(*resp.PayloadID))
-				assert.Equal(t, ForkchoiceStatusValid, resp.PayloadStatus.Status)
-			},
-			200,
-			200,
-			1,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		testHTTPMethod(t, "engine_forkchoiceUpdatedV1", &tt)
-	}
-}
-
 func TestRelayService_ProposeBlindedBlockV1(t *testing.T) {
 	tests := []httpTest{
 		{
@@ -257,7 +229,7 @@ func TestRelayService_GetPayloadHeaderV1(t *testing.T) {
 	tests := []httpTest{
 		{
 			"basic success",
-			[]interface{}{"0x01"},
+			[]interface{}{"0x01", "0x02"},
 			ExecutionPayloadWithTxRootV1{
 				BlockHash:        common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 				BaseFeePerGas:    big.NewInt(4),

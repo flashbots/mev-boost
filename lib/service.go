@@ -3,17 +3,14 @@ package lib
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/flashbots/mev-boost/lib/txroot"
 	"github.com/sirupsen/logrus"
@@ -77,70 +74,6 @@ type rpcResponseContainer struct {
 	url string
 	err error
 	res *rpcResponse
-}
-
-// ForkchoiceUpdatedV1 TODO
-func (m *RelayService) ForkchoiceUpdatedV1(_ *http.Request, args *[]interface{}, result *ForkChoiceResponse) error {
-	method := "engine_forkchoiceUpdatedV1"
-	logMethod := m.log.WithField("method", method)
-
-	boostPayloadID := make(hexutil.Bytes, 8)
-	if _, err := rand.Read(boostPayloadID); err != nil {
-		return err
-	}
-
-	var wg sync.WaitGroup
-	hasValidResponse := false
-	for _, url := range m.relayURLs {
-		wg.Add(1)
-		go func(url string) {
-			defer wg.Done()
-			res, err := makeRequest(context.Background(), url, method, *args)
-
-			// Check for errors
-			if err != nil {
-				logMethod.WithFields(logrus.Fields{"error": err, "url": url}).Error("error making request to relay")
-				return
-			}
-			if res.Error != nil {
-				logMethod.WithFields(logrus.Fields{"error": res.Error, "url": url}).Warn("error reply from relay")
-				return
-			}
-
-			// Decode response
-			forkchoiceResponse := new(ForkChoiceResponse)
-			err = json.Unmarshal(res.Result, forkchoiceResponse)
-			if err != nil {
-				logMethod.WithFields(logrus.Fields{"error": err, "data": string(res.Result)}).Error("Could not unmarshal response")
-				return
-			}
-
-			status := forkchoiceResponse.PayloadStatus.Status
-			if status != ForkchoiceStatusValid && status != "SUCCESS" && status != "" { // SUCCESS is used by mergemock, although it's not in the engine spec (also accept empty status because mergemock)
-				logMethod.WithFields(logrus.Fields{"error": err, "url": url, "status": status}).Warn("status not valid")
-				return
-			}
-
-			if forkchoiceResponse.PayloadID != nil {
-				m.store.SetForkchoiceResponse(boostPayloadID.String(), url, forkchoiceResponse.PayloadID.String())
-				hasValidResponse = true
-			}
-		}(url)
-	}
-
-	wg.Wait()
-	if !hasValidResponse {
-		logMethod.Error("ForkchoiceUpdatedV1: no valid relay response")
-		return errors.New("no valid relay response")
-	}
-
-	// Compile the response
-	*result = ForkChoiceResponse{
-		PayloadStatus: PayloadStatus{Status: ForkchoiceStatusValid},
-		PayloadID:     &boostPayloadID,
-	}
-
-	return nil
 }
 
 // ProposeBlindedBlockV1 TODO
@@ -234,31 +167,28 @@ func (m *RelayService) ProposeBlindedBlockV1(_ *http.Request, args *SignedBlinde
 }
 
 // GetPayloadHeaderV1 TODO
-func (m *RelayService) GetPayloadHeaderV1(_ *http.Request, args *string, result *ExecutionPayloadWithTxRootV1) error {
+func (m *RelayService) GetPayloadHeaderV1(_ *http.Request, args *[]interface{}, result *ExecutionPayloadWithTxRootV1) error {
 	method := "engine_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
-
-	payloadID := new(hexutil.Bytes)
-	err := payloadID.UnmarshalText([]byte(*args))
-	if err != nil {
-		return err
+	if len(*args) != 2 {
+		return fmt.Errorf("invalid number of arguments: %d", len(*args))
 	}
 
-	forkchoiceResponses, found := m.store.GetForkchoiceResponse(payloadID.String())
-	if !found {
-		return fmt.Errorf("no ForkChoiceResponses for payloadID %s", payloadID)
+	headBlockHash, ok1 := (*args)[0].(string)
+	feeRecipient, ok2 := (*args)[1].(string)
+	if !ok1 || !ok2 {
+		return fmt.Errorf("invalid payload types")
 	}
 
-	// Call the relay
-	resultC := make(chan *rpcResponseContainer, len(forkchoiceResponses))
-	for relayURL, relayPayloadID := range forkchoiceResponses {
-		go func(url, payloadID string) {
-			res, err := makeRequest(context.Background(), url, "relay_getPayloadHeaderV1", []interface{}{payloadID})
+	// Send call to relays
+	resultC := make(chan *rpcResponseContainer, len(m.relayURLs))
+	for _, relayURL := range m.relayURLs {
+		go func(url string) {
+			res, err := makeRequest(context.Background(), url, "relay_getPayloadHeaderV1", []interface{}{headBlockHash, feeRecipient})
 			resultC <- &rpcResponseContainer{url, err, res}
-		}(relayURL, relayPayloadID)
+		}(relayURL)
 	}
 
-	// Process the responses
 	for i := 0; i < cap(resultC); i++ {
 		res := <-resultC
 
@@ -343,9 +273,9 @@ func (m *RelayService) GetPayloadHeaderV1(_ *http.Request, args *string, result 
 
 	if result.BlockHash == nilHash {
 		logMethod.WithFields(logrus.Fields{
-			"payloadID": payloadID,
+			"args": *args,
 		}).Error("GetPayloadHeaderV1: no valid response from relay")
-		return fmt.Errorf("no valid response from relay for payloadID %s", payloadID)
+		return fmt.Errorf("no valid GetPayloadHeaderV1 response from relay for args: %s", *args)
 	}
 
 	return nil
