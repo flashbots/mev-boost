@@ -6,7 +6,7 @@
 
 A service that allows Ethereum PoS consensus clients to outsource block construction to third party block builders in addition to execution clients. See [ethresearch post](https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/) for the high level architecture.
 
-![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/docs-cleanup/docs/mev-boost-integration-overview.png)
+![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
 
 Request flow:
 
