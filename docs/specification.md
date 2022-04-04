@@ -73,7 +73,7 @@ The list of error codes introduced by this specification can be found below.
 
 - method: `builder_getExecutionPayloadV1`
 - params:
-  1. `block`: `DATA`, arbitray length
+  1. `header`: `DATA`, arbitray length
   2. `signature`: `DATA`, 96 Bytes
 
 #### Response
@@ -82,10 +82,10 @@ The list of error codes introduced by this specification can be found below.
 - error: code and message set in case an exception happens while proposing the payload.
 
 #### Specification
-1. Builder software **MUST** verify that `block` is an SSZ encoded [`BeaconBlock`][beacon-block]. If the block is encoded incorrectly, the builder **MUST** return `-32002: SSZ error`. If the block is encoded correctly, but does not match the `BlindExecutionPayloadV1` provided in `builder_getBlindExecutionPayloadV1`, the builder **MUST** return `-32003: Unknown block`.
-2. Builder software **MUST** verify that `signature` is a BLS signature over `block`, verifiable using [`verify_block_signature`][verify-block-signature] and the validator public key that is expected to propose in the given slot. If the signature is determined to be invalid or from a different validator than expected, the builder **MUST** return `-32004: Invalid signature`.
+1. Builder software **MUST** verify that `header` is an SSZ encoded [`BeaconBlockHeader`][beacon-block-header]. If the header is encoded incorrectly, the builder **MUST** return `-32002: SSZ error`. If the header is encoded correctly, but does not match the `BlindExecutionPayloadV1` provided in `builder_getBlindExecutionPayloadV1`, the builder **MUST** return `-32003: Unknown header`.
+2. Builder software **MUST** verify that `signature` is a BLS signature over `header`, verifiable using [`verify_block_signature`][verify-block-signature] and the validator public key that is expected to propose in the given slot. If the signature is determined to be invalid or from a different validator than expected, the builder **MUST** return `-32004: Invalid signature`.
 
 [execution-payload]: https://github.com/ethereum/execution-apis/blob/main/src/engine/specification.md#executionpayloadv1
 [hash-tree-root]: https://github.com/ethereum/consensus-specs/blob/dev/ssz/simple-serialize.md#merkleization
-[beacon-block]: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconblock
+[beacon-block-header]: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconblockheader
 [verify-block-signature]: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beacon-chain-state-transition-function
