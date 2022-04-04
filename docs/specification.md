@@ -109,10 +109,9 @@ class Response(Container):
 - error: code and message set in case an exception happens while getting the payload.
 
 #### Specification
-1. Builder software **SHOULD** return the `payload` that increases the `feeRecipient`'s balance by the most.
-2. Builder software **SHOULD** complete the request in under `1 second`.
-3. Builder software **MUST** return `-32001: Unknown hash` if the block identified by `hash` does not exist.
-4. Builder software **MUST** return `-32002: Unknown validator` if the recovered validator public key has not been mapped to a `feeRecipient`.
+1. Builder software **SHOULD** respond immediately with the `payload` that increases the `feeRecipient`'s balance by the most.
+2. Builder software **MUST** return `-32001: Unknown hash` if the block identified by `hash` does not exist.
+3. Builder software **MUST** return `-32002: Unknown validator` if the recovered validator public key has not been mapped to a `feeRecipient`.
 
 ### `builder_getExecutionPayloadV1`
 
