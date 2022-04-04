@@ -11,20 +11,20 @@ Mirror of [`ExecutionPayloadV1`][execution-payload].
 ### `BlindExecutionPayloadV1`
 
 Equivalent to `ExecutionPayloadV1`, except `transactions` is replaced with `transactionsRoot`.
-    - `parentHash`: `DATA`, 32 Bytes
-    - `feeRecipient`:  `DATA`, 20 Bytes
-    - `stateRoot`: `DATA`, 32 Bytes
-    - `receiptsRoot`: `DATA`, 32 Bytes
-    - `logsBloom`: `DATA`, 256 Bytes
-    - `prevRandao`: `DATA`, 32 Bytes
-    - `blockNumber`: `QUANTITY`, 64 Bits
-    - `gasLimit`: `QUANTITY`, 64 Bits
-    - `gasUsed`: `QUANTITY`, 64 Bits
-    - `timestamp`: `QUANTITY`, 64 Bits
-    - `extraData`: `DATA`, 0 to 32 Bytes
-    - `baseFeePerGas`: `QUANTITY`, 256 Bits
-    - `blockHash`: `DATA`, 32 Bytes
-    - `transactionsRoot`: `DATA`, 32 Bytes
+- `parentHash`: `DATA`, 32 Bytes
+- `feeRecipient`:  `DATA`, 20 Bytes
+- `stateRoot`: `DATA`, 32 Bytes
+- `receiptsRoot`: `DATA`, 32 Bytes
+- `logsBloom`: `DATA`, 256 Bytes
+- `prevRandao`: `DATA`, 32 Bytes
+- `blockNumber`: `QUANTITY`, 64 Bits
+- `gasLimit`: `QUANTITY`, 64 Bits
+- `gasUsed`: `QUANTITY`, 64 Bits
+- `timestamp`: `QUANTITY`, 64 Bits
+- `extraData`: `DATA`, 0 to 32 Bytes
+- `baseFeePerGas`: `QUANTITY`, 256 Bits
+- `blockHash`: `DATA`, 32 Bytes
+- `transactionsRoot`: `DATA`, 32 Bytes
 
 ## Errors
 
