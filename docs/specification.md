@@ -188,7 +188,7 @@ As `compute_signing_root` takes `SSZObject` as input, client software should con
 
 #### Response
 
-- result: [`ExecutionPayloadV1`][#executionpayloadv1].
+- result: [`ExecutionPayloadV1`](#executionpayloadv1).
 - error: code and message set in case an exception happens while proposing the payload.
 
 #### Specification
