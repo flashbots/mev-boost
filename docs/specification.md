@@ -51,7 +51,7 @@ The list of error codes introduced by this specification can be found below.
 All signature operations should follow the [standard BLS operations][bls] interface defined in `consensus-specs`.
 
 There are two types of data to sign over in the Builder API:
-* in-protocol messages, e.g. [`BeaconBlockHeader`][beacon-block-header], which should compute the signing root using [`computer_signing_root`][compute-signing-root] and use the domain specified for beacon block proposals.
+* In-protocol messages, e.g. [`BeaconBlock`][beacon-block], which should compute the signing root using [`computer_signing_root`][compute-signing-root] and use the domain specified for beacon block proposals.
 * Builder API messages, e.g. [`builder_setFeeRecipientV1`](#builder_setFeeRecipientV1), which should compute the signing root using [`compute_signing_root`][compute-signing-root] and the domain `DomainType('0xXXXXXXXX')` (TODO: get a proper domain).
 
 As `compute_signing_root` takes `SSZObject` as input, client software should convert in-protocol messages to their SSZ representation to compute the signing root and Builder API messages to the SSZ representations defined below. See [`consensus-specs`][consensus-specs] for the definitions of [`Bytes20`][bytes20], [`ExecutionPayloadHeader`][execution-payload-header], and [`uint256`][uint256].
@@ -106,7 +106,7 @@ class Response(Container):
 - error: code and message set in case an exception happens while getting the payload.
 
 #### Specification
-1. Builder software **SHOULD** return the `payload` which increases the `feeRecipient`'s balance by the most.
+1. Builder software **SHOULD** return the `payload` that increases the `feeRecipient`'s balance by the most.
 2. Builder software **SHOULD** complete the request in under `1 second`.
 3. Builder software **MUST** return `-32001: Unknown hash` if the block identified by `hash` does not exist.
 4. Builder software **MUST** return `-32002: Unknown validator` if the recovered validator public key has not been mapped to a `feeRecipient`.
@@ -117,7 +117,7 @@ class Response(Container):
 
 - method: `builder_getExecutionPayloadV1`
 - params:
-  1. `header`: `DATA`, arbitray length
+  1. `block`: `DATA`, arbitray length
   2. `signature`: `DATA`, 96 Bytes
 
 #### Response
@@ -126,8 +126,8 @@ class Response(Container):
 - error: code and message set in case an exception happens while proposing the payload.
 
 #### Specification
-1. Builder software **MUST** verify that `header` is an SSZ encoded [`BeaconBlockHeader`][beacon-block-header]. If the header is encoded incorrectly, the builder **MUST** return `-32003: SSZ error`. If the header is encoded correctly, but does not match the `BlindExecutionPayloadV1` provided in `builder_getBlindExecutionPayloadV1`, the builder **SHOULD** return `-32004: Unknown header`. If the CL modifies the payload in such a way that it is still valid and the builder is able to unblind it, the builder **MAY** update the payload on it's end to reflect the CL's changes before returning it.
-2. Builder software **MUST** verify that `signature` is a BLS signature over `header`, verifiable using [`verify_block_signature`][verify-block-signature] and the validator public key that is expected to propose in the given slot. If the signature is determined to be invalid or from a different validator than expected, the builder **MUST** return `-32005: Invalid signature`.
+1. Builder software **MUST** verify that `block` is an SSZ encoded [`BeaconBlock`][beacon-block]. If the block is encoded incorrectly, the builder **MUST** return `-32003: SSZ error`. If the block is encoded correctly, but does not match the `BlindExecutionPayloadV1` provided in `builder_getBlindExecutionPayloadV1`, the builder **SHOULD** return `-32004: Unknown block`. If the CL modifies the payload in such a way that it is still valid and the builder is able to unblind it, the builder **MAY** update the payload on it's end to reflect the CL's changes before returning it.
+2. Builder software **MUST** verify that `signature` is a BLS signature over `block`, verifiable using [`verify_block_signature`][verify-block-signature] and the validator public key that is expected to propose in the given slot. If the signature is determined to be invalid or from a different validator than expected, the builder **MUST** return `-32005: Invalid signature`.
 
 [consensus-specs]: https://github.com/ethereum/consensus-specs
 [bls]: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#bls-signatures
@@ -137,5 +137,5 @@ class Response(Container):
 [execution-payload-header]: https://github.com/ethereum/consensus-specs/blob/dev/specs/bellatrix/beacon-chain.md#executionpayloadheader
 [execution-payload]: https://github.com/ethereum/execution-apis/blob/main/src/engine/specification.md#executionpayloadv1
 [hash-tree-root]: https://github.com/ethereum/consensus-specs/blob/dev/ssz/simple-serialize.md#merkleization
-[beacon-block-header]: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconblockheader
+[beacon-block]: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconblock
 [verify-block-signature]: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beacon-chain-state-transition-function
