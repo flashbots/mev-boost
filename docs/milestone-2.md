@@ -6,15 +6,16 @@ This second milestone adds all the security features necessary for production us
 
 ### Authentication
 
-```sequence
-participant mev_boost
-participant consensus
-participant relays
-Title: Authentication
-mev_boost->consensus: consensus_getFeeRecipientsV1
-consensus-->mev_boost: consensus_getFeeRecipientsV1 response
-mev_boost->relays: relay_publishFeeRecipientsV1
-mev_boost->relays: relay_getValidatorStatusV1
+```mermaid
+sequenceDiagram
+    Title: Authentication
+    participant consensus
+    participant mev_boost
+    participant relays
+    mev_boost->>consensus: consensus_getFeeRecipientsV1
+    consensus-->>mev_boost: consensus_getFeeRecipientsV1 response
+    mev_boost->>relays: relay_publishFeeRecipientsV1
+    mev_boost->>relays: relay_getValidatorStatusV1
 ```
 
 1. on startup, mev-boost requests a list of [`AuthenticatedFeeRecipient`](#authenticatedfeerecipient) from the consensus client using a new [`consensus_getFeeRecipientsV1`](#consensus_getfeerecipientsv1) method.
@@ -23,29 +24,29 @@ mev_boost->relays: relay_getValidatorStatusV1
 
 ### Block Proposal
 
-```sequence
-participant consensus
-participant mev_boost
-participant execution
-participant relays
-Title: Block Proposal
-Note over consensus: wait for allocated slot
-consensus->mev_boost: engine_forkchoiceUpdatedV1
-mev_boost->execution: engine_forkchoiceUpdatedV1
-Note over mev_boost: begin polling
-mev_boost->relays: relay_getValidatorStatusV1
-mev_boost->relays: relay_getPayloadHeaderV1
-consensus->mev_boost: builder_getPayloadHeaderV1
-Note over mev_boost: select best payload
-mev_boost->execution: engine_getPayloadV1
-mev_boost-->consensus: builder_getPayloadHeaderV1 response
-Note over consensus: sign the block
-consensus->mev_boost: builder_proposeBlindedBlockV1
-Note over mev_boost: identify payload source
-mev_boost->relays: relay_proposeBlindedBlockV1
-Note over relays: validate signature
-relays-->mev_boost: relay_proposeBlindedBlockV1 response
-mev_boost-->consensus: builder_proposeBlindedBlockV1 response
+```mermaid
+sequenceDiagram
+    participant consensus
+    participant mev_boost
+    participant relays
+    Title: Block Proposal
+    Note over consensus: wait for allocated slot
+    consensus->>+mev_boost: engine_forkchoiceUpdatedV1
+    mev_boost->>-relays: engine_forkchoiceUpdatedV1
+    Note over mev_boost: begin polling
+    mev_boost->>relays: relay_getValidatorStatusV1
+    mev_boost->>relays: relay_getRelayStatusV1
+    mev_boost->>relays: relay_getPayloadHeaderV1
+    consensus->>mev_boost: builder_getPayloadHeaderV1
+    Note over mev_boost: select best payload
+    mev_boost-->>consensus: builder_getPayloadHeaderV1 response
+    Note over consensus: sign the block
+    consensus->>mev_boost: builder_proposeBlindedBlockV1
+    Note over mev_boost: identify payload source
+    mev_boost->>relays: relay_proposeBlindedBlockV1
+    Note over relays: validate signature
+    relays-->>mev_boost: relay_proposeBlindedBlockV1 response
+    mev_boost-->>consensus: builder_proposeBlindedBlockV1 response
 ```
 
 1. mev-boost must be initialized with a list of (`BLSPublicKey`, `RelayURI`) pairs representing trusted relays.
@@ -54,21 +55,20 @@ mev_boost-->consensus: builder_proposeBlindedBlockV1 response
     2. mev-boost checks for a fraud proof by calling [`relay_getRelayStatusV1`](#relay_getrelaystatusv1) on all connected relays. If a fraud proof is returned, mev-boost preforms the [`Validation`](#validation) process.
     3. mev-boost begins polling connected relays for their [`SignedMEVPayloadHeader`](#signedmevpayloadheader) using [`relay_getPayloadHeaderV1`](#relay_getpayloadheaderv1) requests.
     4. mev-boost must verify the signature and the merkle proof of the [`SignedMEVPayloadHeader`](#signedmevpayloadheader) received to ensure the signature matches the BLS key associated with the IP of the relay, has a matching `payloadId`, and has a valid fee recipient payment.
-5. upon receiving a [`builder_getPayloadHeaderV1`](#builder_getpayloadheaderv1) request from the BN, mev-boost must return the [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader) with the highest associated `feeRecipientBalance` and terminate the polling cycle. If no eligible payload is received from a relay, mev-boost must request and return a payload from the local execution client using [`engine_getPayloadV1`](#engine_getpayloadv1).
+5. upon receiving a [`builder_getPayloadHeaderV1`](#builder_getpayloadheaderv1) request from the BN, mev-boost must return the [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader) with the highest associated `feeRecipientDiff` and terminate the polling cycle.
 6. the BN must use the [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader) received to assemble and sign a [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock) and return it to mev-boost using [`builder_proposeBlindedBlockV1`](#builder_proposeblindedblockv1).
 7. mev-boost must forward the [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock) to all connected relays and attach the matching [`SignedMEVPayloadHeader`](#signedmevpayloadheader) using [`relay_proposeBlindedBlockV1`](#relay_proposeblindedblockv1) to inform the network of which relay created this payload.
 8. if an [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload) is returned, mev-boost must verify that the root of the transaction list matches the expected transaction root from the [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock) before returning it to the BN.
 
 ### Validation
 
-```sequence
-participant mev_boost
-participant relays
-participant execution
-Title: Fraud Proof
-mev_boost->relays: relay_getRelayStatusV1
-mev_boost->execution: engine_executePayloadV1
-Note over mev_boost: blacklist bad relay
+```mermaid
+sequenceDiagram
+    Title: Fraud Proof
+    participant mev_boost
+    participant relays
+    mev_boost->>relays: relay_getRelayStatusV1
+    Note over mev_boost: blacklist bad relay
 ```
 
 1. if a relay identifies a payload which violates consensus rules and was subsequently proposed to the network, they must craft a [`FraudProof`](#fraudproof) which contains the necessary information to verify the missbehavior.
@@ -201,7 +201,7 @@ Technically, this call only needs to return the `transactions` field of [`Execut
 - result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload)
 - error: code and message set in case an exception happens while proposing the payload.
 
-Technically, this call only needs to return the `transactions` field of [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload), but we return the full payload for simplicity. 
+Technically, this call only needs to return the `transactions` field of [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload), but we return the full payload for simplicity.
 
 ### Types
 
@@ -284,7 +284,7 @@ This is forked from [here](https://github.com/ethereum/consensus-specs/blob/v1.1
 ```py
 class BlindedBeaconBlockBody(Container):
     randao_reveal: BLSSignature
-    eth1_data: Eth1Data 
+    eth1_data: Eth1Data
     graffiti: Bytes32
     proposer_slashings: List[ProposerSlashing, MAX_PROPOSER_SLASHINGS]
     attester_slashings: List[AttesterSlashing, MAX_ATTESTER_SLASHINGS]
