@@ -35,10 +35,11 @@ The list of error codes introduced by this specification can be found below.
 | -32000 | Server error | Generic client error while processing request. |
 | -32001 | Unknown hash | No block with the provided hash is known. |
 | -32002 | Unknown validator | No known mapping between validator and feeRecipient. |
-| -32003 | SSZ error | Unable to decode SSZ. |
+| -32003 | Invalid SSZ | Unable to decode SSZ. |
 | -32004 | Unknown block | Block does not match the provided blind header. |
-| -32005 | Signature invalid | Provided signature is invalid. |
-| -32600 | Invalid Request | The JSON sent is not a valid Request object. |
+| -32005 | Invalid signature | Provided signature is invalid. |
+| -32006 | Invalid timestamp | Provided timestamp was invalid. |
+| -32600 | Invalid request | The JSON sent is not a valid Request object. |
 | -32601 | Method not found | The method does not exist / is not available. |
 | -32602 | Invalid params | Invalid method parameter(s). |
 | -32603 | Internal error | Internal JSON-RPC error. |
@@ -79,6 +80,7 @@ class Response(Container):
 - method: `builder_setFeeRecipientV1`
 - params:
   1. `feeRecipient`: `DATA`, 20 Bytes - Address of account which should receive fees.
+  2. `timestamp`: `QUANTITY`, uint64 - Unix timestamp of announcement.
   2. `publicKey`: `DATA`, 48 Bytes - Public key of validator.
   3. `signature`: `DATA`, 96 Bytes - Signature over `feeRecipient`.
 
@@ -88,8 +90,9 @@ class Response(Container):
 - error: code and message set in case an exception happens while getting the payload.
 
 #### Specification
-1. The builder **MUST** verify `signature` is valid under `publicKey`.
-2. The builder **MUST** store `feeRecipient` in a map keyed by `publicKey`.
+1. Builder software **MUST** verify `signature` is valid under `publicKey`.
+2. Builder software **MUST** respond to requests where `timestamp` is before the latest announcement from the validator or more than +/- 10 seconds from the current time with `-32006: Invalid timestamp`.
+3. Builder software **MUST** store `feeRecipient` in a map keyed by `publicKey`.
 
 ### `builder_getBlindExecutionPayloadV1`
 
@@ -119,8 +122,8 @@ class Response(Container):
 
 - method: `builder_getExecutionPayloadV1`
 - params:
-  1. `block`: `DATA`, arbitray length
-  2. `signature`: `DATA`, 96 Bytes
+  1. `block`: `DATA`, arbitray length - SSZ encoded [`BeaconBlock`][beacon-block].
+  2. `signature`: `DATA`, 96 Bytes - BLS signature of the validator over `block`.
 
 #### Response
 
@@ -128,7 +131,7 @@ class Response(Container):
 - error: code and message set in case an exception happens while proposing the payload.
 
 #### Specification
-1. Builder software **MUST** verify that `block` is an SSZ encoded [`BeaconBlock`][beacon-block]. If the block is encoded incorrectly, the builder **MUST** return `-32003: SSZ error`. If the block is encoded correctly, but does not match the `BlindExecutionPayloadV1` provided in `builder_getBlindExecutionPayloadV1`, the builder **SHOULD** return `-32004: Unknown block`. If the CL modifies the payload in such a way that it is still valid and the builder is able to unblind it, the builder **MAY** update the payload on it's end to reflect the CL's changes before returning it.
+1. Builder software **MUST** verify that `block` is an SSZ encoded [`BeaconBlock`][beacon-block]. If the block is encoded incorrectly, the builder **MUST** return `-32003: Invalid SSZ`. If the block is encoded correctly, but does not match the `BlindExecutionPayloadV1` provided in `builder_getBlindExecutionPayloadV1`, the builder **SHOULD** return `-32004: Unknown block`. If the CL modifies the payload in such a way that it is still valid and the builder is able to unblind it, the builder **MAY** update the payload on it's end to reflect the CL's changes before returning it.
 2. Builder software **MUST** verify that `signature` is a BLS signature over `block`, verifiable using [`verify_block_signature`][verify-block-signature] and the validator public key that is expected to propose in the given slot. If the signature is determined to be invalid or from a different validator than expected, the builder **MUST** return `-32005: Invalid signature`.
 
 [consensus-specs]: https://github.com/ethereum/consensus-specs
