@@ -1,153 +1,91 @@
-# Version 0.1 (current, milestone 1, running on [Kiln testnet](https://kiln.themerge.dev/))
+# Version 0.2
 
-This initial milestone provides simple sidecar logic with minimal consensus client changes, simple networking, no validator authentication, and manual safety mechanism.
+This document specifies the Builder API methods that the Consensus Layer uses to interact with external block builders.
 
-1. _mev-boost_ is initialized with a list of `RelayURI`s from trusted relays.
+## Structures
 
-2. _mev-boost_ receives a [`engine_forkchoiceUpdatedV1`](#engine_forkchoiceupdatedv1) call from a beacon node and forwards it to all connected relays to communicate `feeRecipient`.
+### `ExecutionPayloadV1`
 
-3. _mev_boost_ receives [`builder_getPayloadHeaderV1`](#builder_getpayloadheaderv1) request from the beacon node, and forwards it to all relays as `relay_getPayloadHeaderV1`. _mev-boost_ must return the [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayloadheader) with the highest associated `feeRecipientDiff`.
+Mirror of [`ExecutionPayloadV1`][execution-payload].
 
-4. The _beacon node_ must use the [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader) received to assemble and sign a [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock) and return it to _mev-boost_ using [`builder_proposeBlindedBlockV1`](#builder_proposeblindedblockv1).
+### `BlindExecutionPayloadV1`
 
-5. _mev-boost_ must forward the [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock) to all connected relays and attach the matching [`SignedMEVPayloadHeader`](#signedmevpayloadheader) using [`relay_proposeBlindedBlockV1`](#relay_proposeblindedblockv1) to inform the network of which relay created this payload.
+Equivalent to `ExecutionPayloadV1`, except `transactions` is replaced with `transactionsHash`. This is the [SSZ hash tree root][hash-tree-root] of `transactions`.
 
-6. If an [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayload) is returned, _mev-boost_ must verify that the root of the transaction list matches the expected transaction root from the [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock) before returning it to the _beacon node_.
+ - `parentHash`: `DATA`, 32 Bytes
+ - `feeRecipient`:  `DATA`, 20 Bytes
+ - `stateRoot`: `DATA`, 32 Bytes
+ - `receiptsRoot`: `DATA`, 32 Bytes
+ - `logsBloom`: `DATA`, 256 Bytes
+ - `prevRandao`: `DATA`, 32 Bytes
+ - `blockNumber`: `QUANTITY`, 64 Bits
+ - `gasLimit`: `QUANTITY`, 64 Bits
+ - `gasUsed`: `QUANTITY`, 64 Bits
+ - `timestamp`: `QUANTITY`, 64 Bits
+ - `extraData`: `DATA`, 0 to 32 Bytes
+ - `baseFeePerGas`: `QUANTITY`, 256 Bits
+ - `blockHash`: `DATA`, 32 Bytes
+ - `transactionsHash`: `DATA`, 32 Bytes
 
-```mermaid
-sequenceDiagram
-    Title: Block Proposal
-    consensus-->+mev_boost: engine_forkchoiceUpdatedV1
-    mev_boost->>-relays: engine_forkchoiceUpdatedV1
-    Note over consensus: wait for allocated slot
-    consensus->>+mev_boost: builder_getPayloadHeaderV1
-    mev_boost->>relays: relay_getPayloadHeaderV1
-    Note over mev_boost: select most valuable payload
-    mev_boost-->>-consensus: builder_getPayloadHeaderV1 response
-    Note over consensus: sign the block
-    consensus->>+mev_boost: builder_proposeBlindedBlockV1
-    Note over mev_boost: identify payload source
-    mev_boost->>relays: relay_proposeBlindedBlockV1
-    Note over relays: validate signature
-    relays-->>mev_boost: relay_proposeBlindedBlockV1 response
-    mev_boost-->>-consensus: builder_proposeBlindedBlockV1 response
-```
+## Errors
 
-## Required client modifications
+The list of error codes introduced by this specification can be found below.
 
-- consensus client must implement [blind transaction signing](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-1-Blind-Transaction-Signing)
+| Code | Message | Meaning |
+| - | - | - |
+| -32000 | Server error | Generic client error while processing request. |
+| -32001 | Unknown hash | No block with the provided hash is known. |
+| -32002 | SSZ error | Unable to decode SSZ. |
+| -32003 | Unknown block | Block does not match the provided blind header. |
+| -32004 | Signature invalid | Provided signature is invalid. |
+| -32600 | Invalid Request | The JSON sent is not a valid Request object. |
+| -32601 | Method not found | The method does not exist / is not available. |
+| -32602 | Invalid params | Invalid method parameter(s). |
+| -32603 | Internal error | Internal JSON-RPC error. |
+| -32700 | Parse error | Invalid JSON was received by the server. |
 
-## API
+## Methods
 
-Methods are prefixed using the following convention:
-
-- `engine` prefix indicates calls made to the execution client. These methods are specified in the [execution engine APIs](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.8/src/engine/specification.md).
-- `builder` prefix indicates calls made to the mev-boost sidecar.
-- `relay` prefix indicates calls made to a relay.
-
-### engine_forkchoiceUpdatedV1
-
-See [engine_forkchoiceUpdatedV1](https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.8/src/engine/specification.md#engine_forkchoiceupdatedv1).
-
-### builder_proposeBlindedBlockV1
+### `builder_getBlindExecutionPayloadV1`
 
 #### Request
 
-- method: `builder_proposeBlindedBlockV1`
+- method: `builder_getBlindExecutionPayloadV1`
 - params:
-  1. [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock)
+  1. `hash`: `DATA`, 32 Bytes - Hash of block which the validator intends to use as the parent for its proposal.
 
 #### Response
 
-- result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayload).
-- error: code and message set in case an exception happens while proposing the payload.
-
-Technically, this call only needs to return the `transactions` field of [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayload), but we return the full payload for simplicity.
-
-### builder_getPayloadHeaderV1
-
-#### Request
-
-- method: `builder_getPayloadHeaderV1`
-- params:
-  1. `payloadId`: `DATA`, 8 Bytes - Identifier of the payload build process
-
-#### Response
-
-- result: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayloadheader)
+- result: `object`
+    - `payload`: [`BlindExecutionPayloadV1`](#blindexecutionpayloadv1).
+    - `feeRecipientDiff`: `DATA`, 32 Bytes - the change in wei balance of the `feeRecipient` account.
+    - `signature`: `DATA`, 96 Bytes - BLS signature of the relayer over `payload` and `feeRecipientDiff`
 - error: code and message set in case an exception happens while getting the payload.
 
-### relay_getPayloadHeaderV1
+#### Specification
+1. Builder software **SHOULD** return the `payload` which increases the `feeRecipient`'s balance by the most.
+2. Builder software **SHOULD** complete the request in under `1 second`.
+3. Builder software **MUST** return `-32001: Unknown hash` if the block identified by `hash` does not exist.
+
+### `builder_getExecutionPayloadV1`
 
 #### Request
 
-- method: `relay_getPayloadHeaderV1`
+- method: `builder_getExecutionPayloadV1`
 - params:
-  1. `payloadId`: `DATA`, 8 Bytes - Identifier of the payload build process
+  1. `block`: `DATA`, arbitray length
+  2. `signature`: `DATA`, 96 Bytes
 
 #### Response
 
-- result: [`SignedMEVPayloadHeader`](#signedmevpayloadheader)
-- error: code and message set in case an exception happens while getting the payload.
-
-### relay_proposeBlindedBlockV1
-
-#### Request
-
-- method: `relay_proposeBlindedBlockV1`
-- params:
-  1. [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock)
-  2. [`SignedMEVPayloadHeader`](#signedmevpayloadheader)
-
-#### Response
-
-- result: [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayload)
+- result: [`ExecutionPayloadV1`][#executionpayloadv1].
 - error: code and message set in case an exception happens while proposing the payload.
 
-Technically, this call only needs to return the `transactions` field of [`ExecutionPayloadV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayload), but we return the full payload for simplicity.
+#### Specification
+1. Builder software **MUST** verify that `block` is an SSZ encoded [`BeaconBlock`][beacon-block]. If the block is encoded incorrectly, the builder **MUST** return `-32002: SSZ error`. If the block is encoded correctly, but does not match the `BlindExecutionPayloadV1` provided in `builder_getBlindExecutionPayloadV1`, the builder **MUST** return `-32003: Unknown block`.
+2. Builder software **MUST** verify that `signature` is a BLS signature over `block`, verifiable using [`verify_block_signature`][verify-block-signature] and the validator public key that is expected to propose in the given slot. If the signature is determined to be invalid or from a different validator than expected, the builder **MUST** return `-32004: Invalid signature`.
 
-### Types
-
-#### SignedMEVPayloadHeader
-
-See [here](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/phase0/beacon-chain.md#custom-types) for the definition of fields like `BLSSignature`
-
-- message: [MEVPayloadHeader](#mevpayloadheader)
-- signature: BLSSignature
-
-#### MEVPayloadHeader
-
-- payloadHeader: [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayloadheader)
-- feeRecipientDiff: Quantity, 256 Bits - the change in balance of the feeRecipient address
-
-#### SignedBlindedBeaconBlock
-
-See [here](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/phase0/beacon-chain.md#custom-types) for the definition of fields like `BLSSignature`
-
-- message: [BlindedBeaconBlock](#blindedbeaconblock)
-- signature: BLSSignature
-
-#### BlindedBeaconBlock
-
-This is forked from [here](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/phase0/beacon-chain.md#beaconblock) with `body` replaced with `BlindedBeaconBlockBody`
-
-- slot: Slot
-- proposer_index: ValidatorIndex
-- parent_root: Root
-- state_root: Root
-- body: BlindedBeaconBlockBody
-
-#### BlindedBeaconBlockBody
-
-This is forked from [here](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/merge/beacon-chain.md#beaconblockbody) with `execution_payload` replaced with [execution_payload_header](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayloadheader)
-
-- randao_reveal: BLSSignature
-- eth1_data: Eth1Data
-- graffiti: Bytes32
-- proposer_slashings: List[ProposerSlashing, MAX_PROPOSER_SLASHINGS]
-- attester_slashings: List[AttesterSlashing, MAX_ATTESTER_SLASHINGS]
-- attestations: List[Attestation, MAX_ATTESTATIONS]
-- deposits: List[Deposit, MAX_DEPOSITS]
-- voluntary_exits: List[SignedVoluntaryExit, MAX_VOLUNTARY_EXITS]
-- sync_aggregate: SyncAggregate
-- execution_payload_header: ExecutionPayloadHeader
+[execution-payload]: https://github.com/ethereum/execution-apis/blob/main/src/engine/specification.md#executionpayloadv1
+[hash-tree-root]: https://github.com/ethereum/consensus-specs/blob/dev/ssz/simple-serialize.md#merkleization
+[beacon-block]: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beaconblock
+[verify-block-signature]: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#beacon-chain-state-transition-function
