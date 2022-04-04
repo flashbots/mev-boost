@@ -79,7 +79,8 @@ class Response(Container):
 - method: `builder_setFeeRecipientV1`
 - params:
   1. `feeRecipient`: `DATA`, 20 Bytes - Address of account which should receive fees.
-  2. `signature`: `DATA`, 96 Bytes - Validator signature over `feeRecipient`.
+  2. `publicKey`: `DATA`, 48 Bytes - Public key of validator.
+  3. `signature`: `DATA`, 96 Bytes - Signature over `feeRecipient`.
 
 #### Response
 
@@ -87,7 +88,8 @@ class Response(Container):
 - error: code and message set in case an exception happens while getting the payload.
 
 #### Specification
-1. The builder **MUST** store `feeRecipient` in a map keyed by the recovered public key of the validator.
+1. The builder **MUST** verify `signature` is valid under `publicKey`.
+2. The builder **MUST** store `feeRecipient` in a map keyed by `publicKey`.
 
 ### `builder_getBlindExecutionPayloadV1`
 
@@ -102,7 +104,8 @@ class Response(Container):
 - result: `object`
     - `payload`: [`BlindExecutionPayloadV1`](#blindexecutionpayloadv1).
     - `value`: `DATA`, 32 Bytes - the change in wei balance of the `feeRecipient` account.
-    - `signature`: `DATA`, 96 Bytes - BLS signature of the relayer over `payload` and `feeRecipientDiff`
+    - `publicKey`: `DATA`, 48 Bytes - the public key associated with the builder.
+    - `signature`: `DATA`, 96 Bytes - BLS signature of the builder over `payload` and `value`.
 - error: code and message set in case an exception happens while getting the payload.
 
 #### Specification
