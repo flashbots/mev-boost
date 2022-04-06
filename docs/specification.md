@@ -6,7 +6,7 @@ This initial milestone provides simple sidecar logic with minimal consensus clie
 
 2. _mev-boost_ receives a [`engine_forkchoiceUpdatedV1`](#engine_forkchoiceupdatedv1) call from a beacon node and forwards it to all connected relays to communicate `feeRecipient`.
 
-3. _mev_boost_ receives [`builder_getPayloadHeaderV1`](#builder_getpayloadheaderv1) request from the beacon node, _mev-boost_ must return the [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader) with the highest associated `feeRecipientBalance`.
+3. _mev_boost_ receives [`builder_getPayloadHeaderV1`](#builder_getpayloadheaderv1) request from the beacon node, and forwards it to all relays as `relay_getPayloadHeaderV1`. _mev-boost_ must return the [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.10/specs/bellatrix/beacon-chain.md#executionpayloadheader) with the highest associated `feeRecipientDiff`.
 
 4. The _beacon node_ must use the [`ExecutionPayloadHeaderV1`](https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/merge/beacon-chain.md#executionpayloadheader) received to assemble and sign a [`SignedBlindedBeaconBlock`](#signedblindedbeaconblock) and return it to _mev-boost_ using [`builder_proposeBlindedBlockV1`](#builder_proposeblindedblockv1).
 
