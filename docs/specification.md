@@ -128,7 +128,7 @@ All signature operations should follow the [standard BLS operations][bls] interf
 
 There are two types of data to sign over in the Builder API:
 * In-protocol messages, e.g. [`BlindBeaconBlock`](#blindbeaconblock), which should compute the signing root using [`computer_signing_root`][compute-signing-root] and use the domain specified for beacon block proposals.
-* Builder API messages, e.g. [`builder_setFeeRecipientV1`](#builder_setFeeRecipientV1), which should compute the signing root using [`compute_signing_root`][compute-signing-root] and the domain `DomainType('0xXXXXXXXX')` (TODO: get a proper domain).
+* Builder API messages, e.g. [`builder_setFeeRecipientV1`](#builder_setFeeRecipientV1) and the response to [`builder_getHeader`](#response-2), which should compute the signing root using [`compute_signing_root`][compute-signing-root] and the domain `DomainType('0xXXXXXXXX')` (TODO: get a proper domain).
 
 As `compute_signing_root` takes `SSZObject` as input, client software should convert in-protocol messages to their SSZ representation to compute the signing root and Builder API messages to the SSZ representations defined [above](#sszobjects).
 
@@ -143,7 +143,7 @@ As `compute_signing_root` takes `SSZObject` as input, client software should con
   1. `feeRecipient`: `DATA`, 20 Bytes - Address of account which should receive fees.
   2. `timestamp`: `QUANTITY`, uint64 - Unix timestamp of announcement.
   2. `publicKey`: `DATA`, 48 Bytes - Public key of validator.
-  3. `signature`: `DATA`, 96 Bytes - Signature over `feeRecipient`.
+  3. `signature`: `DATA`, 96 Bytes - Signature over `feeRecipient` and `timestamp`.
 
 #### Response
 
@@ -166,16 +166,16 @@ As `compute_signing_root` takes `SSZObject` as input, client software should con
 #### Response
 
 - result: `object`
-    - `payload`: [`ExecutionPayloadHeaderV1`](#executionpayloadheaderv1).
+    - `header`: [`ExecutionPayloadHeaderV1`](#executionpayloadheaderv1).
     - `value`: `DATA`, 32 Bytes - the change in wei balance of the `feeRecipient` account.
     - `publicKey`: `DATA`, 48 Bytes - the public key associated with the builder.
     - `signature`: `DATA`, 96 Bytes - BLS signature of the builder over `payload` and `value`.
 - error: code and message set in case an exception happens while getting the payload.
 
 #### Specification
-1. Builder software **SHOULD** respond immediately with the `payload` that increases the `feeRecipient`'s balance by the most.
+1. Builder software **SHOULD** respond immediately with the `header` that increases the `feeRecipient`'s balance by the most.
 2. Builder software **MUST** return `-32001: Unknown hash` if the block identified by `hash` does not exist.
-3. Builder software **MUST** return `-32002: Unknown validator` if the recovered validator public key has not been mapped to a `feeRecipient`.
+3. Builder software **MUST** return `-32002: Unknown validator` if the validator the builder expects to propose in the current slot has not been mapped to a `feeRecipient`.
 
 ### `builder_getPayloadV1`
 
