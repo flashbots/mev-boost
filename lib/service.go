@@ -81,7 +81,7 @@ type rpcResponseContainer struct {
 
 // ForkchoiceUpdatedV1 TODO
 func (m *RelayService) ForkchoiceUpdatedV1(_ *http.Request, args *[]interface{}, result *ForkChoiceResponse) error {
-	method := "engine_forkchoiceUpdatedV1"
+	method := "relay_forkchoiceUpdatedV1"
 	logMethod := m.log.WithField("method", method)
 
 	boostPayloadID := make(hexutil.Bytes, 8)

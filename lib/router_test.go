@@ -220,7 +220,7 @@ func TestMevService_ForkChoiceUpdated(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		testHTTPMethod(t, "engine_forkchoiceUpdatedV1", &tt)
+		testHTTPMethod(t, "relay_forkchoiceUpdatedV1", &tt)
 	}
 }
 
