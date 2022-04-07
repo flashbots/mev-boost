@@ -50,7 +50,7 @@ type ExecutionPayloadWithTxRootV1 struct {
 	BlockHash        common.Hash    `json:"blockHash" gencodec:"required"`
 	Transactions     *[]string      `json:"transactions,omitempty"`
 	TransactionsRoot common.Hash    `json:"transactionsRoot"`
-	FeeRecipientDiff *big.Int       `json:"feeRecipientDiff" gencodec:"required"`
+	FeeRecipientDiff *big.Int       `json:"feeRecipientDiff" gencodec:"optional"`
 }
 
 // ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindedBeaconBlockBodyPartial
@@ -61,13 +61,14 @@ type ExecutionPayloadHeaderOnlyBlockHash struct {
 
 // JSON type overrides for executableData.
 type executionPayloadHeaderMarshaling struct {
-	Number        hexutil.Uint64
-	GasLimit      hexutil.Uint64
-	GasUsed       hexutil.Uint64
-	Timestamp     hexutil.Uint64
-	BaseFeePerGas *hexutil.Big
-	ExtraData     hexutil.Bytes
-	LogsBloom     hexutil.Bytes
+	Number           hexutil.Uint64
+	GasLimit         hexutil.Uint64
+	GasUsed          hexutil.Uint64
+	Timestamp        hexutil.Uint64
+	BaseFeePerGas    *hexutil.Big
+	ExtraData        hexutil.Bytes
+	LogsBloom        hexutil.Bytes
+	FeeRecipientDiff *hexutil.Big
 }
 
 // ForkchoiceStatus as defined in the engine spec: https://github.com/ethereum/execution-apis/blob/main/src/engine/specification.md#engine_forkchoiceupdatedv1
