@@ -24,26 +24,23 @@ generate:
 run:
 	./mev-boost
 
-#run-boost-with-mergemock:
-#	./mev-boost -executionUrl http://127.0.0.1:8550
-
 run-boost-with-relay:
-	./mev-boost -relayUrl http://127.0.0.1:18545
+	./mev-boost -relayUrl http://127.0.0.1:28545
 
 run-dev:
 	go run cmd/mev-boost/main.go
 
 run-mergemock-engine:
-	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) engine
+	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) engine --listen-addr 127.0.0.1:8550
 
 run-mergemock-consensus:
-	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) consensus --slot-time=4s --engine http://127.0.0.1:18550 --test-runs 10
+	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) consensus --slot-time=4s --engine http://127.0.0.1:8550 --builder http://127.0.0.1:18550 --slot-bound 10
+
+run-mergemock-relay:
+	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) relay --listen-addr 127.0.0.1:28545
 
 run-mergemock-integration: build
-	make -j3 run-boost-with-mergemock run-mergemock-engine run-mergemock-consensus
-
-run-mergemock-integration-relay: build
-	make -j3 run-boost-with-relay run-mergemock-engine run-mergemock-consensus
+	make -j4 run-boost-with-relay run-mergemock-engine run-mergemock-consensus run-mergemock-relay
 
 build-for-docker:
 	CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.version=${GIT_VER}" -v -o mev-boost ./cmd/mev-boost
