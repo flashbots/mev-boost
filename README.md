@@ -4,29 +4,36 @@
 [![Discord](https://img.shields.io/discord/755466764501909692)](https://discord.gg/7hvTycdNcK)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-A service that allows Ethereum PoS consensus clients to outsource block construction to third party block builders in addition to execution clients. See [ethresearch post](https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/) for the high level architecture.
+A service that allows Ethereum PoS consensus clients to outsource block construction to third party block builders in addition to execution clients. See [ethresearch post](https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/) for the high level architecture and **[`docs/specification.md`](https://github.com/flashbots/mev-boost/blob/main/docs/specification.md)** for the specification and implementation details.
 
 ![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
 
-Request flow:
+v0.2 request flow:
 
 ```mermaid
 sequenceDiagram
+    participant consensus
+    participant mev_boost
+    participant relays
     Title: Block Proposal
-    consensus-->+mev_boost: engine_forkchoiceUpdatedV1
-    mev_boost->>-relays: engine_forkchoiceUpdatedV1
+    Note over consensus: sign fee recipient announcement
+    consensus->>mev_boost: builder_setFeeRecipient
+    mev_boost->>relays: builder_setFeeRecipient
     Note over consensus: wait for allocated slot
-    consensus->>+mev_boost: builder_getPayloadHeaderV1
-    mev_boost->>relays: relay_getPayloadHeaderV1
-    Note over mev_boost: select most valuable payload
-    mev_boost-->>-consensus: builder_getPayloadHeaderV1 response
+    consensus->>mev_boost: builder_getHeader
+    mev_boost->>relays: builder_getHeader
+    relays-->>mev_boost: builder_getHeader response
+    Note over mev_boost: verify response matches expected
+    Note over mev_boost: select best payload
+    mev_boost-->>consensus: builder_getHeader response
     Note over consensus: sign the block
-    consensus->>+mev_boost: builder_proposeBlindedBlockV1
+    consensus->>mev_boost: builder_getPayload
     Note over mev_boost: identify payload source
-    mev_boost->>relays: relay_proposeBlindedBlockV1
+    mev_boost->>relays: builder_getPayload
     Note over relays: validate signature
-    relays-->>mev_boost: relay_proposeBlindedBlockV1 response
-    mev_boost-->>-consensus: builder_proposeBlindedBlockV1 response
+    relays-->>mev_boost: builder_getPayload response
+    Note over mev_boost: verify response matches expected
+    mev_boost-->>consensus: builder_getPayload response
 ```
 
 ## Table of Contents
@@ -43,12 +50,7 @@ A summary of consensus client changes can be found [here](https://hackmd.io/@pau
 
 simple sidecar logic with minimal consensus client changes, simple networking, no authentication, and manual safety mechanism
 
-- [x] _mev-boost_ sends `feeRecipient` to relay with direct `engine_forkchoiceUpdatedV1` request at beginning of block
-- [x] _mev-boost_ fetches signed payloads from relay using unauthenticated `getPayloadHeader` request
-- [x] _mev-boost_ selects best payload that matches expected `payloadId` and requests signature from consensus client, this requires passing header object to the consensus client and flagging that it should be returned to the middleware once signed
-- [x] _mev-boost_ returns signed block + initial payload header to relay with direct request
-
-Specification: https://github.com/flashbots/mev-boost/wiki/Specification
+Specification: https://github.com/flashbots/mev-boost/blob/main/docs/specification.md
 
 ### Version 1.0 (next, milestone 2, the merge)
 
