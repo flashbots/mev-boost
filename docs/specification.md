@@ -56,22 +56,6 @@ Equivalent to `ExecutionPayloadV1`, except `transactions` is replaced with `tran
 
 Consider the following definitions supplementary to the definitions in [`consensus-specs`][consensus-specs].
 
-##### `builder_setFeeRecipientV1` Request
-
-```python
-class Request(Container):
-    feeRecipient: Bytes20
-    timestamp: uint64
-```
-
-##### `builder_getPayloadV1` Response
-
-```python
-class Response(Container):
-    payload: ExecutionPayloadHeader
-    value: uint256
-```
-
 ##### `builder_getPayloadV1` Request
 
 ###### `BlindBeaconBlock`
