@@ -19,15 +19,10 @@ func NewRouter(relayURLs []string, store Store, log *logrus.Entry) (*mux.Router,
 	rpcServer.RegisterCodec(json.NewCodec(), "application/json")
 	rpcServer.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
 
-	if err := rpcServer.RegisterService(relay, "engine"); err != nil {
-		return nil, err
-	}
 	if err := rpcServer.RegisterService(relay, "builder"); err != nil {
 		return nil, err
 	}
-	if err := rpcServer.RegisterService(relay, "relay"); err != nil {
-		return nil, err
-	}
+	rpcServer.RegisterMethodNotFoundFunc(relay.methodNotFound)
 
 	router := mux.NewRouter()
 	router.Handle("/", rpcServer)

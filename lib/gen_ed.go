@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-var _ = (*executionPayloadHeaderMarshaling)(nil)
+var _ = (*executionPayloadHeaderMarshallingOverrides)(nil)
 
 // MarshalJSON marshals as JSON.
 func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
@@ -22,7 +22,7 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 		ReceiptsRoot     common.Hash    `json:"receiptsRoot" gencodec:"required"`
 		LogsBloom        hexutil.Bytes  `json:"logsBloom" gencodec:"required"`
 		PrevRandao       common.Hash    `json:"prevRandao" gencodec:"required"`
-		Number           hexutil.Uint64 `json:"blockNumber" gencodec:"required"`
+		BlockNumber      hexutil.Uint64 `json:"blockNumber" gencodec:"required"`
 		GasLimit         hexutil.Uint64 `json:"gasLimit" gencodec:"required"`
 		GasUsed          hexutil.Uint64 `json:"gasUsed" gencodec:"required"`
 		Timestamp        hexutil.Uint64 `json:"timestamp" gencodec:"required"`
@@ -31,7 +31,6 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 		BlockHash        common.Hash    `json:"blockHash" gencodec:"required"`
 		Transactions     *[]string      `json:"transactions,omitempty"`
 		TransactionsRoot common.Hash    `json:"transactionsRoot"`
-		FeeRecipientDiff *hexutil.Big   `json:"feeRecipientDiff" gencodec:"optional"`
 	}
 	var enc ExecutionPayloadWithTxRootV1
 	enc.ParentHash = e.ParentHash
@@ -40,7 +39,7 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 	enc.ReceiptsRoot = e.ReceiptsRoot
 	enc.LogsBloom = e.LogsBloom
 	enc.PrevRandao = e.PrevRandao
-	enc.Number = hexutil.Uint64(e.Number)
+	enc.BlockNumber = hexutil.Uint64(e.BlockNumber)
 	enc.GasLimit = hexutil.Uint64(e.GasLimit)
 	enc.GasUsed = hexutil.Uint64(e.GasUsed)
 	enc.Timestamp = hexutil.Uint64(e.Timestamp)
@@ -49,7 +48,6 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 	enc.BlockHash = e.BlockHash
 	enc.Transactions = e.Transactions
 	enc.TransactionsRoot = e.TransactionsRoot
-	enc.FeeRecipientDiff = (*hexutil.Big)(e.FeeRecipientDiff)
 	return json.Marshal(&enc)
 }
 
@@ -62,7 +60,7 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 		ReceiptsRoot     *common.Hash    `json:"receiptsRoot" gencodec:"required"`
 		LogsBloom        *hexutil.Bytes  `json:"logsBloom" gencodec:"required"`
 		PrevRandao       *common.Hash    `json:"prevRandao" gencodec:"required"`
-		Number           *hexutil.Uint64 `json:"blockNumber" gencodec:"required"`
+		BlockNumber      *hexutil.Uint64 `json:"blockNumber" gencodec:"required"`
 		GasLimit         *hexutil.Uint64 `json:"gasLimit" gencodec:"required"`
 		GasUsed          *hexutil.Uint64 `json:"gasUsed" gencodec:"required"`
 		Timestamp        *hexutil.Uint64 `json:"timestamp" gencodec:"required"`
@@ -71,7 +69,6 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 		BlockHash        *common.Hash    `json:"blockHash" gencodec:"required"`
 		Transactions     *[]string       `json:"transactions,omitempty"`
 		TransactionsRoot *common.Hash    `json:"transactionsRoot"`
-		FeeRecipientDiff *hexutil.Big    `json:"feeRecipientDiff" gencodec:"optional"`
 	}
 	var dec ExecutionPayloadWithTxRootV1
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -101,10 +98,10 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'prevRandao' for ExecutionPayloadWithTxRootV1")
 	}
 	e.PrevRandao = *dec.PrevRandao
-	if dec.Number == nil {
+	if dec.BlockNumber == nil {
 		return errors.New("missing required field 'blockNumber' for ExecutionPayloadWithTxRootV1")
 	}
-	e.Number = uint64(*dec.Number)
+	e.BlockNumber = uint64(*dec.BlockNumber)
 	if dec.GasLimit == nil {
 		return errors.New("missing required field 'gasLimit' for ExecutionPayloadWithTxRootV1")
 	}
@@ -134,9 +131,6 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 	}
 	if dec.TransactionsRoot != nil {
 		e.TransactionsRoot = *dec.TransactionsRoot
-	}
-	if dec.FeeRecipientDiff != nil {
-		e.FeeRecipientDiff = (*big.Int)(dec.FeeRecipientDiff)
 	}
 	return nil
 }
