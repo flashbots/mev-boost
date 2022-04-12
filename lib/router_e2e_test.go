@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/flashbots/go-utils/jsonrpc"
@@ -17,18 +18,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newDefaultRouter(relayURLs []string) (*mux.Router, error) {
+	return NewRouter(RouterOptions{
+		RelayURLs: relayURLs,
+		Store:     NewStore(),
+		Log:       logrus.WithField("testing", true),
+	})
+}
+
 func setupMockRelay() *jsonrpc.MockJSONRPCServer {
 	server := jsonrpc.NewMockJSONRPCServer()
-	server.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (any, error) {
-		if len(req.Params) != 4 {
-			return false, fmt.Errorf("Expected 4 params, got %d", len(req.Params))
-		}
-		return true, nil
-	})
+	server.SetHandler("builder_setFeeRecipientV1", defaultSetFeeRecipient)
 	return server
 }
 
-func sendRequest(router *mux.Router, req *rpcRequest) (*rpcResponse, error) {
+func defaultSetFeeRecipient(req *jsonrpc.JSONRPCRequest) (any, error) {
+	if len(req.Params) != 4 {
+		return false, fmt.Errorf("Expected 4 params, got %d", len(req.Params))
+	}
+	return true, nil
+}
+
+func sendJSONRPCRequestToRouter(router *mux.Router, req *rpcRequest) (*rpcResponse, error) {
 	buf, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -45,7 +56,7 @@ func sendRequest(router *mux.Router, req *rpcRequest) (*rpcResponse, error) {
 }
 
 func sendRequestFailOnError(t *testing.T, router *mux.Router, req *rpcRequest) *rpcResponse {
-	resp, err := sendRequest(router, req)
+	resp, err := sendJSONRPCRequestToRouter(router, req)
 	require.Nil(t, err, err)
 	require.Nil(t, resp.Error, resp.Error)
 	return resp
@@ -53,9 +64,7 @@ func sendRequestFailOnError(t *testing.T, router *mux.Router, req *rpcRequest) *
 
 func TestE2E_SetFeeRecipient(t *testing.T) {
 	relay1, relay2 := setupMockRelay(), setupMockRelay()
-	relayUrls := []string{relay1.URL, relay2.URL}
-
-	router, err := NewRouter(relayUrls, NewStore(), logrus.WithField("testing", true))
+	router, err := newDefaultRouter([]string{relay1.URL, relay2.URL})
 	require.Nil(t, err, err)
 
 	req := newRPCRequest("1", "builder_setFeeRecipientV1", []any{
@@ -100,9 +109,7 @@ func TestE2E_SetFeeRecipient(t *testing.T) {
 
 func TestE2E_SetFeeRecipient_Error(t *testing.T) {
 	relay1 := setupMockRelay()
-	relayUrls := []string{relay1.URL}
-
-	router, err := NewRouter(relayUrls, NewStore(), logrus.WithField("testing", true))
+	router, err := newDefaultRouter([]string{relay1.URL})
 	require.Nil(t, err, err)
 
 	req := newRPCRequest("1", "builder_setFeeRecipientV1", []any{
@@ -110,7 +117,7 @@ func TestE2E_SetFeeRecipient_Error(t *testing.T) {
 		"0x625481c2", // timestamp
 	})
 
-	resp, err := sendRequest(router, req)
+	resp, err := sendJSONRPCRequestToRouter(router, req)
 	require.Nil(t, err, err)
 	require.NotNil(t, resp.Error, resp.Error)
 	require.Contains(t, resp.Error.Message, "invalid number of arguments")
@@ -119,12 +126,17 @@ func TestE2E_SetFeeRecipient_Error(t *testing.T) {
 
 func TestE2E_GetHeader(t *testing.T) {
 	relay1, relay2 := setupMockRelay(), setupMockRelay()
-	relayUrls := []string{relay1.URL, relay2.URL}
+	router, err := newDefaultRouter([]string{relay1.URL, relay2.URL})
+	require.Nil(t, err, err)
+
 	parentHash := common.HexToHash("0xf254722f498df7e396694ed71f363c535ae1b2620afeaf57515e7593ad888331")
 
 	// builder for a getHeader handler with a custom value
-	makeBuilderGetHeaderV1Handler := func(value *big.Int) func(req *jsonrpc.JSONRPCRequest) (any, error) {
+	makeBuilderGetHeaderV1Handler := func(value *big.Int, delay time.Duration) func(req *jsonrpc.JSONRPCRequest) (any, error) {
 		return func(req *jsonrpc.JSONRPCRequest) (any, error) {
+			if delay > 0 {
+				time.Sleep(delay)
+			}
 			if len(req.Params) != 1 {
 				return nil, fmt.Errorf("Expected 1 params, got %d", len(req.Params))
 			}
@@ -144,11 +156,8 @@ func TestE2E_GetHeader(t *testing.T) {
 	}
 
 	// Set handlers with different values
-	relay1.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345)))
-	relay2.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345678)))
-
-	router, err := NewRouter(relayUrls, NewStore(), logrus.WithField("testing", true))
-	require.Nil(t, err, err)
+	relay1.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345), 0))
+	relay2.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345678), 0))
 
 	req := newRPCRequest("1", "builder_getHeaderV1", []any{parentHash})
 	resp := sendRequestFailOnError(t, router, req)
@@ -159,4 +168,27 @@ func TestE2E_GetHeader(t *testing.T) {
 	err = json.Unmarshal(resp.Result, result)
 	require.Nil(t, err, err)
 	assert.Equal(t, "12345678", result.Value.String())
+
+	// ---
+	// Test with a slow relay - ensuring that a specific GetHeaderTimeout is respected.
+	// relay2 responds with a delay longer than GetHeaderTimeout. Therefore only response from relay1 is used.
+	// ---
+	router, err = NewRouter(RouterOptions{
+		RelayURLs:        []string{relay1.URL, relay2.URL},
+		Store:            NewStore(),
+		Log:              logrus.WithField("testing", true),
+		GetHeaderTimeout: 100 * time.Millisecond,
+	})
+	require.Nil(t, err, err)
+
+	relay2.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345678), 110*time.Millisecond))
+	req = newRPCRequest("1", "builder_getHeaderV1", []any{parentHash})
+	resp = sendRequestFailOnError(t, router, req)
+	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 2)
+	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 2)
+
+	result = new(GetHeaderResponse)
+	err = json.Unmarshal(resp.Result, result)
+	require.Nil(t, err, err)
+	assert.Equal(t, "12345", result.Value.String())
 }

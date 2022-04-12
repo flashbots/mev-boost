@@ -37,8 +37,12 @@ func main() {
 		_relayURLs = append(_relayURLs, strings.Trim(entry, " "))
 	}
 
-	store := lib.NewStoreWithCleanup()
-	router, err := lib.NewRouter(_relayURLs, store, log)
+	routerOpts := lib.RouterOptions{
+		RelayURLs: _relayURLs,
+		Store:     lib.NewStoreWithCleanup(),
+		Log:       log,
+	}
+	router, err := lib.NewRouter(routerOpts)
 	if err != nil {
 		panic(err)
 	}

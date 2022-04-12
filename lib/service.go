@@ -15,15 +15,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var httpClient = http.Client{
-	Timeout: 5 * time.Second,
-}
+var (
+	defaultHTTPTimeout      = time.Second * 5
+	defaultGetHeaderTimeout = time.Second * 2
+)
 
 // RelayService TODO
 type RelayService struct {
 	relayURLs []string
 	store     Store
 	log       *logrus.Entry
+
+	httpClient      http.Client
+	getHeaderClient http.Client
 }
 
 func newRelayService(relayURLs []string, store Store, log *logrus.Entry) (*RelayService, error) {
@@ -35,10 +39,13 @@ func newRelayService(relayURLs []string, store Store, log *logrus.Entry) (*Relay
 		relayURLs: relayURLs,
 		store:     store,
 		log:       log.WithField("prefix", "lib/service"),
+
+		httpClient:      http.Client{Timeout: defaultHTTPTimeout},
+		getHeaderClient: http.Client{Timeout: defaultGetHeaderTimeout},
 	}, nil
 }
 
-func makeRequest(ctx context.Context, url string, method string, params []interface{}) (*rpcResponse, error) {
+func makeRequest(ctx context.Context, client http.Client, url string, method string, params []interface{}) (*rpcResponse, error) {
 	reqJSON := rpcRequest{
 		ID:      "1",
 		JSONRPC: "2.0",
@@ -56,7 +63,7 @@ func makeRequest(ctx context.Context, url string, method string, params []interf
 	}
 	req.Header.Add("Content-Type", "application/json")
 
-	resp, err := httpClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +97,7 @@ func (m *RelayService) SetFeeRecipientV1(_ *http.Request, args *[]interface{}, r
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			res, err := makeRequest(context.Background(), url, method, *args)
+			res, err := makeRequest(context.Background(), m.httpClient, url, method, *args)
 
 			// Check for errors
 			if err != nil {
@@ -218,7 +225,7 @@ func (m *RelayService) GetHeaderV1(_ *http.Request, blockHash *string, result *G
 	resultC := make(chan *rpcResponseContainer, len(m.relayURLs))
 	for _, relayURL := range m.relayURLs {
 		go func(url string) {
-			res, err := makeRequest(context.Background(), url, "builder_getHeaderV1", []interface{}{*blockHash})
+			res, err := makeRequest(context.Background(), m.getHeaderClient, url, "builder_getHeaderV1", []interface{}{*blockHash})
 			resultC <- &rpcResponseContainer{url, err, res}
 		}(relayURL)
 	}
