@@ -17,12 +17,14 @@ var (
 	version = "dev" // is set during build process
 
 	// defaults
-	defaultPort      = 18550
-	defaultRelayURLs = getEnv("RELAY_URLS", "http://127.0.0.1:28545")
+	defaultPort               = 18550
+	defaultRelayURLs          = getEnv("RELAY_URLS", "http://127.0.0.1:28545")
+	defaultGetHeaderTimeOutMs = 2000
 
 	// cli flags
-	port      = flag.Int("port", defaultPort, "port for mev-boost to listen on")
-	relayURLs = flag.String("relayUrl", defaultRelayURLs, "relay urls - single entry or comma-separated list")
+	port               = flag.Int("port", defaultPort, "port for mev-boost to listen on")
+	relayURLs          = flag.String("relayUrl", defaultRelayURLs, "relay urls - single entry or comma-separated list")
+	getHeaderTimeoutMs = flag.Int("getHeaderTimeoutMs", defaultGetHeaderTimeOutMs, "max request timeout for getHeader in milliseconds (default: 2000 ms)")
 )
 
 func main() {
@@ -37,14 +39,14 @@ func main() {
 		_relayURLs = append(_relayURLs, strings.Trim(entry, " "))
 	}
 
-	routerOpts := lib.RouterOptions{
-		RelayURLs: _relayURLs,
-		Store:     lib.NewStoreWithCleanup(),
-		Log:       log,
-	}
-	router, err := lib.NewRouter(routerOpts)
+	router, err := lib.NewRouter(lib.RouterOptions{
+		RelayURLs:        _relayURLs,
+		Store:            lib.NewStoreWithCleanup(),
+		Log:              log,
+		GetHeaderTimeout: time.Duration(*getHeaderTimeoutMs) * time.Millisecond,
+	})
 	if err != nil {
-		panic(err)
+		log.WithFields(logrus.Fields{"error": err}).Fatal("failed creating the router")
 	}
 
 	log.Println("listening on: ", *port)
