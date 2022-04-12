@@ -25,19 +25,6 @@ func setupMockRelay() *jsonrpc.MockJSONRPCServer {
 		}
 		return true, nil
 	})
-	server.SetHandler("builder_getHeaderV1", func(req *jsonrpc.JSONRPCRequest) (any, error) {
-		if len(req.Params) != 1 {
-			return nil, fmt.Errorf("Expected 1 params, got %d", len(req.Params))
-		}
-
-		resp := GetHeaderResponse{
-			Header: ExecutionPayloadHeaderV1{
-				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-				BaseFeePerGas: big.NewInt(4),
-			},
-		}
-		return resp, nil
-	})
 	return server
 }
 
@@ -65,8 +52,7 @@ func sendRequestFailOnError(t *testing.T, router *mux.Router, req *rpcRequest) *
 }
 
 func TestE2E_SetFeeRecipient(t *testing.T) {
-	relay1 := setupMockRelay()
-	relay2 := setupMockRelay()
+	relay1, relay2 := setupMockRelay(), setupMockRelay()
 	relayUrls := []string{relay1.URL, relay2.URL}
 
 	router, err := NewRouter(relayUrls, NewStore(), logrus.WithField("testing", true))
@@ -132,15 +118,45 @@ func TestE2E_SetFeeRecipient_Error(t *testing.T) {
 }
 
 func TestE2E_GetHeader(t *testing.T) {
-	relay1 := setupMockRelay()
-	relay2 := setupMockRelay()
+	relay1, relay2 := setupMockRelay(), setupMockRelay()
 	relayUrls := []string{relay1.URL, relay2.URL}
+	parentHash := common.HexToHash("0xf254722f498df7e396694ed71f363c535ae1b2620afeaf57515e7593ad888331")
+
+	// builder for a getHeader handler with a custom value
+	makeBuilderGetHeaderV1Handler := func(value *big.Int) func(req *jsonrpc.JSONRPCRequest) (any, error) {
+		return func(req *jsonrpc.JSONRPCRequest) (any, error) {
+			if len(req.Params) != 1 {
+				return nil, fmt.Errorf("Expected 1 params, got %d", len(req.Params))
+			}
+			assert.Equal(t, parentHash.String(), req.Params[0].(string))
+			resp := &GetHeaderResponse{
+				Header: ExecutionPayloadHeaderV1{
+					ParentHash:    parentHash,
+					BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+					BaseFeePerGas: big.NewInt(4),
+				},
+				Value:     value,
+				PublicKey: []byte{0x1},
+				Signature: []byte{0x2},
+			}
+			return resp, nil
+		}
+	}
+
+	// Set handlers with different values
+	relay1.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345)))
+	relay2.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345678)))
 
 	router, err := NewRouter(relayUrls, NewStore(), logrus.WithField("testing", true))
 	require.Nil(t, err, err)
 
-	req := newRPCRequest("1", "builder_getHeaderV1", []any{"0xf254722f498df7e396694ed71f363c535ae1b2620afeaf57515e7593ad888331"})
-	_ = sendRequestFailOnError(t, router, req)
+	req := newRPCRequest("1", "builder_getHeaderV1", []any{parentHash})
+	resp := sendRequestFailOnError(t, router, req)
 	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 1)
 	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 1)
+
+	result := new(GetHeaderResponse)
+	err = json.Unmarshal(resp.Result, result)
+	require.Nil(t, err, err)
+	assert.Equal(t, "12345678", result.Value.String())
 }

@@ -247,7 +247,7 @@ func (m *RelayService) GetHeaderV1(_ *http.Request, blockHash *string, result *G
 		}
 
 		// Skip processing this result if lower fee than previous
-		if _result.Value != nil || _result.Value.Cmp(result.Value) < 1 {
+		if result.Value != nil && (_result.Value == nil || _result.Value.Cmp(result.Value) < 1) {
 			continue
 		}
 
