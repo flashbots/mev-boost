@@ -13,6 +13,11 @@ test:
 test-coverage:
 	go test ./lib/... ./cmd/... -v -covermode=count -coverprofile=coverage.out
 
+cover-html:
+	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...
+	go tool cover -html=/tmp/go-sim-lb.cover.tmp
+	unlink /tmp/go-sim-lb.cover.tmp
+
 lint:
 	revive -set_exit_status ./lib ./cmd
 	go vet ./...
