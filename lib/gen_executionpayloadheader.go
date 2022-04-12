@@ -11,11 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-var _ = (*executionPayloadHeaderMarshallingOverrides)(nil)
+var _ = (*executionPayloadMarshallingOverrides)(nil)
 
 // MarshalJSON marshals as JSON.
-func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
-	type ExecutionPayloadWithTxRootV1 struct {
+func (e ExecutionPayloadHeaderV1) MarshalJSON() ([]byte, error) {
+	type ExecutionPayloadHeaderV1 struct {
 		ParentHash       common.Hash    `json:"parentHash" gencodec:"required"`
 		FeeRecipient     common.Address `json:"feeRecipient" gencodec:"required"`
 		StateRoot        common.Hash    `json:"stateRoot" gencodec:"required"`
@@ -29,10 +29,9 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 		ExtraData        hexutil.Bytes  `json:"extraData" gencodec:"required"`
 		BaseFeePerGas    *hexutil.Big   `json:"baseFeePerGas" gencodec:"required"`
 		BlockHash        common.Hash    `json:"blockHash" gencodec:"required"`
-		Transactions     *[]string      `json:"transactions,omitempty"`
 		TransactionsRoot common.Hash    `json:"transactionsRoot"`
 	}
-	var enc ExecutionPayloadWithTxRootV1
+	var enc ExecutionPayloadHeaderV1
 	enc.ParentHash = e.ParentHash
 	enc.FeeRecipient = e.FeeRecipient
 	enc.StateRoot = e.StateRoot
@@ -46,14 +45,13 @@ func (e ExecutionPayloadWithTxRootV1) MarshalJSON() ([]byte, error) {
 	enc.ExtraData = e.ExtraData
 	enc.BaseFeePerGas = (*hexutil.Big)(e.BaseFeePerGas)
 	enc.BlockHash = e.BlockHash
-	enc.Transactions = e.Transactions
 	enc.TransactionsRoot = e.TransactionsRoot
 	return json.Marshal(&enc)
 }
 
 // UnmarshalJSON unmarshals from JSON.
-func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
-	type ExecutionPayloadWithTxRootV1 struct {
+func (e *ExecutionPayloadHeaderV1) UnmarshalJSON(input []byte) error {
+	type ExecutionPayloadHeaderV1 struct {
 		ParentHash       *common.Hash    `json:"parentHash" gencodec:"required"`
 		FeeRecipient     *common.Address `json:"feeRecipient" gencodec:"required"`
 		StateRoot        *common.Hash    `json:"stateRoot" gencodec:"required"`
@@ -67,68 +65,64 @@ func (e *ExecutionPayloadWithTxRootV1) UnmarshalJSON(input []byte) error {
 		ExtraData        *hexutil.Bytes  `json:"extraData" gencodec:"required"`
 		BaseFeePerGas    *hexutil.Big    `json:"baseFeePerGas" gencodec:"required"`
 		BlockHash        *common.Hash    `json:"blockHash" gencodec:"required"`
-		Transactions     *[]string       `json:"transactions,omitempty"`
 		TransactionsRoot *common.Hash    `json:"transactionsRoot"`
 	}
-	var dec ExecutionPayloadWithTxRootV1
+	var dec ExecutionPayloadHeaderV1
 	if err := json.Unmarshal(input, &dec); err != nil {
 		return err
 	}
 	if dec.ParentHash == nil {
-		return errors.New("missing required field 'parentHash' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'parentHash' for ExecutionPayloadHeaderV1")
 	}
 	e.ParentHash = *dec.ParentHash
 	if dec.FeeRecipient == nil {
-		return errors.New("missing required field 'feeRecipient' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'feeRecipient' for ExecutionPayloadHeaderV1")
 	}
 	e.FeeRecipient = *dec.FeeRecipient
 	if dec.StateRoot == nil {
-		return errors.New("missing required field 'stateRoot' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'stateRoot' for ExecutionPayloadHeaderV1")
 	}
 	e.StateRoot = *dec.StateRoot
 	if dec.ReceiptsRoot == nil {
-		return errors.New("missing required field 'receiptsRoot' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'receiptsRoot' for ExecutionPayloadHeaderV1")
 	}
 	e.ReceiptsRoot = *dec.ReceiptsRoot
 	if dec.LogsBloom == nil {
-		return errors.New("missing required field 'logsBloom' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'logsBloom' for ExecutionPayloadHeaderV1")
 	}
 	e.LogsBloom = *dec.LogsBloom
 	if dec.PrevRandao == nil {
-		return errors.New("missing required field 'prevRandao' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'prevRandao' for ExecutionPayloadHeaderV1")
 	}
 	e.PrevRandao = *dec.PrevRandao
 	if dec.BlockNumber == nil {
-		return errors.New("missing required field 'blockNumber' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'blockNumber' for ExecutionPayloadHeaderV1")
 	}
 	e.BlockNumber = uint64(*dec.BlockNumber)
 	if dec.GasLimit == nil {
-		return errors.New("missing required field 'gasLimit' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'gasLimit' for ExecutionPayloadHeaderV1")
 	}
 	e.GasLimit = uint64(*dec.GasLimit)
 	if dec.GasUsed == nil {
-		return errors.New("missing required field 'gasUsed' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'gasUsed' for ExecutionPayloadHeaderV1")
 	}
 	e.GasUsed = uint64(*dec.GasUsed)
 	if dec.Timestamp == nil {
-		return errors.New("missing required field 'timestamp' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'timestamp' for ExecutionPayloadHeaderV1")
 	}
 	e.Timestamp = uint64(*dec.Timestamp)
 	if dec.ExtraData == nil {
-		return errors.New("missing required field 'extraData' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'extraData' for ExecutionPayloadHeaderV1")
 	}
 	e.ExtraData = *dec.ExtraData
 	if dec.BaseFeePerGas == nil {
-		return errors.New("missing required field 'baseFeePerGas' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'baseFeePerGas' for ExecutionPayloadHeaderV1")
 	}
 	e.BaseFeePerGas = (*big.Int)(dec.BaseFeePerGas)
 	if dec.BlockHash == nil {
-		return errors.New("missing required field 'blockHash' for ExecutionPayloadWithTxRootV1")
+		return errors.New("missing required field 'blockHash' for ExecutionPayloadHeaderV1")
 	}
 	e.BlockHash = *dec.BlockHash
-	if dec.Transactions != nil {
-		e.Transactions = dec.Transactions
-	}
 	if dec.TransactionsRoot != nil {
 		e.TransactionsRoot = *dec.TransactionsRoot
 	}

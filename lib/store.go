@@ -19,7 +19,7 @@ var (
 )
 
 type executionPayloadContainer struct {
-	Payload *ExecutionPayloadWithTxRootV1
+	Payload *ExecutionPayloadHeaderV1
 	AddedAt time.Time
 }
 
@@ -37,8 +37,8 @@ func newForkchoiceResponseContainer() forkchoiceResponseContainer {
 
 // Store stores payloads and retrieves them based on blockHash hashes
 type Store interface {
-	GetExecutionPayload(blockHash common.Hash) *ExecutionPayloadWithTxRootV1
-	SetExecutionPayload(blockHash common.Hash, payload *ExecutionPayloadWithTxRootV1)
+	GetExecutionPayload(blockHash common.Hash) *ExecutionPayloadHeaderV1
+	SetExecutionPayload(blockHash common.Hash, payload *ExecutionPayloadHeaderV1)
 
 	SetForkchoiceResponse(boostPayloadID, relayURL, relayPayloadID string)
 	GetForkchoiceResponse(boostPayloadID string) (map[string]string, bool)
@@ -46,8 +46,8 @@ type Store interface {
 	Cleanup()
 }
 
-// map[common.Hash]*ExecutionPayloadWithTxRootV1
-// map blockHash to ExecutionPayloadWithTxRootV1. TODO: this has issues, in that blockHash could actually be the same between different payloads
+// map[common.Hash]*ExecutionPayloadHeaderV1
+// map blockHash to ExecutionPayloadHeaderV1. TODO: this has issues, in that blockHash could actually be the same between different payloads
 // TODO: clean this up periodically
 
 type store struct {
@@ -80,7 +80,7 @@ func NewStoreWithCleanup() Store {
 	return store
 }
 
-func (s *store) GetExecutionPayload(blockHash common.Hash) *ExecutionPayloadWithTxRootV1 {
+func (s *store) GetExecutionPayload(blockHash common.Hash) *ExecutionPayloadHeaderV1 {
 	s.payloadMutex.RLock()
 	defer s.payloadMutex.RUnlock()
 
@@ -92,7 +92,7 @@ func (s *store) GetExecutionPayload(blockHash common.Hash) *ExecutionPayloadWith
 	return payload.Payload
 }
 
-func (s *store) SetExecutionPayload(blockHash common.Hash, payload *ExecutionPayloadWithTxRootV1) {
+func (s *store) SetExecutionPayload(blockHash common.Hash, payload *ExecutionPayloadHeaderV1) {
 	if payload == nil {
 		return
 	}

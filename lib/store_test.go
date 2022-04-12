@@ -17,13 +17,13 @@ func Test_store_SetGetExecutionPayload(t *testing.T) {
 		t.Errorf("Expected nil, got %v", payload)
 	}
 
-	payload = &ExecutionPayloadWithTxRootV1{BlockNumber: 1}
+	payload = &ExecutionPayloadHeaderV1{BlockNumber: 1}
 	s.SetExecutionPayload(h, payload)
 	if !reflect.DeepEqual(s.GetExecutionPayload(h), payload) {
 		t.Errorf("Expected %v, got %v", payload, s.GetExecutionPayload(h))
 	}
 
-	payload = &ExecutionPayloadWithTxRootV1{BlockNumber: 2}
+	payload = &ExecutionPayloadHeaderV1{BlockNumber: 2}
 	s.SetExecutionPayload(h, payload)
 	if !reflect.DeepEqual(s.GetExecutionPayload(h), payload) {
 		t.Errorf("Expected %v, got %v", payload, s.GetExecutionPayload(h))

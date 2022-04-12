@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/ethereum/go-ethereum v1.10.17
 	github.com/fjl/gencodec v0.0.0-20191126094850-e283372f291f
-	github.com/flashbots/go-utils v0.4.1-0.20220412114435-8b4a1c1030d8
+	github.com/flashbots/go-utils v0.4.1-0.20220412121847-26b0db7a5f49
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/rpc v1.2.0
 	github.com/minio/sha256-simd v0.1.1
@@ -16,7 +16,6 @@ require (
 )
 
 require (
-	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/garslo/gogen v0.0.0-20170306192744-1d203ffc1f61 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect

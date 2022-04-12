@@ -31,9 +31,9 @@ type BlindedBeaconBlockBodyPartial struct {
 	ExecutionPayloadCamel ExecutionPayloadHeaderOnlyBlockHash `json:"executionPayloadHeader"`
 }
 
-//go:generate go run github.com/fjl/gencodec -type ExecutionPayloadWithTxRootV1 -field-override executionPayloadHeaderMarshallingOverrides -out gen_ed.go
-// ExecutionPayloadWithTxRootV1 is the same as ExecutionPayloadV1 with a transactionsRoot in addition to transactions
-type ExecutionPayloadWithTxRootV1 struct {
+//go:generate go run github.com/fjl/gencodec -type ExecutionPayloadHeaderV1 -field-override executionPayloadMarshallingOverrides -out gen_executionpayloadheader.go
+// ExecutionPayloadHeaderV1 as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#executionpayloadheaderv1
+type ExecutionPayloadHeaderV1 struct {
 	ParentHash       common.Hash    `json:"parentHash" gencodec:"required"`
 	FeeRecipient     common.Address `json:"feeRecipient" gencodec:"required"`
 	StateRoot        common.Hash    `json:"stateRoot" gencodec:"required"`
@@ -47,8 +47,26 @@ type ExecutionPayloadWithTxRootV1 struct {
 	ExtraData        []byte         `json:"extraData" gencodec:"required"`
 	BaseFeePerGas    *big.Int       `json:"baseFeePerGas" gencodec:"required"`
 	BlockHash        common.Hash    `json:"blockHash" gencodec:"required"`
-	Transactions     *[]string      `json:"transactions,omitempty"`
-	TransactionsRoot common.Hash    `json:"transactionsRoot"`
+	TransactionsRoot common.Hash    `json:"transactionsRoot" gencodec:"required"`
+}
+
+//go:generate go run github.com/fjl/gencodec -type ExecutionPayloadV1 -field-override executionPayloadMarshallingOverrides -out gen_executionpayload.go
+// ExecutionPayloadV1 as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#executionpayloadv1
+type ExecutionPayloadV1 struct {
+	ParentHash    common.Hash    `json:"parentHash" gencodec:"required"`
+	FeeRecipient  common.Address `json:"feeRecipient" gencodec:"required"`
+	StateRoot     common.Hash    `json:"stateRoot" gencodec:"required"`
+	ReceiptsRoot  common.Hash    `json:"receiptsRoot" gencodec:"required"`
+	LogsBloom     []byte         `json:"logsBloom" gencodec:"required"`
+	PrevRandao    common.Hash    `json:"prevRandao" gencodec:"required"`
+	BlockNumber   uint64         `json:"blockNumber" gencodec:"required"`
+	GasLimit      uint64         `json:"gasLimit" gencodec:"required"`
+	GasUsed       uint64         `json:"gasUsed" gencodec:"required"`
+	Timestamp     uint64         `json:"timestamp" gencodec:"required"`
+	ExtraData     []byte         `json:"extraData" gencodec:"required"`
+	BaseFeePerGas *big.Int       `json:"baseFeePerGas" gencodec:"required"`
+	BlockHash     common.Hash    `json:"blockHash" gencodec:"required"`
+	Transactions  *[]string      `json:"transactions" gencodec:"required"`
 }
 
 // ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindedBeaconBlockBodyPartial
@@ -58,7 +76,7 @@ type ExecutionPayloadHeaderOnlyBlockHash struct {
 }
 
 // JSON type overrides for executableData.
-type executionPayloadHeaderMarshallingOverrides struct {
+type executionPayloadMarshallingOverrides struct {
 	BlockNumber   hexutil.Uint64
 	GasLimit      hexutil.Uint64
 	GasUsed       hexutil.Uint64
@@ -71,10 +89,10 @@ type executionPayloadHeaderMarshallingOverrides struct {
 //go:generate go run github.com/fjl/gencodec -type GetHeaderResponse -field-override getHeaderResponseMarshallingOverrides -out gen_getheaderresponse.go
 // GetHeaderResponse as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponse struct {
-	Header    ExecutionPayloadWithTxRootV1 `json:"header" gencodec:"required"`
-	Value     *big.Int                     `json:"value" gencodec:"required"`
-	PublicKey []byte                       `json:"publicKey" gencodec:"required"`
-	Signature []byte                       `json:"signature" gencodec:"required"`
+	Header    ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
+	Value     *big.Int                 `json:"value" gencodec:"required"`
+	PublicKey []byte                   `json:"publicKey" gencodec:"required"`
+	Signature []byte                   `json:"signature" gencodec:"required"`
 }
 
 type getHeaderResponseMarshallingOverrides struct {

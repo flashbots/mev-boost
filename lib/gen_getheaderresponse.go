@@ -15,10 +15,10 @@ var _ = (*getHeaderResponseMarshallingOverrides)(nil)
 // MarshalJSON marshals as JSON.
 func (g GetHeaderResponse) MarshalJSON() ([]byte, error) {
 	type GetHeaderResponse struct {
-		Header    ExecutionPayloadWithTxRootV1 `json:"header" gencodec:"required"`
-		Value     *hexutil.Big                 `json:"value" gencodec:"required"`
-		PublicKey hexutil.Bytes                `json:"publicKey" gencodec:"required"`
-		Signature hexutil.Bytes                `json:"signature" gencodec:"required"`
+		Header    ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
+		Value     *hexutil.Big             `json:"value" gencodec:"required"`
+		PublicKey hexutil.Bytes            `json:"publicKey" gencodec:"required"`
+		Signature hexutil.Bytes            `json:"signature" gencodec:"required"`
 	}
 	var enc GetHeaderResponse
 	enc.Header = g.Header
@@ -31,10 +31,10 @@ func (g GetHeaderResponse) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON unmarshals from JSON.
 func (g *GetHeaderResponse) UnmarshalJSON(input []byte) error {
 	type GetHeaderResponse struct {
-		Header    *ExecutionPayloadWithTxRootV1 `json:"header" gencodec:"required"`
-		Value     *hexutil.Big                  `json:"value" gencodec:"required"`
-		PublicKey *hexutil.Bytes                `json:"publicKey" gencodec:"required"`
-		Signature *hexutil.Bytes                `json:"signature" gencodec:"required"`
+		Header    *ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
+		Value     *hexutil.Big              `json:"value" gencodec:"required"`
+		PublicKey *hexutil.Bytes            `json:"publicKey" gencodec:"required"`
+		Signature *hexutil.Bytes            `json:"signature" gencodec:"required"`
 	}
 	var dec GetHeaderResponse
 	if err := json.Unmarshal(input, &dec); err != nil {

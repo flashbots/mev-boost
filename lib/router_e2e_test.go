@@ -3,10 +3,13 @@ package lib
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/flashbots/go-utils/jsonrpc"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -16,8 +19,24 @@ import (
 
 func setupMockRelay() *jsonrpc.MockJSONRPCServer {
 	server := jsonrpc.NewMockJSONRPCServer()
-	server.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) {
+	server.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (any, error) {
+		if len(req.Params) != 4 {
+			return false, fmt.Errorf("Expected 4 params, got %d", len(req.Params))
+		}
 		return true, nil
+	})
+	server.SetHandler("builder_getHeaderV1", func(req *jsonrpc.JSONRPCRequest) (any, error) {
+		if len(req.Params) != 1 {
+			return nil, fmt.Errorf("Expected 1 params, got %d", len(req.Params))
+		}
+
+		resp := GetHeaderResponse{
+			Header: ExecutionPayloadHeaderV1{
+				BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+				BaseFeePerGas: big.NewInt(4),
+			},
+		}
+		return resp, nil
 	})
 	return server
 }
@@ -53,7 +72,7 @@ func TestE2E_SetFeeRecipient(t *testing.T) {
 	router, err := NewRouter(relayUrls, NewStore(), logrus.WithField("testing", true))
 	require.Nil(t, err, err)
 
-	req := newRPCRequest("1", "builder_setFeeRecipientV1", []interface{}{
+	req := newRPCRequest("1", "builder_setFeeRecipientV1", []any{
 		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
 		"0x625481c2", // timestamp
 		"0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",                                                                                                 // pubkey
@@ -73,7 +92,7 @@ func TestE2E_SetFeeRecipient(t *testing.T) {
 	// ---
 	// Test one relay returning true, one false (expect true from mev-boost)
 	// ---
-	relay1.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) { return false, nil })
+	relay1.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
 	resp = sendRequestFailOnError(t, router, req)
 	err = json.Unmarshal(resp.Result, &result)
 	require.Nil(t, err, err)
@@ -84,7 +103,7 @@ func TestE2E_SetFeeRecipient(t *testing.T) {
 	// ---
 	// Test both relays returning false (expect false from mev-boost)
 	// ---
-	relay2.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) { return false, nil })
+	relay2.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
 	resp = sendRequestFailOnError(t, router, req)
 	err = json.Unmarshal(resp.Result, &result)
 	require.Nil(t, err, err)
@@ -100,7 +119,7 @@ func TestE2E_SetFeeRecipient_Error(t *testing.T) {
 	router, err := NewRouter(relayUrls, NewStore(), logrus.WithField("testing", true))
 	require.Nil(t, err, err)
 
-	req := newRPCRequest("1", "builder_setFeeRecipientV1", []interface{}{
+	req := newRPCRequest("1", "builder_setFeeRecipientV1", []any{
 		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
 		"0x625481c2", // timestamp
 	})
@@ -110,4 +129,18 @@ func TestE2E_SetFeeRecipient_Error(t *testing.T) {
 	require.NotNil(t, resp.Error, resp.Error)
 	require.Contains(t, resp.Error.Message, "invalid number of arguments")
 	assert.Equal(t, relay1.RequestCounter["builder_setFeeRecipientV1"], 0)
+}
+
+func TestE2E_GetHeader(t *testing.T) {
+	relay1 := setupMockRelay()
+	relay2 := setupMockRelay()
+	relayUrls := []string{relay1.URL, relay2.URL}
+
+	router, err := NewRouter(relayUrls, NewStore(), logrus.WithField("testing", true))
+	require.Nil(t, err, err)
+
+	req := newRPCRequest("1", "builder_getHeaderV1", []any{"0xf254722f498df7e396694ed71f363c535ae1b2620afeaf57515e7593ad888331"})
+	_ = sendRequestFailOnError(t, router, req)
+	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 1)
+	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 1)
 }
