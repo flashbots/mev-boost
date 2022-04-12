@@ -10,14 +10,6 @@ build:
 test:
 	go test ./lib/... ./cmd/...
 
-test-coverage:
-	go test ./lib/... ./cmd/... -v -covermode=count -coverprofile=coverage.out
-
-cover-html:
-	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...
-	go tool cover -html=/tmp/go-sim-lb.cover.tmp
-	unlink /tmp/go-sim-lb.cover.tmp
-
 lint:
 	revive -set_exit_status ./lib ./cmd
 	go vet ./...
@@ -25,6 +17,19 @@ lint:
 
 generate:
 	go generate ./...
+
+test-coverage:
+	go test ./lib/... ./cmd/... -v -covermode=count -coverprofile=coverage.out
+
+cover:
+	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...
+	go tool cover -func /tmp/go-sim-lb.cover.tmp
+	unlink /tmp/go-sim-lb.cover.tmp
+
+cover-html:
+	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...
+	go tool cover -html=/tmp/go-sim-lb.cover.tmp
+	unlink /tmp/go-sim-lb.cover.tmp
 
 run:
 	./mev-boost

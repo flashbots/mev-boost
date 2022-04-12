@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,6 +29,11 @@ func Test_store_SetGetExecutionPayload(t *testing.T) {
 	if !reflect.DeepEqual(s.GetExecutionPayload(h), payload) {
 		t.Errorf("Expected %v, got %v", payload, s.GetExecutionPayload(h))
 	}
+
+	// Test setting nil
+	h2 := common.HexToHash("0x2")
+	s.SetExecutionPayload(h2, nil)
+	assert.Nil(t, s.GetExecutionPayload(h2))
 }
 
 func Test_store_Cleanup(t *testing.T) {
