@@ -30,58 +30,34 @@ func Test_store_SetGetExecutionPayload(t *testing.T) {
 	}
 }
 
-func Test_store_SetGetGetForkchoiceResponse(t *testing.T) {
-	s := NewStore()
-	id := "0x1"
-	_, ok := s.GetForkchoiceResponse(id)
-	require.Equal(t, false, ok)
-
-	relayURL := "abc"
-	relayPayloadID := "0x2"
-	s.SetForkchoiceResponse(id, relayURL, relayPayloadID)
-
-	res, ok := s.GetForkchoiceResponse(id)
-	require.Equal(t, true, ok)
-	require.Equal(t, res[relayURL], relayPayloadID)
-
-	relayURL = "def"
-	_, ok = res[relayURL]
-	require.Equal(t, false, ok)
-	relayPayloadID = "0x3"
-	s.SetForkchoiceResponse(id, relayURL, relayPayloadID)
-
-	res, ok = s.GetForkchoiceResponse(id)
-	require.Equal(t, true, ok)
-	require.Equal(t, res[relayURL], relayPayloadID)
-}
-
 func Test_store_Cleanup(t *testing.T) {
 	// Reset 'now' after this test
 	defer func() { now = time.Now }()
 
 	s := NewStoreWithCleanup()
-	id1 := "123"
-	id2 := "234"
+	h1 := common.HexToHash("0x1")
+	h2 := common.HexToHash("0x2")
+	payload := &ExecutionPayloadHeaderV1{BlockNumber: 1}
 
 	// Add a store item 20 minutes in the past
 	now = func() time.Time { return time.Now().Add(-20 * time.Minute) }
-	s.SetForkchoiceResponse(id1, "abc", "0x2")
+	s.SetExecutionPayload(h1, payload)
 
 	// Add a store item 5 minutes in the past
 	now = func() time.Time { return time.Now().Add(-5 * time.Minute) }
-	s.SetForkchoiceResponse(id2, "abc", "0x2")
+	s.SetExecutionPayload(h2, payload)
 
-	_, ok := s.GetForkchoiceResponse(id1)
-	require.Equal(t, true, ok)
-	_, ok = s.GetForkchoiceResponse(id2)
-	require.Equal(t, true, ok)
+	_payload1 := s.GetExecutionPayload(h1)
+	require.NotNil(t, _payload1)
+	_payload2 := s.GetExecutionPayload(h2)
+	require.NotNil(t, _payload2)
 
 	// Cleanup should remove 1 item, because it was added long enough in the past
 	s.Cleanup()
 
 	// Test for items
-	_, ok = s.GetForkchoiceResponse(id1)
-	require.Equal(t, false, ok)
-	_, ok = s.GetForkchoiceResponse(id2)
-	require.Equal(t, true, ok)
+	_payload1 = s.GetExecutionPayload(h1)
+	require.Nil(t, _payload1)
+	_payload2 = s.GetExecutionPayload(h2)
+	require.NotNil(t, _payload2)
 }

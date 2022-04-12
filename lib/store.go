@@ -23,25 +23,10 @@ type executionPayloadContainer struct {
 	AddedAt time.Time
 }
 
-type forkchoiceResponseContainer struct {
-	Payload map[string]string // map[relayURL]relayPayloadID
-	AddedAt time.Time
-}
-
-func newForkchoiceResponseContainer() forkchoiceResponseContainer {
-	return forkchoiceResponseContainer{
-		Payload: make(map[string]string),
-		AddedAt: now(),
-	}
-}
-
 // Store stores payloads and retrieves them based on blockHash hashes
 type Store interface {
 	GetExecutionPayload(blockHash common.Hash) *ExecutionPayloadHeaderV1
 	SetExecutionPayload(blockHash common.Hash, payload *ExecutionPayloadHeaderV1)
-
-	SetForkchoiceResponse(boostPayloadID, relayURL, relayPayloadID string)
-	GetForkchoiceResponse(boostPayloadID string) (map[string]string, bool)
 
 	Cleanup()
 }
@@ -53,16 +38,12 @@ type Store interface {
 type store struct {
 	payloads     map[common.Hash]executionPayloadContainer
 	payloadMutex sync.RWMutex
-
-	forkchoices     map[string]forkchoiceResponseContainer // key=boostPayloadID
-	forkchoiceMutex sync.RWMutex
 }
 
 // NewStore creates an in-mem store. Does not call Store.Cleanup() by default, so memory will build up. Use NewStoreWithCleanup if you want to start a cleanup loop as well.
 func NewStore() Store {
 	return &store{
-		payloads:    make(map[common.Hash]executionPayloadContainer),
-		forkchoices: make(map[string]forkchoiceResponseContainer),
+		payloads: make(map[common.Hash]executionPayloadContainer),
 	}
 }
 
@@ -103,22 +84,6 @@ func (s *store) SetExecutionPayload(blockHash common.Hash, payload *ExecutionPay
 	s.payloads[blockHash] = executionPayloadContainer{payload, now()}
 }
 
-func (s *store) GetForkchoiceResponse(payloadID string) (map[string]string, bool) {
-	s.forkchoiceMutex.RLock()
-	defer s.forkchoiceMutex.RUnlock()
-	forkchoiceResponses, found := s.forkchoices[payloadID]
-	return forkchoiceResponses.Payload, found
-}
-
-func (s *store) SetForkchoiceResponse(boostPayloadID, relayURL, relayPayloadID string) {
-	s.forkchoiceMutex.Lock()
-	defer s.forkchoiceMutex.Unlock()
-	if _, ok := s.forkchoices[boostPayloadID]; !ok {
-		s.forkchoices[boostPayloadID] = newForkchoiceResponseContainer()
-	}
-	s.forkchoices[boostPayloadID].Payload[relayURL] = relayPayloadID
-}
-
 // Cleanup removes all payloads older than 7 minutes (a bit more than an epoch, which is 6.4 minutes)
 func (s *store) Cleanup() {
 	// Cleanup ExecutionPayload
@@ -129,13 +94,4 @@ func (s *store) Cleanup() {
 		}
 	}
 	s.payloadMutex.Unlock()
-
-	// Cleanup ForkchoiceResponse
-	s.forkchoiceMutex.Lock()
-	for entry := range s.forkchoices {
-		if time.Since(s.forkchoices[entry].AddedAt) > stateExpiry {
-			delete(s.forkchoices, entry)
-		}
-	}
-	s.forkchoiceMutex.Unlock()
 }

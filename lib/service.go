@@ -110,9 +110,8 @@ func (m *RelayService) SetFeeRecipientV1(_ *http.Request, args *[]interface{}, r
 				return
 			}
 
-			if _result {
-				*result = true
-			}
+			// Result should be true if any one relay responds true
+			*result = *result || _result
 		}(url)
 	}
 
