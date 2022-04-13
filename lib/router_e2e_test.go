@@ -223,3 +223,32 @@ func TestE2E_GetHeader(t *testing.T) {
 	require.Nil(t, err, err)
 	assert.Equal(t, "12345", result.Value.String())
 }
+
+func TestE2E_GetPayload(t *testing.T) {
+	relay1, relay2 := setupMockRelay(), setupMockRelay()
+	router, err := newDefaultRouter([]string{relay1.URL, relay2.URL})
+	require.Nil(t, err, err)
+
+	// builder for a getHeader handler with a custom value
+	getPayloadV1Handler := func(req *jsonrpc.JSONRPCRequest) (any, error) {
+		resp := &ExecutionPayloadV1{
+			BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+			BaseFeePerGas: big.NewInt(4),
+			Transactions:  &[]string{},
+		}
+		return resp, nil
+	}
+
+	// Set handlers with different values
+	relay1.SetHandler("builder_getPayloadV1", getPayloadV1Handler)
+	relay2.SetHandler("builder_getPayloadV1", getPayloadV1Handler)
+
+	req := newRPCRequest("1", "builder_getPayloadV1", []any{"0x0000000000000000000000000000000000000000000000000000000000000001", "0x0000000000000000000000000000000000000000000000000000000000000002"})
+	resp := sendRequestFailOnError(t, router, req)
+	assert.Equal(t, relay1.RequestCounter["builder_getPayloadV1"], 1)
+	assert.Equal(t, relay2.RequestCounter["builder_getPayloadV1"], 1)
+
+	result := new(ExecutionPayloadV1)
+	err = json.Unmarshal(resp.Result, result)
+	require.Nil(t, err, err)
+}
