@@ -21,7 +21,6 @@ import (
 func newDefaultRouter(relayURLs []string) (*mux.Router, error) {
 	return NewRouter(RouterOptions{
 		RelayURLs: relayURLs,
-		Store:     NewStore(),
 		Log:       logrus.WithField("testing", true),
 	})
 }
@@ -192,7 +191,7 @@ func TestE2E_GetHeader(t *testing.T) {
 	relay1.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345), 0))
 	relay2.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345678), 0))
 
-	req := newRPCRequest("1", "builder_getHeaderV1", []any{parentHash})
+	req := newRPCRequest("1", "builder_getHeaderV1", []any{parentHash.Hex()})
 	resp := sendRequestFailOnError(t, router, req)
 	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 1)
 	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 1)
@@ -208,7 +207,6 @@ func TestE2E_GetHeader(t *testing.T) {
 	// ---
 	router, err = NewRouter(RouterOptions{
 		RelayURLs:        []string{relay1.URL, relay2.URL},
-		Store:            NewStore(),
 		Log:              logrus.WithField("testing", true),
 		GetHeaderTimeout: 100 * time.Millisecond,
 	})

@@ -23,21 +23,19 @@ var (
 // BoostService TODO
 type BoostService struct {
 	relayURLs []string
-	store     Store
 	log       *logrus.Entry
 
 	httpClient      http.Client
 	getHeaderClient http.Client
 }
 
-func newBoostService(relayURLs []string, store Store, log *logrus.Entry) (*BoostService, error) {
+func newBoostService(relayURLs []string, log *logrus.Entry) (*BoostService, error) {
 	if len(relayURLs) == 0 || relayURLs[0] == "" {
 		return nil, errors.New("no relayURLs")
 	}
 
 	return &BoostService{
 		relayURLs: relayURLs,
-		store:     store,
 		log:       log.WithField("prefix", "lib/service"),
 
 		httpClient:      http.Client{Timeout: defaultHTTPTimeout},
@@ -124,6 +122,7 @@ func (m *BoostService) SetFeeRecipientV1(_ *http.Request, args *[]interface{}, r
 		}(url)
 	}
 
+	// Wait for responses...
 	wg.Wait()
 
 	// If no relay responded true, return the last error message, or a generic error
@@ -137,96 +136,6 @@ func (m *BoostService) SetFeeRecipientV1(_ *http.Request, args *[]interface{}, r
 	return err
 }
 
-// ProposeBlindedBlockV1 TODO
-// func (m *RelayService) ProposeBlindedBlockV1(_ *http.Request, args *SignedBlindedBeaconBlock, result *ExecutionPayloadV1) error {
-// 	method := "builder_proposeBlindedBlockV1"
-// 	logMethod := m.log.WithField("method", method)
-
-// 	if args == nil || args.Message == nil {
-// 		logMethod.Errorf("SignedBlindedBeaconBlock or SignedBlindedBeaconBlock.Message is nil: %+v", args)
-// 		return errors.New("SignedBlindedBeaconBlock or SignedBlindedBeaconBlock.Message is nil")
-// 	}
-
-// 	var body BlindedBeaconBlockBodyPartial
-// 	err := json.Unmarshal(args.Message.Body, &body)
-// 	if err != nil {
-// 		logMethod.WithField("err", err).Error("Could not unmarshal blinded body")
-// 		return err
-// 	}
-
-// 	var blockHash string
-// 	// Deal with allowing both camelCase and snake_case in BlindedBlock
-// 	if body.ExecutionPayload.BlockHash != "" {
-// 		blockHash = body.ExecutionPayload.BlockHash
-// 	} else if body.ExecutionPayload.BlockHashCamel != "" {
-// 		blockHash = body.ExecutionPayload.BlockHashCamel
-// 	} else if body.ExecutionPayloadCamel.BlockHash != "" {
-// 		blockHash = body.ExecutionPayloadCamel.BlockHash
-// 	} else if body.ExecutionPayloadCamel.BlockHashCamel != "" {
-// 		blockHash = body.ExecutionPayloadCamel.BlockHashCamel
-// 	}
-
-// 	payloadCached := m.store.GetExecutionPayload(common.HexToHash(blockHash))
-// 	if payloadCached != nil {
-// 		logMethod.WithFields(logrus.Fields{
-// 			"blockHash": payloadCached.BlockHash,
-// 			"number":    payloadCached.BlockNumber,
-// 			"txRoot":    fmt.Sprintf("%#x", payloadCached.TransactionsRoot),
-// 		}).Info("ProposeBlindedBlockV1: revealed previous payload")
-// 		*result = *payloadCached
-// 		return nil
-// 	}
-
-// 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
-// 	defer requestCtxCancel()
-
-// 	resultC := make(chan *rpcResponseContainer, len(m.relayURLs))
-// 	for _, url := range m.relayURLs {
-// 		go func(url string) {
-// 			res, err := makeRequest(requestCtx, url, "relay_proposeBlindedBlockV1", []interface{}{args})
-// 			resultC <- &rpcResponseContainer{url, err, res}
-// 		}(url)
-// 	}
-
-// 	for i := 0; i < cap(resultC); i++ {
-// 		res := <-resultC
-
-// 		// Check for errors
-// 		if requestCtx.Err() != nil { // request has been cancelled
-// 			continue
-// 		}
-// 		if err != nil {
-// 			logMethod.WithFields(logrus.Fields{"error": err, "url": res.url}).Error("error making request to relay")
-// 			continue
-// 		}
-// 		if res.res.Error != nil {
-// 			logMethod.WithFields(logrus.Fields{"error": res.res.Error, "url": res.url}).Warn("error reply from relay")
-// 			continue
-// 		}
-
-// 		// Decode response
-// 		err = json.Unmarshal(res.res.Result, result)
-// 		if err != nil {
-// 			logMethod.WithFields(logrus.Fields{"error": err, "data": string(res.res.Result)}).Error("Could not unmarshal response")
-// 			continue
-// 		}
-
-// 		// Cancel other requests
-// 		requestCtxCancel()
-// 		logMethod.WithFields(logrus.Fields{
-// 			"blockHash": result.BlockHash,
-// 			"number":    result.BlockNumber,
-// 			"txRoot":    fmt.Sprintf("%#x", result.TransactionsRoot),
-// 		}).Info("ProposeBlindedBlockV1: revealed new payload from relay")
-// 		return nil
-// 	}
-
-// 	logMethod.WithFields(logrus.Fields{
-// 		"blockHash": blockHash,
-// 	}).Error("ProposeBlindedBlockV1: no valid response from relay")
-// 	return fmt.Errorf("no valid response from relay for block with hash %s", blockHash)
-// }
-
 // GetHeaderV1 TODO
 func (m *BoostService) GetHeaderV1(_ *http.Request, blockHash *string, result *GetHeaderResponse) error {
 	method := "builder_getHeaderV1"
@@ -237,59 +146,133 @@ func (m *BoostService) GetHeaderV1(_ *http.Request, blockHash *string, result *G
 	}
 
 	// Call the relay
-	resultC := make(chan *rpcResponseContainer, len(m.relayURLs))
+	var lastRelayError error
+	var wg sync.WaitGroup
 	for _, relayURL := range m.relayURLs {
+		wg.Add(1)
 		go func(url string) {
+			defer wg.Done()
 			res, err := makeRequest(context.Background(), m.getHeaderClient, url, "builder_getHeaderV1", []interface{}{*blockHash})
-			resultC <- &rpcResponseContainer{url, err, res}
+
+			// Check for errors
+			if err != nil {
+				logMethod.WithFields(logrus.Fields{"error": err, "url": url}).Warn("error making request to relay")
+				return
+			}
+			if res.Error != nil {
+				logMethod.WithFields(logrus.Fields{"error": res.Error, "url": url}).Warn("error reply from relay")
+				lastRelayError = res.Error
+				return
+			}
+
+			// Decode response
+			_result := new(GetHeaderResponse)
+			err = json.Unmarshal(res.Result, _result)
+			if err != nil {
+				logMethod.WithFields(logrus.Fields{"error": err, "data": string(res.Result)}).Warn("Could not unmarshal response")
+				return
+			}
+
+			// Skip processing this result if lower fee than previous
+			if result.Value != nil && (_result.Value == nil || _result.Value.Cmp(result.Value) < 1) {
+				return
+			}
+
+			// Use this relay's response as mev-boost response because it's most profitable
+			*result = *_result
+			logMethod.WithFields(logrus.Fields{
+				"blockNumber": result.Header.BlockNumber,
+				"blockHash":   result.Header.BlockHash,
+				"txRoot":      result.Header.TransactionsRoot.Hex(),
+				"value":       result.Value.String(),
+				"url":         url,
+			}).Info("GetPayloadHeaderV1: successfully got more valuable payload header")
 		}(relayURL)
 	}
 
-	// Process the responses
+	// Wait for responses...
+	wg.Wait()
+
+	if result.Header.BlockHash == nilHash {
+		logMethod.WithFields(logrus.Fields{
+			"hash":           *blockHash,
+			"lastRelayError": lastRelayError,
+		}).Error("GetPayloadHeaderV1: no successful response from relays")
+
+		if lastRelayError != nil {
+			return lastRelayError
+		}
+		return fmt.Errorf("no valid GetHeaderV1 response from relays for hash %s", *blockHash)
+	}
+
+	return nil
+}
+
+// GetPayloadV1 TODO
+func (m *BoostService) GetPayloadV1(_ *http.Request, args *[]interface{}, result *ExecutionPayloadV1) error {
+	method := "builder_getPayloadV1"
+	logMethod := m.log.WithField("method", method)
+
+	if args == nil || len(*args) != 2 {
+		logMethod.Errorf("invalid params: %+v", args)
+		return errors.New("invalid params")
+	}
+
+	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
+	defer requestCtxCancel()
+
+	resultC := make(chan *rpcResponseContainer, len(m.relayURLs))
+	for _, url := range m.relayURLs {
+		go func(url string) {
+			res, err := makeRequest(requestCtx, m.httpClient, url, "builder_getPayloadV1", *args)
+			resultC <- &rpcResponseContainer{url, err, res}
+		}(url)
+	}
+
+	var lastRelayError error
 	for i := 0; i < cap(resultC); i++ {
 		res := <-resultC
 
 		// Check for errors
+		if requestCtx.Err() != nil { // request has been cancelled
+			continue
+		}
 		if res.err != nil {
-			logMethod.WithFields(logrus.Fields{"error": res.err, "url": res.url}).Warn("error making request to relay")
+			logMethod.WithFields(logrus.Fields{"error": res.err, "url": res.url}).Error("error making request to relay")
 			continue
 		}
 		if res.res.Error != nil {
+			lastRelayError = res.res.Error
 			logMethod.WithFields(logrus.Fields{"error": res.res.Error, "url": res.url}).Warn("error reply from relay")
 			continue
 		}
 
 		// Decode response
-		_result := new(GetHeaderResponse)
-		err := json.Unmarshal(res.res.Result, _result)
+		err := json.Unmarshal(res.res.Result, result)
 		if err != nil {
-			logMethod.WithFields(logrus.Fields{"error": err, "data": string(res.res.Result)}).Warn("Could not unmarshal response")
+			logMethod.WithFields(logrus.Fields{"error": err, "data": string(res.res.Result)}).Error("Could not unmarshal response")
 			continue
 		}
 
-		// Skip processing this result if lower fee than previous
-		if result.Value != nil && (_result.Value == nil || _result.Value.Cmp(result.Value) < 1) {
-			continue
-		}
+		// TODO: validate response?
 
-		// Use this relay's response as mev-boost response because it's most profitable
-		*result = *_result
-
+		// Cancel other requests
+		requestCtxCancel()
 		logMethod.WithFields(logrus.Fields{
-			"blockHash": result.Header.BlockHash,
-			"number":    result.Header.BlockNumber,
-			"txRoot":    fmt.Sprintf("%#x", result.Header.TransactionsRoot),
-		}).Info("GetPayloadHeaderV1: successfully got payload header")
+			"blockHash": result.BlockHash,
+			"number":    result.BlockNumber,
+			"url":       res.url,
+		}).Info("GetPayloadV1: received payload from relay")
+		return nil
 	}
 
-	if result.Header.BlockHash == nilHash {
-		logMethod.WithFields(logrus.Fields{
-			"hash": *blockHash,
-		}).Error("GetPayloadHeaderV1: no valid response from relays")
-		return fmt.Errorf("no valid GetHeaderV1 response from relays for hash %s", *blockHash)
+	logMethod.WithFields(logrus.Fields{
+		"lastRelayError": lastRelayError,
+	}).Error("GetPayloadV1: no valid response from relay")
+	if lastRelayError != nil {
+		return lastRelayError
 	}
-
-	return nil
+	return fmt.Errorf("no valid GetPayloadV1 response from relay")
 }
 
 func (m *BoostService) methodNotFound(i *rpc.RequestInfo, w http.ResponseWriter) error {

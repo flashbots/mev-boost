@@ -41,7 +41,6 @@ func main() {
 
 	router, err := lib.NewRouter(lib.RouterOptions{
 		RelayURLs:        _relayURLs,
-		Store:            lib.NewStoreWithCleanup(),
 		Log:              log,
 		GetHeaderTimeout: time.Duration(*getHeaderTimeoutMs) * time.Millisecond,
 	})

@@ -12,7 +12,6 @@ import (
 // RouterOptions contains the router configuration for NewRouter
 type RouterOptions struct {
 	RelayURLs []string
-	Store     Store
 	Log       *logrus.Entry
 
 	GetHeaderTimeout time.Duration
@@ -20,7 +19,7 @@ type RouterOptions struct {
 
 // NewRouter creates a json rpc router that handles all methods
 func NewRouter(opts RouterOptions) (*mux.Router, error) {
-	boost, err := newBoostService(opts.RelayURLs, opts.Store, opts.Log)
+	boost, err := newBoostService(opts.RelayURLs, opts.Log)
 	if err != nil {
 		return nil, err
 	}
