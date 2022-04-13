@@ -51,6 +51,7 @@ func sendJSONRPCRequestToRouter(router *mux.Router, req *rpcRequest) (*rpcRespon
 
 	// Actually send the request, testing the router
 	router.ServeHTTP(w, _req)
+	// fmt.Println(w.Body.String())
 	resp, err := parseRPCResponse(w.Body.Bytes())
 	return resp, err
 }
@@ -99,14 +100,15 @@ func TestE2E_SetFeeRecipient(t *testing.T) {
 	// Test both relays returning false (expect false from mev-boost)
 	// ---
 	relay2.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
-	resp = sendRequestFailOnError(t, router, req)
-	err = json.Unmarshal(resp.Result, &result)
+	resp, err = sendJSONRPCRequestToRouter(router, req)
 	require.Nil(t, err, err)
-	require.Equal(t, false, result)
+	require.NotNil(t, resp.Error)
+
 	assert.Equal(t, relay1.RequestCounter["builder_setFeeRecipientV1"], 3)
 	assert.Equal(t, relay2.RequestCounter["builder_setFeeRecipientV1"], 3)
 }
 
+// Ensure mev-boost catches an invalid payload (invalid number of params)
 func TestE2E_SetFeeRecipient_Error(t *testing.T) {
 	relay1 := setupMockRelay()
 	router, err := newDefaultRouter([]string{relay1.URL})
@@ -120,8 +122,39 @@ func TestE2E_SetFeeRecipient_Error(t *testing.T) {
 	resp, err := sendJSONRPCRequestToRouter(router, req)
 	require.Nil(t, err, err)
 	require.NotNil(t, resp.Error, resp.Error)
-	require.Contains(t, resp.Error.Message, "invalid number of arguments")
+	require.Contains(t, resp.Error.Message, "invalid number of params")
 	assert.Equal(t, relay1.RequestCounter["builder_setFeeRecipientV1"], 0)
+}
+
+// Ensure that mev-boost forwards the last error response from the relay if all relays return an error
+func TestE2E_SetFeeRecipient_RelayError(t *testing.T) {
+	relay1, relay2 := setupMockRelay(), setupMockRelay()
+	router, err := newDefaultRouter([]string{relay1.URL, relay2.URL})
+	require.Nil(t, err, err)
+
+	// Set relay handlers that return an error
+	testErr := &jsonrpc.JSONRPCError{Code: -32009, Message: "test error"}
+	relay1.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) {
+		return nil, testErr
+	})
+	relay2.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) {
+		return nil, testErr
+	})
+
+	req := newRPCRequest("1", "builder_setFeeRecipientV1", []any{
+		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
+		"0x625481c2", // timestamp
+		"0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",                                                                                                 // pubkey
+		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
+	})
+
+	resp, err := sendJSONRPCRequestToRouter(router, req)
+	require.Nil(t, err, err)
+	require.NotNil(t, resp.Error) // mev-boost will have returned the latest error
+	// require.Equal(t, -32009, resp.Error.Code) // TODO: swtich to go-ethereum/rpc
+	// require.Equal(t, "relay error", resp.Error.Message) // TODO: swtich to go-ethereum/rpc
+	assert.Equal(t, relay1.RequestCounter["builder_setFeeRecipientV1"], 1)
+	assert.Equal(t, relay2.RequestCounter["builder_setFeeRecipientV1"], 1)
 }
 
 func TestE2E_GetHeader(t *testing.T) {

@@ -20,24 +20,24 @@ type RouterOptions struct {
 
 // NewRouter creates a json rpc router that handles all methods
 func NewRouter(opts RouterOptions) (*mux.Router, error) {
-	relay, err := newRelayService(opts.RelayURLs, opts.Store, opts.Log)
+	boost, err := newBoostService(opts.RelayURLs, opts.Store, opts.Log)
 	if err != nil {
 		return nil, err
 	}
 
 	// Set custom GetHeader timeout
 	if opts.GetHeaderTimeout > 0 {
-		relay.getHeaderClient.Timeout = opts.GetHeaderTimeout
+		boost.getHeaderClient.Timeout = opts.GetHeaderTimeout
 	}
 
 	rpcServer := rpc.NewServer()
 	rpcServer.RegisterCodec(json.NewCodec(), "application/json")
 	rpcServer.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
 
-	if err := rpcServer.RegisterService(relay, "builder"); err != nil {
+	if err := rpcServer.RegisterService(boost, "builder"); err != nil {
 		return nil, err
 	}
-	rpcServer.RegisterMethodNotFoundFunc(relay.methodNotFound)
+	rpcServer.RegisterMethodNotFoundFunc(boost.methodNotFound)
 
 	router := mux.NewRouter()
 	router.Handle("/", rpcServer)

@@ -20,8 +20,8 @@ var (
 	defaultGetHeaderTimeout = time.Second * 2
 )
 
-// RelayService TODO
-type RelayService struct {
+// BoostService TODO
+type BoostService struct {
 	relayURLs []string
 	store     Store
 	log       *logrus.Entry
@@ -30,12 +30,12 @@ type RelayService struct {
 	getHeaderClient http.Client
 }
 
-func newRelayService(relayURLs []string, store Store, log *logrus.Entry) (*RelayService, error) {
+func newBoostService(relayURLs []string, store Store, log *logrus.Entry) (*BoostService, error) {
 	if len(relayURLs) == 0 || relayURLs[0] == "" {
 		return nil, errors.New("no relayURLs")
 	}
 
-	return &RelayService{
+	return &BoostService{
 		relayURLs: relayURLs,
 		store:     store,
 		log:       log.WithField("prefix", "lib/service"),
@@ -83,15 +83,16 @@ type rpcResponseContainer struct {
 }
 
 // SetFeeRecipientV1 - returns true if at least one relay returns true
-func (m *RelayService) SetFeeRecipientV1(_ *http.Request, args *[]interface{}, result *bool) error {
+func (m *BoostService) SetFeeRecipientV1(_ *http.Request, args *[]interface{}, result *bool) error {
 	method := "builder_setFeeRecipientV1"
 	logMethod := m.log.WithField("method", method)
 	*result = false
 
 	if len(*args) != 4 {
-		return fmt.Errorf("invalid number of arguments: %d", len(*args))
+		return fmt.Errorf("invalid number of params: %d", len(*args))
 	}
 
+	var lastRelayError error
 	var wg sync.WaitGroup
 	for _, url := range m.relayURLs {
 		wg.Add(1)
@@ -106,6 +107,7 @@ func (m *RelayService) SetFeeRecipientV1(_ *http.Request, args *[]interface{}, r
 			}
 			if res.Error != nil {
 				logMethod.WithFields(logrus.Fields{"error": res.Error, "url": url}).Warn("error reply from relay")
+				lastRelayError = res.Error
 				return
 			}
 
@@ -123,7 +125,16 @@ func (m *RelayService) SetFeeRecipientV1(_ *http.Request, args *[]interface{}, r
 	}
 
 	wg.Wait()
-	return nil
+
+	// If no relay responded true, return the last error message, or a generic error
+	var err error
+	if !*result {
+		err = lastRelayError
+		if lastRelayError == nil {
+			err = errors.New("no relay responded true")
+		}
+	}
+	return err
 }
 
 // ProposeBlindedBlockV1 TODO
@@ -217,9 +228,13 @@ func (m *RelayService) SetFeeRecipientV1(_ *http.Request, args *[]interface{}, r
 // }
 
 // GetHeaderV1 TODO
-func (m *RelayService) GetHeaderV1(_ *http.Request, blockHash *string, result *GetHeaderResponse) error {
+func (m *BoostService) GetHeaderV1(_ *http.Request, blockHash *string, result *GetHeaderResponse) error {
 	method := "builder_getHeaderV1"
 	logMethod := m.log.WithField("method", method)
+
+	if len(*blockHash) != 66 {
+		return fmt.Errorf("invalid block hash: %s", *blockHash)
+	}
 
 	// Call the relay
 	resultC := make(chan *rpcResponseContainer, len(m.relayURLs))
@@ -277,7 +292,7 @@ func (m *RelayService) GetHeaderV1(_ *http.Request, blockHash *string, result *G
 	return nil
 }
 
-func (m *RelayService) methodNotFound(i *rpc.RequestInfo, w http.ResponseWriter) error {
+func (m *BoostService) methodNotFound(i *rpc.RequestInfo, w http.ResponseWriter) error {
 	// logMethod := m.log.WithField("method", i.Method)
 	return fmt.Errorf("method %s not found", i.Method)
 }
