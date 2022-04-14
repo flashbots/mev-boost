@@ -1,4 +1,4 @@
-# Version 0.2
+# Version 0.3
 
 This document specifies the Builder API methods that the Consensus Layer uses to interact with external block builders.
 
