@@ -2,10 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"math/rand"
-	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -17,11 +16,13 @@ var (
 	version = "dev" // is set during build process
 
 	// defaults
+	defaultHost               = "localhost"
 	defaultPort               = 18550
 	defaultRelayURLs          = getEnv("RELAY_URLS", "http://127.0.0.1:28545")
 	defaultGetHeaderTimeOutMs = 2000
 
 	// cli flags
+	host               = flag.String("host", defaultHost, "host for mev-boost to listen on")
 	port               = flag.Int("port", defaultPort, "port for mev-boost to listen on")
 	relayURLs          = flag.String("relayUrl", defaultRelayURLs, "relay urls - single entry or comma-separated list")
 	getHeaderTimeoutMs = flag.Int("getHeaderTimeoutMs", defaultGetHeaderTimeOutMs, "max request timeout for getHeader in milliseconds (default: 2000 ms)")
@@ -39,19 +40,20 @@ func main() {
 		_relayURLs = append(_relayURLs, strings.Trim(entry, " "))
 	}
 
-	router, err := lib.NewRouter(lib.RouterOptions{
+	listenAddress := fmt.Sprintf("%s:%d", *host, *port)
+	server, err := lib.NewBoostRPCServer(lib.BoostRPCServerOptions{
+		ListenAddr:       listenAddress,
 		RelayURLs:        _relayURLs,
+		Cors:             []string{"*"},
 		Log:              log,
 		GetHeaderTimeout: time.Duration(*getHeaderTimeoutMs) * time.Millisecond,
 	})
 	if err != nil {
-		log.WithFields(logrus.Fields{"error": err}).Fatal("failed creating the router")
+		log.WithFields(logrus.Fields{"error": err}).Fatal("failed creating the server")
 	}
 
-	log.Println("listening on: ", *port)
-	err = http.ListenAndServe(":"+strconv.Itoa(*port), router)
-
-	log.Fatalf("error in server: %v", err)
+	log.Println("listening on ", listenAddress)
+	log.Fatal(server.ListenAndServe())
 }
 
 func getEnv(key string, defaultValue string) string {

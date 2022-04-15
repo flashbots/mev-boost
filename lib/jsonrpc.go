@@ -29,15 +29,6 @@ type rpcRequest struct {
 	Params  []interface{} `json:"params"`
 }
 
-func newRPCRequest(id string, method string, params []any) *rpcRequest {
-	return &rpcRequest{
-		ID:      id,
-		JSONRPC: "2.0",
-		Method:  method,
-		Params:  params,
-	}
-}
-
 func parseRPCResponse(data []byte) (ret *rpcResponse, err error) {
 	ret = new(rpcResponse)
 	err = json.Unmarshal(data, &ret)
