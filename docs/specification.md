@@ -161,7 +161,7 @@ As `compute_signing_root` takes `SSZObject` as input, client software should con
 
 #### Specification
 1. Builder software **MUST** verify `signature` is valid under `publicKey`.
-2. Builder software **MUST** respond to requests where `timestamp` is before the latest announcement from the validator or more than +/- 10 seconds from the current time with `-32006: Invalid timestamp`.
+2. Builder software **MUST** respond to requests where `timestamp` is before the latest announcement from the validator with `-32006: Invalid timestamp`.
 3. Builder software **MUST** store `feeRecipient` in a map keyed by `publicKey`.
 
 ### `builder_getHeaderV1`
