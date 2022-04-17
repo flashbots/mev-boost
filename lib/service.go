@@ -97,7 +97,7 @@ func (m *BoostService) SetFeeRecipientV1(ctx context.Context, feeRecipient, time
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			res, err := makeRequest(context.Background(), m.httpClient, url, method, []any{feeRecipient, timestamp, publicKey, signature})
+			res, err := makeRequest(ctx, m.httpClient, url, method, []any{feeRecipient, timestamp, publicKey, signature})
 
 			// Check for errors
 			if err != nil {
@@ -138,7 +138,7 @@ func (m *BoostService) SetFeeRecipientV1(ctx context.Context, feeRecipient, time
 }
 
 // GetHeaderV1 TODO
-func (m *BoostService) GetHeaderV1(blockHash *string) (*GetHeaderResponse, error) {
+func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*GetHeaderResponse, error) {
 	method := "builder_getHeaderV1"
 	logMethod := m.log.WithField("method", method)
 
@@ -154,7 +154,7 @@ func (m *BoostService) GetHeaderV1(blockHash *string) (*GetHeaderResponse, error
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			res, err := makeRequest(context.Background(), m.getHeaderClient, url, "builder_getHeaderV1", []interface{}{*blockHash})
+			res, err := makeRequest(ctx, m.getHeaderClient, url, "builder_getHeaderV1", []interface{}{*blockHash})
 
 			// Check for errors
 			if err != nil {
@@ -211,11 +211,11 @@ func (m *BoostService) GetHeaderV1(blockHash *string) (*GetHeaderResponse, error
 }
 
 // GetPayloadV1 TODO
-func (m *BoostService) GetPayloadV1(block string, signature string) (*ExecutionPayloadV1, error) {
+func (m *BoostService) GetPayloadV1(ctx context.Context, block string, signature string) (*ExecutionPayloadV1, error) {
 	method := "builder_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
 
-	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
+	requestCtx, requestCtxCancel := context.WithCancel(ctx)
 	defer requestCtxCancel()
 
 	resultC := make(chan *rpcResponseContainer, len(m.relayURLs))
