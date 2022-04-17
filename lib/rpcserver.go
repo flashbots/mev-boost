@@ -76,7 +76,7 @@ func NewRPCServer(namespace string, backend interface{}, authenticated bool) (*g
 	return srv, nil
 }
 
-// NewHTTPServer TODO
+// NewHTTPServer creates a new HTTP server interface for a RPC server
 func NewHTTPServer(ctx context.Context, log logrus.Ext1FieldLogger, rpcSrv *gethRpc.Server, addr string, timeout Timeout, cors []string) *http.Server {
 	httpRPCHandler := node.NewHTTPHandlerStack(rpcSrv, cors, nil)
 	mux := http.NewServeMux()
