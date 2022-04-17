@@ -33,10 +33,9 @@ func newBoostService(relayURLs []string, log *logrus.Entry, getHeaderTimeout tim
 		return nil, errors.New("no relayURLs")
 	}
 
-	// Set custom GetHeader timeout
-	_getHeaderTimeout := defaultGetHeaderTimeout
-	if getHeaderTimeout > 0 {
-		_getHeaderTimeout = getHeaderTimeout
+	// GetHeader timeout: fallback to default if not specified
+	if getHeaderTimeout == 0 {
+		getHeaderTimeout = defaultGetHeaderTimeout
 	}
 
 	return &BoostService{
@@ -44,7 +43,7 @@ func newBoostService(relayURLs []string, log *logrus.Entry, getHeaderTimeout tim
 		log:       log.WithField("prefix", "lib/service"),
 
 		httpClient:      http.Client{Timeout: defaultHTTPTimeout},
-		getHeaderClient: http.Client{Timeout: _getHeaderTimeout},
+		getHeaderClient: http.Client{Timeout: getHeaderTimeout},
 	}, nil
 }
 
