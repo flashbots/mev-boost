@@ -71,7 +71,7 @@ func NewRPCServer(namespace string, backend interface{}, authenticated bool) (*g
 		},
 	}
 	if err := node.RegisterApis(apis, []string{namespace}, srv, false); err != nil {
-		return nil, fmt.Errorf("could not register api: %s", err)
+		return nil, fmt.Errorf("could not register api: %w", err)
 	}
 	return srv, nil
 }
