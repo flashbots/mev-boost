@@ -50,7 +50,7 @@ run-mergemock-relay:
 	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) relay --listen-addr 127.0.0.1:28545
 
 run-mergemock-integration: build
-	make -j4 run-boost-with-relay run-mergemock-engine run-mergemock-consensus run-mergemock-relay
+	make -j3 run-boost-with-relay run-mergemock-consensus run-mergemock-relay
 
 build-for-docker:
 	CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.version=${GIT_VER}" -v -o mev-boost ./cmd/mev-boost
