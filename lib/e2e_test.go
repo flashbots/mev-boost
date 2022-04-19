@@ -40,8 +40,8 @@ func setupMockRelay() *jsonrpc.MockJSONRPCServer {
 }
 
 func defaultSetFeeRecipient(req *jsonrpc.JSONRPCRequest) (any, error) {
-	if len(req.Params) != 4 {
-		return false, fmt.Errorf("Expected 4 params, got %d", len(req.Params))
+	if len(req.Params) != 3 {
+		return false, fmt.Errorf("Expected 3 params, got %d", len(req.Params))
 	}
 	return true, nil
 }
@@ -56,9 +56,12 @@ func TestE2E_SetFeeRecipient(t *testing.T) {
 	defer client.Close()
 
 	res := false
+	message := SetFeeRecipientMessage{
+		FeeRecipient: "0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
+		Timestamp:    "0x625481c2",
+	}
 	err = client.Call(&res, "builder_setFeeRecipientV1",
-		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
-		"0x625481c2", // timestamp
+		message,
 		"0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",                                                                                                 // pubkey
 		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
 	)
@@ -72,8 +75,7 @@ func TestE2E_SetFeeRecipient(t *testing.T) {
 	// ---
 	relay1.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
 	err = client.Call(&res, "builder_setFeeRecipientV1",
-		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
-		"0x625481c2", // timestamp
+		message,
 		"0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",                                                                                                 // pubkey
 		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
 	)
@@ -87,8 +89,7 @@ func TestE2E_SetFeeRecipient(t *testing.T) {
 	// ---
 	relay2.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
 	err = client.Call(&res, "builder_setFeeRecipientV1",
-		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
-		"0x625481c2", // timestamp
+		message,
 		"0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",                                                                                                 // pubkey
 		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
 	)
@@ -136,8 +137,10 @@ func TestE2E_SetFeeRecipient_RelayError(t *testing.T) {
 
 	res := false
 	err = client.Call(&res, "builder_setFeeRecipientV1",
-		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
-		"0x625481c2", // timestamp
+		SetFeeRecipientMessage{
+			FeeRecipient: "0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
+			Timestamp:    "0x123",
+		},
 		"0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",                                                                                                 // pubkey
 		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
 	)
@@ -168,12 +171,14 @@ func TestE2E_GetHeader(t *testing.T) {
 			}
 			assert.Equal(t, parentHash.String(), req.Params[0].(string))
 			resp := &GetHeaderResponse{
-				Header: ExecutionPayloadHeaderV1{
-					ParentHash:    parentHash,
-					BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-					BaseFeePerGas: big.NewInt(4),
+				Message: GetHeaderResponseMessage{
+					Header: ExecutionPayloadHeaderV1{
+						ParentHash:    parentHash,
+						BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+						BaseFeePerGas: big.NewInt(4),
+					},
+					Value: value,
 				},
-				Value:     value,
 				PublicKey: []byte{0x1},
 				Signature: []byte{0x2},
 			}
@@ -190,7 +195,7 @@ func TestE2E_GetHeader(t *testing.T) {
 	require.Nil(t, err, err)
 	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 1)
 	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 1)
-	assert.Equal(t, "12345678", res.Value.String())
+	assert.Equal(t, "12345678", res.Message.Value.String())
 
 	// ---
 	// Test with a slow relay - ensuring that a specific GetHeaderTimeout is respected.
@@ -207,7 +212,7 @@ func TestE2E_GetHeader(t *testing.T) {
 	require.Nil(t, err, err)
 	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 2)
 	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 2)
-	assert.Equal(t, "12345", res.Value.String())
+	assert.Equal(t, "12345", res.Message.Value.String())
 }
 
 func TestE2E_GetPayload(t *testing.T) {
@@ -234,7 +239,7 @@ func TestE2E_GetPayload(t *testing.T) {
 	relay2.SetHandler("builder_getPayloadV1", getPayloadV1Handler)
 
 	res := new(ExecutionPayloadV1)
-	err = client.Call(&res, "builder_getPayloadV1", "0x0000000000000000000000000000000000000000000000000000000000000001", "0x0000000000000000000000000000000000000000000000000000000000000002")
+	err = client.Call(&res, "builder_getPayloadV1", "0x0000000000000000000000000000000000000000000000000000000000000001")
 	require.Nil(t, err, err)
 	assert.Equal(t, relay1.RequestCounter["builder_getPayloadV1"], 1)
 	assert.Equal(t, relay2.RequestCounter["builder_getPayloadV1"], 1)

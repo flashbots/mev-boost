@@ -5,7 +5,6 @@ package lib
 import (
 	"encoding/json"
 	"errors"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
@@ -15,14 +14,12 @@ var _ = (*getHeaderResponseMarshallingOverrides)(nil)
 // MarshalJSON marshals as JSON.
 func (g GetHeaderResponse) MarshalJSON() ([]byte, error) {
 	type GetHeaderResponse struct {
-		Header    ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
-		Value     *hexutil.Big             `json:"value" gencodec:"required"`
+		Message   GetHeaderResponseMessage `json:"message" gencodec:"required"`
 		PublicKey hexutil.Bytes            `json:"publicKey" gencodec:"required"`
 		Signature hexutil.Bytes            `json:"signature" gencodec:"required"`
 	}
 	var enc GetHeaderResponse
-	enc.Header = g.Header
-	enc.Value = (*hexutil.Big)(g.Value)
+	enc.Message = g.Message
 	enc.PublicKey = g.PublicKey
 	enc.Signature = g.Signature
 	return json.Marshal(&enc)
@@ -31,8 +28,7 @@ func (g GetHeaderResponse) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON unmarshals from JSON.
 func (g *GetHeaderResponse) UnmarshalJSON(input []byte) error {
 	type GetHeaderResponse struct {
-		Header    *ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
-		Value     *hexutil.Big              `json:"value" gencodec:"required"`
+		Message   *GetHeaderResponseMessage `json:"message" gencodec:"required"`
 		PublicKey *hexutil.Bytes            `json:"publicKey" gencodec:"required"`
 		Signature *hexutil.Bytes            `json:"signature" gencodec:"required"`
 	}
@@ -40,14 +36,10 @@ func (g *GetHeaderResponse) UnmarshalJSON(input []byte) error {
 	if err := json.Unmarshal(input, &dec); err != nil {
 		return err
 	}
-	if dec.Header == nil {
-		return errors.New("missing required field 'header' for GetHeaderResponse")
+	if dec.Message == nil {
+		return errors.New("missing required field 'message' for GetHeaderResponse")
 	}
-	g.Header = *dec.Header
-	if dec.Value == nil {
-		return errors.New("missing required field 'value' for GetHeaderResponse")
-	}
-	g.Value = (*big.Int)(dec.Value)
+	g.Message = *dec.Message
 	if dec.PublicKey == nil {
 		return errors.New("missing required field 'publicKey' for GetHeaderResponse")
 	}
