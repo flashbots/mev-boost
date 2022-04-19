@@ -85,7 +85,7 @@ type rpcResponseContainer struct {
 }
 
 // SetFeeRecipientV1 - returns true if at least one relay returns true
-func (m *BoostService) SetFeeRecipientV1(ctx context.Context, feeRecipient, timestamp, publicKey, signature string) (*bool, error) {
+func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message SetFeeRecipientMessage, publicKey, signature string) (*bool, error) {
 	method := "builder_setFeeRecipientV1"
 	logMethod := m.log.WithField("method", method)
 
@@ -96,7 +96,7 @@ func (m *BoostService) SetFeeRecipientV1(ctx context.Context, feeRecipient, time
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			res, err := makeRequest(ctx, m.httpClient, url, method, []any{feeRecipient, timestamp, publicKey, signature})
+			res, err := makeRequest(ctx, m.httpClient, url, method, []any{message, publicKey, signature})
 
 			// Check for errors
 			if err != nil {
@@ -175,17 +175,17 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*Get
 			}
 
 			// Skip processing this result if lower fee than previous
-			if result.Value != nil && (_result.Value == nil || _result.Value.Cmp(result.Value) < 1) {
+			if result.Message.Value != nil && (_result.Message.Value == nil || _result.Message.Value.Cmp(result.Message.Value) < 1) {
 				return
 			}
 
 			// Use this relay's response as mev-boost response because it's most profitable
 			result = _result
 			logMethod.WithFields(logrus.Fields{
-				"blockNumber": result.Header.BlockNumber,
-				"blockHash":   result.Header.BlockHash,
-				"txRoot":      result.Header.TransactionsRoot.Hex(),
-				"value":       result.Value.String(),
+				"blockNumber": result.Message.Header.BlockNumber,
+				"blockHash":   result.Message.Header.BlockHash,
+				"txRoot":      result.Message.Header.TransactionsRoot.Hex(),
+				"value":       result.Message.Value.String(),
 				"url":         url,
 			}).Info("GetPayloadHeaderV1: successfully got more valuable payload header")
 		}(relayURL)
@@ -194,7 +194,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*Get
 	// Wait for responses...
 	wg.Wait()
 
-	if result.Header.BlockHash == nilHash {
+	if result.Message.Header.BlockHash == nilHash {
 		logMethod.WithFields(logrus.Fields{
 			"hash":           *blockHash,
 			"lastRelayError": lastRelayError,
@@ -210,7 +210,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*Get
 }
 
 // GetPayloadV1 TODO
-func (m *BoostService) GetPayloadV1(ctx context.Context, block string, signature string) (*ExecutionPayloadV1, error) {
+func (m *BoostService) GetPayloadV1(ctx context.Context, block string) (*ExecutionPayloadV1, error) {
 	method := "builder_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
 
@@ -220,7 +220,7 @@ func (m *BoostService) GetPayloadV1(ctx context.Context, block string, signature
 	resultC := make(chan *rpcResponseContainer, len(m.relayURLs))
 	for _, url := range m.relayURLs {
 		go func(url string) {
-			res, err := makeRequest(requestCtx, m.httpClient, url, "builder_getPayloadV1", []any{block, signature})
+			res, err := makeRequest(requestCtx, m.httpClient, url, "builder_getPayloadV1", []any{block})
 			resultC <- &rpcResponseContainer{url, err, res}
 		}(url)
 	}

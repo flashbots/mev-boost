@@ -86,17 +86,32 @@ type executionPayloadMarshallingOverrides struct {
 	LogsBloom     hexutil.Bytes
 }
 
+// SetFeeRecipientMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#request
+type SetFeeRecipientMessage struct {
+	FeeRecipient string `json:"feeRecipient"`
+	Timestamp    string `json:"timestamp"`
+}
+
+//go:generate go run github.com/fjl/gencodec -type GetHeaderResponseMessage -field-override getHeaderResponseMessageMarshallingOverrides -out gen_getheaderresponsemsg.go
+// GetHeaderResponseMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
+type GetHeaderResponseMessage struct {
+	Header ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
+	Value  *big.Int                 `json:"value" gencodec:"required"`
+}
+
 //go:generate go run github.com/fjl/gencodec -type GetHeaderResponse -field-override getHeaderResponseMarshallingOverrides -out gen_getheaderresponse.go
 // GetHeaderResponse as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponse struct {
-	Header    ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
-	Value     *big.Int                 `json:"value" gencodec:"required"`
+	Message   GetHeaderResponseMessage `json:"message" gencodec:"required"`
 	PublicKey []byte                   `json:"publicKey" gencodec:"required"`
 	Signature []byte                   `json:"signature" gencodec:"required"`
 }
 
+type getHeaderResponseMessageMarshallingOverrides struct {
+	Value *hexutil.Big
+}
+
 type getHeaderResponseMarshallingOverrides struct {
-	Value     *hexutil.Big
 	PublicKey hexutil.Bytes
 	Signature hexutil.Bytes
 }
