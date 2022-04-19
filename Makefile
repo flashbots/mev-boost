@@ -10,9 +10,6 @@ build:
 test:
 	go test ./lib/... ./cmd/...
 
-test-coverage:
-	go test ./lib/... ./cmd/... -v -covermode=count -coverprofile=coverage.out
-
 lint:
 	revive -set_exit_status ./lib ./cmd
 	go vet ./...
@@ -20,6 +17,19 @@ lint:
 
 generate:
 	go generate ./...
+
+test-coverage:
+	go test ./lib/... ./cmd/... -v -covermode=count -coverprofile=coverage.out
+
+cover:
+	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...
+	go tool cover -func /tmp/go-sim-lb.cover.tmp
+	unlink /tmp/go-sim-lb.cover.tmp
+
+cover-html:
+	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...
+	go tool cover -html=/tmp/go-sim-lb.cover.tmp
+	unlink /tmp/go-sim-lb.cover.tmp
 
 run:
 	./mev-boost
@@ -40,7 +50,7 @@ run-mergemock-relay:
 	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) relay --listen-addr 127.0.0.1:28545
 
 run-mergemock-integration: build
-	make -j4 run-boost-with-relay run-mergemock-engine run-mergemock-consensus run-mergemock-relay
+	make -j3 run-boost-with-relay run-mergemock-consensus run-mergemock-relay
 
 build-for-docker:
 	CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.version=${GIT_VER}" -v -o mev-boost ./cmd/mev-boost
