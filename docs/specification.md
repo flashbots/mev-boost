@@ -135,7 +135,7 @@ The list of error codes introduced by this specification can be found below.
 All signature operations should follow the [standard BLS operations][bls] interface defined in `consensus-specs`.
 
 There are two types of data to sign over in the Builder API:
-* In-protocol messages, e.g. [`BlindBeaconBlock`](#blindbeaconblock), which should compute the signing root using [`computer_signing_root`][compute-signing-root] and use the domain specified for beacon block proposals.
+* In-protocol messages, e.g. [`BlindBeaconBlock`](#blindbeaconblock), which should compute the signing root using [`compute_signing_root`][compute-signing-root] and use the domain specified for beacon block proposals.
 * Builder API messages, e.g. [`builder_setFeeRecipientV1`](#builder_setFeeRecipientV1) and the response to [`builder_getHeader`](#response-2), which should compute the signing root using [`compute_signing_root`][compute-signing-root] and the domain `DomainType('0xXXXXXXXX')` (TODO: get a proper domain).
 
 As `compute_signing_root` takes `SSZObject` as input, client software should convert in-protocol messages to their SSZ representation to compute the signing root and Builder API messages to the SSZ representations defined [above](#sszobjects).
