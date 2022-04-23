@@ -19,6 +19,10 @@ var (
 	defaultGetHeaderTimeout = time.Second * 2
 )
 
+var (
+	errNoBlockHash = errors.New("no blockhash provided")
+)
+
 // BoostService TODO
 type BoostService struct {
 	relayURLs []string
@@ -140,6 +144,10 @@ func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message SetFeeReci
 func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*GetHeaderResponse, error) {
 	method := "builder_getHeaderV1"
 	logMethod := m.log.WithField("method", method)
+
+	if blockHash == nil {
+		return nil, errNoBlockHash
+	}
 
 	if len(*blockHash) != 66 {
 		return nil, fmt.Errorf("invalid block hash: %s", *blockHash)

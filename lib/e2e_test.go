@@ -215,6 +215,21 @@ func TestE2E_GetHeader(t *testing.T) {
 	assert.Equal(t, "12345", res.Message.Value.String())
 }
 
+func TestE2E_GetHeaderError(t *testing.T) {
+	relay1 := setupMockRelay()
+	server, err := newTestBoostRPCServer([]string{relay1.URL})
+	require.Nil(t, err, err)
+	defer server.Stop()
+
+	client := gethRpc.DialInProc(server)
+	defer client.Close()
+
+	res := new(GetHeaderResponse)
+	err = client.Call(&res, "builder_getHeaderV1", nil)
+	require.Error(t, err)
+	require.Equal(t, err.Error(), errNoBlockHash.Error())
+}
+
 func TestE2E_GetPayload(t *testing.T) {
 	relay1, relay2 := setupMockRelay(), setupMockRelay()
 	server, err := newTestBoostRPCServer([]string{relay1.URL, relay2.URL})
