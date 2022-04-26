@@ -36,45 +36,15 @@ sequenceDiagram
     mev_boost-->>consensus: builder_getPayload response
 ```
 
-## Table of Contents
-- [Implementation Plan](#implementation-plan)
-- [Build](#build)
-- [Test](#test)
-- [Lint](#lint)
-
 ## Implementation Plan
 
-A summary of consensus client changes can be found [here](https://hackmd.io/@paulhauner/H1XifIQ_t).
+See https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)
 
-### Version 0.1 (current, milestone 1, running on Kiln testnet)
+References:
 
-simple sidecar logic with minimal consensus client changes, simple networking, no authentication, and manual safety mechanism
-
-Specification: https://github.com/flashbots/mev-boost/blob/main/docs/specification.md
-
-### Version 1.0 (next, milestone 2, the merge)
-
-security, authentication & reputation
-
-- [ ] add module for verifying previous relay payload validity and accuracy with hard or statistical blacklist (may require modifications to execution client)
-- [ ] add module for subscribing to 3rd party relay monitoring service
-
-### Version 2.0 - privacy (optional)
-
-add p2p comms mechanisms to prevent validator deanonymization
-
-- [ ] _mev-boost_ gossips signed block + initial payload header over p2p
-
-#### required client modifications
-
-- consensus client must implement [New Gossipsub Topics](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-3-New-Gossipsub-Topics)
-
-### Version 3.0 - configurations (optional)
-
-add optional configurations to provide alternative guarantees
-
-- [ ] consider returning full payload directly to validator as optimization
-- [ ] consider adding merkle proof of payment to shift verification requirements to the relay
+* Specification: https://github.com/flashbots/mev-boost/blob/main/docs/specification.md
+* https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/
+* https://hackmd.io/@paulhauner/H1XifIQ_t
 
 ## Build
 
