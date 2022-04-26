@@ -1,4 +1,4 @@
-package lib
+package server
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ func newTestBoostRPCServer(relayURLs []string) (*gethRpc.Server, error) {
 
 func newTestBoostRPCServerWithTimeout(relayURLs []string, getHeaderTimeout time.Duration) (*gethRpc.Server, error) {
 	log := logrus.WithField("testing", true)
-	boost, err := newBoostService(relayURLs, log, getHeaderTimeout)
+	boost, err := NewBoostService(relayURLs, log, getHeaderTimeout)
 	if err != nil {
 		return nil, err
 	}

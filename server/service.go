@@ -1,4 +1,4 @@
-package lib
+package server
 
 import (
 	"bytes"
@@ -33,7 +33,8 @@ type BoostService struct {
 	getHeaderClient http.Client
 }
 
-func newBoostService(relayURLs []string, log *logrus.Entry, getHeaderTimeout time.Duration) (*BoostService, error) {
+// NewBoostService created a new BoostService
+func NewBoostService(relayURLs []string, log *logrus.Entry, getHeaderTimeout time.Duration) (*BoostService, error) {
 	if len(relayURLs) == 0 || relayURLs[0] == "" {
 		return nil, errors.New("no relayURLs")
 	}

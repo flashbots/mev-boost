@@ -1,4 +1,4 @@
-package lib
+package server
 
 import (
 	"context"
@@ -34,7 +34,7 @@ type BoostRPCServerOptions struct {
 
 // NewBoostRPCServer creates a new boost server
 func NewBoostRPCServer(opts BoostRPCServerOptions) (*http.Server, error) {
-	boost, err := newBoostService(opts.RelayURLs, opts.Log, opts.GetHeaderTimeout)
+	boost, err := NewBoostService(opts.RelayURLs, opts.Log, opts.GetHeaderTimeout)
 	if err != nil {
 		return nil, err
 	}
