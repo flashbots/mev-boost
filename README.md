@@ -17,8 +17,8 @@ sequenceDiagram
     participant relays
     Title: Block Proposal
     Note over consensus: sign fee recipient announcement
-    consensus->>mev_boost: builder_setFeeRecipient
-    mev_boost->>relays: builder_setFeeRecipient
+    consensus->>mev_boost: builder_registerValidator
+    mev_boost->>relays: builder_registerValidator
     Note over consensus: wait for allocated slot
     consensus->>mev_boost: builder_getHeader
     mev_boost->>relays: builder_getHeader
@@ -56,14 +56,8 @@ Specification: https://github.com/flashbots/mev-boost/blob/main/docs/specificati
 
 security, authentication & reputation
 
-- [ ] _mev-boost_ requests authenticated `feeRecipient` message from consensus client and gossips over p2p at regular interval
 - [ ] add module for verifying previous relay payload validity and accuracy with hard or statistical blacklist (may require modifications to execution client)
 - [ ] add module for subscribing to 3rd party relay monitoring service
-
-#### required client modifications
-
-- in event of middleware crash, consensus client must be able to bypass the middleware to reach a local or remote execution client
-- consensus client must implement [Proposal Promises](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-2-Proposal-Promises)
 
 ### Version 2.0 - privacy (optional)
 
@@ -79,7 +73,6 @@ add p2p comms mechanisms to prevent validator deanonymization
 
 add optional configurations to provide alternative guarantees
 
-- [ ] consider adding direct `relay_forkchoiceUpdatedV1` call to relay for syncing state
 - [ ] consider returning full payload directly to validator as optimization
 - [ ] consider adding merkle proof of payment to shift verification requirements to the relay
 
@@ -123,7 +116,7 @@ We are currently testing using a forked version of mergemock, see https://github
 Make sure you've setup and built mergemock first, refer to its [README](https://github.com/flashbots/mergemock#quick-start) but here's a quick setup guide:
 
 ```
-git clone https://github.com/flashbots/mergemock.git
+git clone -b v021-upstream https://github.com/flashbots/mergemock.git
 cd mergemock
 go build . mergemock
 wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d3e3d/raw/2e8824fa8d9d9b040f351b86b75c66868fb9b115/genesis.json
