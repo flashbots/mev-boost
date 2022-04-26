@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/flashbots/mev-boost/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -89,7 +90,7 @@ type rpcResponseContainer struct {
 }
 
 // SetFeeRecipientV1 - returns true if at least one relay returns true
-func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message SetFeeRecipientMessage, publicKey, signature string) (*bool, error) {
+func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message types.SetFeeRecipientMessage, publicKey, signature string) (*bool, error) {
 	method := "builder_setFeeRecipientV1"
 	logMethod := m.log.WithField("method", method)
 
@@ -141,7 +142,7 @@ func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message SetFeeReci
 }
 
 // GetHeaderV1 TODO
-func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*GetHeaderResponse, error) {
+func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*types.GetHeaderResponse, error) {
 	method := "builder_getHeaderV1"
 	logMethod := m.log.WithField("method", method)
 
@@ -154,7 +155,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*Get
 	}
 
 	// Call the relay
-	result := new(GetHeaderResponse)
+	result := new(types.GetHeaderResponse)
 	var lastRelayError error
 	var wg sync.WaitGroup
 	for _, relayURL := range m.relayURLs {
@@ -175,7 +176,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*Get
 			}
 
 			// Decode response
-			_result := new(GetHeaderResponse)
+			_result := new(types.GetHeaderResponse)
 			err = json.Unmarshal(res.Result, _result)
 			if err != nil {
 				logMethod.WithFields(logrus.Fields{"error": err, "data": string(res.Result)}).Warn("Could not unmarshal response")
@@ -202,7 +203,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*Get
 	// Wait for responses...
 	wg.Wait()
 
-	if result.Message.Header.BlockHash == nilHash {
+	if result.Message.Header.BlockHash == types.NilHash {
 		logMethod.WithFields(logrus.Fields{
 			"hash":           *blockHash,
 			"lastRelayError": lastRelayError,
@@ -218,7 +219,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*Get
 }
 
 // GetPayloadV1 TODO
-func (m *BoostService) GetPayloadV1(ctx context.Context, block string) (*ExecutionPayloadV1, error) {
+func (m *BoostService) GetPayloadV1(ctx context.Context, block string) (*types.ExecutionPayloadV1, error) {
 	method := "builder_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
 
@@ -233,7 +234,7 @@ func (m *BoostService) GetPayloadV1(ctx context.Context, block string) (*Executi
 		}(url)
 	}
 
-	result := new(ExecutionPayloadV1)
+	result := new(types.ExecutionPayloadV1)
 	var lastRelayError error
 	for i := 0; i < cap(resultC); i++ {
 		res := <-resultC

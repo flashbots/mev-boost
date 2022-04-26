@@ -1,4 +1,4 @@
-package lib
+package types
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-var nilHash = common.Hash{}
+var NilHash = common.Hash{}
 
 // SignedBlindedBeaconBlock forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#signedbeaconblockheader
 type SignedBlindedBeaconBlock struct {
