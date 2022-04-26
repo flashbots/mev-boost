@@ -17,8 +17,8 @@ sequenceDiagram
     participant relays
     Title: Block Proposal
     Note over consensus: sign fee recipient announcement
-    consensus->>mev_boost: builder_setFeeRecipient
-    mev_boost->>relays: builder_setFeeRecipient
+    consensus->>mev_boost: builder_registerValidator
+    mev_boost->>relays: builder_registerValidator
     Note over consensus: wait for allocated slot
     consensus->>mev_boost: builder_getHeader
     mev_boost->>relays: builder_getHeader
@@ -36,52 +36,15 @@ sequenceDiagram
     mev_boost-->>consensus: builder_getPayload response
 ```
 
-## Table of Contents
-- [Implementation Plan](#implementation-plan)
-- [Build](#build)
-- [Test](#test)
-- [Lint](#lint)
-
 ## Implementation Plan
 
-A summary of consensus client changes can be found [here](https://hackmd.io/@paulhauner/H1XifIQ_t).
+See https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)
 
-### Version 0.1 (current, milestone 1, running on Kiln testnet)
+References:
 
-simple sidecar logic with minimal consensus client changes, simple networking, no authentication, and manual safety mechanism
-
-Specification: https://github.com/flashbots/mev-boost/blob/main/docs/specification.md
-
-### Version 1.0 (next, milestone 2, the merge)
-
-security, authentication & reputation
-
-- [ ] _mev-boost_ requests authenticated `feeRecipient` message from consensus client and gossips over p2p at regular interval
-- [ ] add module for verifying previous relay payload validity and accuracy with hard or statistical blacklist (may require modifications to execution client)
-- [ ] add module for subscribing to 3rd party relay monitoring service
-
-#### required client modifications
-
-- in event of middleware crash, consensus client must be able to bypass the middleware to reach a local or remote execution client
-- consensus client must implement [Proposal Promises](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-2-Proposal-Promises)
-
-### Version 2.0 - privacy (optional)
-
-add p2p comms mechanisms to prevent validator deanonymization
-
-- [ ] _mev-boost_ gossips signed block + initial payload header over p2p
-
-#### required client modifications
-
-- consensus client must implement [New Gossipsub Topics](https://hackmd.io/@paulhauner/H1XifIQ_t#Change-3-New-Gossipsub-Topics)
-
-### Version 3.0 - configurations (optional)
-
-add optional configurations to provide alternative guarantees
-
-- [ ] consider adding direct `relay_forkchoiceUpdatedV1` call to relay for syncing state
-- [ ] consider returning full payload directly to validator as optimization
-- [ ] consider adding merkle proof of payment to shift verification requirements to the relay
+* Specification: https://github.com/flashbots/mev-boost/blob/main/docs/specification.md
+* https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/
+* https://hackmd.io/@paulhauner/H1XifIQ_t
 
 ## Build
 
@@ -123,7 +86,7 @@ We are currently testing using a forked version of mergemock, see https://github
 Make sure you've setup and built mergemock first, refer to its [README](https://github.com/flashbots/mergemock#quick-start) but here's a quick setup guide:
 
 ```
-git clone https://github.com/flashbots/mergemock.git
+git clone -b v021-upstream https://github.com/flashbots/mergemock.git
 cd mergemock
 go build . mergemock
 wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d3e3d/raw/2e8824fa8d9d9b040f351b86b75c66868fb9b115/genesis.json
