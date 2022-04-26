@@ -13,18 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Error that can be returned by the RPC server with an error code.
-type Error struct {
-	Err error
-	ID  int
-}
-
-// ErrorCode returns the ID of the error.
-func (e *Error) ErrorCode() int { return e.ID }
-
-// Error returns the string of the error.
-func (e *Error) Error() string { return e.Err.Error() }
-
 // Timeout is used to configure the RPC server timeouts for user requests
 type Timeout struct {
 	Read       time.Duration // Timeout for body reads. None if 0.

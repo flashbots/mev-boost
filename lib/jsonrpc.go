@@ -15,6 +15,9 @@ func (err rpcError) Error() string {
 	return fmt.Sprintf("Error %d (%s)", err.Code, err.Message)
 }
 
+// ErrorCode returns the ID of the error.
+func (err rpcError) ErrorCode() int { return err.Code }
+
 type rpcResponse struct {
 	ID      string          `json:"id"`
 	JSONRPC string          `json:"jsonrpc"`
