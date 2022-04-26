@@ -19,7 +19,7 @@ generate:
 	go generate ./...
 
 test-coverage:
-	go test ./lib/... ./cmd/... -v -covermode=count -coverprofile=coverage.out
+	go test ./server/... ./types/... ./cmd/... -v -covermode=count -coverprofile=coverage.out
 
 cover:
 	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...

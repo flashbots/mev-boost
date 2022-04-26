@@ -46,7 +46,7 @@ func NewBoostService(relayURLs []string, log *logrus.Entry, getHeaderTimeout tim
 
 	return &BoostService{
 		relayURLs: relayURLs,
-		log:       log.WithField("prefix", "lib/service"),
+		log:       log.WithField("prefix", "service"),
 
 		httpClient:      http.Client{Timeout: defaultHTTPTimeout},
 		getHeaderClient: http.Client{Timeout: getHeaderTimeout},
