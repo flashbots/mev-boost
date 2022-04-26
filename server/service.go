@@ -22,6 +22,9 @@ var (
 
 var (
 	errNoBlockHash = errors.New("no blockhash provided")
+
+	// ServiceStatusOk indicates that the system is running as expected
+	ServiceStatusOk = "OK"
 )
 
 // BoostService TODO
@@ -280,4 +283,9 @@ func (m *BoostService) GetPayloadV1(ctx context.Context, block string) (*types.E
 		return nil, lastRelayError
 	}
 	return nil, fmt.Errorf("no valid GetPayloadV1 response from relay")
+}
+
+// Status implements the builder_status RPC method
+func (m *BoostService) Status(ctx context.Context) (*string, error) {
+	return &ServiceStatusOk, nil
 }
