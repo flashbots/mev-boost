@@ -1,4 +1,4 @@
-package lib
+package server
 
 import (
 	"context"
@@ -12,18 +12,6 @@ import (
 	gethRpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/sirupsen/logrus"
 )
-
-// Error that can be returned by the RPC server with an error code.
-type Error struct {
-	Err error
-	ID  int
-}
-
-// ErrorCode returns the ID of the error.
-func (e *Error) ErrorCode() int { return e.ID }
-
-// Error returns the string of the error.
-func (e *Error) Error() string { return e.Err.Error() }
 
 // Timeout is used to configure the RPC server timeouts for user requests
 type Timeout struct {
@@ -46,7 +34,7 @@ type BoostRPCServerOptions struct {
 
 // NewBoostRPCServer creates a new boost server
 func NewBoostRPCServer(opts BoostRPCServerOptions) (*http.Server, error) {
-	boost, err := newBoostService(opts.RelayURLs, opts.Log, opts.GetHeaderTimeout)
+	boost, err := NewBoostService(opts.RelayURLs, opts.Log, opts.GetHeaderTimeout)
 	if err != nil {
 		return nil, err
 	}

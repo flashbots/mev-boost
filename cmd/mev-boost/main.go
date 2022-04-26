@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flashbots/mev-boost/lib"
+	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
 )
 
@@ -41,7 +41,7 @@ func main() {
 	}
 
 	listenAddress := fmt.Sprintf("%s:%d", *host, *port)
-	server, err := lib.NewBoostRPCServer(lib.BoostRPCServerOptions{
+	server, err := server.NewBoostRPCServer(server.BoostRPCServerOptions{
 		ListenAddr:       listenAddress,
 		RelayURLs:        _relayURLs,
 		Cors:             []string{"*"},

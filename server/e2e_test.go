@@ -1,4 +1,4 @@
-package lib
+package server
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	gethRpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/flashbots/go-utils/jsonrpc"
+	"github.com/flashbots/mev-boost/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,7 @@ func newTestBoostRPCServer(relayURLs []string) (*gethRpc.Server, error) {
 
 func newTestBoostRPCServerWithTimeout(relayURLs []string, getHeaderTimeout time.Duration) (*gethRpc.Server, error) {
 	log := logrus.WithField("testing", true)
-	boost, err := newBoostService(relayURLs, log, getHeaderTimeout)
+	boost, err := NewBoostService(relayURLs, log, getHeaderTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +57,7 @@ func TestE2E_SetFeeRecipient(t *testing.T) {
 	defer client.Close()
 
 	res := false
-	message := SetFeeRecipientMessage{
+	message := types.SetFeeRecipientMessage{
 		FeeRecipient: "0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
 		Timestamp:    "0x625481c2",
 	}
@@ -137,7 +138,7 @@ func TestE2E_SetFeeRecipient_RelayError(t *testing.T) {
 
 	res := false
 	err = client.Call(&res, "builder_setFeeRecipientV1",
-		SetFeeRecipientMessage{
+		types.SetFeeRecipientMessage{
 			FeeRecipient: "0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
 			Timestamp:    "0x123",
 		},
@@ -170,9 +171,9 @@ func TestE2E_GetHeader(t *testing.T) {
 				return nil, fmt.Errorf("Expected 1 params, got %d", len(req.Params))
 			}
 			assert.Equal(t, parentHash.String(), req.Params[0].(string))
-			resp := &GetHeaderResponse{
-				Message: GetHeaderResponseMessage{
-					Header: ExecutionPayloadHeaderV1{
+			resp := &types.GetHeaderResponse{
+				Message: types.GetHeaderResponseMessage{
+					Header: types.ExecutionPayloadHeaderV1{
 						ParentHash:    parentHash,
 						BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 						BaseFeePerGas: big.NewInt(4),
@@ -190,7 +191,7 @@ func TestE2E_GetHeader(t *testing.T) {
 	relay1.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345), 0))
 	relay2.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345678), 0))
 
-	res := new(GetHeaderResponse)
+	res := new(types.GetHeaderResponse)
 	err = client.Call(&res, "builder_getHeaderV1", parentHash.Hex())
 	require.Nil(t, err, err)
 	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 1)
@@ -224,7 +225,7 @@ func TestE2E_GetHeaderError(t *testing.T) {
 	client := gethRpc.DialInProc(server)
 	defer client.Close()
 
-	res := new(GetHeaderResponse)
+	res := new(types.GetHeaderResponse)
 	err = client.Call(&res, "builder_getHeaderV1", nil)
 	require.Error(t, err)
 	require.Equal(t, err.Error(), errNoBlockHash.Error())
@@ -241,7 +242,7 @@ func TestE2E_GetPayload(t *testing.T) {
 
 	// builder for a getHeader handler with a custom value
 	getPayloadV1Handler := func(req *jsonrpc.JSONRPCRequest) (any, error) {
-		resp := &ExecutionPayloadV1{
+		resp := &types.ExecutionPayloadV1{
 			BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 			BaseFeePerGas: big.NewInt(4),
 			Transactions:  &[]string{},
@@ -253,7 +254,7 @@ func TestE2E_GetPayload(t *testing.T) {
 	relay1.SetHandler("builder_getPayloadV1", getPayloadV1Handler)
 	relay2.SetHandler("builder_getPayloadV1", getPayloadV1Handler)
 
-	res := new(ExecutionPayloadV1)
+	res := new(types.ExecutionPayloadV1)
 	err = client.Call(&res, "builder_getPayloadV1", "0x0000000000000000000000000000000000000000000000000000000000000001")
 	require.Nil(t, err, err)
 	assert.Equal(t, relay1.RequestCounter["builder_getPayloadV1"], 1)
