@@ -72,7 +72,7 @@ jobs:
         with:
           repository: flashbots/mergemock
           path: mergemock
-          ref: v021
+          ref: v021-upstream
 
       - name: Download mergemock genesis.json
         run: cd mergemock && wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d3e3d/raw/2e8824fa8d9d9b040f351b86b75c66868fb9b115/genesis.json && echo -n 'a21a16ec22a940990922220e4ab5bf4c2310f55622220e4ab5bf4c2310f55656' > jwt.hex

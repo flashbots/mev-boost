@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/mev-boost/types"
 	"github.com/sirupsen/logrus"
 )
@@ -21,7 +23,8 @@ var (
 )
 
 var (
-	errNoBlockHash = errors.New("no blockhash provided")
+	errInvalidPubkey    = errors.New("invalid pubkey")
+	errInvalidSignature = errors.New("invalid signature")
 
 	// ServiceStatusOk indicates that the system is running as expected
 	ServiceStatusOk = "OK"
@@ -93,19 +96,27 @@ type rpcResponseContainer struct {
 	res *rpcResponse
 }
 
-// SetFeeRecipientV1 - returns true if at least one relay returns true
-func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message types.SetFeeRecipientMessage, publicKey, signature string) (*bool, error) {
-	method := "builder_setFeeRecipientV1"
+// RegisterValidatorV1 - returns OK if at least one relay returns true
+func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.RegisterValidatorRequestMessage, signature hexutil.Bytes) (*string, error) {
+	method := "builder_registerValidatorV1"
 	logMethod := m.log.WithField("method", method)
 
-	result := false
+	if len(message.Pubkey) != 48 {
+		return nil, errInvalidPubkey
+	}
+
+	if len(signature) != 96 {
+		return nil, errInvalidSignature
+	}
+
+	ok := false // at least one builder has returned true
 	var lastRelayError error
 	var wg sync.WaitGroup
 	for _, url := range m.relayURLs {
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			res, err := makeRequest(ctx, m.httpClient, url, method, []any{message, publicKey, signature})
+			res, err := makeRequest(ctx, m.httpClient, url, method, []any{message, signature})
 
 			// Check for errors
 			if err != nil {
@@ -119,15 +130,15 @@ func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message types.SetF
 			}
 
 			// Decode the response
-			_result := false
-			err = json.Unmarshal(res.Result, &_result)
+			builderResult := ""
+			err = json.Unmarshal(res.Result, &builderResult)
 			if err != nil {
 				logMethod.WithFields(logrus.Fields{"error": err, "url": url}).Error("error unmarshalling response from relay")
 				return
 			}
 
-			// Result should be true if any one relay responds true
-			result = result || _result
+			// Ok should be true if any one builder responds with OK
+			ok = ok || builderResult == ServiceStatusOk
 		}(url)
 	}
 
@@ -136,26 +147,23 @@ func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message types.SetF
 
 	// If no relay responded true, return the last error message, or a generic error
 	var err error
-	if !result {
+	if !ok {
 		err = lastRelayError
 		if lastRelayError == nil {
 			err = errors.New("no relay responded true")
 		}
+		return nil, err
 	}
-	return &result, err
+	return &ServiceStatusOk, nil
 }
 
 // GetHeaderV1 TODO
-func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*types.GetHeaderResponse, error) {
+func (m *BoostService) GetHeaderV1(ctx context.Context, slot hexutil.Uint64, pubkey hexutil.Bytes, hash common.Hash) (*types.GetHeaderResponse, error) {
 	method := "builder_getHeaderV1"
 	logMethod := m.log.WithField("method", method)
 
-	if blockHash == nil {
-		return nil, errNoBlockHash
-	}
-
-	if len(*blockHash) != 66 {
-		return nil, fmt.Errorf("invalid block hash: %s", *blockHash)
+	if len(pubkey) != 48 {
+		return nil, errInvalidPubkey
 	}
 
 	// Call the relay
@@ -166,7 +174,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*typ
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			res, err := makeRequest(ctx, m.getHeaderClient, url, "builder_getHeaderV1", []interface{}{*blockHash})
+			res, err := makeRequest(ctx, m.getHeaderClient, url, "builder_getHeaderV1", []interface{}{slot, pubkey, hash})
 
 			// Check for errors
 			if err != nil {
@@ -188,7 +196,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*typ
 			}
 
 			// Skip processing this result if lower fee than previous
-			if result.Message.Value != nil && (_result.Message.Value == nil || _result.Message.Value.Cmp(result.Message.Value) < 1) {
+			if result.Message.Value != nil && (_result.Message.Value == nil || _result.Message.Value.ToInt().Cmp(result.Message.Value.ToInt()) < 1) {
 				return
 			}
 
@@ -209,23 +217,27 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*typ
 
 	if result.Message.Header.BlockHash == types.NilHash {
 		logMethod.WithFields(logrus.Fields{
-			"hash":           *blockHash,
+			"hash":           hash,
 			"lastRelayError": lastRelayError,
 		}).Error("GetPayloadHeaderV1: no successful response from relays")
 
 		if lastRelayError != nil {
 			return nil, lastRelayError
 		}
-		return nil, fmt.Errorf("no valid GetHeaderV1 response from relays for hash %s", *blockHash)
+		return nil, fmt.Errorf("no valid GetHeaderV1 response from relays for hash %s", hash)
 	}
 
 	return result, nil
 }
 
 // GetPayloadV1 TODO
-func (m *BoostService) GetPayloadV1(ctx context.Context, block string) (*types.ExecutionPayloadV1, error) {
+func (m *BoostService) GetPayloadV1(ctx context.Context, block types.BlindBeaconBlockV1, signature hexutil.Bytes) (*types.ExecutionPayloadV1, error) {
 	method := "builder_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
+
+	if len(signature) != 96 {
+		return nil, errInvalidSignature
+	}
 
 	requestCtx, requestCtxCancel := context.WithCancel(ctx)
 	defer requestCtxCancel()
@@ -233,7 +245,7 @@ func (m *BoostService) GetPayloadV1(ctx context.Context, block string) (*types.E
 	resultC := make(chan *rpcResponseContainer, len(m.relayURLs))
 	for _, url := range m.relayURLs {
 		go func(url string) {
-			res, err := makeRequest(requestCtx, m.httpClient, url, "builder_getPayloadV1", []any{block})
+			res, err := makeRequest(requestCtx, m.httpClient, url, "builder_getPayloadV1", []any{block, signature})
 			resultC <- &rpcResponseContainer{url, err, res}
 		}(url)
 	}

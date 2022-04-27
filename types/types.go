@@ -11,14 +11,8 @@ import (
 // NilHash represents an empty hash
 var NilHash = common.Hash{}
 
-// SignedBlindedBeaconBlock forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#signedbeaconblockheader
-type SignedBlindedBeaconBlock struct {
-	Message   *BlindedBeaconBlock `json:"message"`
-	Signature string              `json:"signature"`
-}
-
-// BlindedBeaconBlock forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock
-type BlindedBeaconBlock struct {
+// BlindBeaconBlockV1 forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock
+type BlindBeaconBlockV1 struct {
 	Slot          string          `json:"slot"`
 	ProposerIndex string          `json:"proposer_index"`
 	ParentRoot    string          `json:"parent_root"`
@@ -26,8 +20,8 @@ type BlindedBeaconBlock struct {
 	Body          json.RawMessage `json:"body"`
 }
 
-// BlindedBeaconBlockBodyPartial a partial block body only containing a payload, in both snake_case and camelCase
-type BlindedBeaconBlockBodyPartial struct {
+// BlindBeaconBlockBodyPartial a partial block body only containing a payload, in both snake_case and camelCase
+type BlindBeaconBlockBodyPartial struct {
 	ExecutionPayload      ExecutionPayloadHeaderOnlyBlockHash `json:"execution_payload_header"`
 	ExecutionPayloadCamel ExecutionPayloadHeaderOnlyBlockHash `json:"executionPayloadHeader"`
 }
@@ -70,7 +64,7 @@ type ExecutionPayloadV1 struct {
 	Transactions  *[]string      `json:"transactions" gencodec:"required"`
 }
 
-// ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindedBeaconBlockBodyPartial
+// ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindBeaconBlockBodyPartial
 type ExecutionPayloadHeaderOnlyBlockHash struct {
 	BlockHash      string `json:"block_hash"`
 	BlockHashCamel string `json:"blockHash"`
@@ -87,32 +81,22 @@ type executionPayloadMarshallingOverrides struct {
 	LogsBloom     hexutil.Bytes
 }
 
-// SetFeeRecipientMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#request
-type SetFeeRecipientMessage struct {
-	FeeRecipient string `json:"feeRecipient"`
-	Timestamp    string `json:"timestamp"`
+// RegisterValidatorRequestMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#request
+type RegisterValidatorRequestMessage struct {
+	FeeRecipient common.Address `json:"feeRecipient"`
+	Timestamp    hexutil.Uint64 `json:"timestamp"`
+	Pubkey       hexutil.Bytes  `json:"pubkey"`
 }
 
-//go:generate go run github.com/fjl/gencodec -type GetHeaderResponseMessage -field-override getHeaderResponseMessageMarshallingOverrides -out gen_getheaderresponsemsg.go
 // GetHeaderResponseMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponseMessage struct {
 	Header ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
-	Value  *big.Int                 `json:"value" gencodec:"required"`
+	Value  *hexutil.Big             `json:"value" gencodec:"required"`
+	Pubkey hexutil.Bytes            `json:"pubkey" gencodec:"required"`
 }
 
-//go:generate go run github.com/fjl/gencodec -type GetHeaderResponse -field-override getHeaderResponseMarshallingOverrides -out gen_getheaderresponse.go
 // GetHeaderResponse as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponse struct {
 	Message   GetHeaderResponseMessage `json:"message" gencodec:"required"`
-	PublicKey []byte                   `json:"publicKey" gencodec:"required"`
-	Signature []byte                   `json:"signature" gencodec:"required"`
-}
-
-type getHeaderResponseMessageMarshallingOverrides struct {
-	Value *hexutil.Big
-}
-
-type getHeaderResponseMarshallingOverrides struct {
-	PublicKey hexutil.Bytes
-	Signature hexutil.Bytes
+	Signature hexutil.Bytes            `json:"signature" gencodec:"required"`
 }
