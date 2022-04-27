@@ -11,8 +11,8 @@ import (
 // NilHash represents an empty hash
 var NilHash = common.Hash{}
 
-// BlindedBeaconBlockV1 forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock
-type BlindedBeaconBlockV1 struct {
+// BlindBeaconBlockV1 forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock
+type BlindBeaconBlockV1 struct {
 	Slot          string          `json:"slot"`
 	ProposerIndex string          `json:"proposer_index"`
 	ParentRoot    string          `json:"parent_root"`
@@ -20,8 +20,8 @@ type BlindedBeaconBlockV1 struct {
 	Body          json.RawMessage `json:"body"`
 }
 
-// BlindedBeaconBlockBodyPartial a partial block body only containing a payload, in both snake_case and camelCase
-type BlindedBeaconBlockBodyPartial struct {
+// BlindBeaconBlockBodyPartial a partial block body only containing a payload, in both snake_case and camelCase
+type BlindBeaconBlockBodyPartial struct {
 	ExecutionPayload      ExecutionPayloadHeaderOnlyBlockHash `json:"execution_payload_header"`
 	ExecutionPayloadCamel ExecutionPayloadHeaderOnlyBlockHash `json:"executionPayloadHeader"`
 }
@@ -64,7 +64,7 @@ type ExecutionPayloadV1 struct {
 	Transactions  *[]string      `json:"transactions" gencodec:"required"`
 }
 
-// ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindedBeaconBlockBodyPartial
+// ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindBeaconBlockBodyPartial
 type ExecutionPayloadHeaderOnlyBlockHash struct {
 	BlockHash      string `json:"block_hash"`
 	BlockHashCamel string `json:"blockHash"`

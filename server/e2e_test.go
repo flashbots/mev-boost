@@ -274,7 +274,7 @@ func TestE2E_GetPayload(t *testing.T) {
 
 	res := new(types.ExecutionPayloadV1)
 	err = client.Call(&res, "builder_getPayloadV1",
-		&types.BlindedBeaconBlockV1{Slot: "0x1"},
+		&types.BlindBeaconBlockV1{Slot: "0x1"},
 		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14",
 	)
 	require.Nil(t, err, err)
