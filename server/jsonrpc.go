@@ -10,10 +10,16 @@ type errorWithCode interface {
 	ErrorCode() int // returns the code
 }
 
-//
 type rpcError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+func newRPCError(msg string, code int) rpcError {
+	return rpcError{
+		Message: msg,
+		Code:    code,
+	}
 }
 
 func (err rpcError) Error() string {

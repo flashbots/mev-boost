@@ -83,36 +83,20 @@ type executionPayloadMarshallingOverrides struct {
 
 // RegisterValidatorRequestMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#request
 type RegisterValidatorRequestMessage struct {
-	FeeRecipient string `json:"feeRecipient"`
-	Timestamp    string `json:"timestamp"`
-	Pubkey       string `json:"pubkey"`
+	FeeRecipient common.Address `json:"feeRecipient"`
+	Timestamp    hexutil.Uint64 `json:"timestamp"`
+	Pubkey       hexutil.Bytes  `json:"pubkey"`
 }
 
-// IsValid returns true if the message properties are correct valid hex values
-func (r *RegisterValidatorRequestMessage) IsValid() bool {
-	return IsValidHex(r.FeeRecipient, 20) && IsValidHex(r.Timestamp, -1) && IsValidHex(r.Pubkey, 48)
-}
-
-//go:generate go run github.com/fjl/gencodec -type GetHeaderResponseMessage -field-override getHeaderResponseMessageMarshallingOverrides -out gen_getheaderresponsemsg.go
 // GetHeaderResponseMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponseMessage struct {
 	Header ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
-	Value  *big.Int                 `json:"value" gencodec:"required"`
-	Pubkey []byte                   `json:"pubkey" gencodec:"required"`
+	Value  *hexutil.Big             `json:"value" gencodec:"required"`
+	Pubkey hexutil.Bytes            `json:"pubkey" gencodec:"required"`
 }
 
-//go:generate go run github.com/fjl/gencodec -type GetHeaderResponse -field-override getHeaderResponseMarshallingOverrides -out gen_getheaderresponse.go
 // GetHeaderResponse as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponse struct {
 	Message   GetHeaderResponseMessage `json:"message" gencodec:"required"`
-	Signature []byte                   `json:"signature" gencodec:"required"`
-}
-
-type getHeaderResponseMessageMarshallingOverrides struct {
-	Value  *hexutil.Big
-	Pubkey hexutil.Bytes
-}
-
-type getHeaderResponseMarshallingOverrides struct {
-	Signature hexutil.Bytes
+	Signature hexutil.Bytes            `json:"signature" gencodec:"required"`
 }

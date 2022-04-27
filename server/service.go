@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/mev-boost/types"
 	"github.com/sirupsen/logrus"
 )
@@ -21,15 +23,8 @@ var (
 )
 
 var (
-	errInvalidHash   = errors.New("invalid blockhash")
-	errInvalidSlot   = errors.New("invalid slot")
-	errInvalidPubkey = errors.New("invalid pubkey")
-	// errInvalidSignature = errors.New("invalid signature")
-
-	errInvalidRegisterValidatorMessage = errors.New("invalid registerValidator message provided")
-
-	// RPC error responses (with code)
-	rpcErrInvalidSignature = rpcError{Code: -32005, Message: "invalid signature"}
+	rpcErrInvalidPubkey    = newRPCError("invalid pubkey", -32602)
+	rpcErrInvalidSignature = newRPCError("invalid signature", -32602)
 
 	// ServiceStatusOk indicates that the system is running as expected
 	ServiceStatusOk = "OK"
@@ -102,15 +97,15 @@ type rpcResponseContainer struct {
 }
 
 // RegisterValidatorV1 - returns OK if at least one relay returns true
-func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.RegisterValidatorRequestMessage, signature string) (*string, error) {
+func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.RegisterValidatorRequestMessage, signature hexutil.Bytes) (*string, error) {
 	method := "builder_registerValidatorV1"
 	logMethod := m.log.WithField("method", method)
 
-	if !message.IsValid() {
-		return nil, errInvalidRegisterValidatorMessage
+	if len(message.Pubkey) != 48 {
+		return nil, rpcErrInvalidPubkey
 	}
 
-	if !types.IsValidHex(signature, 96) {
+	if len(signature) != 96 {
 		return nil, rpcErrInvalidSignature
 	}
 
@@ -163,20 +158,12 @@ func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.Re
 }
 
 // GetHeaderV1 TODO
-func (m *BoostService) GetHeaderV1(ctx context.Context, slot string, pubkey string, hash string) (*types.GetHeaderResponse, error) {
+func (m *BoostService) GetHeaderV1(ctx context.Context, slot hexutil.Uint64, pubkey hexutil.Bytes, hash common.Hash) (*types.GetHeaderResponse, error) {
 	method := "builder_getHeaderV1"
 	logMethod := m.log.WithField("method", method)
 
-	if !types.IsValidHex(slot, -1) {
-		return nil, errInvalidSlot
-	}
-
-	if !types.IsValidHex(pubkey, 48) {
-		return nil, errInvalidPubkey
-	}
-
-	if !types.IsValidHex(hash, 32) {
-		return nil, errInvalidHash
+	if len(pubkey) != 48 {
+		return nil, rpcErrInvalidPubkey
 	}
 
 	// Call the relay
@@ -209,7 +196,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, slot string, pubkey stri
 			}
 
 			// Skip processing this result if lower fee than previous
-			if result.Message.Value != nil && (_result.Message.Value == nil || _result.Message.Value.Cmp(result.Message.Value) < 1) {
+			if result.Message.Value != nil && (_result.Message.Value == nil || _result.Message.Value.ToInt().Cmp(result.Message.Value.ToInt()) < 1) {
 				return
 			}
 
@@ -244,11 +231,11 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, slot string, pubkey stri
 }
 
 // GetPayloadV1 TODO
-func (m *BoostService) GetPayloadV1(ctx context.Context, block types.BlindBeaconBlockV1, signature string) (*types.ExecutionPayloadV1, error) {
+func (m *BoostService) GetPayloadV1(ctx context.Context, block types.BlindBeaconBlockV1, signature hexutil.Bytes) (*types.ExecutionPayloadV1, error) {
 	method := "builder_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
 
-	if !types.IsValidHex(signature, 96) {
+	if len(signature) != 96 {
 		return nil, rpcErrInvalidSignature
 	}
 
