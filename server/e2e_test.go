@@ -260,3 +260,18 @@ func TestE2E_GetPayload(t *testing.T) {
 	assert.Equal(t, relay1.RequestCounter["builder_getPayloadV1"], 1)
 	assert.Equal(t, relay2.RequestCounter["builder_getPayloadV1"], 1)
 }
+
+func TestE2E_Status(t *testing.T) {
+	relay1, relay2 := setupMockRelay(), setupMockRelay()
+	server, err := newTestBoostRPCServer([]string{relay1.URL, relay2.URL})
+	require.Nil(t, err, err)
+	defer server.Stop()
+
+	client := gethRpc.DialInProc(server)
+	defer client.Close()
+
+	res := ""
+	err = client.Call(&res, "builder_status")
+	require.Nil(t, err, err)
+	require.Equal(t, "OK", res)
+}
