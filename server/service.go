@@ -21,12 +21,15 @@ var (
 )
 
 var (
-	errInvalidHash      = errors.New("invalid blockhash provided")
-	errInvalidSlot      = errors.New("invalid slot provided")
-	errInvalidPubkey    = errors.New("invalid pubkey provided")
-	errInvalidSignature = errors.New("invalid signature provided")
+	errInvalidHash   = errors.New("invalid blockhash")
+	errInvalidSlot   = errors.New("invalid slot")
+	errInvalidPubkey = errors.New("invalid pubkey")
+	// errInvalidSignature = errors.New("invalid signature")
 
 	errInvalidRegisterValidatorMessage = errors.New("invalid registerValidator message provided")
+
+	// RPC error responses (with code)
+	rpcErrInvalidSignature = rpcError{Code: -32005, Message: "invalid signature"}
 
 	// ServiceStatusOk indicates that the system is running as expected
 	ServiceStatusOk = "OK"
@@ -108,7 +111,7 @@ func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.Re
 	}
 
 	if !types.IsValidHex(signature, 96) {
-		return nil, errInvalidSignature
+		return nil, rpcErrInvalidSignature
 	}
 
 	ok := false // at least one builder has returned true
@@ -246,7 +249,7 @@ func (m *BoostService) GetPayloadV1(ctx context.Context, block types.BlindBeacon
 	logMethod := m.log.WithField("method", method)
 
 	if !types.IsValidHex(signature, 96) {
-		return nil, errInvalidSignature
+		return nil, rpcErrInvalidSignature
 	}
 
 	requestCtx, requestCtxCancel := context.WithCancel(ctx)

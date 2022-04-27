@@ -5,6 +5,11 @@ import (
 	"fmt"
 )
 
+type errorWithCode interface {
+	Error() string  // returns the message
+	ErrorCode() int // returns the code
+}
+
 //
 type rpcError struct {
 	Code    int    `json:"code"`
@@ -12,7 +17,11 @@ type rpcError struct {
 }
 
 func (err rpcError) Error() string {
-	return fmt.Sprintf("Error %d (%s)", err.Code, err.Message)
+	if err.Message == "" {
+		return fmt.Sprintf("json-rpc error %d", err.Code)
+	}
+
+	return err.Message
 }
 
 // ErrorCode returns the ID of the error.
