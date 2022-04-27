@@ -87,10 +87,11 @@ type executionPayloadMarshallingOverrides struct {
 	LogsBloom     hexutil.Bytes
 }
 
-// SetFeeRecipientMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#request
-type SetFeeRecipientMessage struct {
+// RegisterValidatorRequestMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#request
+type RegisterValidatorRequestMessage struct {
 	FeeRecipient string `json:"feeRecipient"`
 	Timestamp    string `json:"timestamp"`
+	Pubkey       string `json:"pubkey"`
 }
 
 //go:generate go run github.com/fjl/gencodec -type GetHeaderResponseMessage -field-override getHeaderResponseMessageMarshallingOverrides -out gen_getheaderresponsemsg.go

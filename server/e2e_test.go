@@ -36,18 +36,18 @@ func newTestBoostRPCServerWithTimeout(relayURLs []string, getHeaderTimeout time.
 
 func setupMockRelay() *jsonrpc.MockJSONRPCServer {
 	server := jsonrpc.NewMockJSONRPCServer()
-	server.SetHandler("builder_setFeeRecipientV1", defaultSetFeeRecipient)
+	server.SetHandler("builder_registerValidatorV1", defaultRegisterValidator)
 	return server
 }
 
-func defaultSetFeeRecipient(req *jsonrpc.JSONRPCRequest) (any, error) {
-	if len(req.Params) != 3 {
-		return false, fmt.Errorf("Expected 3 params, got %d", len(req.Params))
+func defaultRegisterValidator(req *jsonrpc.JSONRPCRequest) (any, error) {
+	if len(req.Params) != 2 {
+		return nil, fmt.Errorf("Expected 2 params, got %d", len(req.Params))
 	}
-	return true, nil
+	return ServiceStatusOk, nil
 }
 
-func TestE2E_SetFeeRecipient(t *testing.T) {
+func TestE2E_RegisterValidator(t *testing.T) {
 	relay1, relay2 := setupMockRelay(), setupMockRelay()
 	server, err := newTestBoostRPCServer([]string{relay1.URL, relay2.URL})
 	require.Nil(t, err, err)
@@ -56,51 +56,49 @@ func TestE2E_SetFeeRecipient(t *testing.T) {
 	client := gethRpc.DialInProc(server)
 	defer client.Close()
 
-	res := false
-	message := types.SetFeeRecipientMessage{
+	res := ""
+	message := types.RegisterValidatorRequestMessage{
 		FeeRecipient: "0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
 		Timestamp:    "0x625481c2",
+		Pubkey:       "0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",
 	}
-	err = client.Call(&res, "builder_setFeeRecipientV1",
+	err = client.Call(&res, "builder_registerValidatorV1",
 		message,
-		"0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",                                                                                                 // pubkey
 		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
 	)
 	require.Nil(t, err, err)
-	require.True(t, res)
-	assert.Equal(t, relay1.RequestCounter["builder_setFeeRecipientV1"], 1)
-	assert.Equal(t, relay2.RequestCounter["builder_setFeeRecipientV1"], 1)
+	require.Equal(t, ServiceStatusOk, res)
+	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 1)
+	assert.Equal(t, relay2.RequestCounter["builder_registerValidatorV1"], 1)
 
 	// ---
 	// Test one relay returning true, one false (expect true from mev-boost)
 	// ---
-	relay1.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
-	err = client.Call(&res, "builder_setFeeRecipientV1",
+	relay1.SetHandler("builder_registerValidatorV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
+	err = client.Call(&res, "builder_registerValidatorV1",
 		message,
-		"0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",                                                                                                 // pubkey
 		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
 	)
 	require.Nil(t, err, err)
-	require.True(t, res)
-	assert.Equal(t, relay1.RequestCounter["builder_setFeeRecipientV1"], 2)
-	assert.Equal(t, relay2.RequestCounter["builder_setFeeRecipientV1"], 2)
+	require.Equal(t, ServiceStatusOk, res)
+	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 2)
+	assert.Equal(t, relay2.RequestCounter["builder_registerValidatorV1"], 2)
 
 	// ---
 	// Test both relays returning false (expect false from mev-boost)
 	// ---
-	relay2.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
-	err = client.Call(&res, "builder_setFeeRecipientV1",
+	relay2.SetHandler("builder_registerValidatorV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
+	err = client.Call(&res, "builder_registerValidatorV1",
 		message,
-		"0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",                                                                                                 // pubkey
 		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
 	)
 	require.NotNil(t, err, err)
-	assert.Equal(t, relay1.RequestCounter["builder_setFeeRecipientV1"], 3)
-	assert.Equal(t, relay2.RequestCounter["builder_setFeeRecipientV1"], 3)
+	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 3)
+	assert.Equal(t, relay2.RequestCounter["builder_registerValidatorV1"], 3)
 }
 
 // Ensure mev-boost catches an invalid payload (invalid number of params)
-func TestE2E_SetFeeRecipient_Error(t *testing.T) {
+func TestE2E_RegisterValidator_Error(t *testing.T) {
 	relay1 := setupMockRelay()
 	server, err := newTestBoostRPCServer([]string{relay1.URL})
 	require.Nil(t, err, err)
@@ -109,23 +107,32 @@ func TestE2E_SetFeeRecipient_Error(t *testing.T) {
 	client := gethRpc.DialInProc(server)
 	defer client.Close()
 
-	res := false
-	err = client.Call(&res, "builder_setFeeRecipientV1",
+	res := ""
+	err = client.Call(&res, "builder_registerValidatorV1",
+		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
+		"0x625481c2", // timestamp
+		"0x01",
+	)
+	require.NotNil(t, err, err)
+	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 0)
+
+	// Test invalid message type
+	err = client.Call(&res, "builder_registerValidatorV1",
 		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
 		"0x625481c2", // timestamp
 	)
 	require.NotNil(t, err, err)
-	assert.Equal(t, relay1.RequestCounter["builder_setFeeRecipientV1"], 0)
+	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 0)
 }
 
 // Ensure that mev-boost forwards the last error response from the relay if all relays return an error
-func TestE2E_SetFeeRecipient_RelayError(t *testing.T) {
+func TestE2E_RegisterValidator_RelayError(t *testing.T) {
 	relay1, relay2 := setupMockRelay(), setupMockRelay()
 	testErr := &jsonrpc.JSONRPCError{Code: -32009, Message: "test error"}
-	relay1.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) {
+	relay1.SetHandler("builder_registerValidatorV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) {
 		return nil, testErr
 	})
-	relay2.SetHandler("builder_setFeeRecipientV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) {
+	relay2.SetHandler("builder_registerValidatorV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) {
 		return nil, testErr
 	})
 
@@ -137,17 +144,17 @@ func TestE2E_SetFeeRecipient_RelayError(t *testing.T) {
 	defer client.Close()
 
 	res := false
-	err = client.Call(&res, "builder_setFeeRecipientV1",
-		types.SetFeeRecipientMessage{
+	err = client.Call(&res, "builder_registerValidatorV1",
+		types.RegisterValidatorRequestMessage{
 			FeeRecipient: "0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
 			Timestamp:    "0x123",
+			Pubkey:       "0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",
 		},
-		"0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2",                                                                                                 // pubkey
 		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
 	)
 	require.NotNil(t, err, err)
-	assert.Equal(t, relay1.RequestCounter["builder_setFeeRecipientV1"], 1)
-	assert.Equal(t, relay2.RequestCounter["builder_setFeeRecipientV1"], 1)
+	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 1)
+	assert.Equal(t, relay2.RequestCounter["builder_registerValidatorV1"], 1)
 }
 
 func TestE2E_GetHeader(t *testing.T) {

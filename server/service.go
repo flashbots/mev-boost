@@ -93,19 +93,19 @@ type rpcResponseContainer struct {
 	res *rpcResponse
 }
 
-// SetFeeRecipientV1 - returns true if at least one relay returns true
-func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message types.SetFeeRecipientMessage, publicKey, signature string) (*bool, error) {
-	method := "builder_setFeeRecipientV1"
+// RegisterValidatorV1 - returns OK if at least one relay returns true
+func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.RegisterValidatorRequestMessage, signature string) (*string, error) {
+	method := "builder_registerValidatorV1"
 	logMethod := m.log.WithField("method", method)
 
-	result := false
+	ok := false // at least one builder has returned true
 	var lastRelayError error
 	var wg sync.WaitGroup
 	for _, url := range m.relayURLs {
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			res, err := makeRequest(ctx, m.httpClient, url, method, []any{message, publicKey, signature})
+			res, err := makeRequest(ctx, m.httpClient, url, method, []any{message, signature})
 
 			// Check for errors
 			if err != nil {
@@ -119,15 +119,15 @@ func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message types.SetF
 			}
 
 			// Decode the response
-			_result := false
-			err = json.Unmarshal(res.Result, &_result)
+			builderResult := ""
+			err = json.Unmarshal(res.Result, &builderResult)
 			if err != nil {
 				logMethod.WithFields(logrus.Fields{"error": err, "url": url}).Error("error unmarshalling response from relay")
 				return
 			}
 
-			// Result should be true if any one relay responds true
-			result = result || _result
+			// Ok should be true if any one builder responds with OK
+			ok = ok || builderResult == ServiceStatusOk
 		}(url)
 	}
 
@@ -136,13 +136,14 @@ func (m *BoostService) SetFeeRecipientV1(ctx context.Context, message types.SetF
 
 	// If no relay responded true, return the last error message, or a generic error
 	var err error
-	if !result {
+	if !ok {
 		err = lastRelayError
 		if lastRelayError == nil {
 			err = errors.New("no relay responded true")
 		}
+		return nil, err
 	}
-	return &result, err
+	return &ServiceStatusOk, nil
 }
 
 // GetHeaderV1 TODO
