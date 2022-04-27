@@ -21,7 +21,10 @@ var (
 )
 
 var (
-	errNoBlockHash = errors.New("no blockhash provided")
+	errInvalidHash      = errors.New("invalid blockhash provided")
+	errInvalidSlot      = errors.New("invalid slot provided")
+	errInvalidPubkey    = errors.New("invalid pubkey provided")
+	errInvalidSignature = errors.New("invalid signature provided")
 
 	// ServiceStatusOk indicates that the system is running as expected
 	ServiceStatusOk = "OK"
@@ -98,6 +101,10 @@ func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.Re
 	method := "builder_registerValidatorV1"
 	logMethod := m.log.WithField("method", method)
 
+	if len(signature) != 194 {
+		return nil, errInvalidSignature
+	}
+
 	ok := false // at least one builder has returned true
 	var lastRelayError error
 	var wg sync.WaitGroup
@@ -147,16 +154,20 @@ func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.Re
 }
 
 // GetHeaderV1 TODO
-func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*types.GetHeaderResponse, error) {
+func (m *BoostService) GetHeaderV1(ctx context.Context, slot string, pubkey string, hash string) (*types.GetHeaderResponse, error) {
 	method := "builder_getHeaderV1"
 	logMethod := m.log.WithField("method", method)
 
-	if blockHash == nil {
-		return nil, errNoBlockHash
+	if len(slot) < 3 {
+		return nil, errInvalidSlot
 	}
 
-	if len(*blockHash) != 66 {
-		return nil, fmt.Errorf("invalid block hash: %s", *blockHash)
+	if len(pubkey) != 98 {
+		return nil, errInvalidPubkey
+	}
+
+	if len(hash) != 66 {
+		return nil, errInvalidHash
 	}
 
 	// Call the relay
@@ -167,7 +178,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*typ
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			res, err := makeRequest(ctx, m.getHeaderClient, url, "builder_getHeaderV1", []interface{}{*blockHash})
+			res, err := makeRequest(ctx, m.getHeaderClient, url, "builder_getHeaderV1", []interface{}{slot, pubkey, hash})
 
 			// Check for errors
 			if err != nil {
@@ -210,23 +221,27 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, blockHash *string) (*typ
 
 	if result.Message.Header.BlockHash == types.NilHash {
 		logMethod.WithFields(logrus.Fields{
-			"hash":           *blockHash,
+			"hash":           hash,
 			"lastRelayError": lastRelayError,
 		}).Error("GetPayloadHeaderV1: no successful response from relays")
 
 		if lastRelayError != nil {
 			return nil, lastRelayError
 		}
-		return nil, fmt.Errorf("no valid GetHeaderV1 response from relays for hash %s", *blockHash)
+		return nil, fmt.Errorf("no valid GetHeaderV1 response from relays for hash %s", hash)
 	}
 
 	return result, nil
 }
 
 // GetPayloadV1 TODO
-func (m *BoostService) GetPayloadV1(ctx context.Context, block string) (*types.ExecutionPayloadV1, error) {
+func (m *BoostService) GetPayloadV1(ctx context.Context, block types.BlindedBeaconBlockV1, signature string) (*types.ExecutionPayloadV1, error) {
 	method := "builder_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
+
+	if len(signature) != 194 {
+		return nil, errInvalidSignature
+	}
 
 	requestCtx, requestCtxCancel := context.WithCancel(ctx)
 	defer requestCtxCancel()
@@ -234,7 +249,7 @@ func (m *BoostService) GetPayloadV1(ctx context.Context, block string) (*types.E
 	resultC := make(chan *rpcResponseContainer, len(m.relayURLs))
 	for _, url := range m.relayURLs {
 		go func(url string) {
-			res, err := makeRequest(requestCtx, m.httpClient, url, "builder_getPayloadV1", []any{block})
+			res, err := makeRequest(requestCtx, m.httpClient, url, "builder_getPayloadV1", []any{block, signature})
 			resultC <- &rpcResponseContainer{url, err, res}
 		}(url)
 	}

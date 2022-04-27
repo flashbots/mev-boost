@@ -11,14 +11,8 @@ import (
 // NilHash represents an empty hash
 var NilHash = common.Hash{}
 
-// SignedBlindedBeaconBlock forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#signedbeaconblockheader
-type SignedBlindedBeaconBlock struct {
-	Message   *BlindedBeaconBlock `json:"message"`
-	Signature string              `json:"signature"`
-}
-
-// BlindedBeaconBlock forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock
-type BlindedBeaconBlock struct {
+// BlindedBeaconBlockV1 forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock
+type BlindedBeaconBlockV1 struct {
 	Slot          string          `json:"slot"`
 	ProposerIndex string          `json:"proposer_index"`
 	ParentRoot    string          `json:"parent_root"`
@@ -99,21 +93,21 @@ type RegisterValidatorRequestMessage struct {
 type GetHeaderResponseMessage struct {
 	Header ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
 	Value  *big.Int                 `json:"value" gencodec:"required"`
+	Pubkey []byte                   `json:"pubkey" gencodec:"required"`
 }
 
 //go:generate go run github.com/fjl/gencodec -type GetHeaderResponse -field-override getHeaderResponseMarshallingOverrides -out gen_getheaderresponse.go
 // GetHeaderResponse as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponse struct {
 	Message   GetHeaderResponseMessage `json:"message" gencodec:"required"`
-	PublicKey []byte                   `json:"publicKey" gencodec:"required"`
 	Signature []byte                   `json:"signature" gencodec:"required"`
 }
 
 type getHeaderResponseMessageMarshallingOverrides struct {
-	Value *hexutil.Big
+	Value  *hexutil.Big
+	Pubkey hexutil.Bytes
 }
 
 type getHeaderResponseMarshallingOverrides struct {
-	PublicKey hexutil.Bytes
 	Signature hexutil.Bytes
 }

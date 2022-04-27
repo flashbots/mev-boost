@@ -15,12 +15,10 @@ var _ = (*getHeaderResponseMarshallingOverrides)(nil)
 func (g GetHeaderResponse) MarshalJSON() ([]byte, error) {
 	type GetHeaderResponse struct {
 		Message   GetHeaderResponseMessage `json:"message" gencodec:"required"`
-		PublicKey hexutil.Bytes            `json:"publicKey" gencodec:"required"`
 		Signature hexutil.Bytes            `json:"signature" gencodec:"required"`
 	}
 	var enc GetHeaderResponse
 	enc.Message = g.Message
-	enc.PublicKey = g.PublicKey
 	enc.Signature = g.Signature
 	return json.Marshal(&enc)
 }
@@ -29,7 +27,6 @@ func (g GetHeaderResponse) MarshalJSON() ([]byte, error) {
 func (g *GetHeaderResponse) UnmarshalJSON(input []byte) error {
 	type GetHeaderResponse struct {
 		Message   *GetHeaderResponseMessage `json:"message" gencodec:"required"`
-		PublicKey *hexutil.Bytes            `json:"publicKey" gencodec:"required"`
 		Signature *hexutil.Bytes            `json:"signature" gencodec:"required"`
 	}
 	var dec GetHeaderResponse
@@ -40,10 +37,6 @@ func (g *GetHeaderResponse) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'message' for GetHeaderResponse")
 	}
 	g.Message = *dec.Message
-	if dec.PublicKey == nil {
-		return errors.New("missing required field 'publicKey' for GetHeaderResponse")
-	}
-	g.PublicKey = *dec.PublicKey
 	if dec.Signature == nil {
 		return errors.New("missing required field 'signature' for GetHeaderResponse")
 	}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethRpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/flashbots/go-utils/jsonrpc"
 	"github.com/flashbots/mev-boost/types"
@@ -47,6 +48,14 @@ func defaultRegisterValidator(req *jsonrpc.JSONRPCRequest) (any, error) {
 	return ServiceStatusOk, nil
 }
 
+func _hexToBytes(hex string) []byte {
+	bytes, err := hexutil.Decode(hex)
+	if err != nil {
+		panic(err)
+	}
+	return bytes
+}
+
 func TestE2E_RegisterValidator(t *testing.T) {
 	relay1, relay2 := setupMockRelay(), setupMockRelay()
 	server, err := newTestBoostRPCServer([]string{relay1.URL, relay2.URL})
@@ -64,7 +73,7 @@ func TestE2E_RegisterValidator(t *testing.T) {
 	}
 	err = client.Call(&res, "builder_registerValidatorV1",
 		message,
-		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
+		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14", // signature
 	)
 	require.Nil(t, err, err)
 	require.Equal(t, ServiceStatusOk, res)
@@ -77,7 +86,7 @@ func TestE2E_RegisterValidator(t *testing.T) {
 	relay1.SetHandler("builder_registerValidatorV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
 	err = client.Call(&res, "builder_registerValidatorV1",
 		message,
-		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
+		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14", // signature
 	)
 	require.Nil(t, err, err)
 	require.Equal(t, ServiceStatusOk, res)
@@ -90,7 +99,7 @@ func TestE2E_RegisterValidator(t *testing.T) {
 	relay2.SetHandler("builder_registerValidatorV1", func(req *jsonrpc.JSONRPCRequest) (any, error) { return false, nil })
 	err = client.Call(&res, "builder_registerValidatorV1",
 		message,
-		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
+		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14", // signature
 	)
 	require.NotNil(t, err, err)
 	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 3)
@@ -107,6 +116,7 @@ func TestE2E_RegisterValidator_Error(t *testing.T) {
 	client := gethRpc.DialInProc(server)
 	defer client.Close()
 
+	// Invalid number of arguments
 	res := ""
 	err = client.Call(&res, "builder_registerValidatorV1",
 		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
@@ -174,10 +184,10 @@ func TestE2E_GetHeader(t *testing.T) {
 			if delay > 0 {
 				time.Sleep(delay)
 			}
-			if len(req.Params) != 1 {
-				return nil, fmt.Errorf("Expected 1 params, got %d", len(req.Params))
+			if len(req.Params) != 3 {
+				return nil, fmt.Errorf("Expected 3 params, got %d", len(req.Params))
 			}
-			assert.Equal(t, parentHash.String(), req.Params[0].(string))
+			assert.Equal(t, parentHash.String(), req.Params[2].(string))
 			resp := &types.GetHeaderResponse{
 				Message: types.GetHeaderResponseMessage{
 					Header: types.ExecutionPayloadHeaderV1{
@@ -185,10 +195,10 @@ func TestE2E_GetHeader(t *testing.T) {
 						BlockHash:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 						BaseFeePerGas: big.NewInt(4),
 					},
-					Value: value,
+					Value:  value,
+					Pubkey: _hexToBytes("0x1bf4b68731b493e9474f0cd5d0faaeed8796ac77267d93949c96cff6dcfaf04e49f32a7ebce3ba132b58b6f17ec5754a"),
 				},
-				PublicKey: []byte{0x1},
-				Signature: []byte{0x2},
+				Signature: _hexToBytes("0x258c63ecdc711c29f11174ebc67bcbb46efa2bda3f1a6315a28bb74b1e6d8a442778c4880f1c2e9cdaca8e3a1370a9e203fcbf45660edc61011ae9df66912c133fdaa15a917041bc7807326b42db8e6c052a7e9cb5ca9c17181952837809bb51"),
 			}
 			return resp, nil
 		}
@@ -199,7 +209,8 @@ func TestE2E_GetHeader(t *testing.T) {
 	relay2.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345678), 0))
 
 	res := new(types.GetHeaderResponse)
-	err = client.Call(&res, "builder_getHeaderV1", parentHash.Hex())
+	pubkey := "0xf0d89fec26f5e1e84884a293677ee7e7d48505a43d23f7e4888206a780fe33ccaf374b317eb78c7036cb6c97af1dfe9a"
+	err = client.Call(&res, "builder_getHeaderV1", "0x1", pubkey, parentHash.Hex())
 	require.Nil(t, err, err)
 	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 1)
 	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 1)
@@ -216,7 +227,7 @@ func TestE2E_GetHeader(t *testing.T) {
 	defer client2.Close()
 
 	relay2.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(big.NewInt(12345678), 110*time.Millisecond))
-	err = client2.Call(&res, "builder_getHeaderV1", parentHash.Hex())
+	err = client2.Call(&res, "builder_getHeaderV1", "0x1", pubkey, parentHash.Hex())
 	require.Nil(t, err, err)
 	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 2)
 	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 2)
@@ -233,9 +244,9 @@ func TestE2E_GetHeaderError(t *testing.T) {
 	defer client.Close()
 
 	res := new(types.GetHeaderResponse)
-	err = client.Call(&res, "builder_getHeaderV1", nil)
+	err = client.Call(&res, "builder_getHeaderV1", nil, nil, nil)
 	require.Error(t, err)
-	require.Equal(t, err.Error(), errNoBlockHash.Error())
+	require.Equal(t, errInvalidSlot.Error(), err.Error())
 }
 
 func TestE2E_GetPayload(t *testing.T) {
@@ -262,7 +273,10 @@ func TestE2E_GetPayload(t *testing.T) {
 	relay2.SetHandler("builder_getPayloadV1", getPayloadV1Handler)
 
 	res := new(types.ExecutionPayloadV1)
-	err = client.Call(&res, "builder_getPayloadV1", "0x0000000000000000000000000000000000000000000000000000000000000001")
+	err = client.Call(&res, "builder_getPayloadV1",
+		&types.BlindedBeaconBlockV1{Slot: "0x1"},
+		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14",
+	)
 	require.Nil(t, err, err)
 	assert.Equal(t, relay1.RequestCounter["builder_getPayloadV1"], 1)
 	assert.Equal(t, relay2.RequestCounter["builder_getPayloadV1"], 1)
