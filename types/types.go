@@ -88,6 +88,11 @@ type RegisterValidatorRequestMessage struct {
 	Pubkey       string `json:"pubkey"`
 }
 
+// IsValid returns true if the message properties are correct valid hex values
+func (r *RegisterValidatorRequestMessage) IsValid() bool {
+	return IsValidHex(r.FeeRecipient, 20) && IsValidHex(r.Timestamp, -1) && IsValidHex(r.Pubkey, 48)
+}
+
 //go:generate go run github.com/fjl/gencodec -type GetHeaderResponseMessage -field-override getHeaderResponseMessageMarshallingOverrides -out gen_getheaderresponsemsg.go
 // GetHeaderResponseMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponseMessage struct {

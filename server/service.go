@@ -26,6 +26,8 @@ var (
 	errInvalidPubkey    = errors.New("invalid pubkey provided")
 	errInvalidSignature = errors.New("invalid signature provided")
 
+	errInvalidRegisterValidatorMessage = errors.New("invalid registerValidator message provided")
+
 	// ServiceStatusOk indicates that the system is running as expected
 	ServiceStatusOk = "OK"
 )
@@ -101,7 +103,11 @@ func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.Re
 	method := "builder_registerValidatorV1"
 	logMethod := m.log.WithField("method", method)
 
-	if len(signature) != 194 {
+	if !message.IsValid() {
+		return nil, errInvalidRegisterValidatorMessage
+	}
+
+	if !types.IsValidHex(signature, 96) {
 		return nil, errInvalidSignature
 	}
 
@@ -158,15 +164,15 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, slot string, pubkey stri
 	method := "builder_getHeaderV1"
 	logMethod := m.log.WithField("method", method)
 
-	if len(slot) < 3 {
+	if !types.IsValidHex(slot, -1) {
 		return nil, errInvalidSlot
 	}
 
-	if len(pubkey) != 98 {
+	if !types.IsValidHex(pubkey, 48) {
 		return nil, errInvalidPubkey
 	}
 
-	if len(hash) != 66 {
+	if !types.IsValidHex(hash, 32) {
 		return nil, errInvalidHash
 	}
 
@@ -239,7 +245,7 @@ func (m *BoostService) GetPayloadV1(ctx context.Context, block types.BlindedBeac
 	method := "builder_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
 
-	if len(signature) != 194 {
+	if !types.IsValidHex(signature, 96) {
 		return nil, errInvalidSignature
 	}
 
