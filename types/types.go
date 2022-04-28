@@ -90,13 +90,13 @@ type RegisterValidatorRequestMessage struct {
 
 // GetHeaderResponseMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponseMessage struct {
-	Header ExecutionPayloadHeaderV1 `json:"header" gencodec:"required"`
-	Value  *hexutil.Big             `json:"value" gencodec:"required"`
-	Pubkey hexutil.Bytes            `json:"pubkey" gencodec:"required"`
+	Header ExecutionPayloadHeaderV1 `json:"header"`
+	Value  *hexutil.Big             `json:"value"`
+	Pubkey hexutil.Bytes            `json:"pubkey"`
 }
 
 // GetHeaderResponse as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponse struct {
-	Message   GetHeaderResponseMessage `json:"message" gencodec:"required"`
-	Signature hexutil.Bytes            `json:"signature" gencodec:"required"`
+	Message   GetHeaderResponseMessage `json:"message"`
+	Signature hexutil.Bytes            `json:"signature"`
 }
