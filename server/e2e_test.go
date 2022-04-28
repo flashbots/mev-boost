@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"testing"
@@ -130,9 +131,91 @@ func TestE2E_RegisterValidator_Error(t *testing.T) {
 	err = client.Call(&res, "builder_registerValidatorV1",
 		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
 		"0x625481c2", // timestamp
+		"0x01",
 	)
-	require.NotNil(t, err, err)
+	require.Error(t, err)
+	ec, isErrorWithCode := err.(errorWithCode)
+	require.True(t, isErrorWithCode)
+	require.Equal(t, -32602, ec.ErrorCode())
 	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 0)
+
+	// Invalid message type
+	err = client.Call(&res, "builder_registerValidatorV1",
+		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941", // feeRecipient
+		"0x625481c2", // timestamp
+	)
+	require.Error(t, err)
+	ec, isErrorWithCode = err.(errorWithCode)
+	require.True(t, isErrorWithCode)
+	require.Equal(t, -32602, ec.ErrorCode())
+	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 0)
+
+	// Invalid signature
+	err = client.Call(&res, "builder_registerValidatorV1",
+		types.RegisterValidatorRequestMessage{
+			FeeRecipient: common.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+			Timestamp:    1234356,
+			Pubkey:       _hexToBytes("0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2"),
+		},
+		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d",
+	)
+	require.Error(t, err)
+	ec, isErrorWithCode = err.(errorWithCode)
+	require.True(t, isErrorWithCode)
+	require.Equal(t, -32602, ec.ErrorCode())
+	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 0)
+
+	// no relay returned ok
+	relay1.SetHandler("builder_registerValidatorV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) {
+		return nil, errors.New("test error")
+	})
+	err = client.Call(&res, "builder_registerValidatorV1",
+		types.RegisterValidatorRequestMessage{
+			FeeRecipient: common.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+			Timestamp:    1234356,
+			Pubkey:       _hexToBytes("0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2"),
+		},
+		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14",
+	)
+	require.Error(t, err)
+	ec, isErrorWithCode = err.(errorWithCode)
+	require.True(t, isErrorWithCode)
+	require.Equal(t, -32603, ec.ErrorCode())
+	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 1)
+}
+
+// Ensure mev-boost passes on error codes from relay
+func Test_RelayErrorCodePassthrough(t *testing.T) {
+	relay1 := setupMockRelay()
+	relay1.SetHandler("builder_registerValidatorV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) {
+		return nil, rpcError{Code: -123, Message: "test error"}
+	})
+	server, err := newTestBoostRPCServer([]string{relay1.URL})
+
+	require.Nil(t, err, err)
+	defer server.Stop()
+
+	client := gethRpc.DialInProc(server)
+	defer client.Close()
+
+	// Invalid number of arguments
+	res := ""
+	err = client.Call(&res, "builder_registerValidatorV1",
+		types.RegisterValidatorRequestMessage{
+			FeeRecipient: common.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+			Timestamp:    1234356,
+			Pubkey:       _hexToBytes("0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2"),
+		},
+		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14", // signature
+	)
+
+	// Must return an error, and then ensure it also has a code that matches the relay error code
+	require.Error(t, err, err)
+	ec, isErrorWithCode := err.(errorWithCode)
+	require.True(t, isErrorWithCode)
+	require.Equal(t, -123, ec.ErrorCode())
+
+	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 1)
 }
 
 // Ensure that mev-boost forwards the last error response from the relay if all relays return an error
@@ -250,7 +333,7 @@ func TestE2E_GetHeaderError(t *testing.T) {
 	res := new(types.GetHeaderResponse)
 	err = client.Call(&res, "builder_getHeaderV1", "0x1", "0x1bf4b68731b493e9474f0cd5d0faaeed8796ac77267d93949c96cff6dcfaf04e49f32a7ebce3ba132b58b6f17ec575", "0xf254722f498df7e396694ed71f363c535ae1b2620afeaf57515e7593ad888331")
 	require.Error(t, err)
-	require.Equal(t, errInvalidPubkey.Error(), err.Error())
+	require.Equal(t, rpcErrInvalidPubkey.Error(), err.Error())
 }
 
 func TestE2E_GetPayload(t *testing.T) {

@@ -23,8 +23,8 @@ var (
 )
 
 var (
-	errInvalidPubkey    = errors.New("invalid pubkey")
-	errInvalidSignature = errors.New("invalid signature")
+	rpcErrInvalidPubkey    = newRPCError("invalid pubkey", -32602)
+	rpcErrInvalidSignature = newRPCError("invalid signature", -32602)
 
 	// ServiceStatusOk indicates that the system is running as expected
 	ServiceStatusOk = "OK"
@@ -102,11 +102,11 @@ func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.Re
 	logMethod := m.log.WithField("method", method)
 
 	if len(message.Pubkey) != 48 {
-		return nil, errInvalidPubkey
+		return nil, rpcErrInvalidPubkey
 	}
 
 	if len(signature) != 96 {
-		return nil, errInvalidSignature
+		return nil, rpcErrInvalidSignature
 	}
 
 	ok := false // at least one builder has returned true
@@ -163,7 +163,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, slot hexutil.Uint64, pub
 	logMethod := m.log.WithField("method", method)
 
 	if len(pubkey) != 48 {
-		return nil, errInvalidPubkey
+		return nil, rpcErrInvalidPubkey
 	}
 
 	// Call the relay
@@ -236,7 +236,7 @@ func (m *BoostService) GetPayloadV1(ctx context.Context, block types.BlindBeacon
 	logMethod := m.log.WithField("method", method)
 
 	if len(signature) != 96 {
-		return nil, errInvalidSignature
+		return nil, rpcErrInvalidSignature
 	}
 
 	requestCtx, requestCtxCancel := context.WithCancel(ctx)
