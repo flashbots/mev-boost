@@ -60,7 +60,7 @@ func _hexToBytes(hex string) []byte {
 func TestE2E_RegisterValidator(t *testing.T) {
 	relay1, relay2 := setupMockRelay(), setupMockRelay()
 	server, err := newTestBoostRPCServer([]string{relay1.URL, relay2.URL})
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	defer server.Stop()
 
 	client := gethRpc.DialInProc(server)
@@ -76,7 +76,7 @@ func TestE2E_RegisterValidator(t *testing.T) {
 		message,
 		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14", // signature
 	)
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	require.Equal(t, ServiceStatusOk, res)
 	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 1)
 	assert.Equal(t, relay2.RequestCounter["builder_registerValidatorV1"], 1)
@@ -89,7 +89,7 @@ func TestE2E_RegisterValidator(t *testing.T) {
 		message,
 		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14", // signature
 	)
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	require.Equal(t, ServiceStatusOk, res)
 	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 2)
 	assert.Equal(t, relay2.RequestCounter["builder_registerValidatorV1"], 2)
@@ -111,7 +111,7 @@ func TestE2E_RegisterValidator(t *testing.T) {
 func TestE2E_RegisterValidator_Error(t *testing.T) {
 	relay1 := setupMockRelay()
 	server, err := newTestBoostRPCServer([]string{relay1.URL})
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	defer server.Stop()
 
 	client := gethRpc.DialInProc(server)
@@ -192,7 +192,7 @@ func Test_RelayErrorCodePassthrough(t *testing.T) {
 	})
 	server, err := newTestBoostRPCServer([]string{relay1.URL})
 
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	defer server.Stop()
 
 	client := gethRpc.DialInProc(server)
@@ -230,7 +230,7 @@ func TestE2E_RegisterValidator_RelayError(t *testing.T) {
 	})
 
 	server, err := newTestBoostRPCServer([]string{relay1.URL, relay2.URL})
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	defer server.Stop()
 
 	client := gethRpc.DialInProc(server)
@@ -279,7 +279,7 @@ func makeBuilderGetHeaderV1Handler(value int64, parentHash common.Hash, delay ti
 func TestE2E_GetHeader(t *testing.T) {
 	relay1, relay2 := setupMockRelay(), setupMockRelay()
 	server, err := newTestBoostRPCServer([]string{relay1.URL, relay2.URL})
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	defer server.Stop()
 
 	client := gethRpc.DialInProc(server)
@@ -294,7 +294,7 @@ func TestE2E_GetHeader(t *testing.T) {
 	res := new(types.GetHeaderResponse)
 	pubkey := "0xf0d89fec26f5e1e84884a293677ee7e7d48505a43d23f7e4888206a780fe33ccaf374b317eb78c7036cb6c97af1dfe9a"
 	err = client.Call(&res, "builder_getHeaderV1", "0x1", pubkey, parentHash)
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	require.Equal(t, parentHash, res.Message.Header.ParentHash)
 	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 1)
 	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 1)
@@ -305,14 +305,14 @@ func TestE2E_GetHeader(t *testing.T) {
 	// relay2 responds with a delay longer than GetHeaderTimeout. Therefore only response from relay1 is used.
 	// ---
 	server2, err := newTestBoostRPCServerWithTimeout([]string{relay1.URL, relay2.URL}, time.Millisecond*100)
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 
 	client2 := gethRpc.DialInProc(server2)
 	defer client2.Close()
 
 	relay2.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(12345678, parentHash, 110*time.Millisecond))
 	err = client2.Call(&res, "builder_getHeaderV1", "0x1", pubkey, parentHash.Hex())
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 2)
 	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 2)
 	assert.Equal(t, "12345", res.Message.Value.ToInt().String())
@@ -324,7 +324,7 @@ func TestE2E_GetHeaderError(t *testing.T) {
 	relay1.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(12345, parentHash, 0))
 
 	server, err := newTestBoostRPCServer([]string{relay1.URL})
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	defer server.Stop()
 
 	client := gethRpc.DialInProc(server)
@@ -339,7 +339,7 @@ func TestE2E_GetHeaderError(t *testing.T) {
 func TestE2E_GetPayload(t *testing.T) {
 	relay1, relay2 := setupMockRelay(), setupMockRelay()
 	server, err := newTestBoostRPCServer([]string{relay1.URL, relay2.URL})
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	defer server.Stop()
 
 	client := gethRpc.DialInProc(server)
@@ -361,10 +361,17 @@ func TestE2E_GetPayload(t *testing.T) {
 
 	res := new(types.ExecutionPayloadV1)
 	err = client.Call(&res, "builder_getPayloadV1",
-		&types.BlindBeaconBlockV1{Slot: "0x1"},
+		&types.BlindBeaconBlockV1{
+			Slot: "0x1",
+			Body: types.BlindBeaconBlockBodyV1{
+				ExecutionPayload: types.ExecutionPayloadHeaderV1{
+					BaseFeePerGas: big.NewInt(4),
+				},
+			},
+		},
 		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14",
 	)
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	assert.Equal(t, relay1.RequestCounter["builder_getPayloadV1"], 1)
 	assert.Equal(t, relay2.RequestCounter["builder_getPayloadV1"], 1)
 }
@@ -372,7 +379,7 @@ func TestE2E_GetPayload(t *testing.T) {
 func TestE2E_Status(t *testing.T) {
 	relay1, relay2 := setupMockRelay(), setupMockRelay()
 	server, err := newTestBoostRPCServer([]string{relay1.URL, relay2.URL})
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	defer server.Stop()
 
 	client := gethRpc.DialInProc(server)
@@ -380,6 +387,6 @@ func TestE2E_Status(t *testing.T) {
 
 	res := ""
 	err = client.Call(&res, "builder_status")
-	require.Nil(t, err, err)
+	require.NoError(t, err)
 	require.Equal(t, "OK", res)
 }
