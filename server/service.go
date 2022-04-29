@@ -231,7 +231,7 @@ func (m *BoostService) GetHeaderV1(ctx context.Context, slot hexutil.Uint64, pub
 }
 
 // GetPayloadV1 TODO
-func (m *BoostService) GetPayloadV1(ctx context.Context, block types.BlindBeaconBlockV1, signature hexutil.Bytes) (*types.ExecutionPayloadV1, error) {
+func (m *BoostService) GetPayloadV1(ctx context.Context, block types.BlindedBeaconBlockV1, signature hexutil.Bytes) (*types.ExecutionPayloadV1, error) {
 	method := "builder_getPayloadV1"
 	logMethod := m.log.WithField("method", method)
 
