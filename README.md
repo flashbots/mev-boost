@@ -4,7 +4,9 @@
 [![Discord](https://img.shields.io/discord/755466764501909692)](https://discord.gg/7hvTycdNcK)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-A service that allows Ethereum Consensus Layer (CL) clients to outsource block construction to third party block builders in addition to execution clients. See [ethresearch post](https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/) for the high level architecture and **[`docs/specification.md`](https://github.com/flashbots/mev-boost/blob/main/docs/specification.md)** for the specification and implementation details.
+A service that allows Ethereum Consensus Layer (CL) clients to outsource block construction to third party block builders in addition to execution clients.
+
+**→ See also the [Builder API Spec](https://github.com/ethereum/execution-apis/pull/209/files)**
 
 ![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
 

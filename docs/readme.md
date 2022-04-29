@@ -1,3 +1,3 @@
 Sources:
 
-* `mev-boost-integration-overview.png`: https://excalidraw.com/#json=RE3uNKMwAjGgEf0aZMHme,Eo69w342jLiY2a7ykj9aGQ
+* `mev-boost-integration-overview.png`: https://excalidraw.com/#json=VHl16agggXE1wIcnRD2RP,1irpGwhVpEgt6k05u-MbaQ
