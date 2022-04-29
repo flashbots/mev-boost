@@ -11,23 +11,33 @@ import (
 // NilHash represents an empty hash
 var NilHash = common.Hash{}
 
-// BlindBeaconBlockV1 forked from https://github.com/ethereum/consensus-specs/blob/v1.1.6/specs/phase0/beacon-chain.md#beaconblock
+// BlindBeaconBlockV1 spec: https://github.com/ethereum/execution-apis/blob/bd6546751054f14ce80711f5dc66508ef3f447c7/src/builder/specification.md#blindbeaconblockv1
 type BlindBeaconBlockV1 struct {
-	Slot          string          `json:"slot"`
-	ProposerIndex string          `json:"proposer_index"`
-	ParentRoot    string          `json:"parent_root"`
-	StateRoot     string          `json:"state_root"`
-	Body          json.RawMessage `json:"body"`
+	Slot          string                 `json:"slot"`
+	ProposerIndex string                 `json:"proposerIndex"`
+	ParentRoot    string                 `json:"parentRoot"`
+	StateRoot     string                 `json:"stateRoot"`
+	Body          BlindBeaconBlockBodyV1 `json:"body"`
 }
 
-// BlindBeaconBlockBodyPartial a partial block body only containing a payload, in both snake_case and camelCase
-type BlindBeaconBlockBodyPartial struct {
-	ExecutionPayload      ExecutionPayloadHeaderOnlyBlockHash `json:"execution_payload_header"`
-	ExecutionPayloadCamel ExecutionPayloadHeaderOnlyBlockHash `json:"executionPayloadHeader"`
+// BlindBeaconBlockBodyV1 spec: https://github.com/ethereum/execution-apis/blob/bd6546751054f14ce80711f5dc66508ef3f447c7/src/builder/specification.md#blindbeaconblockbodyv1
+type BlindBeaconBlockBodyV1 struct {
+	RandaoReveal hexutil.Bytes   `json:"randaoReveal"`
+	Eth1Data     json.RawMessage `json:"eth1Data"`
+	Graffiti     hexutil.Bytes   `json:"graffiti"` // Bytes32  # Arbitrary data
+
+	ProposerSlashings json.RawMessage `json:"proposerSlashings"` // List[ProposerSlashing, MAX_PROPOSER_SLASHINGS]
+	AttesterSlashings json.RawMessage `json:"attesterSlashings"` // List[AttesterSlashing, MAX_ATTESTER_SLASHINGS]
+	Attestations      json.RawMessage `json:"attestations"`      // List[Attestation, MAX_ATTESTATIONS]
+	Deposits          json.RawMessage `json:"deposits"`          // List[Deposit, MAX_DEPOSITS]
+	VoluntaryExits    json.RawMessage `json:"voluntaryExits"`    // List[SignedVoluntaryExit, MAX_VOLUNTARY_EXITS]
+
+	SyncAggregate    json.RawMessage          `json:"syncAggregate"` // `object`, [`SyncAggregateV1`](#syncaggregatev1)
+	ExecutionPayload ExecutionPayloadHeaderV1 `json:"executionPayload"`
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutionPayloadHeaderV1 -field-override executionPayloadMarshallingOverrides -out gen_executionpayloadheader.go
-// ExecutionPayloadHeaderV1 as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#executionpayloadheaderv1
+// ExecutionPayloadHeaderV1 spec https://github.com/ethereum/consensus-specs/blob/dev/specs/bellatrix/beacon-chain.md#executionpayloadheader
 type ExecutionPayloadHeaderV1 struct {
 	ParentHash       common.Hash    `json:"parentHash" gencodec:"required"`
 	FeeRecipient     common.Address `json:"feeRecipient" gencodec:"required"`
@@ -46,7 +56,7 @@ type ExecutionPayloadHeaderV1 struct {
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutionPayloadV1 -field-override executionPayloadMarshallingOverrides -out gen_executionpayload.go
-// ExecutionPayloadV1 as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#executionpayloadv1
+// ExecutionPayloadV1 as defined in https://github.com/ethereum/execution-apis/blob/v1.0.0-alpha.8/src/engine/specification.md#executionpayloadv1
 type ExecutionPayloadV1 struct {
 	ParentHash    common.Hash    `json:"parentHash" gencodec:"required"`
 	FeeRecipient  common.Address `json:"feeRecipient" gencodec:"required"`
@@ -62,12 +72,6 @@ type ExecutionPayloadV1 struct {
 	BaseFeePerGas *big.Int       `json:"baseFeePerGas" gencodec:"required"`
 	BlockHash     common.Hash    `json:"blockHash" gencodec:"required"`
 	Transactions  *[]string      `json:"transactions" gencodec:"required"`
-}
-
-// ExecutionPayloadHeaderOnlyBlockHash an execution payload with only a block hash, used for BlindBeaconBlockBodyPartial
-type ExecutionPayloadHeaderOnlyBlockHash struct {
-	BlockHash      string `json:"block_hash"`
-	BlockHashCamel string `json:"blockHash"`
 }
 
 // JSON type overrides for executableData.
