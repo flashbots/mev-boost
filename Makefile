@@ -58,8 +58,8 @@ build-for-docker:
 docker-image:
 	DOCKER_BUILDKIT=1 docker build . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${GIT_VER}
-	docker tag mev-boost:latest ${DOCKER_REPO}:kintsugi
+	docker tag mev-boost:latest ${DOCKER_REPO}:latest
 
 docker-push:
 	docker push ${DOCKER_REPO}:${GIT_VER}
-	docker push ${DOCKER_REPO}:kintsugi
+	docker push ${DOCKER_REPO}:latest

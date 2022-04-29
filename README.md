@@ -6,11 +6,20 @@
 
 A service that allows Ethereum Consensus Layer (CL) clients to outsource block construction to third party block builders in addition to execution clients.
 
-**→ See also the [Builder API Spec](https://github.com/ethereum/execution-apis/pull/209/files)**
+See also:
+
+* **[Builder API specification](https://github.com/ethereum/execution-apis/pull/209/files)**
+* [Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags)
+
+---
+
+### System diagram
 
 ![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
 
-v0.2 request flow:
+([source](https://excalidraw.com/#json=VHl16agggXE1wIcnRD2RP,1irpGwhVpEgt6k05u-MbaQ))
+
+### Request sequence
 
 ```mermaid
 sequenceDiagram
@@ -19,23 +28,23 @@ sequenceDiagram
     participant relays
     Title: Block Proposal
     Note over consensus: sign fee recipient announcement
-    consensus->>mev_boost: builder_registerValidator
-    mev_boost->>relays: builder_registerValidator
+    consensus->>mev_boost: builder_registerValidatorV1
+    mev_boost->>relays: builder_registerValidatorV1
     Note over consensus: wait for allocated slot
-    consensus->>mev_boost: builder_getHeader
-    mev_boost->>relays: builder_getHeader
-    relays-->>mev_boost: builder_getHeader response
+    consensus->>mev_boost: builder_getHeaderV1
+    mev_boost->>relays: builder_getHeaderV1
+    relays-->>mev_boost: builder_getHeaderV1 response
     Note over mev_boost: verify response matches expected
     Note over mev_boost: select best payload
-    mev_boost-->>consensus: builder_getHeader response
+    mev_boost-->>consensus: builder_getHeaderV1 response
     Note over consensus: sign the block
-    consensus->>mev_boost: builder_getPayload
+    consensus->>mev_boost: builder_getPayloadV1
     Note over mev_boost: identify payload source
-    mev_boost->>relays: builder_getPayload
+    mev_boost->>relays: builder_getPayloadV1
     Note over relays: validate signature
-    relays-->>mev_boost: builder_getPayload response
+    relays-->>mev_boost: builder_getPayloadV1 response
     Note over mev_boost: verify response matches expected
-    mev_boost-->>consensus: builder_getPayload response
+    mev_boost-->>consensus: builder_getPayloadV1 response
 ```
 
 ## Implementation Plan
