@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.17 as builder
+FROM golang:1.18 as builder
 WORKDIR /build
 ADD . /build/
 RUN --mount=type=cache,target=/root/.cache/go-build make build-for-docker
