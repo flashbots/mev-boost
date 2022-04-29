@@ -361,10 +361,10 @@ func TestE2E_GetPayload(t *testing.T) {
 
 	res := new(types.ExecutionPayloadV1)
 	err = client.Call(&res, "builder_getPayloadV1",
-		&types.BlindBeaconBlockV1{
+		&types.BlindedBeaconBlockV1{
 			Slot: "0x1",
-			Body: types.BlindBeaconBlockBodyV1{
-				ExecutionPayload: types.ExecutionPayloadHeaderV1{
+			Body: types.BlindedBeaconBlockBodyV1{
+				ExecutionPayloadHeader: types.ExecutionPayloadHeaderV1{
 					BaseFeePerGas: big.NewInt(4),
 				},
 			},

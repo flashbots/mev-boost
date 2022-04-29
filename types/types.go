@@ -11,17 +11,17 @@ import (
 // NilHash represents an empty hash
 var NilHash = common.Hash{}
 
-// BlindBeaconBlockV1 spec: https://github.com/ethereum/execution-apis/blob/bd6546751054f14ce80711f5dc66508ef3f447c7/src/builder/specification.md#blindbeaconblockv1
-type BlindBeaconBlockV1 struct {
-	Slot          string                 `json:"slot"`
-	ProposerIndex string                 `json:"proposerIndex"`
-	ParentRoot    string                 `json:"parentRoot"`
-	StateRoot     string                 `json:"stateRoot"`
-	Body          BlindBeaconBlockBodyV1 `json:"body"`
+// BlindedBeaconBlockV1 spec: https://github.com/ethereum/execution-apis/pull/209/files#diff-20ad1b5e044517450181107c321127eff3a6beeb9deaee4906c9c90cc778daf9R28
+type BlindedBeaconBlockV1 struct {
+	Slot          string                   `json:"slot"`
+	ProposerIndex string                   `json:"proposerIndex"`
+	ParentRoot    string                   `json:"parentRoot"`
+	StateRoot     string                   `json:"stateRoot"`
+	Body          BlindedBeaconBlockBodyV1 `json:"body"`
 }
 
-// BlindBeaconBlockBodyV1 spec: https://github.com/ethereum/execution-apis/blob/bd6546751054f14ce80711f5dc66508ef3f447c7/src/builder/specification.md#blindbeaconblockbodyv1
-type BlindBeaconBlockBodyV1 struct {
+// BlindedBeaconBlockBodyV1 spec: https://github.com/ethereum/execution-apis/pull/209/files#diff-20ad1b5e044517450181107c321127eff3a6beeb9deaee4906c9c90cc778daf9R35
+type BlindedBeaconBlockBodyV1 struct {
 	RandaoReveal hexutil.Bytes   `json:"randaoReveal"`
 	Eth1Data     json.RawMessage `json:"eth1Data"`
 	Graffiti     hexutil.Bytes   `json:"graffiti"` // Bytes32  # Arbitrary data
@@ -32,8 +32,8 @@ type BlindBeaconBlockBodyV1 struct {
 	Deposits          json.RawMessage `json:"deposits"`          // List[Deposit, MAX_DEPOSITS]
 	VoluntaryExits    json.RawMessage `json:"voluntaryExits"`    // List[SignedVoluntaryExit, MAX_VOLUNTARY_EXITS]
 
-	SyncAggregate    json.RawMessage          `json:"syncAggregate"` // `object`, [`SyncAggregateV1`](#syncaggregatev1)
-	ExecutionPayload ExecutionPayloadHeaderV1 `json:"executionPayload"`
+	SyncAggregate          json.RawMessage          `json:"syncAggregate"` // `object`, [`SyncAggregateV1`](#syncaggregatev1)
+	ExecutionPayloadHeader ExecutionPayloadHeaderV1 `json:"executionPayloadHeader"`
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutionPayloadHeaderV1 -field-override executionPayloadMarshallingOverrides -out gen_executionpayloadheader.go
