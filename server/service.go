@@ -109,8 +109,13 @@ func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.Re
 		return nil, rpcErrInvalidSignature
 	}
 
-	ok := false // at least one builder has returned true
-	var lastRelayError error
+	type safeRegisterContainer struct {
+		mu             sync.Mutex
+		ok             bool // at least one builder has returned true
+		lastRelayError error
+	}
+	container := safeRegisterContainer{}
+
 	var wg sync.WaitGroup
 	for _, url := range m.relayURLs {
 		wg.Add(1)
@@ -125,7 +130,9 @@ func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.Re
 			}
 			if res.Error != nil {
 				logMethod.WithFields(logrus.Fields{"error": res.Error, "url": url}).Warn("error reply from relay")
-				lastRelayError = res.Error
+				container.mu.Lock()
+				defer container.mu.Unlock()
+				container.lastRelayError = res.Error
 				return
 			}
 
@@ -138,7 +145,9 @@ func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.Re
 			}
 
 			// Ok should be true if any one builder responds with OK
-			ok = ok || builderResult == ServiceStatusOk
+			container.mu.Lock()
+			defer container.mu.Unlock()
+			container.ok = container.ok || builderResult == ServiceStatusOk
 		}(url)
 	}
 
@@ -147,9 +156,9 @@ func (m *BoostService) RegisterValidatorV1(ctx context.Context, message types.Re
 
 	// If no relay responded true, return the last error message, or a generic error
 	var err error
-	if !ok {
-		err = lastRelayError
-		if lastRelayError == nil {
+	if !container.ok {
+		err = container.lastRelayError
+		if container.lastRelayError == nil {
 			err = errors.New("no relay responded true")
 		}
 		return nil, err
