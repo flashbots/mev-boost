@@ -10,6 +10,9 @@ build:
 test:
 	go test ./...
 
+test-race:
+	go test ./... -race
+
 lint:
 	revive -set_exit_status ./...
 	go vet ./...

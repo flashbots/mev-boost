@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/ethereum/go-ethereum v1.10.17
 	github.com/fjl/gencodec v0.0.0-20191126094850-e283372f291f
-	github.com/flashbots/go-utils v0.4.1-0.20220413084516-2fd58ecf7ff9
+	github.com/flashbots/go-utils v0.4.4
 	github.com/sirupsen/logrus v1.2.0
 	github.com/stretchr/testify v1.7.0
 )
