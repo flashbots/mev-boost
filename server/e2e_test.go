@@ -78,8 +78,8 @@ func TestE2E_RegisterValidator(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, ServiceStatusOk, res)
-	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 1)
-	assert.Equal(t, relay2.RequestCounter["builder_registerValidatorV1"], 1)
+	assert.Equal(t, relay1.GetRequestCount("builder_registerValidatorV1"), 1)
+	assert.Equal(t, relay2.GetRequestCount("builder_registerValidatorV1"), 1)
 
 	// ---
 	// Test one relay returning true, one false (expect true from mev-boost)
@@ -91,8 +91,8 @@ func TestE2E_RegisterValidator(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, ServiceStatusOk, res)
-	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 2)
-	assert.Equal(t, relay2.RequestCounter["builder_registerValidatorV1"], 2)
+	assert.Equal(t, relay1.GetRequestCount("builder_registerValidatorV1"), 2)
+	assert.Equal(t, relay2.GetRequestCount("builder_registerValidatorV1"), 2)
 
 	// ---
 	// Test both relays returning false (expect false from mev-boost)
@@ -103,8 +103,8 @@ func TestE2E_RegisterValidator(t *testing.T) {
 		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14", // signature
 	)
 	require.NotNil(t, err, err)
-	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 3)
-	assert.Equal(t, relay2.RequestCounter["builder_registerValidatorV1"], 3)
+	assert.Equal(t, relay1.GetRequestCount("builder_registerValidatorV1"), 3)
+	assert.Equal(t, relay2.GetRequestCount("builder_registerValidatorV1"), 3)
 }
 
 // Ensure mev-boost catches an invalid payload (invalid number of params)
@@ -125,7 +125,7 @@ func TestE2E_RegisterValidator_Error(t *testing.T) {
 		"0x01",
 	)
 	require.NotNil(t, err, err)
-	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 0)
+	assert.Equal(t, relay1.GetRequestCount("builder_registerValidatorV1"), 0)
 
 	// Test invalid message type
 	err = client.Call(&res, "builder_registerValidatorV1",
@@ -137,7 +137,7 @@ func TestE2E_RegisterValidator_Error(t *testing.T) {
 	ec, isErrorWithCode := err.(errorWithCode)
 	require.True(t, isErrorWithCode)
 	require.Equal(t, -32602, ec.ErrorCode())
-	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 0)
+	assert.Equal(t, relay1.GetRequestCount("builder_registerValidatorV1"), 0)
 
 	// Invalid message type
 	err = client.Call(&res, "builder_registerValidatorV1",
@@ -148,7 +148,7 @@ func TestE2E_RegisterValidator_Error(t *testing.T) {
 	ec, isErrorWithCode = err.(errorWithCode)
 	require.True(t, isErrorWithCode)
 	require.Equal(t, -32602, ec.ErrorCode())
-	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 0)
+	assert.Equal(t, relay1.GetRequestCount("builder_registerValidatorV1"), 0)
 
 	// Invalid signature
 	err = client.Call(&res, "builder_registerValidatorV1",
@@ -163,7 +163,7 @@ func TestE2E_RegisterValidator_Error(t *testing.T) {
 	ec, isErrorWithCode = err.(errorWithCode)
 	require.True(t, isErrorWithCode)
 	require.Equal(t, -32602, ec.ErrorCode())
-	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 0)
+	assert.Equal(t, relay1.GetRequestCount("builder_registerValidatorV1"), 0)
 
 	// no relay returned ok
 	relay1.SetHandler("builder_registerValidatorV1", func(req *jsonrpc.JSONRPCRequest) (interface{}, error) {
@@ -181,7 +181,7 @@ func TestE2E_RegisterValidator_Error(t *testing.T) {
 	ec, isErrorWithCode = err.(errorWithCode)
 	require.True(t, isErrorWithCode)
 	require.Equal(t, -32603, ec.ErrorCode())
-	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 1)
+	assert.Equal(t, relay1.GetRequestCount("builder_registerValidatorV1"), 1)
 }
 
 // Ensure mev-boost passes on error codes from relay
@@ -215,7 +215,7 @@ func Test_RelayErrorCodePassthrough(t *testing.T) {
 	require.True(t, isErrorWithCode)
 	require.Equal(t, -123, ec.ErrorCode())
 
-	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 1)
+	assert.Equal(t, relay1.GetRequestCount("builder_registerValidatorV1"), 1)
 }
 
 // Ensure that mev-boost forwards the last error response from the relay if all relays return an error
@@ -246,8 +246,8 @@ func TestE2E_RegisterValidator_RelayError(t *testing.T) {
 		"0xab5dc3c47ea96503823f364c4c1bb747560dc8874d90acdd0cbcfe1abc5457a70ab7e8175c074ace44dead2427e6d2353184c61c6eebc3620b8cec1e9115e35e4513369d7a68d7a5dad719cb6f5a85788490f76ca3580758042da4d003ef373f", // signature
 	)
 	require.NotNil(t, err, err)
-	assert.Equal(t, relay1.RequestCounter["builder_registerValidatorV1"], 1)
-	assert.Equal(t, relay2.RequestCounter["builder_registerValidatorV1"], 1)
+	assert.Equal(t, relay1.GetRequestCount("builder_registerValidatorV1"), 1)
+	assert.Equal(t, relay2.GetRequestCount("builder_registerValidatorV1"), 1)
 }
 
 // builder for a getHeader handler with a custom value
@@ -296,8 +296,8 @@ func TestE2E_GetHeader(t *testing.T) {
 	err = client.Call(&res, "builder_getHeaderV1", "0x1", pubkey, parentHash)
 	require.NoError(t, err)
 	require.Equal(t, parentHash, res.Message.Header.ParentHash)
-	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 1)
-	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 1)
+	assert.Equal(t, relay1.GetRequestCount("builder_getHeaderV1"), 1)
+	assert.Equal(t, relay2.GetRequestCount("builder_getHeaderV1"), 1)
 	assert.Equal(t, "12345678", res.Message.Value.ToInt().String())
 
 	// ---
@@ -313,8 +313,8 @@ func TestE2E_GetHeader(t *testing.T) {
 	relay2.SetHandler("builder_getHeaderV1", makeBuilderGetHeaderV1Handler(12345678, parentHash, 110*time.Millisecond))
 	err = client2.Call(&res, "builder_getHeaderV1", "0x1", pubkey, parentHash.Hex())
 	require.NoError(t, err)
-	assert.Equal(t, relay1.RequestCounter["builder_getHeaderV1"], 2)
-	assert.Equal(t, relay2.RequestCounter["builder_getHeaderV1"], 2)
+	assert.Equal(t, relay1.GetRequestCount("builder_getHeaderV1"), 2)
+	assert.Equal(t, relay2.GetRequestCount("builder_getHeaderV1"), 2)
 	assert.Equal(t, "12345", res.Message.Value.ToInt().String())
 }
 
@@ -372,8 +372,8 @@ func TestE2E_GetPayload(t *testing.T) {
 		"0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14",
 	)
 	require.NoError(t, err)
-	assert.Equal(t, relay1.RequestCounter["builder_getPayloadV1"], 1)
-	assert.Equal(t, relay2.RequestCounter["builder_getPayloadV1"], 1)
+	assert.Equal(t, relay1.GetRequestCount("builder_getPayloadV1"), 1)
+	assert.Equal(t, relay2.GetRequestCount("builder_getPayloadV1"), 1)
 }
 
 func TestE2E_Status(t *testing.T) {
