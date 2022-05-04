@@ -41,19 +41,18 @@ func main() {
 	}
 
 	listenAddress := fmt.Sprintf("%s:%d", *host, *port)
-	server, err := server.NewBoostRPCServer(server.BoostRPCServerOptions{
-		ListenAddr:       listenAddress,
-		RelayURLs:        _relayURLs,
-		Cors:             []string{"*"},
-		Log:              log,
-		GetHeaderTimeout: time.Duration(*getHeaderTimeoutMs) * time.Millisecond,
-	})
+	relayTimeouts := server.RelayTimeouts{
+		Default:    3 * time.Millisecond,
+		GetHeader:  time.Duration(*getHeaderTimeoutMs) * time.Millisecond,
+		GetPayload: time.Duration(*getHeaderTimeoutMs) * time.Millisecond,
+	}
+	server, err := server.NewBoostService(listenAddress, _relayURLs, log, relayTimeouts)
 	if err != nil {
 		log.WithFields(logrus.Fields{"error": err}).Fatal("failed creating the server")
 	}
 
 	log.Println("listening on ", listenAddress)
-	log.Fatal(server.ListenAndServe())
+	log.Fatal(server.StartHTTPServer())
 }
 
 func getEnv(key string, defaultValue string) string {

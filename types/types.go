@@ -87,10 +87,21 @@ type executionPayloadMarshallingOverrides struct {
 
 // RegisterValidatorRequestMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#request
 type RegisterValidatorRequestMessage struct {
-	FeeRecipient common.Address `json:"feeRecipient"`
+	FeeRecipient common.Address `json:"fee_recipient"`
 	Timestamp    hexutil.Uint64 `json:"timestamp"`
 	Pubkey       hexutil.Bytes  `json:"pubkey"`
 }
+
+// RegisterValidatorRequest as defined in XXX
+type RegisterValidatorRequest struct {
+	Message   RegisterValidatorRequestMessage `json:"message"`
+	Signature hexutil.Bytes                   `json:"signature"`
+}
+
+// // RegisterValidatorResponse todo
+// type RegisterValidatorResponse struct {
+// 	Status string `json:"status"`
+// }
 
 // GetHeaderResponseMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#response-1
 type GetHeaderResponseMessage struct {
