@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/types"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -88,7 +87,7 @@ func (m *BoostService) getRouter() http.Handler {
 	r.HandleFunc("/", m.handleRoot)
 	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator)
 	r.Use(mux.CORSMethodMiddleware(r))
-	loggedRouter := httplogger.LoggingMiddleware(r)
+	loggedRouter := LoggingMiddleware(r, m.log)
 	return loggedRouter
 }
 

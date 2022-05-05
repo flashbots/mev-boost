@@ -5,7 +5,6 @@ go 1.18
 require (
 	github.com/ethereum/go-ethereum v1.10.17
 	github.com/fjl/gencodec v0.0.0-20191126094850-e283372f291f
-	github.com/flashbots/go-utils v0.4.4
 	github.com/gorilla/mux v1.8.0
 	github.com/sirupsen/logrus v1.2.0
 	github.com/stretchr/testify v1.7.0
@@ -14,7 +13,6 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/garslo/gogen v0.0.0-20170306192744-1d203ffc1f61 // indirect
-	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064 // indirect

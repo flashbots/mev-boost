@@ -88,7 +88,8 @@ type executionPayloadMarshallingOverrides struct {
 // RegisterValidatorRequestMessage as defined in https://github.com/flashbots/mev-boost/blob/main/docs/specification.md#request
 type RegisterValidatorRequestMessage struct {
 	FeeRecipient common.Address `json:"fee_recipient"`
-	Timestamp    hexutil.Uint64 `json:"timestamp"`
+	GasLimit     string         `json:"gas_limit"`
+	Timestamp    string         `json:"timestamp"`
 	Pubkey       hexutil.Bytes  `json:"pubkey"`
 }
 
