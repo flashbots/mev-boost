@@ -73,7 +73,7 @@ func TestRegisterValidator(t *testing.T) {
 }
 
 func TestRegisterValidator_InvalidRelayResponses(t *testing.T) {
-	backend := newTestBackend(t, 2, 2*time.Second)
+	backend := newTestBackend(t, 2, time.Second)
 	path := "/registerValidator"
 
 	rr := backend.post(t, path, payloadRegisterValidator)
@@ -94,4 +94,21 @@ func TestRegisterValidator_InvalidRelayResponses(t *testing.T) {
 	require.Equal(t, http.StatusBadGateway, rr.Code)
 	require.Equal(t, 3, backend.relays[0].RequestCount[path])
 	require.Equal(t, 3, backend.relays[1].RequestCount[path])
+}
+
+func TestRegisterValidator_RequestTimeout(t *testing.T) {
+	backend := newTestBackend(t, 1, 5*time.Millisecond) // 10ms max
+	path := "/registerValidator"
+
+	rr := backend.post(t, path, payloadRegisterValidator)
+	require.Equal(t, http.StatusOK, rr.Code)
+
+	// Now make the relay return slowly
+	backend.relays[0].HandlerOverride = func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(10 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}
+	rr = backend.post(t, path, payloadRegisterValidator)
+	require.Equal(t, http.StatusBadGateway, rr.Code)
+	require.Equal(t, 2, backend.relays[0].RequestCount[path])
 }
