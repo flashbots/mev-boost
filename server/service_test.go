@@ -11,6 +11,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewBoostServiceErrors(t *testing.T) {
+	// Test errors
+	t.Run("errors when no relays", func(t *testing.T) {
+		_, err := NewBoostService(":123", []types.RelayEntry{}, testLog, time.Second)
+		require.Error(t, err)
+	})
+}
+
+func TestWebserver(t *testing.T) {
+	t.Run("errors when webserver is already existing", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.srv = &http.Server{}
+		err := backend.boost.StartHTTPServer()
+		require.Error(t, err)
+	})
+}
+
 func TestWebserverRootHandler(t *testing.T) {
 	backend := newTestBackend(t, 1, time.Second)
 
@@ -26,8 +43,8 @@ func TestWebserverRootHandler(t *testing.T) {
 var payloadRegisterValidator = types.RegisterValidatorRequest{
 	Message: types.RegisterValidatorRequestMessage{
 		FeeRecipient: common.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
-		Timestamp:    "1234356",
-		GasLimit:     "278234191203",
+		Timestamp:    1234356,
+		GasLimit:     278234191203,
 		Pubkey:       _hexToBytes("0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2"),
 	},
 	Signature: _hexToBytes("0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14"),
@@ -47,7 +64,7 @@ func TestRegisterValidator(t *testing.T) {
 		rr := backend.post(t, path, types.RegisterValidatorRequest{
 			Message: types.RegisterValidatorRequestMessage{
 				FeeRecipient: common.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
-				Timestamp:    "1234356",
+				Timestamp:    1234356,
 				Pubkey:       _hexToBytes("0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2"),
 			},
 			Signature: _hexToBytes("0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d"),
@@ -61,7 +78,7 @@ func TestRegisterValidator(t *testing.T) {
 		rr := backend.post(t, path, types.RegisterValidatorRequest{
 			Message: types.RegisterValidatorRequestMessage{
 				FeeRecipient: common.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
-				Timestamp:    "1234356",
+				Timestamp:    1234356,
 				Pubkey:       _hexToBytes("0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1"),
 			},
 			Signature: _hexToBytes("0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14"),

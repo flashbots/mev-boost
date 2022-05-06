@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var testLog = logrus.WithField("testing", true)
+
 func _hexToBytes(hex string) []byte {
 	bytes, err := hexutil.Decode(hex)
 	if err != nil {
@@ -31,7 +33,6 @@ type testBackend struct {
 }
 
 func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *testBackend {
-	log := logrus.WithField("testing", true)
 	resp := testBackend{
 		relays: make([]*mockRelay, numRelays),
 	}
@@ -42,7 +43,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relayEntries[i].Address = resp.relays[i].Server.URL
 	}
 
-	service, err := NewBoostService(":12345", relayEntries, log, relayTimeout)
+	service, err := NewBoostService(":12345", relayEntries, testLog, relayTimeout)
 	require.NoError(t, err)
 
 	resp.boost = service
