@@ -3,12 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math/rand"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/flashbots/mev-boost/server"
+	"github.com/flashbots/mev-boost/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,42 +18,36 @@ var (
 	version = "dev" // is set during build process
 
 	// defaults
-	defaultHost               = "localhost"
-	defaultPort               = 18550
-	defaultRelayURLs          = getEnv("RELAY_URLS", "http://127.0.0.1:28545")
-	defaultGetHeaderTimeOutMs = 2000
+	defaultHost           = getEnv("BOOST_HOST", "localhost")
+	defaultPort           = getEnvInt("BOOST_PORT", 18550)
+	defaultRelayURLs      = getEnv("RELAY_URLS", "127.0.0.1:28545") // can be IP@PORT or PUBKEY@IP:PORT
+	defaultRelayTimeoutMs = getEnvInt("RELAY_TIMEOUT_MS", 2000)     // timeout
 
 	// cli flags
-	host               = flag.String("host", defaultHost, "host for mev-boost to listen on")
-	port               = flag.Int("port", defaultPort, "port for mev-boost to listen on")
-	relayURLs          = flag.String("relayUrl", defaultRelayURLs, "relay urls - single entry or comma-separated list")
-	getHeaderTimeoutMs = flag.Int("getHeaderTimeoutMs", defaultGetHeaderTimeOutMs, "max request timeout for getHeader in milliseconds (default: 2000 ms)")
+	host           = flag.String("host", defaultHost, fmt.Sprintf("host for mev-boost to listen on. default: %s", defaultHost))
+	port           = flag.Int("port", defaultPort, fmt.Sprintf("port for mev-boost to listen on. default: %d", defaultPort))
+	relayURLs      = flag.String("relays", defaultRelayURLs, fmt.Sprintf("relay urls - single entry or comma-separated list (pubkey@ip:port). default: %s", defaultRelayURLs))
+	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, fmt.Sprintf("timeout for requests to a relay [ms]. default: %d", defaultRelayTimeoutMs))
 )
 
-func main() {
-	rand.Seed(time.Now().UnixNano()) // warning: not a cryptographically secure seed
+var log = logrus.WithField("module", "cmd/mev-boost")
 
+func main() {
 	flag.Parse()
-	log := logrus.WithField("module", "cmd/mev-boost")
 	log.Printf("mev-boost %s\n", version)
 
-	_relayURLs := []string{}
-	for _, entry := range strings.Split(*relayURLs, ",") {
-		_relayURLs = append(_relayURLs, strings.Trim(entry, " "))
-	}
+	relays := parseRelayURLs(*relayURLs)
+	log.WithField("relays", relays).Infof("using %d relays", len(relays))
+	// TODO: relay connection checks?
 
 	listenAddress := fmt.Sprintf("%s:%d", *host, *port)
-	relayTimeouts := server.RelayTimeouts{
-		Default:    3 * time.Millisecond,
-		GetHeader:  time.Duration(*getHeaderTimeoutMs) * time.Millisecond,
-		GetPayload: time.Duration(*getHeaderTimeoutMs) * time.Millisecond,
-	}
-	server, err := server.NewBoostService(listenAddress, _relayURLs, log, relayTimeouts)
+	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
+	server, err := server.NewBoostService(listenAddress, relays, log, relayTimeout)
 	if err != nil {
-		log.WithFields(logrus.Fields{"error": err}).Fatal("failed creating the server")
+		log.WithError(err).Fatal("failed creating the server")
 	}
 
-	log.Println("listening on ", listenAddress)
+	log.Println("listening on", listenAddress)
 	log.Fatal(server.StartHTTPServer())
 }
 
@@ -60,4 +56,36 @@ func getEnv(key string, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value, ok := os.LookupEnv(key); ok {
+		val, err := strconv.Atoi(value)
+		if err == nil {
+			return val
+		}
+	}
+	return defaultValue
+}
+
+func parseRelayURLs(relayURLs string) []types.RelayEntry {
+	ret := []types.RelayEntry{}
+	for _, entry := range strings.Split(relayURLs, ",") {
+		if !strings.HasPrefix(entry, "relay://") {
+			entry = "relay://" + entry
+		}
+
+		u, err := url.Parse(entry)
+		if err != nil {
+			log.WithError(err).WithField("relay", entry).Fatal("Invalid relay URL")
+		}
+
+		relay := types.RelayEntry{Address: u.Host}
+		err = relay.Pubkey.UnmarshalText([]byte(u.User.Username()))
+		if err != nil {
+			log.WithError(err).WithField("relay", entry).Fatal("Invalid relay public key")
+		}
+		ret = append(ret, relay)
+	}
+	return ret
 }

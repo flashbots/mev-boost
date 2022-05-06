@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/flashbots/mev-boost/types"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestWebserverRootHandler(t *testing.T) {
-	backend := newTestBackend(t, 1, RelayTimeouts{})
+	backend := newTestBackend(t, 1, time.Second)
 
 	// Check root handler
 	req, _ := http.NewRequest("GET", "/", nil)
@@ -33,7 +34,7 @@ var payloadRegisterValidator = types.RegisterValidatorRequest{
 }
 
 func TestRegisterValidator(t *testing.T) {
-	backend := newTestBackend(t, 1, RelayTimeouts{})
+	backend := newTestBackend(t, 1, time.Second)
 	path := "/registerValidator"
 
 	t.Run("valid request, valid relay response", func(t *testing.T) {
@@ -72,7 +73,7 @@ func TestRegisterValidator(t *testing.T) {
 }
 
 func TestRegisterValidator_InvalidRelayResponses(t *testing.T) {
-	backend := newTestBackend(t, 2, RelayTimeouts{})
+	backend := newTestBackend(t, 2, 2*time.Second)
 	path := "/registerValidator"
 
 	rr := backend.post(t, path, payloadRegisterValidator)

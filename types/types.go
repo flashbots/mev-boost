@@ -116,3 +116,9 @@ type GetHeaderResponse struct {
 	Message   GetHeaderResponseMessage `json:"message"`
 	Signature hexutil.Bytes            `json:"signature"`
 }
+
+// RelayEntry represents a relay that mev-boost connects to
+type RelayEntry struct {
+	Address string
+	Pubkey  hexutil.Bytes
+}

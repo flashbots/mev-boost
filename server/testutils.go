@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/mev-boost/types"
@@ -29,19 +30,19 @@ type testBackend struct {
 	relays []*mockRelay
 }
 
-func newTestBackend(t *testing.T, numRelays int, relayTimeouts RelayTimeouts) *testBackend {
+func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *testBackend {
 	log := logrus.WithField("testing", true)
 	resp := testBackend{
 		relays: make([]*mockRelay, numRelays),
 	}
 
-	relayURLs := []string{}
+	relayEntries := make([]types.RelayEntry, numRelays)
 	for i := 0; i < numRelays; i++ {
 		resp.relays[i] = newMockRelay()
-		relayURLs = append(relayURLs, resp.relays[i].Server.URL)
+		relayEntries[i].Address = resp.relays[i].Server.URL
 	}
 
-	service, err := NewBoostService(":12345", relayURLs, log, relayTimeouts)
+	service, err := NewBoostService(":12345", relayEntries, log, relayTimeout)
 	require.NoError(t, err)
 
 	resp.boost = service

@@ -42,43 +42,32 @@ func NewDefaultHTTPServerTimeouts() HTTPServerTimeouts {
 	}
 }
 
-// RelayTimeouts are various timeouts for mev-boost requests to the relay
-type RelayTimeouts struct {
-	Default    time.Duration
-	GetHeader  time.Duration
-	GetPayload time.Duration
-}
-
 // BoostService TODO
 type BoostService struct {
 	listenAddr string
-	relayURLs  []string
+	relays     []types.RelayEntry
 	log        *logrus.Entry
 	srv        *http.Server
 
 	serverTimeouts HTTPServerTimeouts
 
-	defaultClient    http.Client
-	getHeaderClient  http.Client
-	getPayloadClient http.Client
+	httpClient http.Client
 }
 
 // NewBoostService created a new BoostService
-func NewBoostService(listenAddr string, relayURLs []string, log *logrus.Entry, relayTimeouts RelayTimeouts) (*BoostService, error) {
-	if len(relayURLs) == 0 || relayURLs[0] == "" {
-		return nil, errors.New("no relayURLs")
+func NewBoostService(listenAddr string, relays []types.RelayEntry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
+	// TODO: validate relays
+	if len(relays) == 0 {
+		return nil, errors.New("no relays")
 	}
 
 	return &BoostService{
 		listenAddr: listenAddr,
-		relayURLs:  relayURLs,
+		relays:     relays,
 		log:        log.WithField("module", "service"),
 
 		serverTimeouts: NewDefaultHTTPServerTimeouts(),
-
-		defaultClient:    http.Client{Timeout: relayTimeouts.Default},
-		getHeaderClient:  http.Client{Timeout: relayTimeouts.GetHeader},
-		getPayloadClient: http.Client{Timeout: relayTimeouts.GetPayload},
+		httpClient:     http.Client{Timeout: relayRequestTimeout},
 	}, nil
 }
 
@@ -140,13 +129,13 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		return
 	}
 
-	resultC := make(chan *httpResponseContainer, len(m.relayURLs))
-	for _, url := range m.relayURLs {
+	resultC := make(chan *httpResponseContainer, len(m.relays))
+	for _, relay := range m.relays {
 		go func(url string) {
 			_url := url + pathRegisterValidator
-			res, err := makePostRequest(context.Background(), m.defaultClient, _url, payload)
+			res, err := makePostRequest(context.Background(), m.httpClient, _url, payload)
 			resultC <- &httpResponseContainer{url, err, res}
-		}(url)
+		}(relay.Address)
 	}
 
 	numSuccessRequestsToRelay := 0
@@ -192,7 +181,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 // 		wg.Add(1)
 // 		go func(url string) {
 // 			defer wg.Done()
-// 			res, err := makeRequest(ctx, m.getHeaderClient, url, "builder_getHeaderV1", []interface{}{slot, pubkey, hash})
+// 			res, err := makeRequest(ctx, m.httpClient, url, "builder_getHeaderV1", []interface{}{slot, pubkey, hash})
 
 // 			// Check for errors
 // 			if err != nil {
