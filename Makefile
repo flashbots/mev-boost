@@ -25,14 +25,14 @@ test-coverage:
 	go test ./server/... ./types/... ./cmd/... -v -covermode=count -coverprofile=coverage.out
 
 cover:
-	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...
-	go tool cover -func /tmp/go-sim-lb.cover.tmp
-	unlink /tmp/go-sim-lb.cover.tmp
+	go test -coverprofile=coverage.out ./...
+	go tool cover -func coverage.out
+	unlink coverage.out
 
 cover-html:
-	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...
-	go tool cover -html=/tmp/go-sim-lb.cover.tmp
-	unlink /tmp/go-sim-lb.cover.tmp
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out
+	unlink coverage.out
 
 run:
 	./mev-boost

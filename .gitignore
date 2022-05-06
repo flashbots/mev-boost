@@ -20,6 +20,5 @@
 # IntelliJ
 .idea
 .ijwb
-
-mev-boost
-!cmd/mev-boost
+/mev-boost
+/tmp
