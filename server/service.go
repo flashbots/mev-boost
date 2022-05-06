@@ -72,7 +72,7 @@ func NewBoostService(listenAddr string, relayURLs []string, log *logrus.Entry, r
 	return &BoostService{
 		listenAddr: listenAddr,
 		relayURLs:  relayURLs,
-		log:        log.WithField("prefix", "service"),
+		log:        log.WithField("module", "service"),
 
 		serverTimeouts: NewDefaultHTTPServerTimeouts(),
 

@@ -25,36 +25,26 @@ func _hexToBytes(hex string) []byte {
 }
 
 type testBackend struct {
-	relays         []*mockRelay
-	boostWebserver *BoostService
-	boostRouter    http.Handler
+	boost  *BoostService
+	relays []*mockRelay
 }
 
 func newTestBackend(t *testing.T, numRelays int, relayTimeouts RelayTimeouts) *testBackend {
-	relays := make([]*mockRelay, numRelays)
-	for i := 0; i < numRelays; i++ {
-		relays[i] = newMockRelay()
-	}
-	return newTestBackendWithRelays(t, relays, relayTimeouts)
-}
-
-func newTestBackendWithRelays(t *testing.T, relays []*mockRelay, relayTimeouts RelayTimeouts) *testBackend {
 	log := logrus.WithField("testing", true)
 	resp := testBackend{
-		relays: relays,
+		relays: make([]*mockRelay, numRelays),
 	}
 
 	relayURLs := []string{}
-	for i := 0; i < len(relays); i++ {
+	for i := 0; i < numRelays; i++ {
+		resp.relays[i] = newMockRelay()
 		relayURLs = append(relayURLs, resp.relays[i].Server.URL)
 	}
 
-	webserver, err := NewBoostService(":12345", relayURLs, log, relayTimeouts)
+	service, err := NewBoostService(":12345", relayURLs, log, relayTimeouts)
 	require.NoError(t, err)
-	boostRouter := webserver.getRouter()
 
-	resp.boostWebserver = webserver
-	resp.boostRouter = boostRouter
+	resp.boost = service
 	return &resp
 }
 
@@ -66,7 +56,7 @@ func (be *testBackend) post(t *testing.T, path string, payload any) *httptest.Re
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
-	be.boostRouter.ServeHTTP(rr, req)
+	be.boost.getRouter().ServeHTTP(rr, req)
 	return rr
 }
 
@@ -88,7 +78,7 @@ func newMockRelay() *mockRelay {
 
 func (m *mockRelay) getRouter() http.Handler {
 	r := mux.NewRouter()
-	r.HandleFunc("/registerValidator", m.handleRegisterValidator)
+	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator)
 	return m.requestCounterMiddleware(r)
 }
 

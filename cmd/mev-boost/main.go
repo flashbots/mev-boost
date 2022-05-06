@@ -32,7 +32,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano()) // warning: not a cryptographically secure seed
 
 	flag.Parse()
-	log := logrus.WithField("prefix", "cmd/mev-boost")
+	log := logrus.WithField("module", "cmd/mev-boost")
 	log.Printf("mev-boost %s\n", version)
 
 	_relayURLs := []string{}
