@@ -43,7 +43,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relayEntries[i].Address = resp.relays[i].Server.URL
 	}
 
-	service, err := NewBoostService(":12345", relayEntries, testLog, relayTimeout)
+	service, err := NewBoostService("localhost:12345", relayEntries, testLog, relayTimeout)
 	require.NoError(t, err)
 
 	resp.boost = service
