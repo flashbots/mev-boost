@@ -8,7 +8,7 @@ A service that allows Ethereum Consensus Layer (CL) clients to outsource block c
 
 See also:
 
-* **[Builder API specification](https://github.com/ethereum/execution-apis/pull/209/files)**
+* **[Builder API specification](https://github.com/ethereum/builder-specs/pull/2/files)**
 * [Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags)
 
 ---
@@ -27,24 +27,24 @@ sequenceDiagram
     participant mev_boost
     participant relays
     Title: Block Proposal
-    Note over consensus: sign fee recipient announcement
-    consensus->>mev_boost: builder_registerValidatorV1
-    mev_boost->>relays: builder_registerValidatorV1
+    Note over consensus: validator starts up
+    consensus->>mev_boost: registerValidator
+    mev_boost->>relays: registerValidator
     Note over consensus: wait for allocated slot
-    consensus->>mev_boost: builder_getHeaderV1
-    mev_boost->>relays: builder_getHeaderV1
-    relays-->>mev_boost: builder_getHeaderV1 response
+    consensus->>mev_boost: getHeader
+    mev_boost->>relays: getHeader
+    relays-->>mev_boost: getHeader response
     Note over mev_boost: verify response matches expected
     Note over mev_boost: select best payload
-    mev_boost-->>consensus: builder_getHeaderV1 response
-    Note over consensus: sign the block
-    consensus->>mev_boost: builder_getPayloadV1
+    mev_boost-->>consensus: getHeader response
+    Note over consensus: sign the header
+    consensus->>mev_boost: getPayload
     Note over mev_boost: identify payload source
-    mev_boost->>relays: builder_getPayloadV1
+    mev_boost->>relays: getPayload
     Note over relays: validate signature
-    relays-->>mev_boost: builder_getPayloadV1 response
+    relays-->>mev_boost: getPayload response
     Note over mev_boost: verify response matches expected
-    mev_boost-->>consensus: builder_getPayloadV1 response
+    mev_boost-->>consensus: getPayload response
 ```
 
 ## Implementation Plan
