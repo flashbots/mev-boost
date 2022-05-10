@@ -99,6 +99,12 @@ func (m *mockRelay) getRouter() http.Handler {
 	return m.requestCounterMiddleware(r)
 }
 
+func (m *mockRelay) getRequestCount(path string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.RequestCount[path]
+}
+
 func (m *mockRelay) requestCounterMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
