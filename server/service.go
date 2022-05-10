@@ -113,7 +113,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	method := "builder_registerValidatorV1"
 	logMethod := m.log.WithField("method", method)
 
-	payload := new(types.RegisterValidatorRequest)
+	payload := new(types.SignedValidatorRegistration)
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

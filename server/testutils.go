@@ -27,6 +27,21 @@ func _hexToBytes(hex string) []byte {
 	return bytes
 }
 
+func _HexToAddress(s string) (ret types.Address) {
+	ret.UnmarshalText([]byte(s))
+	return ret
+}
+
+func _HexToPubkey(s string) (ret types.PublicKey) {
+	ret.UnmarshalText([]byte(s))
+	return
+}
+
+func _HexToSignature(s string) (ret types.Signature) {
+	ret.UnmarshalText([]byte(s))
+	return
+}
+
 type testBackend struct {
 	boost  *BoostService
 	relays []*mockRelay
@@ -104,7 +119,7 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	payload := new(types.RegisterValidatorRequest)
+	payload := new(types.SignedValidatorRegistration)
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

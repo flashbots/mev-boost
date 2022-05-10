@@ -59,6 +59,10 @@ func TestU256Str(t *testing.T) {
 }
 
 func TestHexToAddress(t *testing.T) {
-	a := HexToAddress("0x01")
-	require.Equal(t, "0x010000000000000000000000000000000000000000000000000000000000000000", a.String())
+	_, err := HexToAddress("0x01")
+	require.Error(t, err)
+
+	a, err := HexToAddress("0x0100000000000000000000000000000000000000")
+	require.NoError(t, err)
+	require.Equal(t, "0x0100000000000000000000000000000000000000", a.String())
 }

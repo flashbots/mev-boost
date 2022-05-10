@@ -56,14 +56,14 @@ func TestWebserverRootHandler(t *testing.T) {
 }
 
 // Example good registerValidator payload
-var payloadRegisterValidator = types.RegisterValidatorRequest{
+var payloadRegisterValidator = types.SignedValidatorRegistration{
 	Message: &types.RegisterValidatorRequestMessage{
-		FeeRecipient: types.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+		FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
 		Timestamp:    1234356,
 		GasLimit:     278234191203,
-		Pubkey:       types.HexToPubkey("0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2"),
+		Pubkey:       _HexToPubkey("0xf9716c94aab536227804e859d15207aa7eaaacd839f39dcbdb5adc942842a8d2fb730f9f49fc719fdb86f1873e0ed1c2"),
 	},
-	Signature: types.HexToSignature("0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14"),
+	Signature: _HexToSignature("0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14"),
 }
 
 func TestRegisterValidator(t *testing.T) {

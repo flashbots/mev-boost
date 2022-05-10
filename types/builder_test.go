@@ -176,7 +176,7 @@ func TestExecutionPayloadREST(t *testing.T) {
 	tx1 := new(hexutil.Bytes)
 	tx1.UnmarshalText([]byte(tx1hex))
 
-	msg := &ExecutionPayloadREST{
+	msg := &ExecutionPayload{
 		ParentHash:    parentHash,
 		FeeRecipient:  feeRecipient,
 		StateRoot:     Root{0x09},
@@ -219,7 +219,7 @@ func TestExecutionPayloadREST(t *testing.T) {
 	require.JSONEq(t, expectedJSON, string(b))
 
 	// Now unmarshal it back and compare to original
-	msg2 := new(ExecutionPayloadREST)
+	msg2 := new(ExecutionPayload)
 	err = json.Unmarshal(b, msg2)
 	require.NoError(t, err)
 	require.Equal(t, msg, msg2)

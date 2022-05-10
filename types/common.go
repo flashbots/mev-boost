@@ -1,5 +1,7 @@
 package types
 
+//revive:disable:exported
+
 import (
 	"fmt"
 	"math/big"
@@ -297,17 +299,17 @@ func IntToU256(i uint64) (ret U256Str) {
 	return
 }
 
-func HexToAddress(s string) (ret Address) {
-	ret.UnmarshalText([]byte(s))
-	return
+func HexToAddress(s string) (ret Address, err error) {
+	err = ret.UnmarshalText([]byte(s))
+	return ret, err
 }
 
-func HexToPubkey(s string) (ret PublicKey) {
-	ret.UnmarshalText([]byte(s))
-	return
+func HexToPubkey(s string) (ret PublicKey, err error) {
+	err = ret.UnmarshalText([]byte(s))
+	return ret, err
 }
 
-func HexToSignature(s string) (ret Signature) {
-	ret.UnmarshalText([]byte(s))
-	return
+func HexToSignature(s string) (ret Signature, err error) {
+	err = ret.UnmarshalText([]byte(s))
+	return ret, err
 }
