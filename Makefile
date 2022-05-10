@@ -10,6 +10,9 @@ v:
 build:
 	go build ./cmd/mev-boost
 
+build-cli:
+	go build ./cmd/test-cli
+
 test:
 	go test ./...
 
