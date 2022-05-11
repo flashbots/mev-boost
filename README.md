@@ -8,7 +8,7 @@ A service that allows Ethereum Consensus Layer (CL) clients to outsource block c
 
 See also:
 
-* **[Builder API specification](https://github.com/ethereum/builder-specs/pull/2/files)**
+* **[Builder API specification](https://ethereum.github.io/builder-specs/)** ([Github](https://github.com/ethereum/builder-specs))
 * [Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags)
 
 ---
@@ -57,6 +57,16 @@ References:
 * https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/
 * https://hackmd.io/@paulhauner/H1XifIQ_t
 
+# Developing
+
+
+Install required utilities:
+
+```bash
+go install github.com/ferranbt/fastssz/sszgen@latest
+go install github.com/mgechev/revive@latest
+go install honnef.co/go/tools/cmd/staticcheck@master
+```
 ## Build
 
 ```
@@ -69,24 +79,10 @@ and then run it with:
 ./mev-boost
 ```
 
-## Test
+## Lint & Test
 
 ```
 make test
-```
-
-## Lint
-
-We use `revive` as a linter and [staticcheck](https://staticcheck.io/). You need to install them with
-
-```bash
-go install github.com/mgechev/revive@latest
-go install honnef.co/go/tools/cmd/staticcheck@master
-```
-
-Lint and check the project:
-
-```bash
 make lint
 ```
 
