@@ -91,20 +91,20 @@ type SyncAggregate struct {
 
 // ExecutionPayloadHeader https://github.com/ethereum/consensus-specs/blob/dev/specs/bellatrix/beacon-chain.md#executionpayloadheader
 type ExecutionPayloadHeader struct {
-	ParentHash       Hash    `json:"parent_hash" ssz-size:"32"`
-	FeeRecipient     Address `json:"fee_recipient" ssz-size:"20"`
-	StateRoot        Root    `json:"state_root" ssz-size:"32"`
-	ReceiptsRoot     Root    `json:"receipts_root" ssz-size:"32"`
-	LogsBloom        Bloom   `json:"logs_bloom" ssz-size:"256"`
-	Random           Hash    `json:"prev_randao" ssz-size:"32"`
-	BlockNumber      uint64  `json:"block_number,string"`
-	GasLimit         uint64  `json:"gas_limit,string"`
-	GasUsed          uint64  `json:"gas_used,string"`
-	Timestamp        uint64  `json:"timestamp,string"`
-	ExtraData        Hash    `json:"extra_data" ssz-size:"32"`
-	BaseFeePerGas    U256Str `json:"base_fee_per_gas" ssz-max:"32"`
-	BlockHash        Hash    `json:"block_hash" ssz-size:"32"`
-	TransactionsRoot Root    `json:"transactions_root" ssz-size:"32"`
+	ParentHash       Hash          `json:"parent_hash" ssz-size:"32"`
+	FeeRecipient     Address       `json:"fee_recipient" ssz-size:"20"`
+	StateRoot        Root          `json:"state_root" ssz-size:"32"`
+	ReceiptsRoot     Root          `json:"receipts_root" ssz-size:"32"`
+	LogsBloom        Bloom         `json:"logs_bloom" ssz-size:"256"`
+	Random           Hash          `json:"prev_randao" ssz-size:"32"`
+	BlockNumber      uint64        `json:"block_number,string"`
+	GasLimit         uint64        `json:"gas_limit,string"`
+	GasUsed          uint64        `json:"gas_used,string"`
+	Timestamp        uint64        `json:"timestamp,string"`
+	ExtraData        hexutil.Bytes `json:"extra_data" ssz-size:"32"`
+	BaseFeePerGas    U256Str       `json:"base_fee_per_gas" ssz-max:"32"`
+	BlockHash        Hash          `json:"block_hash" ssz-size:"32"`
+	TransactionsRoot Root          `json:"transactions_root" ssz-size:"32"`
 }
 
 // ExecutionPayload https://github.com/ethereum/consensus-specs/blob/dev/specs/bellatrix/beacon-chain.md#executionpayload
@@ -119,7 +119,7 @@ type ExecutionPayload struct {
 	GasLimit      uint64          `json:"gas_limit,string"`
 	GasUsed       uint64          `json:"gas_used,string"`
 	Timestamp     uint64          `json:"timestamp,string"`
-	ExtraData     Hash            `json:"extra_data" ssz-size:"32"`
+	ExtraData     hexutil.Bytes   `json:"extra_data" ssz-size:"32"`
 	BaseFeePerGas U256Str         `json:"base_fee_per_gas" ssz-max:"32"`
 	BlockHash     Hash            `json:"block_hash" ssz-size:"32"`
 	Transactions  []hexutil.Bytes `json:"transactions"` // ssz-size/ssz-max:"2048"?

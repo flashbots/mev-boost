@@ -24,7 +24,7 @@ func TestExecutionPayloadHeader(t *testing.T) {
 		GasLimit:         5002,
 		GasUsed:          5003,
 		Timestamp:        5004,
-		ExtraData:        Hash{0x07},
+		ExtraData:        hexutil.Bytes{0x07},
 		BaseFeePerGas:    baseFeePerGas,
 		BlockHash:        Hash{0x09},
 		TransactionsRoot: Root{0x0a},
@@ -43,7 +43,7 @@ func TestExecutionPayloadHeader(t *testing.T) {
         "gas_limit": "5002",
         "gas_used": "5003",
         "timestamp": "5004",
-        "extra_data": "0x0700000000000000000000000000000000000000000000000000000000000000",
+        "extra_data": "0x07",
         "base_fee_per_gas": "8",
         "block_hash": "0x0900000000000000000000000000000000000000000000000000000000000000",
         "transactions_root": "0x0a00000000000000000000000000000000000000000000000000000000000000"
@@ -95,7 +95,7 @@ func TestBlindedBeaconBlock(t *testing.T) {
 				GasLimit:         5002,
 				GasUsed:          5003,
 				Timestamp:        5004,
-				ExtraData:        Hash{0x0d},
+				ExtraData:        hexutil.Bytes{0x0d},
 				BaseFeePerGas:    IntToU256(123456789),
 				BlockHash:        blockHash,
 				TransactionsRoot: Root{0x0e},
@@ -146,7 +146,7 @@ func TestBlindedBeaconBlock(t *testing.T) {
                 "gas_limit": "5002",
                 "gas_used": "5003",
                 "timestamp": "5004",
-                "extra_data": "0x0d00000000000000000000000000000000000000000000000000000000000000",
+                "extra_data": "0x0d",
                 "base_fee_per_gas": "123456789",
                 "block_hash": "0xa100000000000000000000000000000000000000000000000000000000000000",
                 "transactions_root": "0x0e00000000000000000000000000000000000000000000000000000000000000"
@@ -167,7 +167,7 @@ func TestBlindedBeaconBlock(t *testing.T) {
 	require.Equal(t, "d3fd47a86c900f9a20ca4ae64e72fe0286bcb315f6a7d92a3bd009c6dc76b301", fmt.Sprintf("%x", p))
 }
 
-func TestExecutionPayloadREST(t *testing.T) {
+func TestExecutionPayload(t *testing.T) {
 	parentHash := Hash{0xa1}
 	blockHash := Hash{0xa1}
 	feeRecipient := Address{0xb1}
@@ -187,7 +187,7 @@ func TestExecutionPayloadREST(t *testing.T) {
 		GasLimit:      5002,
 		GasUsed:       5003,
 		Timestamp:     5004,
-		ExtraData:     Hash{0x0d},
+		ExtraData:     hexutil.Bytes{0x0d},
 		BaseFeePerGas: IntToU256(123456789),
 		BlockHash:     blockHash,
 		Transactions:  []hexutil.Bytes{*tx1},
@@ -209,7 +209,7 @@ func TestExecutionPayloadREST(t *testing.T) {
         "gas_limit": "5002",
         "gas_used": "5003",
         "timestamp": "5004",
-        "extra_data": "0x0d00000000000000000000000000000000000000000000000000000000000000",
+        "extra_data": "0x0d",
         "base_fee_per_gas": "123456789",
         "block_hash": "0xa100000000000000000000000000000000000000000000000000000000000000",
         "transactions": [
