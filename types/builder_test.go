@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	ssz "github.com/ferranbt/fastssz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,7 +60,7 @@ func TestExecutionPayloadHeader(t *testing.T) {
 	p, err := h2.HashTreeRoot()
 	require.NoError(t, err)
 	rootHex := fmt.Sprintf("%x", p)
-	require.Equal(t, "83d65af100ef0e0fb789cb249ee6176526687aaf10321c745a90e328930f0066", rootHex)
+	require.Equal(t, "7b7fd346d2b66aab2efce23959d7f90f36ff31a944ba867ae1c2827f85b2fbe5", rootHex)
 }
 
 func TestBlindedBeaconBlock(t *testing.T) {
@@ -106,7 +107,7 @@ func TestBlindedBeaconBlock(t *testing.T) {
 	// Get HashTreeRoot
 	root, err := msg.HashTreeRoot()
 	require.NoError(t, err)
-	require.Equal(t, "d3fd47a86c900f9a20ca4ae64e72fe0286bcb315f6a7d92a3bd009c6dc76b301", fmt.Sprintf("%x", root))
+	require.Equal(t, "b3b6844756cbf0fdd996cb20a1439bfb59a640cdae1604dbd8a81c7c993a6a6b", fmt.Sprintf("%x", root))
 
 	// Marshalling
 	b, err := json.Marshal(msg)
@@ -164,7 +165,7 @@ func TestBlindedBeaconBlock(t *testing.T) {
 	// HashTreeRoot
 	p, err := msg2.HashTreeRoot()
 	require.NoError(t, err)
-	require.Equal(t, "d3fd47a86c900f9a20ca4ae64e72fe0286bcb315f6a7d92a3bd009c6dc76b301", fmt.Sprintf("%x", p))
+	require.Equal(t, "b3b6844756cbf0fdd996cb20a1439bfb59a640cdae1604dbd8a81c7c993a6a6b", fmt.Sprintf("%x", p))
 }
 
 func TestExecutionPayload(t *testing.T) {
@@ -223,4 +224,43 @@ func TestExecutionPayload(t *testing.T) {
 	err = json.Unmarshal(b, msg2)
 	require.NoError(t, err)
 	require.Equal(t, msg, msg2)
+}
+
+func TestBuilderSSZEncoding(t *testing.T) {
+	tests := []SSZable{
+		&Eth1Data{}, &BeaconBlockHeader{}, &SignedBeaconBlockHeader{}, &ProposerSlashing{}, &Checkpoint{}, &AttestationData{}, &IndexedAttestation{}, &AttesterSlashing{}, &Attestation{}, &Deposit{}, &VoluntaryExit{}, &SyncAggregate{},
+		&RegisterValidatorRequestMessage{},
+		&ExecutionPayloadHeader{},
+		// &BlindedBeaconBlockBody{},
+		// &BlindedBeaconBlock{},
+		// &BuilderBid{},
+	}
+	for _, test := range tests {
+		fmt.Printf("%T \n", test)
+		// func test_ssz_encoding(t *testing.T) {
+		// buf := []byte{}
+		buf1, err := test.MarshalSSZ()
+		require.NoError(t, err)
+		require.LessOrEqual(t, 0, len(buf1))
+
+		_, err = test.MarshalSSZTo([]byte{})
+		require.NoError(t, err)
+
+		err = test.UnmarshalSSZ([]byte{})
+		require.Error(t, err, err)
+
+		err = test.UnmarshalSSZ(buf1)
+		fmt.Println("size", uint64(len(buf1)))
+		require.NoError(t, err, err)
+
+		n := test.SizeSSZ()
+		require.LessOrEqual(t, 0, n)
+
+		_, err = test.HashTreeRoot()
+		require.NoError(t, err)
+
+		hh := ssz.DefaultHasherPool.Get()
+		err = test.HashTreeRootWith(hh)
+		require.NoError(t, err)
+	}
 }
