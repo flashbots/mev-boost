@@ -1,23 +1,15 @@
 package types
 
 import (
-	ssz "github.com/ferranbt/fastssz"
 	"github.com/prysmaticlabs/prysm/shared/bls"
 )
 
+// HashTreeRoot is an interface for SSZ-encodable objects
 type HashTreeRoot interface {
 	HashTreeRoot() ([32]byte, error)
 }
 
-type SSZable interface {
-	MarshalSSZ() ([]byte, error)
-	MarshalSSZTo(buf []byte) (dst []byte, err error)
-	UnmarshalSSZ(buf []byte) error
-	SizeSSZ() (size int)
-	HashTreeRoot() ([32]byte, error)
-	HashTreeRootWith(hh *ssz.Hasher) (err error)
-}
-
+// VerifySignature verifies a signature against a message and public key.
 func VerifySignature(obj HashTreeRoot, pk, s []byte) (bool, error) {
 	msg, err := obj.HashTreeRoot()
 	if err != nil {

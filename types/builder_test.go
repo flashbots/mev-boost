@@ -10,6 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type _SSZable interface {
+	MarshalSSZ() ([]byte, error)
+	MarshalSSZTo(buf []byte) (dst []byte, err error)
+	UnmarshalSSZ(buf []byte) error
+	SizeSSZ() (size int)
+	HashTreeRoot() ([32]byte, error)
+	HashTreeRootWith(hh *ssz.Hasher) (err error)
+}
+
 func TestExecutionPayloadHeader(t *testing.T) {
 	baseFeePerGas := U256Str{}
 	baseFeePerGas[31] = 0x08
@@ -227,7 +236,7 @@ func TestExecutionPayload(t *testing.T) {
 }
 
 func TestBuilderSSZEncoding(t *testing.T) {
-	tests := []SSZable{
+	tests := []_SSZable{
 		&Eth1Data{}, &BeaconBlockHeader{}, &SignedBeaconBlockHeader{}, &ProposerSlashing{}, &Checkpoint{}, &AttestationData{}, &IndexedAttestation{}, &AttesterSlashing{}, &Attestation{}, &Deposit{}, &VoluntaryExit{}, &SyncAggregate{},
 		&RegisterValidatorRequestMessage{},
 		&ExecutionPayloadHeader{},
