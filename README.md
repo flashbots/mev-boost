@@ -9,7 +9,8 @@ A service that allows Ethereum Consensus Layer (CL) clients to outsource block c
 See also:
 
 * **[Builder API specification](https://ethereum.github.io/builder-specs/)** ([Github](https://github.com/ethereum/builder-specs))
-* [Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags)
+* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags)
+* [Integration docs (mev-boost wiki)](https://github.com/flashbots/mev-boost/wiki)
 
 ---
 
