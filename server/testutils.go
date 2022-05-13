@@ -65,13 +65,19 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	return &resp
 }
 
-func (be *testBackend) post(t *testing.T, path string, payload any) *httptest.ResponseRecorder {
-	payloadBytes, err := json.Marshal(payload)
-	require.NoError(t, err)
+func (be *testBackend) request(t *testing.T, method string, path string, payload any) *httptest.ResponseRecorder {
+	var req *http.Request
+	var err error
 
-	req, err := http.NewRequest("POST", path, bytes.NewReader(payloadBytes))
-	require.NoError(t, err)
+	if payload == nil {
+		req, err = http.NewRequest(method, path, nil)
+	} else {
+		payloadBytes, err2 := json.Marshal(payload)
+		require.NoError(t, err2)
+		req, err = http.NewRequest(method, path, bytes.NewReader(payloadBytes))
+	}
 
+	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	be.boost.getRouter().ServeHTTP(rr, req)
 	return rr

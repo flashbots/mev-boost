@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/flashbots/mev-boost/types"
@@ -14,14 +16,17 @@ import (
 )
 
 var (
-	errInvalidPubkey        = errors.New("invalid pubkey")
-	errInvalidSignature     = errors.New("invalid signature")
+	errInvalidSlot      = errors.New("invalid slot")
+	errInvalidHash      = errors.New("invalid hash")
+	errInvalidPubkey    = errors.New("invalid pubkey")
+	errInvalidSignature = errors.New("invalid signature")
+
 	errServerAlreadyRunning = errors.New("server already running")
 
-	// ServiceStatusOk indicates that the system is running as expected
-	ServiceStatusOk = "OK"
-
-	pathRegisterValidator = "/registerValidator"
+	pathStatus            = "/eth/v1/builder/status"
+	pathRegisterValidator = "/eth/v1/builder/validators"
+	pathGetHeader         = "/eth/v1/builder/header/{slot:[0-9]+}/{parent_hash:0x[a-fA-F0-9]+}/{pubkey:0x[a-fA-F0-9]+}"
+	// pathGetPayload        = "/eth/v1/builder/blinded_blocks"
 )
 
 // HTTPServerTimeouts are various timeouts for requests to the mev-boost HTTP server
@@ -74,7 +79,12 @@ func NewBoostService(listenAddr string, relays []types.RelayEntry, log *logrus.E
 func (m *BoostService) getRouter() http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/", m.handleRoot)
+
+	r.HandleFunc(pathStatus, m.handleStatus).Methods(http.MethodGet)
 	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator)
+	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	// r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := LoggingMiddleware(r, m.log)
 	return loggedRouter
@@ -104,14 +114,20 @@ func (m *BoostService) StartHTTPServer() error {
 }
 
 func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "hello\n")
+	fmt.Fprintf(w, `{}`)
+}
+
+func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{}`)
 }
 
 // RegisterValidatorV1 - returns 200 if at least one relay returns 200
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
-	method := "builder_registerValidatorV1"
-	logMethod := m.log.WithField("method", method)
+	log := m.log.WithField("method", "registerValidator")
 
 	payload := new(types.SignedValidatorRegistration)
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
@@ -129,12 +145,14 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		return
 	}
 
+	// TODO: verify signature
+
 	resultC := make(chan *httpResponseContainer, len(m.relays))
 	for _, relay := range m.relays {
-		go func(url string) {
-			_url := url + pathRegisterValidator
-			res, err := makePostRequest(context.Background(), m.httpClient, _url, payload)
-			resultC <- &httpResponseContainer{url, err, res}
+		go func(relayAddr string) {
+			_url := relayAddr + pathRegisterValidator
+			res, err := makeRequest(context.Background(), m.httpClient, http.MethodPost, _url, payload)
+			resultC <- &httpResponseContainer{relayAddr, err, res}
 		}(relay.Address)
 	}
 
@@ -142,106 +160,127 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	for i := 0; i < cap(resultC); i++ {
 		res := <-resultC
 		if res.err != nil {
-			logMethod.WithFields(logrus.Fields{"error": res.err, "url": res.url}).Error("error in registerValidator to relay")
+			log.WithFields(logrus.Fields{"error": res.err, "url": res.url}).Error("error in registerValidator to relay")
 			continue
 		}
 		numSuccessRequestsToRelay++
 	}
 
-	// w.Header().Set("Content-Type", "application/json")
 	if numSuccessRequestsToRelay > 0 {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{}`)
 	} else {
 		w.WriteHeader(http.StatusBadGateway)
 	}
 }
 
-// // GetHeaderV1 TODO
-// func (m *BoostService) GetHeaderV1(w http.ResponseWriter, req *http.Request) {
-// 	// func (m *BoostService) GetHeaderV1(ctx context.Context, slot hexutil.Uint64, pubkey hexutil.Bytes, hash common.Hash) (*types.GetHeaderResponse, error) {
-// 	method := "builder_getHeaderV1"
-// 	logMethod := m.log.WithField("method", method)
+// GetHeaderV1 TODO
+func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	slot := vars["slot"]
+	parentHashHex := vars["parent_hash"]
+	pubkey := vars["pubkey"]
+	log := m.log.WithFields(logrus.Fields{
+		"method":     "getHeader",
+		"slot":       slot,
+		"parentHash": parentHashHex,
+		"pubkey":     pubkey,
+	})
+	log.Info("getHeader")
 
-// 	if len(pubkey) != 48 {
-// 		return nil, rpcErrInvalidPubkey
-// 	}
+	if _, err := strconv.ParseInt(slot, 10, 64); err != nil {
+		http.Error(w, errInvalidSlot.Error(), http.StatusBadRequest)
+		return
+	}
 
-// 	type safeHeaderContainer struct {
-// 		mu             sync.Mutex
-// 		result         *types.GetHeaderResponse
-// 		lastRelayError error
-// 	}
-// 	container := safeHeaderContainer{
-// 		result: new(types.GetHeaderResponse),
-// 	}
+	if len(pubkey) != 98 {
+		http.Error(w, errInvalidPubkey.Error(), http.StatusBadRequest)
+		return
+	}
 
-// 	// Call the relay
-// 	var wg sync.WaitGroup
-// 	for _, relayURL := range m.relayURLs {
-// 		wg.Add(1)
-// 		go func(url string) {
-// 			defer wg.Done()
-// 			res, err := makeRequest(ctx, m.httpClient, url, "builder_getHeaderV1", []interface{}{slot, pubkey, hash})
+	if len(parentHashHex) != 66 {
+		http.Error(w, errInvalidHash.Error(), http.StatusBadRequest)
+		return
+	}
 
-// 			// Check for errors
-// 			if err != nil {
-// 				logMethod.WithFields(logrus.Fields{"error": err, "url": url}).Warn("error making request to relay")
-// 				return
-// 			}
-// 			if res.Error != nil {
-// 				logMethod.WithFields(logrus.Fields{"error": res.Error, "url": url}).Warn("error reply from relay")
-// 				// We can unlock using defer because we're leaving the routine right now
-// 				container.mu.Lock()
-// 				defer container.mu.Unlock()
-// 				container.lastRelayError = res.Error
-// 				return
-// 			}
+	// type safeHeaderContainer struct {
+	// 	mu             sync.Mutex
+	// 	result         *types.GetHeaderResponse
+	// 	lastRelayError error
+	// }
+	// container := safeHeaderContainer{
+	// 	result: new(types.GetHeaderResponse),
+	// }
 
-// 			// Decode response
-// 			_result := new(types.GetHeaderResponse)
-// 			err = json.Unmarshal(res.Result, _result)
-// 			if err != nil {
-// 				logMethod.WithFields(logrus.Fields{"error": err, "data": string(res.Result)}).Warn("Could not unmarshal response")
-// 				return
-// 			}
+	// Call the relays
+	var wg sync.WaitGroup
+	for _, relay := range m.relays {
+		wg.Add(1)
+		go func(relayAddr string) {
+			defer wg.Done()
+			_url := fmt.Sprintf("%s/eth/v1/builder/header/%s/%s/%s", relayAddr, slot, parentHashHex, pubkey)
+			log := log.WithField("url", _url)
+			res, err := makeRequest(context.Background(), m.httpClient, http.MethodGet, _url, nil)
+			// Check for errors
+			if err != nil {
+				log.WithFields(logrus.Fields{"error": err, "url": relayAddr}).Warn("error making request to relay")
+				// 	container.mu.Lock()
+				// 	defer container.mu.Unlock()
+				// 	container.lastRelayError = res.Error
+				return
+			}
 
-// 			// Skip processing this result if lower fee than previous
-// 			container.mu.Lock()
-// 			defer container.mu.Unlock()
-// 			if container.result.Message.Value != nil && (_result.Message.Value == nil ||
-// 				_result.Message.Value.ToInt().Cmp(container.result.Message.Value.ToInt()) < 1) {
-// 				return
-// 			}
+			// Decode response
+			payload := new(types.GetHeaderResponse)
+			if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+				log.WithError(err).Warn("Could not unmarshal response")
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 
-// 			// Use this relay's response as mev-boost response because it's most profitable
-// 			container.result = _result
-// 			logMethod.WithFields(logrus.Fields{
-// 				"blockNumber": container.result.Message.Header.BlockNumber,
-// 				"blockHash":   container.result.Message.Header.BlockHash,
-// 				"txRoot":      container.result.Message.Header.TransactionsRoot.Hex(),
-// 				"value":       container.result.Message.Value.String(),
-// 				"url":         url,
-// 			}).Info("GetPayloadHeaderV1: successfully got more valuable payload header")
-// 		}(relayURL)
-// 	}
+			// // Skip processing this result if lower fee than previous
+			// container.mu.Lock()
+			// defer container.mu.Unlock()
+			// if container.result.Data.Message.Value != nil && (_result.Message.Value == nil ||
+			// 	_result.Message.Value.ToInt().Cmp(container.result.Message.Value.ToInt()) < 1) {
+			// 	return
+			// }
 
-// 	// Wait for responses...
-// 	wg.Wait()
+			// // Use this relay's response as mev-boost response because it's most profitable
+			// container.result = _result
+			// logMethod.WithFields(logrus.Fields{
+			// 	"blockNumber": container.result.Message.Header.BlockNumber,
+			// 	"blockHash":   container.result.Message.Header.BlockHash,
+			// 	"txRoot":      container.result.Message.Header.TransactionsRoot.Hex(),
+			// 	"value":       container.result.Message.Value.String(),
+			// 	"url":         relayAddr,
+			// }).Info("GetPayloadHeaderV1: successfully got more valuable payload header")
+		}(relay.Address)
+	}
 
-// 	if container.result.Message.Header.BlockHash == types.NilHash {
-// 		logMethod.WithFields(logrus.Fields{
-// 			"hash":           hash,
-// 			"lastRelayError": container.lastRelayError,
-// 		}).Error("GetPayloadHeaderV1: no successful response from relays")
+	// Wait for responses...
+	wg.Wait()
 
-// 		if container.lastRelayError != nil {
-// 			return nil, container.lastRelayError
-// 		}
-// 		return nil, fmt.Errorf("no valid GetHeaderV1 response from relays for hash %s", hash)
-// 	}
+	// if container.result.Message.Header.BlockHash == types.NilHash {
+	// 	logMethod.WithFields(logrus.Fields{
+	// 		"hash":           hash,
+	// 		"lastRelayError": container.lastRelayError,
+	// 	}).Error("GetPayloadHeaderV1: no successful response from relays")
 
-// 	return container.result, nil
-// }
+	// 	if container.lastRelayError != nil {
+	// 		return nil, container.lastRelayError
+	// 	}
+	// 	return nil, fmt.Errorf("no valid GetHeaderV1 response from relays for hash %s", hash)
+	// }
+	// w.Header().Set("Content-Type", "application/json")
+	// 	return container.result, nil
+	// if err := json.NewEncoder(w).Encode(response); err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+	w.WriteHeader(http.StatusOK)
+}
 
 // // GetPayloadV1 TODO
 // func (m *BoostService) GetPayloadV1(w http.ResponseWriter, req *http.Request) {
