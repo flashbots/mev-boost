@@ -240,14 +240,11 @@ func TestBuilderSSZEncoding(t *testing.T) {
 		&Eth1Data{}, &BeaconBlockHeader{}, &SignedBeaconBlockHeader{}, &ProposerSlashing{}, &Checkpoint{}, &AttestationData{}, &IndexedAttestation{}, &AttesterSlashing{}, &Attestation{}, &Deposit{}, &VoluntaryExit{}, &SyncAggregate{},
 		&RegisterValidatorRequestMessage{},
 		&ExecutionPayloadHeader{},
-		// &BlindedBeaconBlockBody{},
-		// &BlindedBeaconBlock{},
-		// &BuilderBid{},
+		&BlindedBeaconBlockBody{}, &BlindedBeaconBlock{},
+		&BuilderBid{},
 	}
 	for _, test := range tests {
-		fmt.Printf("%T \n", test)
-		// func test_ssz_encoding(t *testing.T) {
-		// buf := []byte{}
+		// fmt.Printf("%T \n", test)
 		buf1, err := test.MarshalSSZ()
 		require.NoError(t, err)
 		require.LessOrEqual(t, 0, len(buf1))

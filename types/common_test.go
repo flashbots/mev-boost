@@ -58,11 +58,41 @@ func TestU256Str(t *testing.T) {
 	require.Equal(t, "123", u.String())
 }
 
-func TestHexToAddress(t *testing.T) {
-	_, err := HexToAddress("0x01")
-	require.Error(t, err)
+type commonMarshallable interface {
+	MarshalText() ([]byte, error)
+	UnmarshalJSON(input []byte) error
+	UnmarshalText(input []byte) error
+	String() string
+	FromSlice(x []byte)
+}
 
-	a, err := HexToAddress("0x0100000000000000000000000000000000000000")
-	require.NoError(t, err)
-	require.Equal(t, "0x0100000000000000000000000000000000000000", a.String())
+func TestCommonSZEncoding(t *testing.T) {
+	u256 := IntToU256(12345)
+	tests := []commonMarshallable{
+		&Signature{0x01},
+		&PublicKey{0x02},
+		&Address{0x03},
+		&Hash{0x04},
+		&Root{0x05},
+		&CommitteeBits{0x06},
+		&Bloom{0x07},
+		&u256,
+	}
+	for _, test := range tests {
+		// fmt.Printf("%T \n", test)
+		buf1, err := test.MarshalText()
+		require.NoError(t, err)
+		require.LessOrEqual(t, 0, len(buf1))
+
+		err = test.UnmarshalText(buf1)
+		require.NoError(t, err)
+
+		err = test.UnmarshalJSON([]byte(fmt.Sprintf(`"%s"`, test.String())))
+		require.NoError(t, err)
+
+		s := test.String()
+		require.LessOrEqual(t, 0, len(s))
+
+		test.FromSlice([]byte{0x01})
+	}
 }

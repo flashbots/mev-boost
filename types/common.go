@@ -292,24 +292,3 @@ func (n *U256Str) String() string {
 func (n *U256Str) FromSlice(x []byte) {
 	copy(n[:], x)
 }
-
-func IntToU256(i uint64) (ret U256Str) {
-	s := fmt.Sprint(i)
-	ret.UnmarshalText([]byte(s))
-	return
-}
-
-func HexToAddress(s string) (ret Address, err error) {
-	err = ret.UnmarshalText([]byte(s))
-	return ret, err
-}
-
-func HexToPubkey(s string) (ret PublicKey, err error) {
-	err = ret.UnmarshalText([]byte(s))
-	return ret, err
-}
-
-func HexToSignature(s string) (ret Signature, err error) {
-	err = ret.UnmarshalText([]byte(s))
-	return ret, err
-}
