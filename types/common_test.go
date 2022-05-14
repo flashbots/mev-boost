@@ -58,6 +58,16 @@ func TestU256Str(t *testing.T) {
 	require.Equal(t, "123", u.String())
 }
 
+func TestU256StrCmp(t *testing.T) {
+	a1 := IntToU256(123)
+	a2 := IntToU256(123)
+	higher := IntToU256(1234)
+	lower := IntToU256(122)
+	require.Equal(t, 0, a1.Cmp(&a2))
+	require.Equal(t, -1, a1.Cmp(&higher))
+	require.Equal(t, 1, a1.Cmp(&lower))
+}
+
 type commonMarshallable interface {
 	MarshalText() ([]byte, error)
 	UnmarshalJSON(input []byte) error

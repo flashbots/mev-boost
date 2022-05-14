@@ -3,6 +3,7 @@ package types
 //revive:disable:exported
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 
@@ -291,4 +292,10 @@ func (n *U256Str) String() string {
 
 func (n *U256Str) FromSlice(x []byte) {
 	copy(n[:], x)
+}
+
+// Cmp returns an integer indicating whether a > b.
+// The result will be 0 if a == b, -1 if a < b, and +1 if a > b.
+func (n *U256Str) Cmp(b *U256Str) int {
+	return bytes.Compare(n[:], b[:])
 }

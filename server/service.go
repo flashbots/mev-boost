@@ -204,14 +204,14 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// type safeHeaderContainer struct {
-	// 	mu             sync.Mutex
-	// 	result         *types.GetHeaderResponse
-	// 	lastRelayError error
-	// }
-	// container := safeHeaderContainer{
-	// 	result: new(types.GetHeaderResponse),
-	// }
+	type safeHeaderContainer struct {
+		mu             sync.Mutex
+		result         *types.GetHeaderResponse
+		lastRelayError error
+	}
+	container := safeHeaderContainer{
+		result: new(types.GetHeaderResponse),
+	}
 
 	// Call the relays
 	var wg sync.WaitGroup
@@ -225,61 +225,61 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			// Check for errors
 			if err != nil {
 				log.WithFields(logrus.Fields{"error": err, "url": relayAddr}).Warn("error making request to relay")
-				// 	container.mu.Lock()
-				// 	defer container.mu.Unlock()
-				// 	container.lastRelayError = res.Error
+				container.mu.Lock()
+				defer container.mu.Unlock()
+				container.lastRelayError = err
 				return
 			}
 
 			// Decode response
-			payload := new(types.GetHeaderResponse)
-			if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+			responsePayload := new(types.GetHeaderResponse)
+			if err := json.NewDecoder(res.Body).Decode(&responsePayload); err != nil {
 				log.WithError(err).Warn("Could not unmarshal response")
-				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 
-			// // Skip processing this result if lower fee than previous
-			// container.mu.Lock()
-			// defer container.mu.Unlock()
-			// if container.result.Data.Message.Value != nil && (_result.Message.Value == nil ||
-			// 	_result.Message.Value.ToInt().Cmp(container.result.Message.Value.ToInt()) < 1) {
-			// 	return
-			// }
+			// Compare value of header, skip processing this result if lower fee than current
+			container.mu.Lock()
+			defer container.mu.Unlock()
+			if responsePayload.Data.Message.Value.Cmp(&container.result.Data.Message.Value) < 1 {
+				return
+			}
 
-			// // Use this relay's response as mev-boost response because it's most profitable
-			// container.result = _result
-			// logMethod.WithFields(logrus.Fields{
-			// 	"blockNumber": container.result.Message.Header.BlockNumber,
-			// 	"blockHash":   container.result.Message.Header.BlockHash,
-			// 	"txRoot":      container.result.Message.Header.TransactionsRoot.Hex(),
-			// 	"value":       container.result.Message.Value.String(),
-			// 	"url":         relayAddr,
-			// }).Info("GetPayloadHeaderV1: successfully got more valuable payload header")
+			// Use this relay's response as mev-boost response because it's most profitable
+			container.result = responsePayload
+			log.WithFields(logrus.Fields{
+				"blockNumber": container.result.Data.Message.Header.BlockNumber,
+				"blockHash":   container.result.Data.Message.Header.BlockHash,
+				"txRoot":      container.result.Data.Message.Header.TransactionsRoot.String(),
+				"value":       container.result.Data.Message.Value.String(),
+				"url":         relayAddr,
+			}).Info("getHeader: successfully got more valuable payload header")
 		}(relay.Address)
 	}
 
-	// Wait for responses...
+	// Wait for all requests to complete...
 	wg.Wait()
 
-	// if container.result.Message.Header.BlockHash == types.NilHash {
-	// 	logMethod.WithFields(logrus.Fields{
-	// 		"hash":           hash,
-	// 		"lastRelayError": container.lastRelayError,
-	// 	}).Error("GetPayloadHeaderV1: no successful response from relays")
+	if container.result.Data.Message.Header.BlockHash == types.NilHash {
+		log.WithFields(logrus.Fields{
+			"lastRelayError": container.lastRelayError,
+		}).Error("getHeader: no successful response from relays")
 
-	// 	if container.lastRelayError != nil {
-	// 		return nil, container.lastRelayError
-	// 	}
-	// 	return nil, fmt.Errorf("no valid GetHeaderV1 response from relays for hash %s", hash)
-	// }
-	// w.Header().Set("Content-Type", "application/json")
-	// 	return container.result, nil
-	// if err := json.NewEncoder(w).Encode(response); err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
+		if container.lastRelayError != nil {
+			http.Error(w, "todo", http.StatusBadGateway)
+			return
+		}
+
+		http.Error(w, "no valid getHeader response", http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(container.result); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 // // GetPayloadV1 TODO
