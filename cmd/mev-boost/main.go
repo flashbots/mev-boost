@@ -41,7 +41,7 @@ func main() {
 	}
 
 	listenAddress := fmt.Sprintf("%s:%d", *host, *port)
-	server, err := server.NewBoostRPCServer(server.BoostRPCServerOptions{
+	s, err := server.NewBoostRPCServer(server.BoostRPCServerOptions{
 		ListenAddr:       listenAddress,
 		RelayURLs:        _relayURLs,
 		Cors:             []string{"*"},
@@ -53,7 +53,7 @@ func main() {
 	}
 
 	log.Println("listening on ", listenAddress)
-	log.Fatal(server.ListenAndServe())
+	log.Fatal(s.ListenAndServe())
 }
 
 func getEnv(key string, defaultValue string) string {

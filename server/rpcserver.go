@@ -39,7 +39,7 @@ func NewBoostRPCServer(opts BoostRPCServerOptions) (*http.Server, error) {
 		return nil, err
 	}
 
-	srv, err := NewRPCServer("builder", boost, true)
+	srv, err := NewRPCServer("builder", boost)
 	if err != nil {
 		return nil, err
 	}
@@ -47,9 +47,11 @@ func NewBoostRPCServer(opts BoostRPCServerOptions) (*http.Server, error) {
 }
 
 // NewRPCServer creates a new RPC server
-func NewRPCServer(namespace string, backend interface{}, authenticated bool) (*gethRpc.Server, error) {
+func NewRPCServer(namespace string, backend interface{}) (*gethRpc.Server, error) {
 	srv := gethRpc.NewServer()
-	srv.RegisterName(namespace, backend)
+	if err := srv.RegisterName(namespace, backend); err != nil {
+		return nil, fmt.Errorf("could not create service: %w", err)
+	}
 	apis := []gethRpc.API{
 		{
 			Namespace: namespace,

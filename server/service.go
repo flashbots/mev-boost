@@ -321,6 +321,6 @@ func (m *BoostService) GetPayloadV1(ctx context.Context, block types.BlindedBeac
 }
 
 // Status implements the builder_status RPC method
-func (m *BoostService) Status(ctx context.Context) (*string, error) {
+func (m *BoostService) Status(context.Context) (*string, error) {
 	return &ServiceStatusOk, nil
 }

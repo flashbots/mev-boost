@@ -28,7 +28,7 @@ func newTestBoostRPCServerWithTimeout(relayURLs []string, getHeaderTimeout time.
 		return nil, err
 	}
 
-	srv, err := NewRPCServer("builder", boost, true)
+	srv, err := NewRPCServer("builder", boost)
 	if err != nil {
 		return nil, err
 	}
