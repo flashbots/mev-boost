@@ -145,27 +145,32 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		return
 	}
 
-	// TODO: verify signature
+	numSuccessRequestsToRelay := 0
+	var mu sync.Mutex
 
-	resultC := make(chan *httpResponseContainer, len(m.relays))
+	// Call the relays
+	var wg sync.WaitGroup
 	for _, relay := range m.relays {
+		wg.Add(1)
 		go func(relayAddr string) {
-			_url := relayAddr + pathRegisterValidator
-			res, err := makeRequest(context.Background(), m.httpClient, http.MethodPost, _url, payload)
-			resultC <- &httpResponseContainer{relayAddr, err, res}
+			defer wg.Done()
+			url := relayAddr + pathRegisterValidator
+			log := log.WithField("url", url)
+
+			_, err := makeRequest(context.Background(), m.httpClient, http.MethodPost, url, payload)
+			if err != nil {
+				log.WithError(err).Warn("error in registerValidator to relay")
+				return
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			numSuccessRequestsToRelay++
 		}(relay.Address)
 	}
 
-	numSuccessRequestsToRelay := 0
-	for i := 0; i < cap(resultC); i++ {
-		res := <-resultC
-		log := log.WithField("url", res.url)
-		if res.err != nil {
-			log.WithError(res.err).Warn("error in registerValidator to relay")
-			continue
-		}
-		numSuccessRequestsToRelay++
-	}
+	// Wait for all requests to complete...
+	wg.Wait()
 
 	if numSuccessRequestsToRelay > 0 {
 		w.Header().Set("Content-Type", "application/json")

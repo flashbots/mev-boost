@@ -48,12 +48,6 @@ func makeRequest(ctx context.Context, client http.Client, method, url string, pa
 	return resp, nil
 }
 
-type httpResponseContainer struct {
-	url  string
-	err  error
-	resp *http.Response
-}
-
 // responseWriter is a minimal wrapper for http.ResponseWriter that allows the
 // written HTTP status code to be captured for logging.
 type responseWriter struct {
