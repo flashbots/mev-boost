@@ -335,8 +335,8 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			requestCtxCancel()
 			*result = *responsePayload
 			log.WithFields(logrus.Fields{
-				"blockHash": responsePayload.Data.BlockHash,
-				"number":    responsePayload.Data.BlockNumber,
+				"blockHash":   responsePayload.Data.BlockHash,
+				"blockNumber": responsePayload.Data.BlockNumber,
 			}).Info("getPayload: received payload from relay")
 		}(relay.Address)
 	}

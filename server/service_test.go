@@ -122,10 +122,7 @@ func TestRegisterValidator(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code)
 
 		// Now make the relay return slowly, mev-boost should return an error
-		backend.relays[0].HandlerOverride = func(w http.ResponseWriter, r *http.Request) {
-			time.Sleep(10 * time.Millisecond)
-			w.WriteHeader(http.StatusOK)
-		}
+		backend.relays[0].ResponseDelay = 10 * time.Millisecond
 		rr = backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusBadGateway, rr.Code)
 		require.Equal(t, 2, backend.relays[0].getRequestCount(path))
@@ -220,25 +217,24 @@ func TestGetPayload(t *testing.T) {
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
 		require.NoError(t, err)
 		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
-
 	})
 
-	// t.Run("Bad response from relays", func(t *testing.T) {
-	// 	backend := newTestBackend(t, 2, time.Second)
-	// 	resp := new(types.GetPayloadResponse)
+	t.Run("Bad response from relays", func(t *testing.T) {
+		backend := newTestBackend(t, 2, time.Second)
+		resp := new(types.GetPayloadResponse)
 
-	// 	// 1/2 failing responses are okay
-	// 	backend.relays[0].GetPayloadResponse = resp
-	// 	rr := backend.request(t, http.MethodPost, path, nil)
-	// 	require.Equal(t, 1, backend.relays[0].getRequestCount(path))
-	// 	require.Equal(t, 1, backend.relays[1].getRequestCount(path))
-	// 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		// 1/2 failing responses are okay
+		backend.relays[0].GetPayloadResponse = resp
+		rr := backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, 1, backend.relays[0].getRequestCount(path))
+		require.Equal(t, 1, backend.relays[1].getRequestCount(path))
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
-	// 	// 2/2 failing responses are okay
-	// 	backend.relays[1].GetPayloadResponse = resp
-	// 	rr = backend.request(t, http.MethodPost, path, nil)
-	// 	require.Equal(t, 2, backend.relays[0].getRequestCount(path))
-	// 	require.Equal(t, 2, backend.relays[1].getRequestCount(path))
-	// 	require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
-	// })
+		// 2/2 failing responses are okay
+		backend.relays[1].GetPayloadResponse = resp
+		rr = backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, 2, backend.relays[0].getRequestCount(path))
+		require.Equal(t, 2, backend.relays[1].getRequestCount(path))
+		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
 }

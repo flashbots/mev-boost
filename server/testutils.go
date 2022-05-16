@@ -91,7 +91,7 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 	var err error
 
 	if payload == nil {
-		req, err = http.NewRequest(method, path, nil)
+		req, err = http.NewRequest(method, path, bytes.NewReader(nil))
 	} else {
 		payloadBytes, err2 := json.Marshal(payload)
 		require.NoError(t, err2)
@@ -109,6 +109,7 @@ type mockRelay struct {
 	RequestCount map[string]int
 	mu           sync.Mutex
 
+	ResponseDelay      time.Duration
 	HandlerOverride    func(w http.ResponseWriter, req *http.Request) // used to make the relay do custom responses
 	GetHeaderResponse  *types.GetHeaderResponse                       // hard-coded response payload (used if no HandlerOverride exists)
 	GetPayloadResponse *types.GetPayloadResponse                      // hard-coded response payload (used if no HandlerOverride exists)
@@ -128,7 +129,7 @@ func (m *mockRelay) getRouter() http.Handler {
 	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
 	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
-	return m.requestCounterMiddleware(r)
+	return m.testMiddleware(r)
 }
 
 func (m *mockRelay) getRequestCount(path string) int {
@@ -137,14 +138,20 @@ func (m *mockRelay) getRequestCount(path string) int {
 	return m.RequestCount[path]
 }
 
-func (m *mockRelay) requestCounterMiddleware(next http.Handler) http.Handler {
+func (m *mockRelay) testMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
+			// Request counter
 			m.mu.Lock()
 			url := r.URL.EscapedPath()
 			m.RequestCount[url]++
 			// fmt.Println(url, m.RequestCount[url])
 			m.mu.Unlock()
+
+			// Artificial Delay
+			if m.ResponseDelay > 0 {
+				time.Sleep(m.ResponseDelay)
+			}
 
 			next.ServeHTTP(w, r)
 		},
