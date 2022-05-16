@@ -6,7 +6,7 @@ import (
 
 // Generate SSZ encoding: make generate-ssz
 
-// NilHash is an empty hash
+// NilHash is an empty hash.
 var NilHash = Hash{}
 
 // Eth1Data https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#eth1data

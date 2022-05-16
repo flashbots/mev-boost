@@ -109,8 +109,9 @@ type mockRelay struct {
 	RequestCount map[string]int
 	mu           sync.Mutex
 
-	HandlerOverride   func(w http.ResponseWriter, req *http.Request) // used to make the relay do custom responses
-	GetHeaderResponse *types.GetHeaderResponse                       // hard-coded response payload (used if no HandlerOverride exists)
+	HandlerOverride    func(w http.ResponseWriter, req *http.Request) // used to make the relay do custom responses
+	GetHeaderResponse  *types.GetHeaderResponse                       // hard-coded response payload (used if no HandlerOverride exists)
+	GetPayloadResponse *types.GetPayloadResponse                      // hard-coded response payload (used if no HandlerOverride exists)
 }
 
 func newMockRelay() *mockRelay {
@@ -126,6 +127,7 @@ func (m *mockRelay) getRouter() http.Handler {
 	r.HandleFunc(pathStatus, m.handleStatus).Methods(http.MethodGet)
 	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
 	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 	return m.requestCounterMiddleware(r)
 }
 
@@ -199,6 +201,38 @@ func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	response := makeGetHeaderResponse(12345)
 	if m.GetHeaderResponse != nil {
 		response = m.GetHeaderResponse
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func makeGetPayloadResponse() *types.GetPayloadResponse {
+	return &types.GetPayloadResponse{
+		Version: "bellatrix",
+		Data: &types.ExecutionPayload{
+			ParentHash:   _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+			BlockHash:    _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab1"),
+			BlockNumber:  12345,
+			FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+		},
+	}
+}
+
+func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
+	if m.HandlerOverride != nil {
+		m.HandlerOverride(w, req)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := makeGetPayloadResponse()
+	if m.GetPayloadResponse != nil {
+		response = m.GetPayloadResponse
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {

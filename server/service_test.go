@@ -186,3 +186,59 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, types.IntToU256(12347), resp.Data.Message.Value)
 	})
 }
+
+func TestGetPayload(t *testing.T) {
+	path := "/eth/v1/builder/blinded_blocks"
+
+	payload := types.SignedBlindedBeaconBlock{
+		Signature: _HexToSignature("0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14"),
+		Message: &types.BlindedBeaconBlock{
+			Slot:          1,
+			ProposerIndex: 1,
+			ParentRoot:    types.Root{0x01},
+			StateRoot:     types.Root{0x02},
+			Body: &types.BlindedBeaconBlockBody{
+				RandaoReveal: types.Signature{0xa1},
+				Graffiti:     types.Hash{0xa2},
+				ExecutionPayloadHeader: &types.ExecutionPayloadHeader{
+					ParentHash:   _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+					BlockHash:    _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab1"),
+					BlockNumber:  12345,
+					FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+				},
+			},
+		},
+	}
+
+	t.Run("Okay response from relay", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+		rr := backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].getRequestCount(path))
+
+		resp := new(types.GetPayloadResponse)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
+
+	})
+
+	// t.Run("Bad response from relays", func(t *testing.T) {
+	// 	backend := newTestBackend(t, 2, time.Second)
+	// 	resp := new(types.GetPayloadResponse)
+
+	// 	// 1/2 failing responses are okay
+	// 	backend.relays[0].GetPayloadResponse = resp
+	// 	rr := backend.request(t, http.MethodPost, path, nil)
+	// 	require.Equal(t, 1, backend.relays[0].getRequestCount(path))
+	// 	require.Equal(t, 1, backend.relays[1].getRequestCount(path))
+	// 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+	// 	// 2/2 failing responses are okay
+	// 	backend.relays[1].GetPayloadResponse = resp
+	// 	rr = backend.request(t, http.MethodPost, path, nil)
+	// 	require.Equal(t, 2, backend.relays[0].getRequestCount(path))
+	// 	require.Equal(t, 2, backend.relays[1].getRequestCount(path))
+	// 	require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	// })
+}
