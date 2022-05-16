@@ -223,6 +223,10 @@ func TestGetPayload(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
 		resp := new(types.GetPayloadResponse)
 
+		// Delays are needed because otherwise one relay might never receive a request
+		backend.relays[0].ResponseDelay = 10 * time.Millisecond
+		backend.relays[1].ResponseDelay = 10 * time.Millisecond
+
 		// 1/2 failing responses are okay
 		backend.relays[0].GetPayloadResponse = resp
 		rr := backend.request(t, http.MethodPost, path, payload)
