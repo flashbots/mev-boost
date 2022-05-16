@@ -81,7 +81,7 @@ func (m *BoostService) getRouter() http.Handler {
 	r.HandleFunc("/", m.handleRoot)
 
 	r.HandleFunc(pathStatus, m.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator)
+	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
 	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	// r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
@@ -241,7 +241,14 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			// Compare value of header, skip processing this result if lower fee than current
 			container.mu.Lock()
 			defer container.mu.Unlock()
-			if responsePayload.Data.Message.Value.Cmp(&container.result.Data.Message.Value) < 1 {
+
+			// Skip if invalid payload
+			if responsePayload.Data == nil || responsePayload.Data.Message == nil || responsePayload.Data.Message.Header == nil || responsePayload.Data.Message.Header.BlockHash == types.NilHash {
+				return
+			}
+
+			// Skip if not a higher value
+			if container.result.Data != nil && responsePayload.Data.Message.Value.Cmp(&container.result.Data.Message.Value) < 1 {
 				return
 			}
 
@@ -260,7 +267,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// Wait for all requests to complete...
 	wg.Wait()
 
-	if container.result.Data.Message.Header.BlockHash == types.NilHash {
+	if container.result.Data == nil || container.result.Data.Message.Header.BlockHash == types.NilHash {
 		log.WithFields(logrus.Fields{
 			"lastRelayError": container.lastRelayError,
 		}).Error("getHeader: no successful response from relays")

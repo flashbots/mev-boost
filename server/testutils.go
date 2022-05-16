@@ -27,18 +27,39 @@ func _hexToBytes(hex string) []byte {
 	return bytes
 }
 
+func _HexToHash(s string) (ret types.Hash) {
+	err := ret.UnmarshalText([]byte(s))
+	if err != nil {
+		testLog.Error(err, " _HexToHash: ", s)
+		panic(err)
+	}
+	return ret
+}
+
 func _HexToAddress(s string) (ret types.Address) {
-	ret.UnmarshalText([]byte(s))
+	err := ret.UnmarshalText([]byte(s))
+	if err != nil {
+		testLog.Error(err, " _HexToAddress: ", s)
+		panic(err)
+	}
 	return ret
 }
 
 func _HexToPubkey(s string) (ret types.PublicKey) {
-	ret.UnmarshalText([]byte(s))
+	err := ret.UnmarshalText([]byte(s))
+	if err != nil {
+		testLog.Error(err, " _HexToPubkey: ", s)
+		panic(err)
+	}
 	return
 }
 
 func _HexToSignature(s string) (ret types.Signature) {
-	ret.UnmarshalText([]byte(s))
+	err := ret.UnmarshalText([]byte(s))
+	if err != nil {
+		testLog.Error(err, " _HexToSignature: ", s)
+		panic(err)
+	}
 	return
 }
 
@@ -88,7 +109,8 @@ type mockRelay struct {
 	RequestCount map[string]int
 	mu           sync.Mutex
 
-	HandlerOverride func(w http.ResponseWriter, req *http.Request) // used to make the relay do custom responses
+	HandlerOverride   func(w http.ResponseWriter, req *http.Request) // used to make the relay do custom responses
+	GetHeaderResponse *types.GetHeaderResponse                       // hard-coded response payload (used if no HandlerOverride exists)
 }
 
 func newMockRelay() *mockRelay {
@@ -101,7 +123,9 @@ func newMockRelay() *mockRelay {
 
 func (m *mockRelay) getRouter() http.Handler {
 	r := mux.NewRouter()
-	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator)
+	r.HandleFunc(pathStatus, m.handleStatus).Methods(http.MethodGet)
+	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
+	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	return m.requestCounterMiddleware(r)
 }
 
@@ -117,12 +141,18 @@ func (m *mockRelay) requestCounterMiddleware(next http.Handler) http.Handler {
 			m.mu.Lock()
 			url := r.URL.EscapedPath()
 			m.RequestCount[url]++
-			fmt.Println(url, m.RequestCount[url])
+			// fmt.Println(url, m.RequestCount[url])
 			m.mu.Unlock()
 
 			next.ServeHTTP(w, r)
 		},
 	)
+}
+
+func (m *mockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{}`)
 }
 
 func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
@@ -139,4 +169,40 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+}
+
+func makeGetHeaderResponse(value uint64) *types.GetHeaderResponse {
+	return &types.GetHeaderResponse{
+		Version: "bellatrix",
+		Data: &types.SignedBuilderBid{
+			Message: &types.BuilderBid{
+				Header: &types.ExecutionPayloadHeader{
+					BlockHash: _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+				},
+				Value:  types.IntToU256(value),
+				Pubkey: _HexToPubkey("0xe08851236b8a3fbd0645cc21247258cd6cfd30e085bb5a9a54a9dd9373737f29252f0e42d97559e889d6c5b750fd8086"),
+			},
+			Signature: _HexToSignature("0x1ea6d65fb0305ef317d20ce830019f6d8bb0da231d65658786c1cf68429a0e8f1f8776a7fea90673f05e7016fe1c762763544e0231ef8b4e30b77eedc1b7f54da45889c9d5718c3912b5a689711455836257a7608665cb70869cb3a647ba0f7b"),
+		},
+	}
+}
+
+func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
+	if m.HandlerOverride != nil {
+		m.HandlerOverride(w, req)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := makeGetHeaderResponse(12345)
+	if m.GetHeaderResponse != nil {
+		response = m.GetHeaderResponse
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
