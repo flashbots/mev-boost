@@ -11,28 +11,30 @@ test:
 	go test ./...
 
 test-race:
-	go test ./... -race
+	go test -race ./...
 
 lint:
 	revive -set_exit_status ./...
 	go vet ./...
 	staticcheck ./...
 
-generate:
-	go generate ./...
+generate-ssz:
+	rm -f types/builder_encoding.go
+	sszgen --path types --include ../go-ethereum/common/hexutil --objs Eth1Data,BeaconBlockHeader,SignedBeaconBlockHeader,ProposerSlashing,Checkpoint,AttestationData,IndexedAttestation,AttesterSlashing,Attestation,Deposit,VoluntaryExit,SyncAggregate,ExecutionPayloadHeader,VersionedExecutionPayloadHeader,BlindedBeaconBlockBody,BlindedBeaconBlock,RegisterValidatorRequestMessage,BuilderBid,SignedBuilderBid
 
 test-coverage:
-	go test ./server/... ./types/... ./cmd/... -v -covermode=count -coverprofile=coverage.out
+	go test -race -v -covermode=atomic -coverprofile=coverage.out ./...
+	go tool cover -func coverage.out
 
 cover:
-	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...
-	go tool cover -func /tmp/go-sim-lb.cover.tmp
-	unlink /tmp/go-sim-lb.cover.tmp
+	go test -coverprofile=coverage.out ./...
+	go tool cover -func coverage.out
+	unlink coverage.out
 
 cover-html:
-	go test -coverprofile=/tmp/go-sim-lb.cover.tmp ./...
-	go tool cover -html=/tmp/go-sim-lb.cover.tmp
-	unlink /tmp/go-sim-lb.cover.tmp
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out
+	unlink coverage.out
 
 run:
 	./mev-boost

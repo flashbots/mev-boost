@@ -51,38 +51,38 @@ jobs:
       - name: Lint
         run: make lint
 
-  mergemock:
-    name: Mergemock
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up Go 1.x
-        uses: actions/setup-go@v2
-        with:
-          go-version: ^1.17
-        id: go
+  # mergemock:
+  #   name: Mergemock
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Set up Go 1.x
+  #       uses: actions/setup-go@v2
+  #       with:
+  #         go-version: ^1.17
+  #       id: go
 
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
+  #     - name: Check out code into the Go module directory
+  #       uses: actions/checkout@v2
 
-      - name: Build mev-boost
-        run: make build
+  #     - name: Build mev-boost
+  #       run: make build
 
-      - name: Check out the mergemock code repo
-        uses: actions/checkout@v2
-        with:
-          repository: flashbots/mergemock
-          path: mergemock
-          ref: relay-alpha1
+  #     - name: Check out the mergemock code repo
+  #       uses: actions/checkout@v2
+  #       with:
+  #         repository: flashbots/mergemock
+  #         path: mergemock
+  #         ref: relay-alpha1
 
-      - name: Download mergemock genesis.json
-        run: cd mergemock && wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d3e3d/raw/2e8824fa8d9d9b040f351b86b75c66868fb9b115/genesis.json && echo -n 'a21a16ec22a940990922220e4ab5bf4c2310f55622220e4ab5bf4c2310f55656' > jwt.hex
+  #     - name: Download mergemock genesis.json
+  #       run: cd mergemock && wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d3e3d/raw/2e8824fa8d9d9b040f351b86b75c66868fb9b115/genesis.json && echo -n 'a21a16ec22a940990922220e4ab5bf4c2310f55622220e4ab5bf4c2310f55656' > jwt.hex
 
-      - name: Build mergemock
-        run: cd mergemock && go build . mergemock
+  #     - name: Build mergemock
+  #       run: cd mergemock && go build . mergemock
 
-      - name: Run mergemock consensus tests
-        run: |
-          make MERGEMOCK_DIR=./mergemock run-mergemock-relay &
-          make run-boost-with-relay &
-          sleep 5
-          make MERGEMOCK_DIR=./mergemock run-mergemock-consensus
+  #     - name: Run mergemock consensus tests
+  #       run: |
+  #         make MERGEMOCK_DIR=./mergemock run-mergemock-relay &
+  #         make run-boost-with-relay &
+  #         sleep 5
+  #         make MERGEMOCK_DIR=./mergemock run-mergemock-consensus
