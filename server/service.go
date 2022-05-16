@@ -326,6 +326,11 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 				return
 			}
 
+			// Lock before accessing the shared payload
+			mu.Lock()
+			defer mu.Unlock()
+
+			// Ensure the response blockhash matches the request
 			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Data.BlockHash {
 				log.WithFields(logrus.Fields{
 					"payloadBlockHash":  payload.Message.Body.ExecutionPayloadHeader.BlockHash,
@@ -335,8 +340,6 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			}
 
 			// Received successful response. Now cancel other requests and return immediately
-			mu.Lock()
-			defer mu.Unlock()
 			requestCtxCancel()
 			*result = *responsePayload
 			log.WithFields(logrus.Fields{
