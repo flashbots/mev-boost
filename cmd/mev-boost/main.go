@@ -20,7 +20,7 @@ var (
 	// defaults
 	defaultHost           = getEnv("BOOST_HOST", "localhost")
 	defaultPort           = getEnvInt("BOOST_PORT", 18550)
-	defaultRelayURLs      = getEnv("RELAY_URLS", "127.0.0.1:28545") // can be IP@PORT or PUBKEY@IP:PORT
+	defaultRelayURLs      = getEnv("RELAY_URLS", "127.0.0.1:28545") // can be IP@PORT or PUBKEY@IP:PORT or https://IP
 	defaultRelayTimeoutMs = getEnvInt("RELAY_TIMEOUT_MS", 2000)     // timeout
 
 	// cli flags
@@ -71,21 +71,29 @@ func getEnvInt(key string, defaultValue int) int {
 func parseRelayURLs(relayURLs string) []types.RelayEntry {
 	ret := []types.RelayEntry{}
 	for _, entry := range strings.Split(relayURLs, ",") {
-		if !strings.HasPrefix(entry, "relay://") {
-			entry = "relay://" + entry
-		}
-
-		u, err := url.Parse(entry)
+		relay, err := parseRelayURL(entry)
 		if err != nil {
-			log.WithError(err).WithField("relay", entry).Fatal("Invalid relay URL")
-		}
-
-		relay := types.RelayEntry{Address: u.Host}
-		err = relay.Pubkey.UnmarshalText([]byte(u.User.Username()))
-		if err != nil {
-			log.WithError(err).WithField("relay", entry).Fatal("Invalid relay public key")
+			log.WithError(err).WithField("relayURL", entry).Fatal("Invalid relay URL")
 		}
 		ret = append(ret, relay)
 	}
 	return ret
+}
+
+func parseRelayURL(relayURL string) (entry types.RelayEntry, err error) {
+	if !strings.HasPrefix(relayURL, "http") {
+		relayURL = "http://" + relayURL
+	}
+
+	u, err := url.Parse(relayURL)
+	if err != nil {
+		return entry, err
+	}
+
+	entry = types.RelayEntry{Address: u.Scheme + "://" + u.Host}
+	err = entry.Pubkey.UnmarshalText([]byte(u.User.Username()))
+	if err != nil {
+		return entry, err
+	}
+	return entry, err
 }
