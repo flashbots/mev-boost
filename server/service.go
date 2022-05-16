@@ -128,6 +128,7 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 // RegisterValidatorV1 - returns 200 if at least one relay returns 200
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "registerValidator")
+	log.Info("registerValidator")
 
 	payload := new(types.SignedValidatorRegistration)
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
@@ -195,7 +196,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	})
 	log.Info("getHeader")
 
-	if _, err := strconv.ParseInt(slot, 10, 64); err != nil {
+	if _, err := strconv.ParseUint(slot, 10, 64); err != nil {
 		http.Error(w, errInvalidSlot.Error(), http.StatusBadRequest)
 		return
 	}
