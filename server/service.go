@@ -229,7 +229,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			responsePayload := new(types.GetHeaderResponse)
-			if err := json.NewDecoder(res.Body).Decode(&responsePayload); err != nil {
+			if err := json.NewDecoder(res.Body).Decode(responsePayload); err != nil {
 				log.WithError(err).Warn("Could not unmarshal response")
 				return
 			}
@@ -316,7 +316,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			}
 
 			responsePayload := new(types.GetPayloadResponse)
-			if err := json.NewDecoder(res.Body).Decode(&responsePayload); err != nil {
+			if err := json.NewDecoder(res.Body).Decode(responsePayload); err != nil {
 				log.WithError(err).Warn("could not unmarshal response")
 				return
 			}
