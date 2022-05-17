@@ -85,22 +85,24 @@ and then run it with:
 ```
 make test
 make lint
+make run-mergemock-integration
 ```
 
-## Running with mergemock
+## Testing with mergemock
 
-We are currently testing using a forked version of mergemock, see https://github.com/flashbots/mergemock
+Mergemock is fully integrated: https://github.com/protolambda/mergemock
 
 Make sure you've setup and built mergemock first, refer to its [README](https://github.com/flashbots/mergemock#quick-start) but here's a quick setup guide:
 
 ```
-git clone -b v021-upstream https://github.com/flashbots/mergemock.git
+git clone https://github.com/protolambda/mergemock.git
 cd mergemock
 go build . mergemock
 wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d3e3d/raw/2e8824fa8d9d9b040f351b86b75c66868fb9b115/genesis.json
+openssl rand -hex 32 | tr -d "\n" > jwt.hex
 ```
 
-Then you can run an integration test with mergemock, spawning both a mergemock execution engine and a mergemock consensus client as well as mev-boost:
+Then you can run an integration test with mergemock, spawning both a mergemock relay+execution engine and a mergemock consensus client pointing tomev-boost:
 
 ```
 cd mev-boost
