@@ -99,7 +99,7 @@ wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d
 openssl rand -hex 32 | tr -d "\n" > jwt.hex
 ```
 
-Then you can run an integration test with mergemock, spawning both a mergemock relay+execution engine and a mergemock consensus client pointing tomev-boost:
+Then you can run an integration test with mergemock, spawning both a mergemock relay+execution engine and a mergemock consensus client pointing to mev-boost, which in turn points to the mergemock relay:
 
 ```
 cd mev-boost
