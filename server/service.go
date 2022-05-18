@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/flashbots/builder/types"
-	boostTypes "github.com/flashbots/mev-boost/types"
+	boostTypes "github.com/flashbots/mev-boost/internal/types"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )

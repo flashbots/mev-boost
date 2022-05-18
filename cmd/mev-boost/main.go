@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/flashbots/mev-boost/internal/types"
 	"github.com/flashbots/mev-boost/server"
-	"github.com/flashbots/mev-boost/types"
 	"github.com/sirupsen/logrus"
 )
 
