@@ -8,7 +8,6 @@ require (
 	github.com/ethereum/go-ethereum v1.10.17
 	github.com/flashbots/builder v0.1.1-0.20220517182752-6d94f7d42185
 	github.com/gorilla/mux v1.8.0
-	github.com/prysmaticlabs/prysm v1.4.4
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
 )
@@ -40,6 +39,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/tsdb v0.10.0 // indirect
 	github.com/prysmaticlabs/eth2-types v0.0.0-20210303084904-c9735a06829d // indirect
+	github.com/prysmaticlabs/prysm v1.4.4 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
