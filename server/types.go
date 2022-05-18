@@ -1,5 +1,4 @@
-// Package types provides various types used by the boost service.
-package types
+package server
 
 import "github.com/ethereum/go-ethereum/common/hexutil"
 

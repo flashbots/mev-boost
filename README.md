@@ -1,5 +1,6 @@
 # mev-boost
 
+[![Goreport status](https://goreportcard.com/badge/github.com/flashbots/mev-boost)](https://goreportcard.com/report/github.com/flashbots/mev-boost)
 [![Test status](https://github.com/flashbots/mev-boost/workflows/Go/badge.svg)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Go%22)
 [![Discord](https://img.shields.io/discord/755466764501909692)](https://discord.gg/7hvTycdNcK)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
@@ -11,6 +12,12 @@ See also:
 * **[Builder API specification](https://ethereum.github.io/builder-specs/)** ([Github](https://github.com/ethereum/builder-specs))
 * [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags)
 * [Integration docs (mev-boost wiki)](https://github.com/flashbots/mev-boost/wiki)
+
+Further references:
+
+* https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)
+* https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/
+* https://hackmd.io/@paulhauner/H1XifIQ_t
 
 ---
 
@@ -48,16 +55,6 @@ sequenceDiagram
     mev_boost-->>consensus: getPayload response
 ```
 
-## Implementation Plan
-
-See https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)
-
-References:
-
-* Specification: https://github.com/flashbots/mev-boost/blob/main/docs/specification.md
-* https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/
-* https://hackmd.io/@paulhauner/H1XifIQ_t
-
 # Developing
 
 
@@ -85,22 +82,24 @@ and then run it with:
 ```
 make test
 make lint
+make run-mergemock-integration
 ```
 
-## Running with mergemock
+## Testing with mergemock
 
-We are currently testing using a forked version of mergemock, see https://github.com/flashbots/mergemock
+Mergemock is fully integrated: https://github.com/protolambda/mergemock
 
 Make sure you've setup and built mergemock first, refer to its [README](https://github.com/flashbots/mergemock#quick-start) but here's a quick setup guide:
 
 ```
-git clone -b v021-upstream https://github.com/flashbots/mergemock.git
+git clone https://github.com/protolambda/mergemock.git
 cd mergemock
 go build . mergemock
 wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d3e3d/raw/2e8824fa8d9d9b040f351b86b75c66868fb9b115/genesis.json
+openssl rand -hex 32 | tr -d "\n" > jwt.hex
 ```
 
-Then you can run an integration test with mergemock, spawning both a mergemock execution engine and a mergemock consensus client as well as mev-boost:
+Then you can run an integration test with mergemock, spawning both a mergemock relay+execution engine and a mergemock consensus client pointing to mev-boost, which in turn points to the mergemock relay:
 
 ```
 cd mev-boost
