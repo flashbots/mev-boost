@@ -12,7 +12,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/builder/types"
-	boostTypes "github.com/flashbots/mev-boost/internal/types"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -74,7 +73,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relays: make([]*mockRelay, numRelays),
 	}
 
-	relayEntries := make([]boostTypes.RelayEntry, numRelays)
+	relayEntries := make([]RelayEntry, numRelays)
 	for i := 0; i < numRelays; i++ {
 		resp.relays[i] = newMockRelay()
 		relayEntries[i].Address = resp.relays[i].Server.URL

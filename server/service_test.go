@@ -9,13 +9,12 @@ import (
 	"time"
 
 	"github.com/flashbots/builder/types"
-	boostTypes "github.com/flashbots/mev-boost/internal/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(":123", []boostTypes.RelayEntry{}, testLog, time.Second)
+		_, err := NewBoostService(":123", []RelayEntry{}, testLog, time.Second)
 		require.Error(t, err)
 	})
 }

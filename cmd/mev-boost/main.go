@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flashbots/mev-boost/internal/types"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
 )
@@ -68,8 +67,8 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func parseRelayURLs(relayURLs string) []types.RelayEntry {
-	ret := []types.RelayEntry{}
+func parseRelayURLs(relayURLs string) []server.RelayEntry {
+	ret := []server.RelayEntry{}
 	for _, entry := range strings.Split(relayURLs, ",") {
 		relay, err := parseRelayURL(entry)
 		if err != nil {
@@ -80,7 +79,7 @@ func parseRelayURLs(relayURLs string) []types.RelayEntry {
 	return ret
 }
 
-func parseRelayURL(relayURL string) (entry types.RelayEntry, err error) {
+func parseRelayURL(relayURL string) (entry server.RelayEntry, err error) {
 	if !strings.HasPrefix(relayURL, "http") {
 		relayURL = "http://" + relayURL
 	}
@@ -90,7 +89,7 @@ func parseRelayURL(relayURL string) (entry types.RelayEntry, err error) {
 		return entry, err
 	}
 
-	entry = types.RelayEntry{Address: u.Scheme + "://" + u.Host}
+	entry = server.RelayEntry{Address: u.Scheme + "://" + u.Host}
 	err = entry.Pubkey.UnmarshalText([]byte(u.User.Username()))
 	if err != nil {
 		return entry, err
