@@ -23,10 +23,10 @@ var (
 	defaultRelayTimeoutMs = getEnvInt("RELAY_TIMEOUT_MS", 2000)     // timeout
 
 	// cli flags
-	host           = flag.String("host", defaultHost, fmt.Sprintf("host for mev-boost to listen on. default: %s", defaultHost))
-	port           = flag.Int("port", defaultPort, fmt.Sprintf("port for mev-boost to listen on. default: %d", defaultPort))
-	relayURLs      = flag.String("relays", defaultRelayURLs, fmt.Sprintf("relay urls - single entry or comma-separated list (pubkey@ip:port). default: %s", defaultRelayURLs))
-	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, fmt.Sprintf("timeout for requests to a relay [ms]. default: %d", defaultRelayTimeoutMs))
+	host           = flag.String("host", defaultHost, "host for mev-boost to listen on")
+	port           = flag.Int("port", defaultPort, "port for mev-boost to listen on")
+	relayURLs      = flag.String("relays", defaultRelayURLs, "relay urls - single entry or comma-separated list (pubkey@ip:port)")
+	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
 )
 
 var log = logrus.WithField("module", "cmd/mev-boost")
