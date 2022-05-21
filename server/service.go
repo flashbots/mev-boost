@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/flashbots/builder/types"
+	"github.com/flashbots/go-utils/httplogger"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -50,7 +51,7 @@ func NewDefaultHTTPServerTimeouts() HTTPServerTimeouts {
 // BoostService TODO
 type BoostService struct {
 	listenAddr string
-	relays     []RelayEntry
+	relays     []*RelayEntry
 	log        *logrus.Entry
 	srv        *http.Server
 
@@ -60,7 +61,7 @@ type BoostService struct {
 }
 
 // NewBoostService created a new BoostService
-func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
+func NewBoostService(listenAddr string, relays []*RelayEntry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
 	// TODO: validate relays
 	if len(relays) == 0 {
 		return nil, errors.New("no relays")
@@ -86,7 +87,7 @@ func (m *BoostService) getRouter() http.Handler {
 	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
 	r.Use(mux.CORSMethodMiddleware(r))
-	loggedRouter := LoggingMiddleware(r, m.log)
+	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
 	return loggedRouter
 }
 
