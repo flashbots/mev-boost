@@ -15,17 +15,16 @@ var (
 	version = "dev" // is set during build process
 
 	// defaults
-	defaultListenAddr = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
-
-	defaultRelayURLs                  = getEnv("RELAY_URLS", "127.0.0.1:28545") // can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
-	defaultRelayTimeoutMs             = getEnvInt("RELAY_TIMEOUT_MS", 2000)     // timeout for all the requests to the relay
-	defaultDisableRelayCheckOnStartup = os.Getenv("RELAY_DISABLE_STARTUP_CHECK") != ""
+	defaultListenAddr     = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
+	defaultRelayURLs      = getEnv("RELAY_URLS", "127.0.0.1:28545") // can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
+	defaultRelayTimeoutMs = getEnvInt("RELAY_TIMEOUT_MS", 2000)     // timeout for all the requests to the relay
+	defaultRelayCheck     = os.Getenv("RELAY_STARTUP_CHECK") != ""
 
 	// cli flags
-	listenAddr        = flag.String("listenAddr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs         = flag.String("relays", defaultRelayURLs, "relay urls - single entry or comma-separated list (pubkey@ip:port)")
-	relayTimeoutMs    = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
-	relayDisableCheck = flag.Bool("disable-relay-check", defaultDisableRelayCheckOnStartup, "whether to disable the relays-check on startup")
+	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
+	relayURLs      = flag.String("relays", defaultRelayURLs, "relay urls - single entry or comma-separated list (pubkey@ip:port)")
+	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
+	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "whether to check relay status on startup")
 )
 
 var log = logrus.WithField("module", "cmd/mev-boost")
@@ -37,7 +36,7 @@ func main() {
 	relays := parseRelayURLs(*relayURLs)
 	log.WithField("relays", relays).Infof("using %d relays", len(relays))
 
-	if !*relayDisableCheck {
+	if *relayCheck {
 		relayStartupCheck(relays)
 	}
 
