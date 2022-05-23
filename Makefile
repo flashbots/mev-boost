@@ -1,8 +1,11 @@
 MERGEMOCK_DIR=../mergemock
 MERGEMOCK_BIN=./mergemock
 
-GIT_VER := $(shell git describe --tags --always --dirty="-dev")
+VERSION := $(shell git describe --tags --always --dirty="-dev")
 DOCKER_REPO := flashbots/mev-boost
+
+v:
+	@echo "${VERSION}"
 
 build:
 	go build ./cmd/mev-boost
@@ -58,13 +61,13 @@ run-mergemock-integration: build
 	make -j3 run-boost-with-relay run-mergemock-consensus run-mergemock-relay
 
 build-for-docker:
-	GOOS=linux go build -ldflags "-X main.version=${GIT_VER}" -v -o mev-boost ./cmd/mev-boost
+	GOOS=linux go build -ldflags "-X main.version=${VERSION}" -v -o mev-boost ./cmd/mev-boost
 
 docker-image:
 	DOCKER_BUILDKIT=1 docker build . -t mev-boost
-	docker tag mev-boost:latest ${DOCKER_REPO}:${GIT_VER}
+	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
 	docker tag mev-boost:latest ${DOCKER_REPO}:latest
 
 docker-push:
-	docker push ${DOCKER_REPO}:${GIT_VER}
+	docker push ${DOCKER_REPO}:${VERSION}
 	docker push ${DOCKER_REPO}:latest
