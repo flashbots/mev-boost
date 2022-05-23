@@ -16,7 +16,7 @@ var (
 
 	// defaults
 	defaultListenAddr     = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
-	defaultRelayURLs      = getEnv("RELAY_URLS", "127.0.0.1:28545") // can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
+	defaultRelayURLs      = getEnv("RELAY_URLS", "localhost:28545") // can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
 	defaultRelayTimeoutMs = getEnvInt("RELAY_TIMEOUT_MS", 2000)     // timeout for all the requests to the relay
 	defaultRelayCheck     = os.Getenv("RELAY_STARTUP_CHECK") != ""
 
@@ -31,9 +31,12 @@ var log = logrus.WithField("module", "cmd/mev-boost")
 
 func main() {
 	flag.Parse()
-	log.Printf("mev-boost %s\n", version)
+	log.Printf("mev-boost %s", version)
 
 	relays := parseRelayURLs(*relayURLs)
+	if len(relays) == 0 {
+		log.Fatal("No relays specified")
+	}
 	log.WithField("relays", relays).Infof("using %d relays", len(relays))
 
 	if *relayCheck {
@@ -80,7 +83,7 @@ func parseRelayURLs(relayURLs string) []*server.RelayEntry {
 }
 
 func relayStartupCheck(relays []*server.RelayEntry) error {
-	log.Info("Checking relays...")
+	log.Fatal("TODO: Checking relays...")
 	for _, relay := range relays {
 		log.WithField("relay", relay).Info("Checking relay")
 		// err := relay.Check()

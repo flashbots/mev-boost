@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/flashbots/builder/types"
+	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"

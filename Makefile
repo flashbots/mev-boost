@@ -1,7 +1,7 @@
 MERGEMOCK_DIR=../mergemock
 MERGEMOCK_BIN=./mergemock
 
-VERSION := $(shell git describe --tags --always --dirty="-dev")
+VERSION ?= $(shell git describe --tags --always --dirty="-dev")
 DOCKER_REPO := flashbots/mev-boost
 
 v:

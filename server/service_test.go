@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flashbots/builder/types"
+	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
 )
 
