@@ -30,6 +30,8 @@ var (
 	pathGetPayload        = "/eth/v1/builder/blinded_blocks"
 )
 
+var nilHash = types.Hash{}
+
 // HTTPServerTimeouts are various timeouts for requests to the mev-boost HTTP server
 type HTTPServerTimeouts struct {
 	Read       time.Duration // Timeout for body reads. None if 0.
@@ -243,7 +245,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			defer mu.Unlock()
 
 			// Skip if invalid payload
-			if responsePayload.Data == nil || responsePayload.Data.Message == nil || responsePayload.Data.Message.Header == nil || responsePayload.Data.Message.Header.BlockHash == types.NilHash {
+			if responsePayload.Data == nil || responsePayload.Data.Message == nil || responsePayload.Data.Message.Header == nil || responsePayload.Data.Message.Header.BlockHash == nilHash {
 				return
 			}
 
@@ -267,7 +269,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// Wait for all requests to complete...
 	wg.Wait()
 
-	if result.Data == nil || result.Data.Message == nil || result.Data.Message.Header == nil || result.Data.Message.Header.BlockHash == types.NilHash {
+	if result.Data == nil || result.Data.Message == nil || result.Data.Message.Header == nil || result.Data.Message.Header.BlockHash == nilHash {
 		log.Warn("getHeader: no successful response from relays")
 		http.Error(w, "no valid getHeader response", http.StatusBadGateway)
 		return
@@ -325,7 +327,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 				return
 			}
 
-			if responsePayload.Data == nil || responsePayload.Data.BlockHash == types.NilHash {
+			if responsePayload.Data == nil || responsePayload.Data.BlockHash == nilHash {
 				log.Warn("invalid response")
 				return
 			}
@@ -356,7 +358,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// Wait for all requests to complete...
 	wg.Wait()
 
-	if result.Data == nil || result.Data.BlockHash == types.NilHash {
+	if result.Data == nil || result.Data.BlockHash == nilHash {
 		log.Warn("getPayload: no valid response from relay")
 		http.Error(w, "no valid getPayload response", http.StatusBadGateway)
 	}

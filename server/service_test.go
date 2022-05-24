@@ -150,7 +150,7 @@ func TestGetHeader(t *testing.T) {
 	t.Run("Bad response from relays", func(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
 		resp := makeGetHeaderResponse(12345)
-		resp.Data.Message.Header.BlockHash = types.NilHash
+		resp.Data.Message.Header.BlockHash = nilHash
 
 		// 1/2 failing responses are okay
 		backend.relays[0].GetHeaderResponse = resp

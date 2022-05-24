@@ -88,11 +88,11 @@ github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7
 github.com/ethereum/go-ethereum v1.10.17 h1:XEcumY+qSr1cZQaWsQs5Kck3FHB0V2RiMHPdTBJ+oT8=
 github.com/ethereum/go-ethereum v1.10.17/go.mod h1:Lt5WzjM07XlXc95YzrhosmR4J9Ahd6X2wyEV2SvGhk0=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
-github.com/ferranbt/fastssz v0.1.0 h1:IXYgeThN82mYwjuSfGj6sYNpJol4wNnyeeQLjlmW8i8=
-github.com/ferranbt/fastssz v0.1.0/go.mod h1:S8yiDeAXy8f88W4Ul+0dBMPx49S05byYbmZD6Uv94K4=
+github.com/ferranbt/fastssz v0.1.1-0.20220303160658-88bb965b6747 h1:0w9ZW2gY6Ws640PkDsyB1CK1ndAPJJ0mJbsDojQFl5c=
+github.com/ferranbt/fastssz v0.1.1-0.20220303160658-88bb965b6747/go.mod h1:S8yiDeAXy8f88W4Ul+0dBMPx49S05byYbmZD6Uv94K4=
 github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5/go.mod h1:VvhXpOYNQvB+uIk2RvXzuaQtkQJzzIx6lSBe1xv7hi0=
-github.com/flashbots/go-boost-utils v0.1.2-0.20220523171255-da275367a8ba h1:AsgmfLPw44H74skqmJG9Spy+3usSJbG9ptOKf7Beq1Y=
-github.com/flashbots/go-boost-utils v0.1.2-0.20220523171255-da275367a8ba/go.mod h1:EAVakJWxJS2BU8ZlamU5fwilmNVtXjPcX50gxgVtizU=
+github.com/flashbots/go-boost-utils v0.1.2 h1:xcwO6rhLmdbZ+ttN8PjHQynqY1pm+RCA56eGP9wPp10=
+github.com/flashbots/go-boost-utils v0.1.2/go.mod h1:v4f01OjPm5jFjzVhcJEKHLFZzX/yTeme9284Tbuah8s=
 github.com/flashbots/go-utils v0.4.5 h1:xTrVcfxQ+qpVVPyRBWUllwZAxbAijE06d9N7e7mmmlM=
 github.com/flashbots/go-utils v0.4.5/go.mod h1:3YKyfbtetVIXuWKbZ9WmK8bSF20hSFXk0wCWDNHYFvE=
 github.com/fogleman/gg v1.2.1-0.20190220221249-0403632d5b90/go.mod h1:R/bRT+9gY/C5z7JzPU0zXsXHKM4/ayA+zqcVNZzPa1k=
