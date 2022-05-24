@@ -14,11 +14,11 @@ import (
 
 var log = logrus.WithField("service", "cmd/test-cli")
 
-func doGenerateValidator(filePath string, gasLimit uint64, coinbase string) {
-	v := newRandomValidator(gasLimit, coinbase)
+func doGenerateValidator(filePath string, gasLimit uint64, feeRecipient string) {
+	v := newRandomValidator(gasLimit, feeRecipient)
 	err := v.SaveValidator(filePath)
 	if err != nil {
-		log.WithField("err", err).Fatal("Could not save validator data")
+		log.WithError(err).Fatal("Could not save validator data")
 	}
 	log.WithField("file", filePath).Info("Saved validator data")
 }
@@ -26,12 +26,12 @@ func doGenerateValidator(filePath string, gasLimit uint64, coinbase string) {
 func doRegisterValidator(v validatorPrivateData, boostEndpoint string) {
 	message, err := v.PrepareRegistrationMessage()
 	if err != nil {
-		log.WithField("err", err).Fatal("Could not prepare registration message")
+		log.WithError(err).Fatal("Could not prepare registration message")
 	}
 	err = sendRESTRequest(boostEndpoint+"/eth/v1/builder/validators", "POST", []any{message}, nil)
 
 	if err != nil {
-		log.WithField("err", err).Fatal("Validator registration not successful")
+		log.WithError(err).Fatal("Validator registration not successful")
 	}
 
 	log.WithError(err).Info("Registered validator")
@@ -66,7 +66,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 
 	var getHeaderResp boostTypes.GetHeaderResponse
 	if err := sendRESTRequest(uri, "GET", nil, &getHeaderResp); err != nil {
-		log.WithField("err", err).WithField("currentBlockHash", currentBlockHash).Fatal("Could not get header")
+		log.WithError(err).WithField("currentBlockHash", currentBlockHash).Fatal("Could not get header")
 	}
 
 	log.WithField("header", getHeaderResp).Info("Got header from boost")
@@ -162,9 +162,9 @@ func main() {
 	}
 	generateCommand.Uint64Var(&gasLimit, "gas-limit", uint64(envGasLimit), "Gas limit to register the validator with")
 
-	var validatorCoinbase string
-	envValidatorCoinbase := getEnv("VALIDATOR_COINBASE", "0x0000000000000000000000000000000000000000")
-	generateCommand.StringVar(&validatorCoinbase, "coinbase", envValidatorCoinbase, "Coinbase to register the validator with")
+	var validatorFeeRecipient string
+	envValidatorFeeRecipient := getEnv("VALIDATOR_FEE_RECIPIENT", "0x0000000000000000000000000000000000000000")
+	generateCommand.StringVar(&validatorFeeRecipient, "feeRecipient", envValidatorFeeRecipient, "FeeRecipient to register the validator with")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s [generate|register|getHeader|getPayload]:\n", os.Args[0])
@@ -179,7 +179,7 @@ func main() {
 	switch os.Args[1] {
 	case "generate":
 		generateCommand.Parse(os.Args[2:])
-		doGenerateValidator(validatorDataFile, gasLimit, validatorCoinbase)
+		doGenerateValidator(validatorDataFile, gasLimit, validatorFeeRecipient)
 	case "register":
 		registerCommand.Parse(os.Args[2:])
 		doRegisterValidator(mustLoadValidator(validatorDataFile), boostEndpoint)

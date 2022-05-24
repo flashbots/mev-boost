@@ -11,15 +11,15 @@ make build-cli
 ```
 ./test-cli [generate|register|getHeader|getPayload] [-help]
 
-generate [-vd-file] [-coinbase]
+generate [-vd-file] [-fee-recipient]
 register [-vd-file] [-mev-boost]
 getHeader [-vd-file] [-mev-boost] [-bn] [-en] [-mm]
 getPayload [-vd-file] [-mev-boost] [-bn] [-en] [-mm]
 
 Env & defaults:
 	[generate]
-	-gas-limit                     = 1000
-	-coinbase  VALIDATOR_COINBASE  = 0x0000000000000000000000000000000000000000
+	-gas-limit                               = 30000000
+	-fee-recipient  VALIDATOR_FEE_RECIPIENT  = 0x0000000000000000000000000000000000000000
 
 	[register]
 	-vd-file   VALIDATOR_DATA_FILE = ./validator_data.json
@@ -41,7 +41,7 @@ Env & defaults:
 ## Run mev-boost
 
 ```
-./mev-boost -relayUrl http://builder-relay-kiln.flashbots.net
+./mev-boost -relays https://builder-relay-kiln.flashbots.net
 ```
 
 ## Run beacon node
@@ -57,7 +57,7 @@ If running against mergemock, `test-cli` will take the block hash from execution
 ## Generate validator data
 
 ```
-./test-cli generate [-gas-limit GAS_LIMIT] [-coinbase COINBASE]
+./test-cli generate [-gas-limit GAS_LIMIT] [-fee-recipient FEE_RECIPIENT]
 ```
 
 If you wish you can substitute the randomly generated validator data in the validator data file.

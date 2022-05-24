@@ -15,7 +15,7 @@ func sendRESTRequest(url string, method string, payload any, dst any) error {
 		var err error
 		req, err = http.NewRequest(method, url, nil)
 		if err != nil {
-			fetchLog.WithField("err", err).Error("invalid request")
+			fetchLog.WithError(err).Error("invalid request")
 			return err
 		}
 	} else {
@@ -25,7 +25,7 @@ func sendRESTRequest(url string, method string, payload any, dst any) error {
 		}
 		req, err = http.NewRequest(method, url, bytes.NewReader(payloadBytes))
 		if err != nil {
-			fetchLog.WithField("err", err).Error("invalid request")
+			fetchLog.WithError(err).Error("invalid request")
 			return err
 		}
 	}
@@ -34,14 +34,14 @@ func sendRESTRequest(url string, method string, payload any, dst any) error {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fetchLog.WithField("err", err).Error("client refused")
+		fetchLog.WithError(err).Error("client refused")
 		return err
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fetchLog.WithField("err", err).Error("could not read response body")
+		fetchLog.WithError(err).Error("could not read response body")
 		return err
 	}
 
@@ -53,7 +53,7 @@ func sendRESTRequest(url string, method string, payload any, dst any) error {
 			Message string `json:"message"`
 		}{}
 		if err = json.Unmarshal(bodyBytes, ec); err != nil {
-			fetchLog.WithField("err", err).Error("Couldn't unmarshal error from beacon node")
+			fetchLog.WithError(err).Error("Couldn't unmarshal error from beacon node")
 			return errors.New("could not unmarshal error response from beacon node")
 		}
 		return errors.New(ec.Message)
@@ -62,7 +62,7 @@ func sendRESTRequest(url string, method string, payload any, dst any) error {
 	if dst != nil {
 		err = json.Unmarshal(bodyBytes, dst)
 		if err != nil {
-			fetchLog.WithField("err", err).Error("could not unmarshal response")
+			fetchLog.WithError(err).Error("could not unmarshal response")
 			return err
 		}
 
@@ -97,14 +97,14 @@ func sendJSONRequest(endpoint string, payload any, dst any) error {
 	fetchLog.Info("sending request")
 	req, err := http.NewRequest("POST", endpoint, body)
 	if err != nil {
-		fetchLog.WithField("err", err).Error("could not prepare request")
+		fetchLog.WithError(err).Error("could not prepare request")
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fetchLog.WithField("err", err).Error("could not send request")
+		fetchLog.WithError(err).Error("could not send request")
 		return err
 	}
 	defer resp.Body.Close()
@@ -117,7 +117,7 @@ func sendJSONRequest(endpoint string, payload any, dst any) error {
 
 	var jsonResp jsonrpcMessage
 	if err = json.Unmarshal(bodyBytes, &jsonResp); err != nil {
-		fetchLog.WithField("response", string(bodyBytes)).WithField("err", err).Error("could not unmarshal response")
+		fetchLog.WithField("response", string(bodyBytes)).WithError(err).Error("could not unmarshal response")
 		return err
 	}
 
@@ -128,7 +128,7 @@ func sendJSONRequest(endpoint string, payload any, dst any) error {
 
 	if dst != nil {
 		if err = json.Unmarshal(jsonResp.Result, dst); err != nil {
-			fetchLog.WithField("result", string(jsonResp.Result)).WithField("err", err).Error("could not unmarshal result")
+			fetchLog.WithField("result", string(jsonResp.Result)).WithError(err).Error("could not unmarshal result")
 			return err
 		}
 	}
