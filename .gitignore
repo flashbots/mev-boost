@@ -22,3 +22,5 @@
 .ijwb
 /mev-boost
 /tmp
+.vscode/
+/README.internal.md

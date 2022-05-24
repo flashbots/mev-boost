@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/flashbots/builder/types"
+	"github.com/flashbots/go-boost-utils/types"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -69,6 +69,7 @@ type testBackend struct {
 }
 
 func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *testBackend {
+	var err error
 	resp := testBackend{
 		relays: make([]*mockRelay, numRelays),
 	}
@@ -76,7 +77,8 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	relayEntries := make([]RelayEntry, numRelays)
 	for i := 0; i < numRelays; i++ {
 		resp.relays[i] = newMockRelay()
-		relayEntries[i].Address = resp.relays[i].Server.URL
+		relayEntries[i], err = NewRelayEntry(resp.relays[i].Server.URL)
+		require.NoError(t, err)
 	}
 
 	service, err := NewBoostService("localhost:12345", relayEntries, testLog, relayTimeout)
@@ -170,7 +172,7 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	payload := new(types.SignedValidatorRegistration)
+	payload := []types.SignedValidatorRegistration{}
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

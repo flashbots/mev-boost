@@ -2,8 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -17,36 +15,41 @@ var (
 	version = "dev" // is set during build process
 
 	// defaults
-	defaultHost           = getEnv("BOOST_HOST", "localhost")
-	defaultPort           = getEnvInt("BOOST_PORT", 18550)
-	defaultRelayURLs      = getEnv("RELAY_URLS", "127.0.0.1:28545") // can be IP@PORT or PUBKEY@IP:PORT or https://IP
-	defaultRelayTimeoutMs = getEnvInt("RELAY_TIMEOUT_MS", 2000)     // timeout
+	defaultListenAddr     = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
+	defaultRelayURLs      = getEnv("RELAY_URLS", "localhost:28545") // can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
+	defaultRelayTimeoutMs = getEnvInt("RELAY_TIMEOUT_MS", 2000)     // timeout for all the requests to the relay
+	defaultRelayCheck     = os.Getenv("RELAY_STARTUP_CHECK") != ""
 
 	// cli flags
-	host           = flag.String("host", defaultHost, fmt.Sprintf("host for mev-boost to listen on. default: %s", defaultHost))
-	port           = flag.Int("port", defaultPort, fmt.Sprintf("port for mev-boost to listen on. default: %d", defaultPort))
-	relayURLs      = flag.String("relays", defaultRelayURLs, fmt.Sprintf("relay urls - single entry or comma-separated list (pubkey@ip:port). default: %s", defaultRelayURLs))
-	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, fmt.Sprintf("timeout for requests to a relay [ms]. default: %d", defaultRelayTimeoutMs))
+	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
+	relayURLs      = flag.String("relays", defaultRelayURLs, "relay urls - single entry or comma-separated list (pubkey@ip:port)")
+	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
+	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "whether to check relay status on startup")
 )
 
 var log = logrus.WithField("module", "cmd/mev-boost")
 
 func main() {
 	flag.Parse()
-	log.Printf("mev-boost %s\n", version)
+	log.Printf("mev-boost %s", version)
 
 	relays := parseRelayURLs(*relayURLs)
+	if len(relays) == 0 {
+		log.Fatal("No relays specified")
+	}
 	log.WithField("relays", relays).Infof("using %d relays", len(relays))
-	// TODO: relay connection checks?
 
-	listenAddress := fmt.Sprintf("%s:%d", *host, *port)
+	if *relayCheck {
+		relayStartupCheck(relays)
+	}
+
 	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
-	server, err := server.NewBoostService(listenAddress, relays, log, relayTimeout)
+	server, err := server.NewBoostService(*listenAddr, relays, log, relayTimeout)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
 	}
 
-	log.Println("listening on", listenAddress)
+	log.Println("listening on", *listenAddr)
 	log.Fatal(server.StartHTTPServer())
 }
 
@@ -70,7 +73,7 @@ func getEnvInt(key string, defaultValue int) int {
 func parseRelayURLs(relayURLs string) []server.RelayEntry {
 	ret := []server.RelayEntry{}
 	for _, entry := range strings.Split(relayURLs, ",") {
-		relay, err := parseRelayURL(entry)
+		relay, err := server.NewRelayEntry(entry)
 		if err != nil {
 			log.WithError(err).WithField("relayURL", entry).Fatal("Invalid relay URL")
 		}
@@ -79,20 +82,14 @@ func parseRelayURLs(relayURLs string) []server.RelayEntry {
 	return ret
 }
 
-func parseRelayURL(relayURL string) (entry server.RelayEntry, err error) {
-	if !strings.HasPrefix(relayURL, "http") {
-		relayURL = "http://" + relayURL
+func relayStartupCheck(relays []server.RelayEntry) error {
+	log.Fatal("TODO: Checking relays...")
+	for _, relay := range relays {
+		log.WithField("relay", relay).Info("Checking relay")
+		// err := relay.Check()
+		// if err != nil {
+		//     log.WithError(err).WithField("relay", relay).Fatal("Relay check failed")
+		// }
 	}
-
-	u, err := url.Parse(relayURL)
-	if err != nil {
-		return entry, err
-	}
-
-	entry = server.RelayEntry{Address: u.Scheme + "://" + u.Host}
-	err = entry.Pubkey.UnmarshalText([]byte(u.User.Username()))
-	if err != nil {
-		return entry, err
-	}
-	return entry, err
+	return nil
 }

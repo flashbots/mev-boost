@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flashbots/builder/types"
+	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -77,7 +77,7 @@ func TestStatus(t *testing.T) {
 
 func TestRegisterValidator(t *testing.T) {
 	path := "/eth/v1/builder/validators"
-	payload := types.SignedValidatorRegistration{
+	reg := types.SignedValidatorRegistration{
 		Message: &types.RegisterValidatorRequestMessage{
 			FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
 			Timestamp:    1234356,
@@ -85,6 +85,7 @@ func TestRegisterValidator(t *testing.T) {
 		},
 		Signature: _HexToSignature("0x8682789b16da95ba437a5b51c14ba4e112b50ceacd9730f697c4839b91405280e603fc4367283aa0866af81a21c536c4c452ace2f4146267c5cf6e959955964f4c35f0cedaf80ed99ffc32fe2d28f9390bb30269044fcf20e2dd734c7b287d14"),
 	}
+	payload := []types.SignedValidatorRegistration{reg}
 
 	t.Run("Normal function", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
