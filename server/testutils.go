@@ -74,7 +74,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relays: make([]*mockRelay, numRelays),
 	}
 
-	relayEntries := make([]*RelayEntry, numRelays)
+	relayEntries := make([]RelayEntry, numRelays)
 	for i := 0; i < numRelays; i++ {
 		resp.relays[i] = newMockRelay()
 		relayEntries[i], err = NewRelayEntry(resp.relays[i].Server.URL)

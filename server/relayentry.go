@@ -21,20 +21,16 @@ func (r *RelayEntry) String() string {
 
 // NewRelayEntry creates a new instance based on an input string
 // relayURL can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
-func NewRelayEntry(relayURL string) (entry *RelayEntry, err error) {
+func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 	if !strings.HasPrefix(relayURL, "http") {
 		relayURL = "http://" + relayURL
 	}
 
-	url, err := url.Parse(relayURL)
+	entry.URL, err = url.Parse(relayURL)
 	if err != nil {
 		return entry, err
 	}
-
-	entry = &RelayEntry{
-		URL:     url,
-		Address: url.Scheme + "://" + url.Host,
-	}
-	err = entry.Pubkey.UnmarshalText([]byte(url.User.Username()))
+	entry.Address = entry.URL.Scheme + "://" + entry.URL.Host
+	err = entry.Pubkey.UnmarshalText([]byte(entry.URL.User.Username()))
 	return entry, err
 }
