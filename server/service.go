@@ -131,20 +131,22 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log := m.log.WithField("method", "registerValidator")
 	log.Info("registerValidator")
 
-	payload := new(types.SignedValidatorRegistration)
+	payload := []types.SignedValidatorRegistration{}
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if len(payload.Message.Pubkey) != 48 {
-		http.Error(w, errInvalidPubkey.Error(), http.StatusBadRequest)
-		return
-	}
+	for _, registration := range payload {
+		if len(registration.Message.Pubkey) != 48 {
+			http.Error(w, errInvalidPubkey.Error(), http.StatusBadRequest)
+			return
+		}
 
-	if len(payload.Signature) != 96 {
-		http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
-		return
+		if len(registration.Signature) != 96 {
+			http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	numSuccessRequestsToRelay := 0
