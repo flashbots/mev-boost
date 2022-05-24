@@ -71,3 +71,8 @@ docker-image:
 docker-push:
 	docker push ${DOCKER_REPO}:${VERSION}
 	docker push ${DOCKER_REPO}:latest
+
+docker-image-kiln:
+	DOCKER_BUILDKIT=1 docker build . --build-arg RELAY_URLS=https://builder-relay-kiln.flashbots.net -t ${DOCKER_REPO}:kiln
+	read -p "Press enter to push '${DOCKER_REPO}:kiln' to Docker hub"
+	docker push ${DOCKER_REPO}:kiln

@@ -5,10 +5,11 @@ ADD . /build/
 RUN --mount=type=cache,target=/root/.cache/go-build make build-for-docker
 
 FROM alpine
-
+ARG RELAY_URLS
 RUN apk add --no-cache libgcc libstdc++ libc6-compat
 WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /build/mev-boost /app/mev-boost
 EXPOSE 18550
+ENV RELAY_URLS=$RELAY_URLS
 ENTRYPOINT ["/app/mev-boost"]
