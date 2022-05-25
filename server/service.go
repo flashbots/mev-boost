@@ -308,10 +308,6 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			responsePayload := new(types.GetPayloadResponse)
 			err := SendHTTPRequest(requestCtx, m.httpClient, http.MethodPost, url, payload, responsePayload)
 
-			if requestCtx.Err() != nil { // request has been cancelled (or deadline exceeded)
-				return
-			}
-
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
 				return
