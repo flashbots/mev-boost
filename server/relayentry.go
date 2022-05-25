@@ -4,14 +4,14 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/flashbots/go-boost-utils/types"
 )
 
 // RelayEntry represents a relay that mev-boost connects to
 // Address will be schema://hostname:port
 type RelayEntry struct {
 	Address string
-	Pubkey  hexutil.Bytes
+	Pubkey  types.PublicKey
 	URL     *url.URL
 }
 
@@ -31,6 +31,8 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 		return entry, err
 	}
 	entry.Address = entry.URL.Scheme + "://" + entry.URL.Host
-	err = entry.Pubkey.UnmarshalText([]byte(entry.URL.User.Username()))
+	if entry.URL.User.Username() != "" {
+		err = entry.Pubkey.UnmarshalText([]byte(entry.URL.User.Username()))
+	}
 	return entry, err
 }
