@@ -21,6 +21,7 @@
 .idea
 .ijwb
 /mev-boost
+/test-cli
 /tmp
 .vscode/
 /README.internal.md

@@ -92,3 +92,6 @@ jobs:
           make run-boost-with-relay &
           sleep 5
           make MERGEMOCK_DIR=./mergemock run-mergemock-consensus
+        env:
+          CGO_CFLAGS_ALLOW: "-D__BLST_PORTABLE__"
+          CGO_CFLAGS: "-D__BLST_PORTABLE__"
