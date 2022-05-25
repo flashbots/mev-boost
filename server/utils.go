@@ -19,12 +19,12 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 	} else {
 		payloadBytes, err2 := json.Marshal(payload)
 		if err2 != nil {
-			return err2
+			return fmt.Errorf("could not marshal request: %w", err2)
 		}
 		req, err = http.NewRequestWithContext(ctx, method, url, bytes.NewReader(payloadBytes))
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("could not prepare request: %w", err)
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -37,7 +37,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 	if resp.StatusCode > 299 {
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not read error response body for status code %d: %w", resp.StatusCode, err)
 		}
 		return fmt.Errorf("HTTP error response: %d / %s", resp.StatusCode, string(bodyBytes))
 	}
@@ -45,11 +45,11 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 	if dst != nil {
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not read response body: %w", err)
 		}
 
 		if err := json.Unmarshal(bodyBytes, dst); err != nil {
-			return err
+			return fmt.Errorf("could not unmarshal response %s: %w", string(bodyBytes), err)
 		}
 	}
 
