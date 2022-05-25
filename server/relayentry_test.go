@@ -18,6 +18,7 @@ func TestParseRelaysURLs(t *testing.T) {
 		expectedErr       error
 		expectedAddress   string
 		expectedPublicKey string
+		expectedURL       string
 	}{
 		{
 			name:     "Relay URL with protocol scheme",
@@ -26,6 +27,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedErr:       nil,
 			expectedAddress:   "http://foo.com",
 			expectedPublicKey: zeroPublicKey.String(),
+			expectedURL:       "http://foo.com",
 		},
 		{
 			name:     "Relay URL without protocol scheme",
@@ -34,6 +36,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedErr:       nil,
 			expectedAddress:   "http://foo.com",
 			expectedPublicKey: zeroPublicKey.String(),
+			expectedURL:       "http://foo.com",
 		},
 		{
 			name:     "Relay URL without protocol scheme and with public key",
@@ -42,6 +45,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedErr:       nil,
 			expectedAddress:   "http://foo.com",
 			expectedPublicKey: publicKey.String(),
+			expectedURL:       "http://" + publicKey.String() + "@foo.com",
 		},
 		{
 			name:     "Relay URL with public key host and port",
@@ -50,6 +54,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedErr:       nil,
 			expectedAddress:   "http://foo.com:9999",
 			expectedPublicKey: publicKey.String(),
+			expectedURL:       "http://" + publicKey.String() + "@foo.com:9999",
 		},
 		{
 			name:     "Relay URL with IP and port",
@@ -58,6 +63,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedErr:       nil,
 			expectedAddress:   "http://12.345.678:9999",
 			expectedPublicKey: zeroPublicKey.String(),
+			expectedURL:       "http://12.345.678:9999",
 		},
 		{
 			name:     "Relay URL with https IP and port",
@@ -66,6 +72,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedErr:       nil,
 			expectedAddress:   "https://12.345.678:9999",
 			expectedPublicKey: zeroPublicKey.String(),
+			expectedURL:       "https://12.345.678:9999",
 		},
 		{
 			name:     "Invalid relay public key",
@@ -74,6 +81,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedErr:       types.ErrLength,
 			expectedAddress:   "",
 			expectedPublicKey: "",
+			expectedURL:       "",
 		},
 	}
 
@@ -88,6 +96,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			if tt.expectedErr == nil {
 				require.Equal(t, tt.expectedAddress, relayEntry.Address)
 				require.Equal(t, tt.expectedPublicKey, relayEntry.PublicKey.String())
+				require.Equal(t, tt.expectedURL, relayEntry.String())
 			}
 		})
 	}
