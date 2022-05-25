@@ -32,13 +32,9 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 	if err != nil {
 		return err
 	}
-
-	if ctx.Err() != nil { // request has been cancelled (or deadline exceeded)
-		return ctx.Err()
-	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode > 299 {
-		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return err
@@ -47,7 +43,12 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 	}
 
 	if dst != nil {
-		if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := json.Unmarshal(bodyBytes, dst); err != nil {
 			return err
 		}
 	}

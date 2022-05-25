@@ -322,6 +322,10 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			mu.Lock()
 			defer mu.Unlock()
 
+			if requestCtx.Err() != nil { // request has been cancelled (or deadline exceeded)
+				return
+			}
+
 			// Ensure the response blockhash matches the request
 			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Data.BlockHash {
 				log.WithFields(logrus.Fields{
