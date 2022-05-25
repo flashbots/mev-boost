@@ -117,3 +117,7 @@ to run mergemock in dev mode:
 ```
 make MERGEMOCK_BIN='go run .' run-mergemock-integration
 ```
+
+## Testing with test-cli
+
+[test-cli readme](cmd/test-cli/README.md)
