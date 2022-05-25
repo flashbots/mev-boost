@@ -38,23 +38,23 @@ Env & defaults:
 	           FORK_VERSION            = "0x02000000" (Bellatrix) - per network fork version
 ```
 
-## Run mev-boost
+### Run mev-boost
 
 ```
 ./mev-boost -relays https://builder-relay-kiln.flashbots.net
 ```
 
-## Run beacon node
+### Run beacon node
 
 `test-cli` needs beacon node to know current block hash (getHeader) and slot (getPayload).
 If running against mergemock, pass `-mm` and disregard `-bn`.
 
-## Pre-bellatrix run execution layer
+### Pre-bellatrix run execution layer
 
 Beacon node does not reply with block hash, it has to be taken from the execution.
 If running against mergemock, `test-cli` will take the block hash from execution and fake the slot.
 
-## Generate validator data
+### Generate validator data
 
 ```
 ./test-cli generate [-gas-limit GAS_LIMIT] [-fee-recipient FEE_RECIPIENT]
@@ -62,13 +62,13 @@ If running against mergemock, `test-cli` will take the block hash from execution
 
 If you wish you can substitute the randomly generated validator data in the validator data file.
 
-## Register the validator
+### Register the validator
 
 ```
 ./test-cli register [-mev-boost]
 ```
 
-## Test getHeader
+### Test getHeader
 
 ```
 ./test-cli getHeader [-mev-boost] [-bn beacon_endpoint] [-en execution_endpoint] [-mm]
@@ -76,7 +76,7 @@ If you wish you can substitute the randomly generated validator data in the vali
 
 The call will return relay's current header.
 
-## Test getPayload
+### Test getPayload
 
 ```
 ./test-cli getPayload [-mev-boost] [-bn beacon_endpoint] [-en execution_endpoint] [-mm]

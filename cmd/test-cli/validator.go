@@ -60,7 +60,6 @@ func (v *validatorPrivateData) PrepareRegistrationMessage() ([]boostTypes.Signed
 		GasLimit:     uint64(v.GasLimit),
 	}
 	signature, err := v.Sign(&msg, boostTypes.DomainBuilder)
-	log.WithField("msg", msg).WithField("domain", boostTypes.DomainBuilder).WithField("pk", pk).WithField("sig", signature).Info("register V")
 	if err != nil {
 		return []boostTypes.SignedValidatorRegistration{}, err
 	}

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 
@@ -10,6 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/sirupsen/logrus"
+
+	"github.com/flashbots/mev-boost/server"
 )
 
 var log = logrus.WithField("service", "cmd/test-cli")
@@ -28,7 +32,7 @@ func doRegisterValidator(v validatorPrivateData, boostEndpoint string) {
 	if err != nil {
 		log.WithError(err).Fatal("Could not prepare registration message")
 	}
-	err = sendRESTRequest(boostEndpoint+"/eth/v1/builder/validators", "POST", message, nil)
+	err = server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/validators", message, nil)
 
 	if err != nil {
 		log.WithError(err).Fatal("Validator registration not successful")
@@ -65,7 +69,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 	uri := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s", boostEndpoint, currentBlock.Slot+1, currentBlockHash, v.Pk.String())
 
 	var getHeaderResp boostTypes.GetHeaderResponse
-	if err := sendRESTRequest(uri, "GET", nil, &getHeaderResp); err != nil {
+	if err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, uri, nil, &getHeaderResp); err != nil {
 		log.WithError(err).WithField("currentBlockHash", currentBlockHash).Fatal("Could not get header")
 	}
 
@@ -106,7 +110,7 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 		Signature: signature,
 	}
 	var respPayload boostTypes.GetPayloadResponse
-	if err := sendRESTRequest(boostEndpoint+"/eth/v1/builder/blinded_blocks", "POST", payload, &respPayload); err != nil {
+	if err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/blinded_blocks", payload, &respPayload); err != nil {
 		log.WithError(err).Fatal("could not get payload")
 	}
 
