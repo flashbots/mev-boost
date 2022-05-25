@@ -11,10 +11,10 @@ import (
 )
 
 type validatorPrivateData struct {
-	Sk          hexutil.Bytes
-	Pk          hexutil.Bytes
-	GasLimit    hexutil.Uint64
-	CoinbaseHex string
+	Sk              hexutil.Bytes
+	Pk              hexutil.Bytes
+	GasLimit        hexutil.Uint64
+	FeeRecipientHex string
 }
 
 func (v *validatorPrivateData) SaveValidator(filePath string) error {
@@ -38,20 +38,20 @@ func mustLoadValidator(filePath string) validatorPrivateData {
 	return v
 }
 
-func newRandomValidator(gasLimit uint64, coinbase string) validatorPrivateData {
+func newRandomValidator(gasLimit uint64, feeRecipient string) validatorPrivateData {
 	sk, pk, err := bls.GenerateNewKeypair()
 	if err != nil {
 		log.WithError(err).Fatal("unable to generate bls key pair")
 	}
-	return validatorPrivateData{sk.Serialize(), pk.Compress(), hexutil.Uint64(gasLimit), coinbase}
+	return validatorPrivateData{sk.Serialize(), pk.Compress(), hexutil.Uint64(gasLimit), feeRecipient}
 }
 
-func (v *validatorPrivateData) PrepareRegistrationMessage() (boostTypes.SignedValidatorRegistration, error) {
+func (v *validatorPrivateData) PrepareRegistrationMessage() ([]boostTypes.SignedValidatorRegistration, error) {
 	pk := boostTypes.PublicKey{}
 	pk.FromSlice(v.Pk)
-	addr, err := boostTypes.HexToAddress(v.CoinbaseHex)
+	addr, err := boostTypes.HexToAddress(v.FeeRecipientHex)
 	if err != nil {
-		return boostTypes.SignedValidatorRegistration{}, err
+		return []boostTypes.SignedValidatorRegistration{}, err
 	}
 	msg := boostTypes.RegisterValidatorRequestMessage{
 		FeeRecipient: addr,
@@ -62,13 +62,13 @@ func (v *validatorPrivateData) PrepareRegistrationMessage() (boostTypes.SignedVa
 	signature, err := v.Sign(&msg, boostTypes.DomainBuilder)
 	log.WithField("msg", msg).WithField("domain", boostTypes.DomainBuilder).WithField("pk", pk).WithField("sig", signature).Info("register V")
 	if err != nil {
-		return boostTypes.SignedValidatorRegistration{}, err
+		return []boostTypes.SignedValidatorRegistration{}, err
 	}
 
-	return boostTypes.SignedValidatorRegistration{
+	return []boostTypes.SignedValidatorRegistration{{
 		Message:   &msg,
 		Signature: signature,
-	}, nil
+	}}, nil
 }
 
 func (v *validatorPrivateData) Sign(msg boostTypes.HashTreeRoot, domain boostTypes.Domain) (boostTypes.Signature, error) {

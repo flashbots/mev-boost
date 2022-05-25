@@ -28,7 +28,7 @@ func doRegisterValidator(v validatorPrivateData, boostEndpoint string) {
 	if err != nil {
 		log.WithError(err).Fatal("Could not prepare registration message")
 	}
-	err = sendRESTRequest(boostEndpoint+"/eth/v1/builder/validators", "POST", []any{message}, nil)
+	err = sendRESTRequest(boostEndpoint+"/eth/v1/builder/validators", "POST", message, nil)
 
 	if err != nil {
 		log.WithError(err).Fatal("Validator registration not successful")
