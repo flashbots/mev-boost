@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"net/http"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/flashbots/mev-boost/server"
 )
 
 // Beacon - beacon node interface
@@ -50,7 +53,7 @@ type partialSignedBeaconBlock struct {
 
 func getCurrentBeaconBlock(beaconEndpoint string) (beaconBlockData, error) {
 	var blockResp partialSignedBeaconBlock
-	err := sendRESTRequest(beaconEndpoint+"/eth/v2/beacon/blocks/head", "GET", nil, &blockResp)
+	err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, beaconEndpoint+"/eth/v2/beacon/blocks/head", nil, &blockResp)
 	if err != nil {
 		return beaconBlockData{}, err
 	}

@@ -163,7 +163,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			url := relayAddr + pathRegisterValidator
 			log := log.WithField("url", url)
 
-			_, err := makeRequest(context.Background(), m.httpClient, http.MethodPost, url, payload)
+			err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, payload, nil)
 			if err != nil {
 				log.WithError(err).Warn("error in registerValidator to relay")
 				return
@@ -227,16 +227,11 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			defer wg.Done()
 			url := fmt.Sprintf("%s/eth/v1/builder/header/%s/%s/%s", relayAddr, slot, parentHashHex, pubkey)
 			log := log.WithField("url", url)
-			res, err := makeRequest(context.Background(), m.httpClient, http.MethodGet, url, nil)
+			responsePayload := new(types.GetHeaderResponse)
+			err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, nil, responsePayload)
 
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
-				return
-			}
-
-			responsePayload := new(types.GetHeaderResponse)
-			if err := json.NewDecoder(res.Body).Decode(responsePayload); err != nil {
-				log.WithError(err).Warn("Could not unmarshal response")
 				return
 			}
 
@@ -310,20 +305,11 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			defer wg.Done()
 			url := fmt.Sprintf("%s%s", relayAddr, pathGetPayload)
 			log := log.WithField("url", url)
-			res, err := makeRequest(requestCtx, m.httpClient, http.MethodPost, url, payload)
-
-			if requestCtx.Err() != nil { // request has been cancelled (or deadline exceeded)
-				return
-			}
+			responsePayload := new(types.GetPayloadResponse)
+			err := SendHTTPRequest(requestCtx, m.httpClient, http.MethodPost, url, payload, responsePayload)
 
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
-				return
-			}
-
-			responsePayload := new(types.GetPayloadResponse)
-			if err := json.NewDecoder(res.Body).Decode(responsePayload); err != nil {
-				log.WithError(err).Warn("could not unmarshal response")
 				return
 			}
 
@@ -335,6 +321,10 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			// Lock before accessing the shared payload
 			mu.Lock()
 			defer mu.Unlock()
+
+			if requestCtx.Err() != nil { // request has been cancelled (or deadline exceeded)
+				return
+			}
 
 			// Ensure the response blockhash matches the request
 			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Data.BlockHash {
