@@ -9,6 +9,7 @@ import (
 	"net/http"
 )
 
+// SendHTTPRequest - prepare and send HTTP request, marshaling the payload if any, and decoding the response if dst is set
 func SendHTTPRequest(ctx context.Context, client http.Client, method, url string, payload any, dst any) error {
 	var req *http.Request
 	var err error
