@@ -191,9 +191,9 @@ func makeGetHeaderResponse(value uint64) *types.GetHeaderResponse {
 					BlockHash: _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
 				},
 				Value:  types.IntToU256(value),
-				Pubkey: _HexToPubkey("0xe08851236b8a3fbd0645cc21247258cd6cfd30e085bb5a9a54a9dd9373737f29252f0e42d97559e889d6c5b750fd8086"),
+				Pubkey: _HexToPubkey("0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"),
 			},
-			Signature: _HexToSignature("0x1ea6d65fb0305ef317d20ce830019f6d8bb0da231d65658786c1cf68429a0e8f1f8776a7fea90673f05e7016fe1c762763544e0231ef8b4e30b77eedc1b7f54da45889c9d5718c3912b5a689711455836257a7608665cb70869cb3a647ba0f7b"),
+			Signature: _HexToSignature("0x9099143ff1c233c26c7bac3494412413ee382ad2aed6effb0144e74f4bd2304585666b7d57dc011a687aeb775989c7a215bc535aaab816ea6cfe40eb67b96ce415ae119e610ba4a4d704b8967c5c6134fa88330e4d5e7c4d0e471ea9af083301"),
 		},
 	}
 }
