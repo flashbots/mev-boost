@@ -26,7 +26,7 @@ type MockRelay struct {
 	secretKey *bls.SecretKey
 	publicKey *bls.PublicKey
 
-	// Used to count each request made to the relay, either if it fails or not, for each method
+	// Used to count each Request made to the relay, either if it fails or not, for each method
 	mu           sync.Mutex
 	requestCount map[string]int
 
@@ -56,7 +56,7 @@ func NewMockRelay(t *testing.T, secretKey *bls.SecretKey) *MockRelay {
 	return relay
 }
 
-// newTestMiddleware creates a middleware which increases the request counter and creates a fake delay for the response
+// newTestMiddleware creates a middleware which increases the Request counter and creates a fake delay for the response
 func (m *MockRelay) newTestMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +91,7 @@ func (m *MockRelay) getRouter() http.Handler {
 	return m.newTestMiddleware(r)
 }
 
-// GetRequestCount returns the number of request made to a specific URL
+// GetRequestCount returns the number of Request made to a specific URL
 func (m *MockRelay) GetRequestCount(path string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
