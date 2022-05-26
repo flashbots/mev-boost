@@ -87,7 +87,7 @@ func TestWebserver(t *testing.T) {
 	})
 
 	t.Run("webserver error on invalid listenAddr", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
+		backend := NewTestBackend(t, 1, time.Second)
 		backend.boost.listenAddr = "localhost:876543"
 		err := backend.boost.StartHTTPServer()
 		require.Error(t, err)
