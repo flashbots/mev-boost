@@ -293,10 +293,10 @@ func TestGetPayload(t *testing.T) {
 	}
 
 	t.Run("Okay response from relay", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
+		backend := NewTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
-		require.Equal(t, 1, backend.relays[0].getRequestCount(path))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
 		resp := new(types.GetPayloadResponse)
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
@@ -305,7 +305,7 @@ func TestGetPayload(t *testing.T) {
 	})
 
 	t.Run("Bad response from relays", func(t *testing.T) {
-		backend := newTestBackend(t, 2, time.Second)
+		backend := NewTestBackend(t, 2, time.Second)
 		resp := new(types.GetPayloadResponse)
 
 		// Delays are needed because otherwise one relay might never receive a request
@@ -315,15 +315,15 @@ func TestGetPayload(t *testing.T) {
 		// 1/2 failing responses are okay
 		backend.relays[0].GetPayloadResponse = resp
 		rr := backend.request(t, http.MethodPost, path, payload)
-		require.Equal(t, 1, backend.relays[0].getRequestCount(path))
-		require.Equal(t, 1, backend.relays[1].getRequestCount(path))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 		// 2/2 failing responses are okay
 		backend.relays[1].GetPayloadResponse = resp
 		rr = backend.request(t, http.MethodPost, path, payload)
-		require.Equal(t, 2, backend.relays[0].getRequestCount(path))
-		require.Equal(t, 2, backend.relays[1].getRequestCount(path))
+		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
 }
