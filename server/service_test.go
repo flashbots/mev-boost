@@ -53,7 +53,7 @@ func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *Te
 	return &backend
 }
 
-func (be *TestBackend) Request(t *testing.T, method string, path string, payload any) *httptest.ResponseRecorder {
+func (be *TestBackend) request(t *testing.T, method string, path string, payload any) *httptest.ResponseRecorder {
 	var req *http.Request
 	var err error
 
@@ -128,11 +128,11 @@ var payloadRegisterValidator = types.SignedValidatorRegistration{
 }
 
 func TestStatus(t *testing.T) {
-	backend := newTestBackend(t, 1, time.Second)
+	backend := NewTestBackend(t, 1, time.Second)
 	path := "/eth/v1/builder/status"
 	rr := backend.request(t, http.MethodGet, path, payloadRegisterValidator)
 	require.Equal(t, http.StatusOK, rr.Code)
-	require.Equal(t, 0, backend.relays[0].getRequestCount(path))
+	require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 }
 
 func TestRegisterValidator(t *testing.T) {
