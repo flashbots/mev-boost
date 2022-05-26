@@ -18,7 +18,7 @@ import (
 )
 
 type TestBackend struct {
-	Boost  *BoostService
+	boost  *BoostService
 	relays []*boostTesting.MockRelay
 }
 
@@ -49,7 +49,7 @@ func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *Te
 	service, err := NewBoostService("localhost:12345", relayEntries, testLog, relayTimeout)
 	require.NoError(t, err)
 
-	backend.Boost = service
+	backend.boost = service
 	return &backend
 }
 
@@ -67,7 +67,7 @@ func (be *TestBackend) Request(t *testing.T, method string, path string, payload
 
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
-	be.Boost.GetRouter().ServeHTTP(rr, req)
+	be.boost.GetRouter().ServeHTTP(rr, req)
 	return rr
 }
 
@@ -80,7 +80,7 @@ func TestNewBoostServiceErrors(t *testing.T) {
 
 func TestWebserver(t *testing.T) {
 	t.Run("errors when webserver is already existing", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
+		backend := NewTestBackend(t, 1, time.Second)
 		backend.boost.srv = &http.Server{}
 		err := backend.boost.StartHTTPServer()
 		require.Error(t, err)
