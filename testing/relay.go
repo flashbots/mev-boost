@@ -135,10 +135,10 @@ func (m *MockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) 
 	// Fill the payload with custom values.
 	message := &types.BuilderBid{
 		Header: &types.ExecutionPayloadHeader{
-			BlockHash: _HexToHash(hash),
+			BlockHash: HexToHash(hash),
 		},
 		Value:  types.IntToU256(value),
-		Pubkey: _HexToPubkey(publicKey),
+		Pubkey: HexToPubkey(publicKey),
 	}
 
 	// Sign the message.
@@ -188,10 +188,10 @@ func (m *MockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient s
 	return &types.GetPayloadResponse{
 		Version: "bellatrix",
 		Data: &types.ExecutionPayload{
-			ParentHash:   _HexToHash(parentHash),
-			BlockHash:    _HexToHash(blockHash),
+			ParentHash:   HexToHash(parentHash),
+			BlockHash:    HexToHash(blockHash),
 			BlockNumber:  blockNumber,
-			FeeRecipient: _HexToAddress(feeRecipient),
+			FeeRecipient: HexToAddress(feeRecipient),
 		},
 	}
 }

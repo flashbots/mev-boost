@@ -35,11 +35,11 @@ func TestHexToBytes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectedPanic {
 				require.Panics(t, func() {
-					_HexToBytes(tt.hex)
+					HexToBytes(tt.hex)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					actualBytes := _HexToBytes(tt.hex)
+					actualBytes := HexToBytes(tt.hex)
 					require.Equal(t, tt.expectedBytes, actualBytes)
 				})
 			}
@@ -82,11 +82,11 @@ func TestHexToHash(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectedPanic {
 				require.Panics(t, func() {
-					_HexToHash(tt.hex)
+					HexToHash(tt.hex)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					actualHash := _HexToHash(tt.hex)
+					actualHash := HexToHash(tt.hex)
 					require.Equal(t, *tt.expectedHash, actualHash)
 				})
 			}
@@ -129,11 +129,11 @@ func TestHexToAddress(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectedPanic {
 				require.Panics(t, func() {
-					_HexToAddress(tt.hex)
+					HexToAddress(tt.hex)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					actualAddress := _HexToAddress(tt.hex)
+					actualAddress := HexToAddress(tt.hex)
 					require.Equal(t, *tt.expectedAddress, actualAddress)
 				})
 			}
@@ -176,11 +176,11 @@ func TestHexToPublicKey(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectedPanic {
 				require.Panics(t, func() {
-					_HexToPubkey(tt.hex)
+					HexToPubkey(tt.hex)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					actualPublicKey := _HexToPubkey(tt.hex)
+					actualPublicKey := HexToPubkey(tt.hex)
 					require.Equal(t, *tt.expectedPublicKey, actualPublicKey)
 				})
 			}
@@ -198,10 +198,10 @@ func TestHexToSignature(t *testing.T) {
 
 	message := &types.BuilderBid{
 		Header: &types.ExecutionPayloadHeader{
-			BlockHash: _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+			BlockHash: HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
 		},
 		Value:  types.IntToU256(12345),
-		Pubkey: _HexToPubkey(publicKey),
+		Pubkey: HexToPubkey(publicKey),
 	}
 	ssz, err := message.MarshalSSZ()
 	require.NoError(t, err)
@@ -246,11 +246,11 @@ func TestHexToSignature(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectedPanic {
 				require.Panics(t, func() {
-					_HexToSignature(tt.hex)
+					HexToSignature(tt.hex)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					actualSignature := _HexToSignature(tt.hex)
+					actualSignature := HexToSignature(tt.hex)
 					require.Equal(t, *tt.expectedSignature, actualSignature)
 				})
 			}
