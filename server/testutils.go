@@ -101,7 +101,7 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
-	be.boost.getRouter().ServeHTTP(rr, req)
+	be.boost.GetRouter().ServeHTTP(rr, req)
 	return rr
 }
 

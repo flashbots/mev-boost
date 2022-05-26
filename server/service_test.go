@@ -51,7 +51,7 @@ func TestWebserverRootHandler(t *testing.T) {
 	// Check root handler
 	req, _ := http.NewRequest("GET", "/", nil)
 	rr := httptest.NewRecorder()
-	backend.boost.getRouter().ServeHTTP(rr, req)
+	backend.boost.GetRouter().ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "{}", rr.Body.String())
 }

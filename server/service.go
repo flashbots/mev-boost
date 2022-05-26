@@ -88,7 +88,7 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 	}, nil
 }
 
-func (m *BoostService) getRouter() http.Handler {
+func (m *BoostService) GetRouter() http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/", m.handleRoot)
 
@@ -110,7 +110,7 @@ func (m *BoostService) StartHTTPServer() error {
 
 	m.srv = &http.Server{
 		Addr:    m.listenAddr,
-		Handler: m.getRouter(),
+		Handler: m.GetRouter(),
 
 		ReadTimeout:       m.serverTimeouts.Read,
 		ReadHeaderTimeout: m.serverTimeouts.ReadHeader,

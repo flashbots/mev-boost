@@ -24,7 +24,7 @@ func Test_mockRelay(t *testing.T) {
 		req, err := http.NewRequest("POST", PathRegisterValidator, bytes.NewReader([]byte("123")))
 		require.NoError(t, err)
 		rr := httptest.NewRecorder()
-		relay.getRouter().ServeHTTP(rr, req)
+		relay.GetRouter().ServeHTTP(rr, req)
 		require.Equal(t, http.StatusBadRequest, rr.Code)
 	})
 }
