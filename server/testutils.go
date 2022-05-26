@@ -19,12 +19,12 @@ import (
 
 var testLog = logrus.WithField("testing", true)
 
-func _hexToBytes(hex string) []byte {
-	bytes, err := hexutil.Decode(hex)
+func _HexToBytes(hex string) []byte {
+	res, err := hexutil.Decode(hex)
 	if err != nil {
 		panic(err)
 	}
-	return bytes
+	return res
 }
 
 func _HexToHash(s string) (ret types.Hash) {
