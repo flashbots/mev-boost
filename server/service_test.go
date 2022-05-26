@@ -1,8 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/mev-boost/relay"
 	"net/http"
 	"net/http/httptest"
@@ -10,8 +13,63 @@ import (
 	"time"
 
 	"github.com/flashbots/go-boost-utils/types"
+	boostTesting "github.com/flashbots/mev-boost/testing"
 	"github.com/stretchr/testify/require"
 )
+
+type TestBackend struct {
+	Boost  *BoostService
+	relays []*boostTesting.MockRelay
+}
+
+// NewTestBackend creates a new backend, initializes mock relays, registers them and return the instance
+func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *TestBackend {
+	backend := TestBackend{
+		relays: make([]*boostTesting.MockRelay, numRelays),
+	}
+
+	relayEntries := make([]relay.Entry, numRelays)
+	for i := 0; i < numRelays; i++ {
+		// Generate private key for relay
+		blsPrivateKey, blsPublicKey, err := bls.GenerateNewKeypair()
+		require.NoError(t, err)
+
+		// Create a mock relay
+		backend.relays[i] = boostTesting.NewMockRelay(t, blsPrivateKey)
+
+		// Create the relay.Entry used to identify the relay
+		relayEntries[i], err = relay.NewRelayEntry(backend.relays[i].Server.URL)
+		require.NoError(t, err)
+
+		// Hardcode relay's public key
+		publicKeyString := hexutil.Encode(blsPublicKey.Compress())
+		publicKey := _HexToPubkey(publicKeyString)
+		relayEntries[i].PublicKey = publicKey
+	}
+	service, err := NewBoostService("localhost:12345", relayEntries, testLog, relayTimeout)
+	require.NoError(t, err)
+
+	backend.Boost = service
+	return &backend
+}
+
+func (be *TestBackend) Request(t *testing.T, method string, path string, payload any) *httptest.ResponseRecorder {
+	var req *http.Request
+	var err error
+
+	if payload == nil {
+		req, err = http.NewRequest(method, path, bytes.NewReader(nil))
+	} else {
+		payloadBytes, err2 := json.Marshal(payload)
+		require.NoError(t, err2)
+		req, err = http.NewRequest(method, path, bytes.NewReader(payloadBytes))
+	}
+
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	be.Boost.GetRouter().ServeHTTP(rr, req)
+	return rr
+}
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
