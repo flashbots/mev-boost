@@ -105,7 +105,7 @@ func TestWebserver(t *testing.T) {
 }
 
 func TestWebserverRootHandler(t *testing.T) {
-	backend := newTestBackend(t, 1, time.Second)
+	backend := NewTestBackend(t, 1, time.Second)
 
 	// Check root handler
 	req, _ := http.NewRequest("GET", "/", nil)
