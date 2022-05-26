@@ -1,35 +1,13 @@
-package server
+package testing
 
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
-	"testing"
-
 	"github.com/stretchr/testify/require"
+	"testing"
 )
-
-/*
-func Test_hexToBytes(t *testing.T) {
-	assert.Equal(t, []byte{0x01, 0x02}, _HexToBytes("0x0102"))
-	require.Panics(t, func() {
-		_HexToBytes("foo")
-	})
-}
-
-func Test_mockRelay(t *testing.T) {
-	t.Run("bad payload", func(t *testing.T) {
-		relay := newMockRelay()
-		req, err := http.NewRequest("POST", PathRegisterValidator, bytes.NewReader([]byte("123")))
-		require.NoError(t, err)
-		rr := httptest.NewRecorder()
-		relay.getRouter().ServeHTTP(rr, req)
-		require.Equal(t, http.StatusBadRequest, rr.Code)
-	})
-}
-
-*/
 
 func TestHexToBytes(t *testing.T) {
 	testCases := []struct {

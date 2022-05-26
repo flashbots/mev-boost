@@ -4,17 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"sync"
-	"testing"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"net/http"
+	"net/http/httptest"
+	"sync"
+	"testing"
+	"time"
 )
 
 var testLog = logrus.WithField("testing", true)
@@ -127,10 +126,10 @@ func newMockRelay() *mockRelay {
 
 func (m *mockRelay) getRouter() http.Handler {
 	r := mux.NewRouter()
-	r.HandleFunc(pathStatus, m.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
-	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
-	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(PathStatus, m.handleStatus).Methods(http.MethodGet)
+	r.HandleFunc(PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
+	r.HandleFunc(PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	r.HandleFunc(PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 	return m.testMiddleware(r)
 }
 
