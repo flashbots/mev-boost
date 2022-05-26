@@ -91,8 +91,8 @@ func (m *MockRelay) getRouter() http.Handler {
 	return m.newTestMiddleware(r)
 }
 
-// getRequestCount returns the number of request made to a specific URL
-func (m *MockRelay) getRequestCount(path string) int {
+// GetRequestCount returns the number of request made to a specific URL
+func (m *MockRelay) GetRequestCount(path string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.requestCount[path]
