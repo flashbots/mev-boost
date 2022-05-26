@@ -214,35 +214,51 @@ func TestGetHeader(t *testing.T) {
 	})
 
 	t.Run("Bad response from relays", func(t *testing.T) {
-		backend := newTestBackend(t, 2, time.Second)
-		resp := makeGetHeaderResponse(12345)
+		backend := NewTestBackend(t, 2, time.Second)
+		resp := backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
 		resp.Data.Message.Header.BlockHash = nilHash
 
 		// 1/2 failing responses are okay
 		backend.relays[0].GetHeaderResponse = resp
 		rr := backend.request(t, http.MethodGet, path, nil)
-		require.Equal(t, 1, backend.relays[0].getRequestCount(path))
-		require.Equal(t, 1, backend.relays[1].getRequestCount(path))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 		// 2/2 failing responses are okay
 		backend.relays[1].GetHeaderResponse = resp
 		rr = backend.request(t, http.MethodGet, path, nil)
-		require.Equal(t, 2, backend.relays[0].getRequestCount(path))
-		require.Equal(t, 2, backend.relays[1].getRequestCount(path))
+		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
 
 	t.Run("Use header with highest value", func(t *testing.T) {
-		backend := newTestBackend(t, 3, time.Second)
-		backend.relays[0].GetHeaderResponse = makeGetHeaderResponse(12345)
-		backend.relays[1].GetHeaderResponse = makeGetHeaderResponse(12347)
-		backend.relays[2].GetHeaderResponse = makeGetHeaderResponse(12346)
+		backend := NewTestBackend(t, 3, time.Second)
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+		backend.relays[1].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12347,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+		backend.relays[2].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12346,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
 
 		rr := backend.request(t, http.MethodGet, path, nil)
-		require.Equal(t, 1, backend.relays[0].getRequestCount(path))
-		require.Equal(t, 1, backend.relays[1].getRequestCount(path))
-		require.Equal(t, 1, backend.relays[2].getRequestCount(path))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[2].GetRequestCount(path))
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		resp := new(types.GetHeaderResponse)
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
