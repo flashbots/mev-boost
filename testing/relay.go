@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
-	"github.com/flashbots/mev-boost/server"
+	"github.com/flashbots/mev-boost/backend"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -44,7 +44,7 @@ type MockRelay struct {
 	ResponseDelay time.Duration
 }
 
-// NewMockRelay creates a mocked relay which implements the server.BoostBackend interface
+// NewMockRelay creates a mocked relay which implements the backend.BoostBackend interface
 // A secret key must be provided to sign default and custom response messages
 func NewMockRelay(t *testing.T, secretKey *bls.SecretKey) *MockRelay {
 	publicKey := bls.PublicKeyFromSecretKey(secretKey)
@@ -83,10 +83,10 @@ func (m *MockRelay) getRouter() http.Handler {
 
 	// Register handlers
 	r.HandleFunc("/", m.handleRoot).Methods(http.MethodGet)
-	r.HandleFunc(server.PathStatus, m.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(server.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
-	r.HandleFunc(server.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
-	r.HandleFunc(server.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(backend.PathStatus, m.handleStatus).Methods(http.MethodGet)
+	r.HandleFunc(backend.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
+	r.HandleFunc(backend.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	r.HandleFunc(backend.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
 	return m.newTestMiddleware(r)
 }

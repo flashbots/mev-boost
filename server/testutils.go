@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/backend"
+	"github.com/flashbots/mev-boost/relay"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -73,10 +75,10 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relays: make([]*mockRelay, numRelays),
 	}
 
-	relayEntries := make([]RelayEntry, numRelays)
+	relayEntries := make([]relay.Entry, numRelays)
 	for i := 0; i < numRelays; i++ {
 		resp.relays[i] = newMockRelay()
-		relayEntries[i], err = NewRelayEntry(resp.relays[i].Server.URL)
+		relayEntries[i], err = relay.NewRelayEntry(resp.relays[i].Server.URL)
 		require.NoError(t, err)
 	}
 
@@ -126,10 +128,10 @@ func newMockRelay() *mockRelay {
 
 func (m *mockRelay) getRouter() http.Handler {
 	r := mux.NewRouter()
-	r.HandleFunc(PathStatus, m.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
-	r.HandleFunc(PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
-	r.HandleFunc(PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(backend.PathStatus, m.handleStatus).Methods(http.MethodGet)
+	r.HandleFunc(backend.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
+	r.HandleFunc(backend.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	r.HandleFunc(backend.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 	return m.testMiddleware(r)
 }
 

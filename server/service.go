@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/flashbots/mev-boost/backend"
+	"github.com/flashbots/mev-boost/relay"
 	"net/http"
 	"strconv"
 	"sync"
@@ -23,23 +25,9 @@ var (
 	errInvalidSignature = errors.New("invalid signature")
 
 	errServerAlreadyRunning = errors.New("server already running")
-
-	PathStatus            = "/eth/v1/builder/status"
-	PathRegisterValidator = "/eth/v1/builder/validators"
-	PathGetHeader         = "/eth/v1/builder/header/{slot:[0-9]+}/{parent_hash:0x[a-fA-F0-9]+}/{pubkey:0x[a-fA-F0-9]+}"
-	PathGetPayload        = "/eth/v1/builder/blinded_blocks"
 )
 
 var nilHash = types.Hash{}
-
-// BoostBackend defines the interface any boost backend, used both by mev-boost and the tests, must implement
-type BoostBackend interface {
-	handleRoot(w http.ResponseWriter, req *http.Request)
-	handleStatus(w http.ResponseWriter, req *http.Request)
-	handleRegisterValidator(w http.ResponseWriter, req *http.Request)
-	handleGetHeader(w http.ResponseWriter, req *http.Request)
-	handleGetPayload(w http.ResponseWriter, req *http.Request)
-}
 
 // HTTPServerTimeouts are various timeouts for requests to the mev-boost HTTP server
 type HTTPServerTimeouts struct {
@@ -62,7 +50,7 @@ func NewDefaultHTTPServerTimeouts() HTTPServerTimeouts {
 // BoostService TODO
 type BoostService struct {
 	listenAddr string
-	relays     []RelayEntry
+	relays     []relay.Entry
 	log        *logrus.Entry
 	srv        *http.Server
 
@@ -72,7 +60,7 @@ type BoostService struct {
 }
 
 // NewBoostService created a new BoostService
-func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
+func NewBoostService(listenAddr string, relays []relay.Entry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
 	// TODO: validate relays
 	if len(relays) == 0 {
 		return nil, errors.New("no relays")
@@ -92,10 +80,10 @@ func (m *BoostService) GetRouter() http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/", m.handleRoot)
 
-	r.HandleFunc(PathStatus, m.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
-	r.HandleFunc(PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
-	r.HandleFunc(PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(backend.PathStatus, m.handleStatus).Methods(http.MethodGet)
+	r.HandleFunc(backend.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
+	r.HandleFunc(backend.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	r.HandleFunc(backend.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
@@ -169,7 +157,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		wg.Add(1)
 		go func(relayAddr string) {
 			defer wg.Done()
-			url := relayAddr + PathRegisterValidator
+			url := relayAddr + backend.PathRegisterValidator
 			log := log.WithField("url", url)
 
 			err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, payload, nil)
@@ -312,7 +300,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		wg.Add(1)
 		go func(relayAddr string) {
 			defer wg.Done()
-			url := fmt.Sprintf("%s%s", relayAddr, PathGetPayload)
+			url := fmt.Sprintf("%s%s", relayAddr, backend.PathGetPayload)
 			log := log.WithField("url", url)
 			responsePayload := new(types.GetPayloadResponse)
 			err := SendHTTPRequest(requestCtx, m.httpClient, http.MethodPost, url, payload, responsePayload)

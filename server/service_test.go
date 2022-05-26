@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/flashbots/mev-boost/relay"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +15,7 @@ import (
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(":123", []RelayEntry{}, testLog, time.Second)
+		_, err := NewBoostService(":123", []relay.Entry{}, testLog, time.Second)
 		require.Error(t, err)
 	})
 }
