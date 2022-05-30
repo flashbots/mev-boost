@@ -46,7 +46,7 @@ func newRandomValidator(gasLimit uint64, feeRecipient string) validatorPrivateDa
 	return validatorPrivateData{sk.Serialize(), pk.Compress(), hexutil.Uint64(gasLimit), feeRecipient}
 }
 
-func (v *validatorPrivateData) PrepareRegistrationMessage() ([]boostTypes.SignedValidatorRegistration, error) {
+func (v *validatorPrivateData) PrepareRegistrationMessage(builderSigningDomain boostTypes.Domain) ([]boostTypes.SignedValidatorRegistration, error) {
 	pk := boostTypes.PublicKey{}
 	pk.FromSlice(v.Pk)
 	addr, err := boostTypes.HexToAddress(v.FeeRecipientHex)
@@ -59,7 +59,7 @@ func (v *validatorPrivateData) PrepareRegistrationMessage() ([]boostTypes.Signed
 		Pubkey:       pk,
 		GasLimit:     uint64(v.GasLimit),
 	}
-	signature, err := v.Sign(&msg, boostTypes.DomainBuilder)
+	signature, err := v.Sign(&msg, builderSigningDomain)
 	if err != nil {
 		return []boostTypes.SignedValidatorRegistration{}, err
 	}
