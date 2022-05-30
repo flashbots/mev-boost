@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
+	boostTesting "github.com/flashbots/mev-boost/internal/testing"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/flashbots/go-boost-utils/types"
-	boostTesting "github.com/flashbots/mev-boost/testing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +27,7 @@ func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *Te
 		relays: make([]*boostTesting.MockRelay, numRelays),
 	}
 
-	relayEntries := make([]Entry, numRelays)
+	relayEntries := make([]RelayEntry, numRelays)
 	for i := 0; i < numRelays; i++ {
 		// Generate private key for relay
 		blsPrivateKey, blsPublicKey, err := bls.GenerateNewKeypair()
@@ -36,7 +36,7 @@ func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *Te
 		// Create a mock relay
 		backend.relays[i] = boostTesting.NewMockRelay(t, blsPrivateKey)
 
-		// Create the relay.Entry used to identify the relay
+		// Create the relay.RelayEntry used to identify the relay
 		relayEntries[i], err = NewRelayEntry(backend.relays[i].Server.URL)
 		require.NoError(t, err)
 
@@ -66,13 +66,13 @@ func (be *TestBackend) request(t *testing.T, method string, path string, payload
 
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
-	be.boost.GetRouter().ServeHTTP(rr, req)
+	be.boost.getRouter().ServeHTTP(rr, req)
 	return rr
 }
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(":123", []Entry{}, boostTesting.TestLog, time.Second)
+		_, err := NewBoostService(":123", []RelayEntry{}, boostTesting.TestLog, time.Second)
 		require.Error(t, err)
 	})
 }
@@ -109,7 +109,7 @@ func TestWebserverRootHandler(t *testing.T) {
 	// Check root handler
 	req, _ := http.NewRequest("GET", "/", nil)
 	rr := httptest.NewRecorder()
-	backend.boost.GetRouter().ServeHTTP(rr, req)
+	backend.boost.getRouter().ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "{}", rr.Body.String())
 }

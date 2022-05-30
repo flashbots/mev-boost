@@ -2,6 +2,7 @@ package backend
 
 import "net/http"
 
+// Router paths
 var (
 	PathStatus            = "/eth/v1/builder/status"
 	PathRegisterValidator = "/eth/v1/builder/validators"

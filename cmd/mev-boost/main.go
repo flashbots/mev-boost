@@ -70,8 +70,8 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func parseRelayURLs(relayURLs string) []server.Entry {
-	ret := []server.Entry{}
+func parseRelayURLs(relayURLs string) []server.RelayEntry {
+	ret := []server.RelayEntry{}
 	for _, entry := range strings.Split(relayURLs, ",") {
 		relay, err := server.NewRelayEntry(entry)
 		if err != nil {
@@ -82,7 +82,7 @@ func parseRelayURLs(relayURLs string) []server.Entry {
 	return ret
 }
 
-func relayStartupCheck(relays []server.Entry) error {
+func relayStartupCheck(relays []server.RelayEntry) error {
 	log.Fatal("TODO: Checking relays...")
 	for _, relay := range relays {
 		log.WithField("relay", relay).Info("Checking relay")

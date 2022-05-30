@@ -49,7 +49,7 @@ func NewDefaultHTTPServerTimeouts() HTTPServerTimeouts {
 // BoostService TODO
 type BoostService struct {
 	listenAddr string
-	relays     []Entry
+	relays     []RelayEntry
 	log        *logrus.Entry
 	srv        *http.Server
 
@@ -59,7 +59,7 @@ type BoostService struct {
 }
 
 // NewBoostService created a new BoostService
-func NewBoostService(listenAddr string, relays []Entry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
+func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
 	// TODO: validate relays
 	if len(relays) == 0 {
 		return nil, errors.New("no relays")
@@ -75,7 +75,7 @@ func NewBoostService(listenAddr string, relays []Entry, log *logrus.Entry, relay
 	}, nil
 }
 
-func (m *BoostService) GetRouter() http.Handler {
+func (m *BoostService) getRouter() http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/", m.handleRoot)
 
@@ -97,7 +97,7 @@ func (m *BoostService) StartHTTPServer() error {
 
 	m.srv = &http.Server{
 		Addr:    m.listenAddr,
-		Handler: m.GetRouter(),
+		Handler: m.getRouter(),
 
 		ReadTimeout:       m.serverTimeouts.Read,
 		ReadHeaderTimeout: m.serverTimeouts.ReadHeader,

@@ -6,8 +6,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// TestLog is used to log information in the test methods
 var TestLog = logrus.WithField("testing", true)
 
+// HexToBytes converts a hexadecimal string to a byte array
 func HexToBytes(hex string) []byte {
 	res, err := hexutil.Decode(hex)
 	if err != nil {
@@ -16,6 +18,7 @@ func HexToBytes(hex string) []byte {
 	return res
 }
 
+// HexToHash converts a hexadecimal string to an Ethereum hash
 func HexToHash(s string) (ret types.Hash) {
 	err := ret.UnmarshalText([]byte(s))
 	if err != nil {
@@ -25,6 +28,7 @@ func HexToHash(s string) (ret types.Hash) {
 	return ret
 }
 
+// HexToAddress converts a hexadecimal string to an Ethereum address
 func HexToAddress(s string) (ret types.Address) {
 	err := ret.UnmarshalText([]byte(s))
 	if err != nil {
@@ -34,6 +38,7 @@ func HexToAddress(s string) (ret types.Address) {
 	return ret
 }
 
+// HexToPubkey converts a hexadecimal string to a BLS Public Key
 func HexToPubkey(s string) (ret types.PublicKey) {
 	err := ret.UnmarshalText([]byte(s))
 	if err != nil {
@@ -43,6 +48,7 @@ func HexToPubkey(s string) (ret types.PublicKey) {
 	return
 }
 
+// HexToSignature converts a hexadecimal string to a BLS Signature
 func HexToSignature(s string) (ret types.Signature) {
 	err := ret.UnmarshalText([]byte(s))
 	if err != nil {
