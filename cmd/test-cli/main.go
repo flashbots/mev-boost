@@ -41,7 +41,7 @@ func doRegisterValidator(v validatorPrivateData, boostEndpoint string, builderSi
 	log.WithError(err).Info("Registered validator")
 }
 
-func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, proposerSigningDomain boostTypes.Domain) boostTypes.GetHeaderResponse {
+func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain boostTypes.Domain) boostTypes.GetHeaderResponse {
 	// Mergemock needs to call forkchoice update before getHeader, for non-mergemock beacon node this is a no-op
 	err := beaconNode.onGetHeader()
 	if err != nil {
@@ -78,7 +78,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 	}
 	log.WithField("header", *getHeaderResp.Data.Message).Info("Got header from boost")
 
-	ok, err := boostTypes.VerifySignature(getHeaderResp.Data.Message, proposerSigningDomain, getHeaderResp.Data.Message.Pubkey[:], getHeaderResp.Data.Signature[:])
+	ok, err := boostTypes.VerifySignature(getHeaderResp.Data.Message, builderSigningDomain, getHeaderResp.Data.Message.Pubkey[:], getHeaderResp.Data.Signature[:])
 	if err != nil {
 		log.WithError(err).Fatal("Could not verify builder bid signature")
 	}
@@ -89,8 +89,8 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 	return getHeaderResp
 }
 
-func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, proposerSigningDomain boostTypes.Domain) {
-	header := doGetHeader(v, boostEndpoint, beaconNode, engineEndpoint, proposerSigningDomain)
+func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain boostTypes.Domain, proposerSigningDomain boostTypes.Domain) {
+	header := doGetHeader(v, boostEndpoint, beaconNode, engineEndpoint, builderSigningDomain)
 
 	blindedBeaconBlock := boostTypes.BlindedBeaconBlock{
 		Slot:          0,
@@ -166,16 +166,16 @@ func main() {
 
 	var genesisValidatorsRootStr string
 	envGenesisValidatorsRoot := getEnv("GENESIS_VALIDATORS_ROOT", "0x0000000000000000000000000000000000000000000000000000000000000000")
-	getHeaderCommand.StringVar(&genesisValidatorsRootStr, "genesis-validators-root", envGenesisValidatorsRoot, "Root of genesis validators")
 	getPayloadCommand.StringVar(&genesisValidatorsRootStr, "genesis-validators-root", envGenesisValidatorsRoot, "Root of genesis validators")
 
 	var genesisForkVersionStr string
 	envGenesisForkVersion := getEnv("GENESIS_FORK_VERSION", "0x00000000")
 	registerCommand.StringVar(&genesisForkVersionStr, "genesis-fork-version", envGenesisForkVersion, "hex encoded genesis fork version")
+	getHeaderCommand.StringVar(&genesisForkVersionStr, "genesis-fork-version", envGenesisForkVersion, "hex encoded genesis fork version")
+	getPayloadCommand.StringVar(&genesisForkVersionStr, "genesis-fork-version", envGenesisForkVersion, "hex encoded genesis fork version")
 
 	var bellatrixForkVersionStr string
 	envBellatrixForkVersion := getEnv("BELLATRIX_FORK_VERSION", "0x02000000")
-	getHeaderCommand.StringVar(&bellatrixForkVersionStr, "bellatrix-fork-version", envBellatrixForkVersion, "hex encoded bellatrix fork version")
 	getPayloadCommand.StringVar(&bellatrixForkVersionStr, "bellatrix-fork-version", envBellatrixForkVersion, "hex encoded bellatrix fork version")
 
 	var gasLimit uint64
@@ -210,12 +210,13 @@ func main() {
 		doRegisterValidator(mustLoadValidator(validatorDataFile), boostEndpoint, builderSigningDomain)
 	case "getHeader":
 		getHeaderCommand.Parse(os.Args[2:])
-		proposerSigningDomain := computeDomain(boostTypes.DomainTypeBeaconProposer, bellatrixForkVersionStr, genesisValidatorsRootStr)
-		doGetHeader(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, proposerSigningDomain)
+		builderSigningDomain := computeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
+		doGetHeader(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, builderSigningDomain)
 	case "getPayload":
 		getPayloadCommand.Parse(os.Args[2:])
+		builderSigningDomain := computeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
 		proposerSigningDomain := computeDomain(boostTypes.DomainTypeBeaconProposer, bellatrixForkVersionStr, genesisValidatorsRootStr)
-		doGetPayload(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, proposerSigningDomain)
+		doGetPayload(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, builderSigningDomain, proposerSigningDomain)
 	default:
 		fmt.Println("Expected generate|register|getHeader|getPayload subcommand")
 		os.Exit(1)
