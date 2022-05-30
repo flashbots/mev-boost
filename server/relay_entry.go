@@ -1,4 +1,4 @@
-package relay
+package server
 
 import (
 	"github.com/flashbots/go-boost-utils/types"

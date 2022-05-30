@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"github.com/flashbots/mev-boost/relay"
 	"os"
 	"strconv"
 	"strings"
@@ -71,10 +70,10 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func parseRelayURLs(relayURLs string) []relay.Entry {
-	ret := []relay.Entry{}
+func parseRelayURLs(relayURLs string) []server.Entry {
+	ret := []server.Entry{}
 	for _, entry := range strings.Split(relayURLs, ",") {
-		relay, err := relay.NewRelayEntry(entry)
+		relay, err := server.NewRelayEntry(entry)
 		if err != nil {
 			log.WithError(err).WithField("relayURL", entry).Fatal("Invalid relay URL")
 		}
@@ -83,7 +82,7 @@ func parseRelayURLs(relayURLs string) []relay.Entry {
 	return ret
 }
 
-func relayStartupCheck(relays []relay.Entry) error {
+func relayStartupCheck(relays []server.Entry) error {
 	log.Fatal("TODO: Checking relays...")
 	for _, relay := range relays {
 		log.WithField("relay", relay).Info("Checking relay")

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/flashbots/mev-boost/backend"
-	"github.com/flashbots/mev-boost/relay"
 	"net/http"
 	"strconv"
 	"sync"
@@ -50,7 +49,7 @@ func NewDefaultHTTPServerTimeouts() HTTPServerTimeouts {
 // BoostService TODO
 type BoostService struct {
 	listenAddr string
-	relays     []relay.Entry
+	relays     []Entry
 	log        *logrus.Entry
 	srv        *http.Server
 
@@ -60,7 +59,7 @@ type BoostService struct {
 }
 
 // NewBoostService created a new BoostService
-func NewBoostService(listenAddr string, relays []relay.Entry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
+func NewBoostService(listenAddr string, relays []Entry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
 	// TODO: validate relays
 	if len(relays) == 0 {
 		return nil, errors.New("no relays")
