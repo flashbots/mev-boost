@@ -12,9 +12,9 @@ make build-cli
 ./test-cli [generate|register|getHeader|getPayload] [-help]
 
 generate [-vd-file] [-fee-recipient]
-register [-vd-file] [-mev-boost]
-getHeader [-vd-file] [-mev-boost] [-bn] [-en] [-mm]
-getPayload [-vd-file] [-mev-boost] [-bn] [-en] [-mm]
+register [-vd-file] [-mev-boost] [-genesis-fork-version] [-genesis-validators-root]
+getHeader [-vd-file] [-mev-boost] [-bn] [-en] [-mm] [-bellatrix-fork-version] [-genesis-validators-root]
+getPayload [-vd-file] [-mev-boost] [-bn] [-en] [-mm] [-bellatrix-fork-version] [-genesis-validators-root]
 
 Env & defaults:
 	[generate]
@@ -22,20 +22,34 @@ Env & defaults:
 	-fee-recipient  VALIDATOR_FEE_RECIPIENT  = 0x0000000000000000000000000000000000000000
 
 	[register]
-	-vd-file   VALIDATOR_DATA_FILE = ./validator_data.json
-	-mev-boost MEV_BOOST_ENDPOINT  = http://127.0.0.1:18550
+	-vd-file                  VALIDATOR_DATA_FILE     = ./validator_data.json
+	-mev-boost                MEV_BOOST_ENDPOINT      = http://127.0.0.1:18550
+	-genesis-fork-version     GENESIS_FORK_VERSION    = "0x00000000" (mainnet) - network fork version
+	                                                    "0x70000069" (kiln)
 
-	[getHeader|getPayload]
-	-vd-file   VALIDATOR_DATA_FILE = ./validator_data.json
-	-mev-boost MEV_BOOST_ENDPOINT  = http://127.0.0.1:18550
-	-bn        BEACON_ENDPOINT     = http://localhost:5052
-	-en        ENGINE_ENDPOINT     = http://localhost:8545  - only used if -mm is passed or pre-bellatrix
-	-mm                                                     - mergemock mode, use mergemock defaults, only call execution and use fake slot in getHeader
+	[getHeader]
+	-vd-file    VALIDATOR_DATA_FILE = ./validator_data.json
+	-mev-boost  MEV_BOOST_ENDPOINT  = http://127.0.0.1:18550
+	-bn         BEACON_ENDPOINT     = http://localhost:5052
+	-en         ENGINE_ENDPOINT     = http://localhost:8545  - only used if -mm is passed or pre-bellatrix
+	-mm                                                      - mergemock mode, use mergemock defaults, only call execution and use fake slot in getHeader
 
-	           GENESIS_VALIDATORS_ROOT = "0x0000000000000000000000000000000000000000000000000000000000000000" - per network genesis validators root
-	                                     "0x99b09fcd43e5905236c370f184056bec6e6638cfc31a323b304fc4aa789cb4ad"   for kiln
+	-genesis-fork-version     GENESIS_FORK_VERSION    = "0x00000000" (mainnet) - network fork version
+	                                                    "0x70000069" (kiln)
+	[getPayload]
+	-vd-file    VALIDATOR_DATA_FILE = ./validator_data.json
+	-mev-boost  MEV_BOOST_ENDPOINT  = http://127.0.0.1:18550
+	-bn         BEACON_ENDPOINT     = http://localhost:5052
+	-en         ENGINE_ENDPOINT     = http://localhost:8545  - only used if -mm is passed or pre-bellatrix
+	-mm                                                      - mergemock mode, use mergemock defaults, only call execution and use fake slot in getHeader
 
-	           FORK_VERSION            = "0x02000000" (Bellatrix) - per network fork version
+	-genesis-validators-root  GENESIS_VALIDATORS_ROOT = "0x0000000000000000000000000000000000000000000000000000000000000000" (mainnet) - network genesis validators root
+	                                                    "0x99b09fcd43e5905236c370f184056bec6e6638cfc31a323b304fc4aa789cb4ad" (kiln)
+
+	-genesis-fork-version     GENESIS_FORK_VERSION    = "0x00000000" (mainnet) - network fork version
+	                                                    "0x70000069" (kiln)
+	-bellatrix-fork-version   BELLATRIX_FORK_VERSION  = "0x02000000" (mainnet) - network bellatrix fork version
+	                                                    "0x70000071" (kiln)
 ```
 
 ### Run mev-boost
