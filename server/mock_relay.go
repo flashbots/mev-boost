@@ -14,10 +14,10 @@ import (
 	"time"
 )
 
-// MockRelay is used to fake a relay's behavior.
+// mockRelay is used to fake a relay's behavior.
 // You can override each of its handler by setting the instance's HandlerOverride_METHOD_TO_OVERRIDE to your own
 // handler.
-type MockRelay struct {
+type mockRelay struct {
 	// Used to panic if impossible error happens
 	t *testing.T
 
@@ -43,11 +43,11 @@ type MockRelay struct {
 	ResponseDelay time.Duration
 }
 
-// NewMockRelay creates a mocked relay which implements the backend.BoostBackend interface
+// newMockRelay creates a mocked relay which implements the backend.BoostBackend interface
 // A secret key must be provided to sign default and custom response messages
-func NewMockRelay(t *testing.T, secretKey *bls.SecretKey) *MockRelay {
+func newMockRelay(t *testing.T, secretKey *bls.SecretKey) *mockRelay {
 	publicKey := bls.PublicKeyFromSecretKey(secretKey)
-	relay := &MockRelay{t: t, secretKey: secretKey, publicKey: publicKey, requestCount: make(map[string]int)}
+	relay := &mockRelay{t: t, secretKey: secretKey, publicKey: publicKey, requestCount: make(map[string]int)}
 
 	// Initialize server
 	relay.Server = httptest.NewServer(relay.getRouter())
@@ -56,7 +56,7 @@ func NewMockRelay(t *testing.T, secretKey *bls.SecretKey) *MockRelay {
 }
 
 // newTestMiddleware creates a middleware which increases the Request counter and creates a fake delay for the response
-func (m *MockRelay) newTestMiddleware(next http.Handler) http.Handler {
+func (m *mockRelay) newTestMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			// Request counter
@@ -76,7 +76,7 @@ func (m *MockRelay) newTestMiddleware(next http.Handler) http.Handler {
 }
 
 // getRouter registers all methods from the backend, apply the test middleware a,nd return the configured router
-func (m *MockRelay) getRouter() http.Handler {
+func (m *mockRelay) getRouter() http.Handler {
 	// Create router.
 	r := mux.NewRouter()
 
@@ -91,28 +91,28 @@ func (m *MockRelay) getRouter() http.Handler {
 }
 
 // GetRequestCount returns the number of Request made to a specific URL
-func (m *MockRelay) GetRequestCount(path string) int {
+func (m *mockRelay) GetRequestCount(path string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.requestCount[path]
 }
 
 // By default, handleRoot returns the relay's status
-func (m *MockRelay) handleRoot(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) handleRoot(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{}`)
 }
 
 // By default, handleStatus returns the relay's status as http.StatusOK
-func (m *MockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{}`)
 }
 
 // By default, handleRegisterValidator returns a default types.SignedValidatorRegistration
-func (m *MockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	if m.HandlerOverrideRegisterValidator != nil {
 		m.HandlerOverrideRegisterValidator(w, req)
 		return
@@ -130,7 +130,7 @@ func (m *MockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 
 // MakeGetHeaderResponse is used to create the default or can be used to create a custom response to the getHeader
 // method
-func (m *MockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) *types.GetHeaderResponse {
+func (m *mockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) *types.GetHeaderResponse {
 	// Fill the payload with custom values.
 	message := &types.BuilderBid{
 		Header: &types.ExecutionPayloadHeader{
@@ -154,7 +154,7 @@ func (m *MockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) 
 }
 
 // handleGetHeader handles incoming requests to server.pathGetHeader
-func (m *MockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	// Try to override default behavior is custom handler is specified.
 	if m.HandlerOverrideGetHeader != nil {
 		m.HandlerOverrideGetHeader(w, req)
@@ -183,7 +183,7 @@ func (m *MockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 
 // MakeGetPayloadResponse is used to create the default or can be used to create a custom response to the getPayload
 // method
-func (m *MockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *types.GetPayloadResponse {
+func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *types.GetPayloadResponse {
 	return &types.GetPayloadResponse{
 		Version: "bellatrix",
 		Data: &types.ExecutionPayload{
@@ -196,7 +196,7 @@ func (m *MockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient s
 }
 
 // handleGetPayload handles incoming requests to server.pathGetPayload
-func (m *MockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	// Try to override default behavior is custom handler is specified.
 	if m.HandlerOverrideGetPayload != nil {
 		m.HandlerOverrideGetPayload(w, req)

@@ -15,15 +15,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type TestBackend struct {
+type testBackend struct {
 	boost  *BoostService
-	relays []*MockRelay
+	relays []*mockRelay
 }
 
-// NewTestBackend creates a new backend, initializes mock relays, registers them and return the instance
-func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *TestBackend {
-	backend := TestBackend{
-		relays: make([]*MockRelay, numRelays),
+// newTestBackend creates a new backend, initializes mock relays, registers them and return the instance
+func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *testBackend {
+	backend := testBackend{
+		relays: make([]*mockRelay, numRelays),
 	}
 
 	relayEntries := make([]RelayEntry, numRelays)
@@ -33,7 +33,7 @@ func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *Te
 		require.NoError(t, err)
 
 		// Create a mock relay
-		backend.relays[i] = NewMockRelay(t, blsPrivateKey)
+		backend.relays[i] = newMockRelay(t, blsPrivateKey)
 
 		// Create the relay.RelayEntry used to identify the relay
 		relayEntries[i], err = NewRelayEntry(backend.relays[i].Server.URL)
@@ -51,7 +51,7 @@ func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *Te
 	return &backend
 }
 
-func (be *TestBackend) request(t *testing.T, method string, path string, payload any) *httptest.ResponseRecorder {
+func (be *testBackend) request(t *testing.T, method string, path string, payload any) *httptest.ResponseRecorder {
 	var req *http.Request
 	var err error
 
@@ -78,14 +78,14 @@ func TestNewBoostServiceErrors(t *testing.T) {
 
 func TestWebserver(t *testing.T) {
 	t.Run("errors when webserver is already existing", func(t *testing.T) {
-		backend := NewTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, time.Second)
 		backend.boost.srv = &http.Server{}
 		err := backend.boost.StartHTTPServer()
 		require.Error(t, err)
 	})
 
 	t.Run("webserver error on invalid listenAddr", func(t *testing.T) {
-		backend := NewTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, time.Second)
 		backend.boost.listenAddr = "localhost:876543"
 		err := backend.boost.StartHTTPServer()
 		require.Error(t, err)
@@ -103,7 +103,7 @@ func TestWebserver(t *testing.T) {
 }
 
 func TestWebserverRootHandler(t *testing.T) {
-	backend := NewTestBackend(t, 1, time.Second)
+	backend := newTestBackend(t, 1, time.Second)
 
 	// Check root handler
 	req, _ := http.NewRequest("GET", "/", nil)
@@ -128,7 +128,7 @@ var payloadRegisterValidator = types.SignedValidatorRegistration{
 }
 
 func TestStatus(t *testing.T) {
-	backend := NewTestBackend(t, 1, time.Second)
+	backend := newTestBackend(t, 1, time.Second)
 	path := "/eth/v1/builder/status"
 	rr := backend.request(t, http.MethodGet, path, payloadRegisterValidator)
 	require.Equal(t, http.StatusOK, rr.Code)
@@ -150,14 +150,14 @@ func TestRegisterValidator(t *testing.T) {
 	payload := []types.SignedValidatorRegistration{reg}
 
 	t.Run("Normal function", func(t *testing.T) {
-		backend := NewTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
 	t.Run("Relay error response", func(t *testing.T) {
-		backend := NewTestBackend(t, 2, time.Second)
+		backend := newTestBackend(t, 2, time.Second)
 
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
@@ -186,7 +186,7 @@ func TestRegisterValidator(t *testing.T) {
 	})
 
 	t.Run("mev-boost relay timeout works with slow relay", func(t *testing.T) {
-		backend := NewTestBackend(t, 1, 5*time.Millisecond) // 10ms max
+		backend := newTestBackend(t, 1, 5*time.Millisecond) // 10ms max
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 
@@ -210,14 +210,14 @@ func TestGetHeader(t *testing.T) {
 	require.Equal(t, "/eth/v1/builder/header/1/0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249", path)
 
 	t.Run("Okay response from relay", func(t *testing.T) {
-		backend := NewTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
 	t.Run("Bad response from relays", func(t *testing.T) {
-		backend := NewTestBackend(t, 2, time.Second)
+		backend := newTestBackend(t, 2, time.Second)
 		resp := backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
@@ -241,7 +241,7 @@ func TestGetHeader(t *testing.T) {
 	})
 
 	t.Run("Use header with highest value", func(t *testing.T) {
-		backend := NewTestBackend(t, 3, time.Second)
+		backend := newTestBackend(t, 3, time.Second)
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
@@ -297,7 +297,7 @@ func TestGetPayload(t *testing.T) {
 	}
 
 	t.Run("Okay response from relay", func(t *testing.T) {
-		backend := NewTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -309,7 +309,7 @@ func TestGetPayload(t *testing.T) {
 	})
 
 	t.Run("Bad response from relays", func(t *testing.T) {
-		backend := NewTestBackend(t, 2, time.Second)
+		backend := newTestBackend(t, 2, time.Second)
 		resp := new(types.GetPayloadResponse)
 
 		// Delays are needed because otherwise one relay might never receive a request
