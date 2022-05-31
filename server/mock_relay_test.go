@@ -1,9 +1,8 @@
-package testing
+package server
 
 import (
 	"bytes"
 	"github.com/flashbots/go-boost-utils/bls"
-	"github.com/flashbots/mev-boost/backend"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +15,7 @@ func Test_mockRelay(t *testing.T) {
 		require.NoError(t, err)
 
 		relay := NewMockRelay(t, privateKey)
-		req, err := http.NewRequest("POST", backend.PathRegisterValidator, bytes.NewReader([]byte("123")))
+		req, err := http.NewRequest("POST", pathRegisterValidator, bytes.NewReader([]byte("123")))
 		require.NoError(t, err)
 		rr := httptest.NewRecorder()
 		relay.getRouter().ServeHTTP(rr, req)

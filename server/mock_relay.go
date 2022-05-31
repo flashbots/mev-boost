@@ -1,11 +1,10 @@
-package testing
+package server
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
-	"github.com/flashbots/mev-boost/backend"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -83,10 +82,10 @@ func (m *MockRelay) getRouter() http.Handler {
 
 	// Register handlers
 	r.HandleFunc("/", m.handleRoot).Methods(http.MethodGet)
-	r.HandleFunc(backend.PathStatus, m.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(backend.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
-	r.HandleFunc(backend.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
-	r.HandleFunc(backend.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(pathStatus, m.handleStatus).Methods(http.MethodGet)
+	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
+	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
 	return m.newTestMiddleware(r)
 }
@@ -135,10 +134,10 @@ func (m *MockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) 
 	// Fill the payload with custom values.
 	message := &types.BuilderBid{
 		Header: &types.ExecutionPayloadHeader{
-			BlockHash: HexToHash(hash),
+			BlockHash: _HexToHash(hash),
 		},
 		Value:  types.IntToU256(value),
-		Pubkey: HexToPubkey(publicKey),
+		Pubkey: _HexToPubkey(publicKey),
 	}
 
 	// Sign the message.
@@ -154,7 +153,7 @@ func (m *MockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) 
 	}
 }
 
-// handleGetHeader handles incoming requests to server.PathGetHeader
+// handleGetHeader handles incoming requests to server.pathGetHeader
 func (m *MockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	// Try to override default behavior is custom handler is specified.
 	if m.HandlerOverrideGetHeader != nil {
@@ -188,15 +187,15 @@ func (m *MockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient s
 	return &types.GetPayloadResponse{
 		Version: "bellatrix",
 		Data: &types.ExecutionPayload{
-			ParentHash:   HexToHash(parentHash),
-			BlockHash:    HexToHash(blockHash),
+			ParentHash:   _HexToHash(parentHash),
+			BlockHash:    _HexToHash(blockHash),
 			BlockNumber:  blockNumber,
-			FeeRecipient: HexToAddress(feeRecipient),
+			FeeRecipient: _HexToAddress(feeRecipient),
 		},
 	}
 }
 
-// handleGetPayload handles incoming requests to server.PathGetPayload
+// handleGetPayload handles incoming requests to server.pathGetPayload
 func (m *MockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	// Try to override default behavior is custom handler is specified.
 	if m.HandlerOverrideGetPayload != nil {

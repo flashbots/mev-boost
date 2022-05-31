@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/flashbots/mev-boost/backend"
 	"net/http"
 	"strconv"
 	"sync"
@@ -79,10 +78,10 @@ func (m *BoostService) getRouter() http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/", m.handleRoot)
 
-	r.HandleFunc(backend.PathStatus, m.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(backend.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
-	r.HandleFunc(backend.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
-	r.HandleFunc(backend.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(pathStatus, m.handleStatus).Methods(http.MethodGet)
+	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
+	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
@@ -156,7 +155,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		wg.Add(1)
 		go func(relayAddr string) {
 			defer wg.Done()
-			url := relayAddr + backend.PathRegisterValidator
+			url := relayAddr + pathRegisterValidator
 			log := log.WithField("url", url)
 
 			err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, payload, nil)
@@ -299,7 +298,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		wg.Add(1)
 		go func(relayAddr string) {
 			defer wg.Done()
-			url := fmt.Sprintf("%s%s", relayAddr, backend.PathGetPayload)
+			url := fmt.Sprintf("%s%s", relayAddr, pathGetPayload)
 			log := log.WithField("url", url)
 			responsePayload := new(types.GetPayloadResponse)
 			err := SendHTTPRequest(requestCtx, m.httpClient, http.MethodPost, url, payload, responsePayload)

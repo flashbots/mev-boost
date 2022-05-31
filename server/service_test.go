@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
-	boostTesting "github.com/flashbots/mev-boost/internal/testing"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,13 +17,13 @@ import (
 
 type TestBackend struct {
 	boost  *BoostService
-	relays []*boostTesting.MockRelay
+	relays []*MockRelay
 }
 
 // NewTestBackend creates a new backend, initializes mock relays, registers them and return the instance
 func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *TestBackend {
 	backend := TestBackend{
-		relays: make([]*boostTesting.MockRelay, numRelays),
+		relays: make([]*MockRelay, numRelays),
 	}
 
 	relayEntries := make([]RelayEntry, numRelays)
@@ -34,7 +33,7 @@ func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *Te
 		require.NoError(t, err)
 
 		// Create a mock relay
-		backend.relays[i] = boostTesting.NewMockRelay(t, blsPrivateKey)
+		backend.relays[i] = NewMockRelay(t, blsPrivateKey)
 
 		// Create the relay.RelayEntry used to identify the relay
 		relayEntries[i], err = NewRelayEntry(backend.relays[i].Server.URL)
@@ -42,10 +41,10 @@ func NewTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *Te
 
 		// Hardcode relay's public key
 		publicKeyString := hexutil.Encode(blsPublicKey.Compress())
-		publicKey := boostTesting.HexToPubkey(publicKeyString)
+		publicKey := _HexToPubkey(publicKeyString)
 		relayEntries[i].PublicKey = publicKey
 	}
-	service, err := NewBoostService("localhost:12345", relayEntries, boostTesting.TestLog, relayTimeout)
+	service, err := NewBoostService("localhost:12345", relayEntries, testLog, relayTimeout)
 	require.NoError(t, err)
 
 	backend.boost = service
@@ -72,7 +71,7 @@ func (be *TestBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(":123", []RelayEntry{}, boostTesting.TestLog, time.Second)
+		_, err := NewBoostService(":123", []RelayEntry{}, testLog, time.Second)
 		require.Error(t, err)
 	})
 }
@@ -117,14 +116,14 @@ func TestWebserverRootHandler(t *testing.T) {
 // Example good registerValidator payload
 var payloadRegisterValidator = types.SignedValidatorRegistration{
 	Message: &types.RegisterValidatorRequestMessage{
-		FeeRecipient: boostTesting.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+		FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
 		Timestamp:    1234356,
 		GasLimit:     278234191203,
-		Pubkey: boostTesting.HexToPubkey(
+		Pubkey: _HexToPubkey(
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"),
 	},
 	// Signed by 0x4e343a647c5a5c44d76c2c58b63f02cdf3a9a0ec40f102ebc26363b4b1b95033
-	Signature: boostTesting.HexToSignature(
+	Signature: _HexToSignature(
 		"0x8209b5391cd69f392b1f02dbc03bab61f574bb6bb54bf87b59e2a85bdc0756f7db6a71ce1b41b727a1f46ccc77b213bf0df1426177b5b29926b39956114421eaa36ec4602969f6f6370a44de44a6bce6dae2136e5fb594cce2a476354264d1ea"),
 }
 
@@ -140,12 +139,12 @@ func TestRegisterValidator(t *testing.T) {
 	path := "/eth/v1/builder/validators"
 	reg := types.SignedValidatorRegistration{
 		Message: &types.RegisterValidatorRequestMessage{
-			FeeRecipient: boostTesting.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+			FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
 			Timestamp:    1234356,
-			Pubkey: boostTesting.HexToPubkey(
+			Pubkey: _HexToPubkey(
 				"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"),
 		},
-		Signature: boostTesting.HexToSignature(
+		Signature: _HexToSignature(
 			"0x81510b571e22f89d1697545aac01c9ad0c1e7a3e778b3078bef524efae14990e58a6e960a152abd49de2e18d7fd3081c15d5c25867ccfad3d47beef6b39ac24b6b9fbf2cfa91c88f67aff750438a6841ec9e4a06a94ae41410c4f97b75ab284c"),
 	}
 	payload := []types.SignedValidatorRegistration{reg}
@@ -204,8 +203,8 @@ func TestGetHeader(t *testing.T) {
 		return fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), pubkey.String())
 	}
 
-	hash := boostTesting.HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
-	pubkey := boostTesting.HexToPubkey(
+	hash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
+	pubkey := _HexToPubkey(
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
 	path := getPath(1, hash, pubkey)
 	require.Equal(t, "/eth/v1/builder/header/1/0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249", path)
@@ -275,7 +274,7 @@ func TestGetPayload(t *testing.T) {
 	path := "/eth/v1/builder/blinded_blocks"
 
 	payload := types.SignedBlindedBeaconBlock{
-		Signature: boostTesting.HexToSignature(
+		Signature: _HexToSignature(
 			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9"),
 		Message: &types.BlindedBeaconBlock{
 			Slot:          1,
@@ -288,10 +287,10 @@ func TestGetPayload(t *testing.T) {
 				Graffiti:      types.Hash{0xa2},
 				SyncAggregate: &types.SyncAggregate{},
 				ExecutionPayloadHeader: &types.ExecutionPayloadHeader{
-					ParentHash:   boostTesting.HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
-					BlockHash:    boostTesting.HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab1"),
+					ParentHash:   _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+					BlockHash:    _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab1"),
 					BlockNumber:  12345,
-					FeeRecipient: boostTesting.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+					FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
 				},
 			},
 		},
