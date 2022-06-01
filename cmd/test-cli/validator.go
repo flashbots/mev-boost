@@ -55,7 +55,7 @@ func (v *validatorPrivateData) PrepareRegistrationMessage(builderSigningDomain b
 	}
 	msg := boostTypes.RegisterValidatorRequestMessage{
 		FeeRecipient: addr,
-		Timestamp:    uint64(time.Now().UnixMilli()),
+		Timestamp:    uint64(time.Now().Unix()),
 		Pubkey:       pk,
 		GasLimit:     uint64(v.GasLimit),
 	}
