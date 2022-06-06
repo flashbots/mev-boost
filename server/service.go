@@ -308,7 +308,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	for _, relay := range m.relays {
 		wg.Add(1)
-		go func(relayAddr string, relayPubKey types.PublicKey) {
+		go func(relayAddr string) {
 			defer wg.Done()
 			url := fmt.Sprintf("%s%s", relayAddr, pathGetPayload)
 			log := log.WithField("url", url)
@@ -349,7 +349,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 				"blockHash":   responsePayload.Data.BlockHash,
 				"blockNumber": responsePayload.Data.BlockNumber,
 			}).Info("getPayload: received payload from relay")
-		}(relay.Address, relay.PublicKey)
+		}(relay.Address)
 	}
 
 	// Wait for all requests to complete...
