@@ -218,7 +218,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	var wg sync.WaitGroup
 	for _, relay := range m.relays {
 		wg.Add(1)
-		go func(relayAddr string) {
+		go func(relayAddr string, relayPubKey types.PublicKey) {
 			defer wg.Done()
 			url := fmt.Sprintf("%s/eth/v1/builder/header/%s/%s/%s", relayAddr, slot, parentHashHex, pubkey)
 			log := log.WithField("url", url)
@@ -239,6 +239,18 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
+			// Verify the relay signature in the relay response
+			ok, err := types.VerifySignature(responsePayload.Data.Message, types.DomainBuilder, relayPubKey[:],
+				responsePayload.Data.Signature[:])
+			if err != nil {
+				log.WithError(err).Warn("error validating response signature")
+				return
+			}
+			if !ok {
+				log.WithError(errInvalidSignature).Warn("error verifying signature")
+				return
+			}
+
 			// Skip if not a higher value
 			if result.Data != nil && responsePayload.Data.Message.Value.Cmp(&result.Data.Message.Value) < 1 {
 				return
@@ -253,7 +265,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				"value":       result.Data.Message.Value.String(),
 				"url":         relayAddr,
 			}).Info("getHeader: successfully got more valuable payload header")
-		}(relay.Address)
+		}(relay.Address, relay.PublicKey)
 	}
 
 	// Wait for all requests to complete...
@@ -296,7 +308,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	for _, relay := range m.relays {
 		wg.Add(1)
-		go func(relayAddr string) {
+		go func(relayAddr string, relayPubKey types.PublicKey) {
 			defer wg.Done()
 			url := fmt.Sprintf("%s%s", relayAddr, pathGetPayload)
 			log := log.WithField("url", url)
@@ -337,7 +349,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 				"blockHash":   responsePayload.Data.BlockHash,
 				"blockNumber": responsePayload.Data.BlockNumber,
 			}).Info("getPayload: received payload from relay")
-		}(relay.Address)
+		}(relay.Address, relay.PublicKey)
 	}
 
 	// Wait for all requests to complete...
