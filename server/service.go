@@ -144,6 +144,16 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
 			return
 		}
+
+		ok, err := types.VerifySignature(registration.Message, types.DomainBuilder, registration.Message.Pubkey[:], registration.Signature[:])
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if !ok {
+			http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	numSuccessRequestsToRelay := 0
