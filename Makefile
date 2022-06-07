@@ -46,7 +46,7 @@ run:
 	./mev-boost
 
 run-boost-with-relay:
-	./mev-boost -relays 127.0.0.1:28545
+	./mev-boost -relays http://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@127.0.0.1:28545
 
 run-dev:
 	go run cmd/mev-boost/main.go
@@ -58,7 +58,7 @@ run-mergemock-consensus:
 	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) consensus --slot-time=4s --engine http://127.0.0.1:8551 --builder http://127.0.0.1:18550 --slot-bound 10
 
 run-mergemock-relay:
-	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) relay --listen-addr 127.0.0.1:28545
+	cd $(MERGEMOCK_DIR) && $(MERGEMOCK_BIN) relay --listen-addr 127.0.0.1:28545 --private-key 1e64a14cb06073c2d7c8b0b891e5dc3dc719b86e5bf4c131ddbaa115f09f8f52
 
 run-mergemock-integration: build
 	make -j3 run-boost-with-relay run-mergemock-consensus run-mergemock-relay
