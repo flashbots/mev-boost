@@ -147,10 +147,12 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 
 		ok, err := types.VerifySignature(registration.Message, types.DomainBuilder, registration.Message.Pubkey[:], registration.Signature[:])
 		if err != nil {
+			log.WithError(err).Warn("error occurred while verifying signature")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		if !ok {
+			log.WithError(err).Warn("failed to verify signature")
 			http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
 			return
 		}
