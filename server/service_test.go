@@ -281,6 +281,45 @@ func TestGetHeader(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, types.IntToU256(12347), resp.Data.Message.Value)
 	})
+
+	t.Run("Invalid relay public key", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+
+		// Simulate a different public key registered to mev-boost
+		pk := types.PublicKey{}
+		backend.boost.relays[0].PublicKey = pk
+
+		rr := backend.request(t, http.MethodGet, path, nil)
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+		// Request should have failed
+		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
+
+	t.Run("Invalid relay signature", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+
+		// Scramble the signature
+		backend.relays[0].GetHeaderResponse.Data.Signature = types.Signature{}
+
+		rr := backend.request(t, http.MethodGet, path, nil)
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+		// Request should have failed
+		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
 }
 
 func TestGetPayload(t *testing.T) {
