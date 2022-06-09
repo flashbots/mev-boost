@@ -45,8 +45,8 @@ func main() {
 		log.WithError(err).Fatal("failed creating the server")
 	}
 
-	if *relayCheck {
-		server.CheckRelays()
+	if *relayCheck && !server.CheckRelays() {
+		log.Fatal("relays unavailable")
 	}
 
 	log.Println("listening on", *listenAddr)
