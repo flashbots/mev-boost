@@ -1,18 +1,15 @@
-Related issue(s):
+## Description
 
 
-Description:
+## Context & references
 
 
-Problem(s) & goal(s):
-
-
-Additional context & references:
+## Additional comments
 
 
 ---
 
-I have run these commands:
+## I have run these commands
 
 * [ ] `make lint`
 * [ ] `make test`

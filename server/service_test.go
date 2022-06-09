@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/flashbots/go-boost-utils/bls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/flashbots/go-boost-utils/bls"
 
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
@@ -29,20 +29,12 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	relayEntries := make([]RelayEntry, numRelays)
 	for i := 0; i < numRelays; i++ {
 		// Generate private key for relay
-		blsPrivateKey, blsPublicKey, err := bls.GenerateNewKeypair()
+		blsPrivateKey, _, err := bls.GenerateNewKeypair()
 		require.NoError(t, err)
 
 		// Create a mock relay
 		backend.relays[i] = newMockRelay(t, blsPrivateKey)
-
-		// Create the relay.RelayEntry used to identify the relay
-		relayEntries[i], err = NewRelayEntry(backend.relays[i].Server.URL)
-		require.NoError(t, err)
-
-		// Hardcode relay's public key
-		publicKeyString := hexutil.Encode(blsPublicKey.Compress())
-		publicKey := _HexToPubkey(publicKeyString)
-		relayEntries[i].PublicKey = publicKey
+		relayEntries[i] = backend.relays[i].RelayEntry
 	}
 	service, err := NewBoostService("localhost:12345", relayEntries, testLog, relayTimeout)
 	require.NoError(t, err)

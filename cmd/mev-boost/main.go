@@ -15,14 +15,14 @@ var (
 	version = "dev" // is set during build process
 
 	// defaults
-	defaultListenAddr     = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
-	defaultRelayURLs      = getEnv("RELAY_URLS", "localhost:28545") // can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
-	defaultRelayTimeoutMs = getEnvInt("RELAY_TIMEOUT_MS", 2000)     // timeout for all the requests to the relay
+	defaultListenAddr = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
+	//defaultRelayURLs      = getEnv("RELAY_URLS", "http://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@localhost:28545") // can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
+	defaultRelayTimeoutMs = getEnvInt("RELAY_TIMEOUT_MS", 2000) // timeout for all the requests to the relay
 	defaultRelayCheck     = os.Getenv("RELAY_STARTUP_CHECK") != ""
 
 	// cli flags
 	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs      = flag.String("relays", defaultRelayURLs, "relay urls - single entry or comma-separated list (pubkey@ip:port)")
+	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (schema://pubkey@ip:port)")
 	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
 	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "whether to check relay status on startup")
 )

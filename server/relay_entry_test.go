@@ -1,13 +1,14 @@
 package server
 
 import (
+	"fmt"
+	"testing"
+
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestParseRelaysURLs(t *testing.T) {
-	zeroPublicKey := types.PublicKey{0x0}
 	// Used to fake a relay's public key.
 	publicKey := types.PublicKey{0x01}
 
@@ -22,21 +23,21 @@ func TestParseRelaysURLs(t *testing.T) {
 	}{
 		{
 			name:     "Relay URL with protocol scheme",
-			relayURL: "http://foo.com",
+			relayURL: fmt.Sprintf("http://%s@foo.com", publicKey.String()),
 
 			expectedErr:       nil,
 			expectedAddress:   "http://foo.com",
-			expectedPublicKey: zeroPublicKey.String(),
-			expectedURL:       "http://foo.com",
+			expectedPublicKey: publicKey.String(),
+			expectedURL:       fmt.Sprintf("http://%s@foo.com", publicKey.String()),
 		},
 		{
-			name:     "Relay URL without protocol scheme",
+			name:     "Relay URL without protocol scheme, without public key",
 			relayURL: "foo.com",
 
-			expectedErr:       nil,
-			expectedAddress:   "http://foo.com",
-			expectedPublicKey: zeroPublicKey.String(),
-			expectedURL:       "http://foo.com",
+			expectedErr:       types.ErrLength,
+			expectedAddress:   "",
+			expectedPublicKey: "",
+			expectedURL:       "",
 		},
 		{
 			name:     "Relay URL without protocol scheme and with public key",
@@ -58,21 +59,21 @@ func TestParseRelaysURLs(t *testing.T) {
 		},
 		{
 			name:     "Relay URL with IP and port",
-			relayURL: "12.345.678:9999",
+			relayURL: publicKey.String() + "@12.345.678:9999",
 
 			expectedErr:       nil,
 			expectedAddress:   "http://12.345.678:9999",
-			expectedPublicKey: zeroPublicKey.String(),
-			expectedURL:       "http://12.345.678:9999",
+			expectedPublicKey: publicKey.String(),
+			expectedURL:       "http://" + publicKey.String() + "@12.345.678:9999",
 		},
 		{
 			name:     "Relay URL with https IP and port",
-			relayURL: "https://12.345.678:9999",
+			relayURL: "https://" + publicKey.String() + "@12.345.678:9999",
 
 			expectedErr:       nil,
 			expectedAddress:   "https://12.345.678:9999",
-			expectedPublicKey: zeroPublicKey.String(),
-			expectedURL:       "https://12.345.678:9999",
+			expectedPublicKey: publicKey.String(),
+			expectedURL:       "https://" + publicKey.String() + "@12.345.678:9999",
 		},
 		{
 			name:     "Invalid relay public key",

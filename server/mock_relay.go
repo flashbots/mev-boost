@@ -3,15 +3,18 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"net/http/httptest"
-	"sync"
-	"testing"
-	"time"
 )
 
 // mockRelay is used to fake a relay's behavior.
@@ -22,8 +25,9 @@ type mockRelay struct {
 	t *testing.T
 
 	// KeyPair used to sign messages
-	secretKey *bls.SecretKey
-	publicKey *bls.PublicKey
+	secretKey  *bls.SecretKey
+	publicKey  *bls.PublicKey
+	RelayEntry RelayEntry
 
 	// Used to count each Request made to the relay, either if it fails or not, for each method
 	mu           sync.Mutex
@@ -52,6 +56,12 @@ func newMockRelay(t *testing.T, secretKey *bls.SecretKey) *mockRelay {
 	// Initialize server
 	relay.Server = httptest.NewServer(relay.getRouter())
 
+	// Create the RelayEntry with correct pubkey
+	url, err := url.Parse(relay.Server.URL)
+	require.NoError(t, err)
+	urlWithKey := fmt.Sprintf("%s://%s@%s", url.Scheme, hexutil.Encode(publicKey.Compress()), url.Host)
+	relay.RelayEntry, err = NewRelayEntry(urlWithKey)
+	require.NoError(t, err)
 	return relay
 }
 
