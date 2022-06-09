@@ -365,7 +365,7 @@ func (m *BoostService) CheckRelays() bool {
 
 		err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, relay.Address+pathStatus, nil, nil)
 		if err != nil {
-			m.log.WithError(err).WithField("relay", relay)
+			m.log.WithError(err).WithField("relay", relay).Error("relay check failed")
 		} else {
 			status = true
 		}
