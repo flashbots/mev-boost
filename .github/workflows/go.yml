@@ -9,6 +9,9 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    env:
+      CGO_CFLAGS_ALLOW: "-O -D__BLST_PORTABLE__"
+      CGO_CFLAGS: "-O -D__BLST_PORTABLE__"
     steps:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
@@ -32,6 +35,9 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    env:
+      CGO_CFLAGS_ALLOW: "-O -D__BLST_PORTABLE__"
+      CGO_CFLAGS: "-O -D__BLST_PORTABLE__"
     steps:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
@@ -60,6 +66,9 @@ jobs:
   mergemock:
     name: Mergemock
     runs-on: ubuntu-latest
+    env:
+      CGO_CFLAGS_ALLOW: "-O -D__BLST_PORTABLE__"
+      CGO_CFLAGS: "-O -D__BLST_PORTABLE__"    
     steps:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
@@ -92,6 +101,3 @@ jobs:
           make run-boost-with-relay &
           sleep 5
           make MERGEMOCK_DIR=./mergemock run-mergemock-consensus
-        env:
-          CGO_CFLAGS_ALLOW: "-D__BLST_PORTABLE__"
-          CGO_CFLAGS: "-D__BLST_PORTABLE__"
