@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/flashbots/go-boost-utils/types"
@@ -56,6 +57,9 @@ type BoostService struct {
 	serverTimeouts       HTTPServerTimeouts
 
 	httpClient http.Client
+
+	// The validators preferred fee recipient and gas limit
+	vp ValidatorPreferences
 }
 
 // NewBoostService created a new BoostService
@@ -77,6 +81,7 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 		builderSigningDomain: builderSigningDomain,
 		serverTimeouts:       NewDefaultHTTPServerTimeouts(),
 		httpClient:           http.Client{Timeout: relayRequestTimeout},
+		vp: ValidatorPreferences{preferences: make(map[string]types.SignedValidatorRegistration)},
 	}, nil
 }
 
@@ -129,6 +134,60 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, `{}`)
 }
 
+// sendValidatorPreferences is used to send the validators preferences to the registered relays
+func (m *BoostService) sendValidatorPreferences(log *logrus.Entry, payload []types.SignedValidatorRegistration) uint64 {
+	// We need a wait group to manage each routine used to perform the requests.
+	var wg sync.WaitGroup
+
+	// Use an atomic counter to count successful requests.
+	numSuccessRequestsToRelay := uint64(0)
+
+	// Send the validators preferences to each registered relay.
+	for _, relay := range m.relays {
+		wg.Add(1)
+
+		go func(relayAddr string) {
+			defer wg.Done()
+
+			url := relayAddr + pathRegisterValidator
+			log := log.WithField("url", url)
+
+			err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, payload, nil)
+			if err != nil {
+				log.WithError(err).Warn("error in registerValidator to relay")
+				return
+			}
+
+			atomic.AddUint64(&numSuccessRequestsToRelay, 1)
+		}(relay.Address)
+	}
+
+	wg.Wait()
+
+	return numSuccessRequestsToRelay
+}
+
+// registerValidatorAtInterval is used to update the registered validators preferences,
+// sending them to each relay at a given interval.
+//
+// Sending a value in the channel will stop the ticker.
+func (m *BoostService) registerValidatorAtInterval(interval time.Duration, done chan bool) {
+	log := m.log.WithField("method", "registerValidatorAtInterval")
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			payload := m.vp.PreparePayload()
+			_ = m.sendValidatorPreferences(log, payload)
+		}
+	}
+}
+
 // RegisterValidatorV1 - returns 200 if at least one relay returns 200
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "registerValidator")
@@ -162,34 +221,12 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
 			return
 		}
+
+		// Saves the validator preferences for further use
+		m.vp.Save(registration)
 	}
 
-	numSuccessRequestsToRelay := 0
-	var mu sync.Mutex
-
-	// Call the relays
-	var wg sync.WaitGroup
-	for _, relay := range m.relays {
-		wg.Add(1)
-		go func(relayAddr string) {
-			defer wg.Done()
-			url := relayAddr + pathRegisterValidator
-			log := log.WithField("url", url)
-
-			err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, payload, nil)
-			if err != nil {
-				log.WithError(err).Warn("error in registerValidator to relay")
-				return
-			}
-
-			mu.Lock()
-			defer mu.Unlock()
-			numSuccessRequestsToRelay++
-		}(relay.Address)
-	}
-
-	// Wait for all requests to complete...
-	wg.Wait()
+	numSuccessRequestsToRelay := m.sendValidatorPreferences(log, payload)
 
 	if numSuccessRequestsToRelay > 0 {
 		w.Header().Set("Content-Type", "application/json")
