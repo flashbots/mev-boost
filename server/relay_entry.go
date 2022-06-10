@@ -1,9 +1,10 @@
 package server
 
 import (
-	"github.com/flashbots/go-boost-utils/types"
 	"net/url"
 	"strings"
+
+	"github.com/flashbots/go-boost-utils/types"
 )
 
 // RelayEntry represents a relay that mev-boost connects to.
@@ -37,10 +38,6 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 	entry.Address = entry.URL.Scheme + "://" + entry.URL.Host
 
 	// Extract the relay's public key from the parsed URL.
-	// TODO: Remove the if condition, as it is mandatory to verify relay's message signature.
-	if entry.URL.User.Username() != "" {
-		err = entry.PublicKey.UnmarshalText([]byte(entry.URL.User.Username()))
-	}
-
+	err = entry.PublicKey.UnmarshalText([]byte(entry.URL.User.Username()))
 	return entry, err
 }
