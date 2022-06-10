@@ -19,6 +19,11 @@ Further references:
 * https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/
 * https://hackmd.io/@paulhauner/H1XifIQ_t
 
+Testnet relays/builders:
+
+* https://builder-relay-kiln.flashbots.net
+* https://builder-relay-ropsten.flashbots.net
+
 ---
 
 ### System diagram
