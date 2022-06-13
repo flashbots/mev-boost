@@ -36,7 +36,10 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		backend.relays[i] = newMockRelay(t, blsPrivateKey)
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
-	service, err := NewBoostService("localhost:12345", relayEntries, testLog, "0x00000000", relayTimeout)
+
+	registerValidatorInterval := time.Second * 5
+
+	service, err := NewBoostService("localhost:12345", relayEntries, testLog, "0x00000000", relayTimeout, registerValidatorInterval)
 	require.NoError(t, err)
 
 	backend.boost = service
@@ -63,7 +66,7 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(":123", []RelayEntry{}, testLog, "0x00000000", time.Second)
+		_, err := NewBoostService(":123", []RelayEntry{}, testLog, "0x00000000", time.Second, time.Second)
 		require.Error(t, err)
 	})
 }
@@ -72,21 +75,21 @@ func TestWebserver(t *testing.T) {
 	t.Run("errors when webserver is already existing", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
 		backend.boost.srv = &http.Server{}
-		err := backend.boost.StartHTTPServer()
+		err := backend.boost.StartServer()
 		require.Error(t, err)
 	})
 
 	t.Run("webserver error on invalid listenAddr", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
 		backend.boost.listenAddr = "localhost:876543"
-		err := backend.boost.StartHTTPServer()
+		err := backend.boost.StartServer()
 		require.Error(t, err)
 	})
 
 	// t.Run("webserver starts normally", func(t *testing.T) {
 	// 	backend := newTestBackend(t, 1, time.Second)
 	// 	go func() {
-	// 		err := backend.boost.StartHTTPServer()
+	// 		err := backend.boost.StartServer()
 	// 		require.NoError(t, err)
 	// 	}()
 	// 	time.Sleep(time.Millisecond * 100)

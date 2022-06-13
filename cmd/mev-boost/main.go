@@ -21,16 +21,18 @@ var (
 	version = "dev" // is set during build process
 
 	// defaults
-	defaultListenAddr         = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
-	defaultRelayTimeoutMs     = getEnvInt("RELAY_TIMEOUT_MS", 2000) // timeout for all the requests to the relay
-	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
-	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
+	defaultListenAddr                = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
+	defaultRelayTimeoutMs            = getEnvInt("RELAY_TIMEOUT_MS", 2000) // timeout for all the requests to the relay
+	defaultRelayCheck                = os.Getenv("RELAY_STARTUP_CHECK") != ""
+	defaultGenesisForkVersion        = getEnv("GENESIS_FORK_VERSION", "")
+	defaultRegisterValidatorInterval = getEnvInt("REGISTER_VALIDATOR_INTERVAL_SEC", 5)
 
 	// cli flags
-	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (schema://pubkey@ip:port)")
-	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
-	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "whether to check relay status on startup")
+	listenAddr                   = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
+	relayURLs                    = flag.String("relays", "", "relay urls - single entry or comma-separated list (schema://pubkey@ip:port)")
+	relayTimeoutMs               = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
+	relayCheck                   = flag.Bool("relay-check", defaultRelayCheck, "whether to check relay status on startup")
+	registerValidatorIntervalSec = flag.Int("register-validator-interval", defaultRegisterValidatorInterval, "the interval used to resend the validator preferences (fee recipient and gas limit)")
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet genesis fork version 0x00000000 (for signature validation)")
@@ -70,13 +72,14 @@ func main() {
 	}
 
 	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
-	server, err := server.NewBoostService(*listenAddr, relays, log, genesisForkVersionHex, relayTimeout)
+	registerValidatorInterval := time.Duration(*registerValidatorIntervalSec) * time.Second
+	server, err := server.NewBoostService(*listenAddr, relays, log, genesisForkVersionHex, relayTimeout, registerValidatorInterval)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
 	}
 
 	log.Println("listening on", *listenAddr)
-	log.Fatal(server.StartHTTPServer())
+	log.Fatal(server.StartServer())
 }
 
 func getEnv(key string, defaultValue string) string {

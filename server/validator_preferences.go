@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/flashbots/go-boost-utils/types"
 	"sync"
+	"time"
 )
 
 // ValidatorPreferences is used to store each validator preferences,
@@ -12,6 +13,8 @@ import (
 type ValidatorPreferences struct {
 	mu          sync.RWMutex
 	preferences map[string]types.SignedValidatorRegistration
+
+	interval time.Duration
 }
 
 // Save adds the given validator preferences to the safe storage.
