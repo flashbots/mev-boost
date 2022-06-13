@@ -63,7 +63,7 @@ type BoostService struct {
 }
 
 // NewBoostService created a new BoostService
-func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, genesisForkVersionHex string, relayRequestTimeout time.Duration) (*BoostService, error) {
+func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, genesisForkVersionHex string, relayRequestTimeout, validatorPreferencesResendInterval time.Duration) (*BoostService, error) {
 	if len(relays) == 0 {
 		return nil, errors.New("no relays")
 	}
@@ -81,7 +81,10 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 		builderSigningDomain: builderSigningDomain,
 		serverTimeouts:       NewDefaultHTTPServerTimeouts(),
 		httpClient:           http.Client{Timeout: relayRequestTimeout},
-		vp: ValidatorPreferences{preferences: make(map[string]types.SignedValidatorRegistration)},
+		vp: ValidatorPreferences{
+			preferences: make(map[string]types.SignedValidatorRegistration),
+			interval:    validatorPreferencesResendInterval,
+		},
 	}, nil
 }
 
@@ -99,8 +102,8 @@ func (m *BoostService) getRouter() http.Handler {
 	return loggedRouter
 }
 
-// StartHTTPServer starts the HTTP server for this boost service instance
-func (m *BoostService) StartHTTPServer() error {
+// StartServer starts the HTTP server for this boost service instance
+func (m *BoostService) StartServer() error {
 	if m.srv != nil {
 		return errServerAlreadyRunning
 	}
@@ -115,10 +118,19 @@ func (m *BoostService) StartHTTPServer() error {
 		IdleTimeout:       m.serverTimeouts.Idle,
 	}
 
+	// Start separate process to send validator preferences at regular interval.
+	done := make(chan bool)
+	go m.registerValidatorAtInterval(m.vp.interval, done)
+
+	defer func() {
+		done <- true
+	}()
+
 	err := m.srv.ListenAndServe()
 	if err == http.ErrServerClosed {
 		return nil
 	}
+
 	return err
 }
 
