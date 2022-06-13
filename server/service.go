@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -294,7 +295,15 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	for _, relay := range m.relays {
+	for i, relay := range m.relays {
+		i := i
+
+		// Skip relays that contain less than x reputation
+		minReputationScore := 5.0
+		if relay.GetRelayReputation() < minReputationScore {
+			continue
+		}
+
 		wg.Add(1)
 		go func(relayAddr string) {
 			defer wg.Done()
@@ -305,11 +314,21 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
+
+				// Errors here:
+				// "context canceled"
+				// "context deadline exceeded"
+
+				// Dirty hack
+				if strings.Contains(err.Error(), "context deadline exceeded") {
+					m.relays[i].NOKResponses++
+				}
 				return
 			}
 
 			if responsePayload.Data == nil || responsePayload.Data.BlockHash == nilHash {
 				log.Warn("invalid response")
+				m.relays[i].NOKResponses++
 				return
 			}
 
@@ -318,6 +337,8 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			defer mu.Unlock()
 
 			if requestCtx.Err() != nil { // request has been cancelled (or deadline exceeded)
+				// TODO: Is this correct? Looks like its not entering here when cancelled or deadline exceeded.
+				// Perhaps it fails before? in err != nil ?
 				return
 			}
 
@@ -333,6 +354,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			// Received successful response. Now cancel other requests and return immediately
 			requestCtxCancel()
 			*result = *responsePayload
+			m.relays[i].OKResponses++
 			log.WithFields(logrus.Fields{
 				"blockHash":   responsePayload.Data.BlockHash,
 				"blockNumber": responsePayload.Data.BlockNumber,

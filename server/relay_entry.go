@@ -1,9 +1,10 @@
 package server
 
 import (
-	"github.com/flashbots/go-boost-utils/types"
 	"net/url"
 	"strings"
+
+	"github.com/flashbots/go-boost-utils/types"
 )
 
 // RelayEntry represents a relay that mev-boost connects to.
@@ -13,6 +14,11 @@ type RelayEntry struct {
 	Address   string
 	PublicKey types.PublicKey
 	URL       *url.URL
+
+	// Naive reputation mechanism OKResponses/NOKResponses is the hit rate of the relayer
+	// TODO: uint64 will eventually overflow
+	OKResponses  uint64
+	NOKResponses uint64
 }
 
 func (r *RelayEntry) String() string {
@@ -43,4 +49,16 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 	}
 
 	return entry, err
+}
+
+// Rates the reputation of a relay based on the OK vs NOK requests
+func (r *RelayEntry) GetRelayReputation() float64 {
+	if r.NOKResponses == 0 && r.OKResponses == 0 {
+		// init reputation
+		return 10
+	} else if r.NOKResponses == 0 {
+		// never failed
+		return float64(r.OKResponses)
+	}
+	return float64(r.OKResponses) / float64(r.NOKResponses)
 }

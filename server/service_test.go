@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/flashbots/go-boost-utils/bls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/flashbots/go-boost-utils/bls"
 
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
@@ -21,7 +22,14 @@ type testBackend struct {
 }
 
 // newTestBackend creates a new backend, initializes mock relays, registers them and return the instance
-func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *testBackend {
+func newTestBackend(
+	t *testing.T,
+	numRelays int,
+	relayTimeout time.Duration,
+	relayResponseTimeInMs []uint64) *testBackend {
+
+	require.Equal(t, numRelays, len(relayResponseTimeInMs))
+
 	backend := testBackend{
 		relays: make([]*mockRelay, numRelays),
 	}
@@ -34,6 +42,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 
 		// Create a mock relay
 		backend.relays[i] = newMockRelay(t, blsPrivateKey)
+		backend.relays[i].ResponseDelay = time.Duration(relayResponseTimeInMs[i]) * time.Millisecond
 
 		// Create the relay.RelayEntry used to identify the relay
 		relayEntries[i], err = NewRelayEntry(backend.relays[i].Server.URL)
@@ -78,14 +87,14 @@ func TestNewBoostServiceErrors(t *testing.T) {
 
 func TestWebserver(t *testing.T) {
 	t.Run("errors when webserver is already existing", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, time.Second, []uint64{0})
 		backend.boost.srv = &http.Server{}
 		err := backend.boost.StartHTTPServer()
 		require.Error(t, err)
 	})
 
 	t.Run("webserver error on invalid listenAddr", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, time.Second, []uint64{0})
 		backend.boost.listenAddr = "localhost:876543"
 		err := backend.boost.StartHTTPServer()
 		require.Error(t, err)
@@ -103,7 +112,7 @@ func TestWebserver(t *testing.T) {
 }
 
 func TestWebserverRootHandler(t *testing.T) {
-	backend := newTestBackend(t, 1, time.Second)
+	backend := newTestBackend(t, 1, time.Second, []uint64{0})
 
 	// Check root handler
 	req, _ := http.NewRequest("GET", "/", nil)
@@ -128,7 +137,7 @@ var payloadRegisterValidator = types.SignedValidatorRegistration{
 }
 
 func TestStatus(t *testing.T) {
-	backend := newTestBackend(t, 1, time.Second)
+	backend := newTestBackend(t, 1, time.Second, []uint64{0})
 	path := "/eth/v1/builder/status"
 	rr := backend.request(t, http.MethodGet, path, payloadRegisterValidator)
 	require.Equal(t, http.StatusOK, rr.Code)
@@ -150,14 +159,14 @@ func TestRegisterValidator(t *testing.T) {
 	payload := []types.SignedValidatorRegistration{reg}
 
 	t.Run("Normal function", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, time.Second, []uint64{0})
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
 	t.Run("Relay error response", func(t *testing.T) {
-		backend := newTestBackend(t, 2, time.Second)
+		backend := newTestBackend(t, 2, time.Second, []uint64{0, 0})
 
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
@@ -186,15 +195,10 @@ func TestRegisterValidator(t *testing.T) {
 	})
 
 	t.Run("mev-boost relay timeout works with slow relay", func(t *testing.T) {
-		backend := newTestBackend(t, 1, 5*time.Millisecond) // 10ms max
+		backend := newTestBackend(t, 1, 5*time.Millisecond, []uint64{10}) // 10ms max
 		rr := backend.request(t, http.MethodPost, path, payload)
-		require.Equal(t, http.StatusOK, rr.Code)
-
-		// Now make the relay return slowly, mev-boost should return an error
-		backend.relays[0].ResponseDelay = 10 * time.Millisecond
-		rr = backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusBadGateway, rr.Code)
-		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 }
 
@@ -210,14 +214,14 @@ func TestGetHeader(t *testing.T) {
 	require.Equal(t, "/eth/v1/builder/header/1/0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249", path)
 
 	t.Run("Okay response from relay", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, time.Second, []uint64{0})
 		rr := backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
 	t.Run("Bad response from relays", func(t *testing.T) {
-		backend := newTestBackend(t, 2, time.Second)
+		backend := newTestBackend(t, 2, time.Second, []uint64{0})
 		resp := backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
@@ -241,7 +245,7 @@ func TestGetHeader(t *testing.T) {
 	})
 
 	t.Run("Use header with highest value", func(t *testing.T) {
-		backend := newTestBackend(t, 3, time.Second)
+		backend := newTestBackend(t, 3, time.Second, []uint64{0})
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
@@ -297,7 +301,7 @@ func TestGetPayload(t *testing.T) {
 	}
 
 	t.Run("Okay response from relay", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, time.Second, []uint64{0})
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -309,12 +313,9 @@ func TestGetPayload(t *testing.T) {
 	})
 
 	t.Run("Bad response from relays", func(t *testing.T) {
-		backend := newTestBackend(t, 2, time.Second)
-		resp := new(types.GetPayloadResponse)
-
 		// Delays are needed because otherwise one relay might never receive a request
-		backend.relays[0].ResponseDelay = 10 * time.Millisecond
-		backend.relays[1].ResponseDelay = 10 * time.Millisecond
+		backend := newTestBackend(t, 2, time.Second, []uint64{10, 10})
+		resp := new(types.GetPayloadResponse)
 
 		// 1/2 failing responses are okay
 		backend.relays[0].GetPayloadResponse = resp
@@ -329,5 +330,177 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
+}
+
+// Tests that the reputation of each relay is updated according
+// to its performance (i.e. if it times out)
+func TestRelayReputationIsUpdated(t *testing.T) {
+	path := "/eth/v1/builder/blinded_blocks"
+
+	payload := types.SignedBlindedBeaconBlock{
+		Signature: _HexToSignature(
+			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9"),
+		Message: &types.BlindedBeaconBlock{
+			Slot:          1,
+			ProposerIndex: 1,
+			ParentRoot:    types.Root{0x01},
+			StateRoot:     types.Root{0x02},
+			Body: &types.BlindedBeaconBlockBody{
+				RandaoReveal:  types.Signature{0xa1},
+				Eth1Data:      &types.Eth1Data{},
+				Graffiti:      types.Hash{0xa2},
+				SyncAggregate: &types.SyncAggregate{},
+				ExecutionPayloadHeader: &types.ExecutionPayloadHeader{
+					ParentHash:   _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+					BlockHash:    _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab1"),
+					BlockNumber:  12345,
+					FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+				},
+			},
+		},
+	}
+
+	t.Run("Reputation updates when all nodes respond", func(t *testing.T) {
+		backend := newTestBackend(t, 3, time.Second, []uint64{50, 100, 0})
+		rr := backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		resp := new(types.GetPayloadResponse)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
+
+		// Check that reputations are updated accordingly
+		require.Equal(t, uint64(0), backend.boost.relays[0].NOKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[1].NOKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[2].NOKResponses)
+
+		// First node that responses is the one with the lowest delay
+		require.Equal(t, uint64(0), backend.boost.relays[0].OKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[1].OKResponses)
+		require.Equal(t, uint64(1), backend.boost.relays[2].OKResponses)
+	})
+
+	t.Run("Reputation updates when some nodes do not respond", func(t *testing.T) {
+		backend := newTestBackend(t, 3, time.Second, []uint64{0, 3000, 3000})
+		rr := backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		resp := new(types.GetPayloadResponse)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
+
+		// Check that reputations are updated accordingly [1][2] do not error
+		// because [0] responds before
+		require.Equal(t, uint64(0), backend.boost.relays[0].NOKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[1].NOKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[2].NOKResponses)
+
+		require.Equal(t, uint64(1), backend.boost.relays[0].OKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[1].OKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[2].OKResponses)
+	})
+
+	t.Run("Reputation updates when no nodes respond", func(t *testing.T) {
+		backend := newTestBackend(t, 3, time.Second, []uint64{3000, 3000, 3000})
+		rr := backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, http.StatusBadGateway, rr.Code)
+
+		resp := new(types.GetPayloadResponse)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.Error(t, err)
+
+		// Check that reputations are updated accordingly
+		require.Equal(t, uint64(1), backend.boost.relays[0].NOKResponses)
+		require.Equal(t, uint64(1), backend.boost.relays[1].NOKResponses)
+		require.Equal(t, uint64(1), backend.boost.relays[2].NOKResponses)
+
+		require.Equal(t, uint64(0), backend.boost.relays[0].OKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[1].OKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[2].OKResponses)
+	})
+
+	t.Run("Bad response from all relays", func(t *testing.T) {
+		backend := newTestBackend(t, 3, time.Second, []uint64{0, 0, 0})
+		resp := new(types.GetPayloadResponse)
+
+		backend.relays[0].GetPayloadResponse = resp
+		backend.relays[1].GetPayloadResponse = resp
+		backend.relays[2].GetPayloadResponse = resp
+
+		rr := backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, http.StatusBadGateway, rr.Code)
+
+		// Check that reputations are updated accordingly
+		require.Equal(t, uint64(1), backend.boost.relays[0].NOKResponses)
+		require.Equal(t, uint64(1), backend.boost.relays[1].NOKResponses)
+		require.Equal(t, uint64(1), backend.boost.relays[2].NOKResponses)
+
+		require.Equal(t, uint64(0), backend.boost.relays[0].OKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[1].OKResponses)
+		require.Equal(t, uint64(0), backend.boost.relays[2].OKResponses)
+
+	})
+}
+
+// Tests that the reputation of the relay is taken into account
+// before sending a request
+func TestRelayReputationIsUsed(t *testing.T) {
+	path := "/eth/v1/builder/blinded_blocks"
+
+	payload := types.SignedBlindedBeaconBlock{
+		Signature: _HexToSignature(
+			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9"),
+		Message: &types.BlindedBeaconBlock{
+			Slot:          1,
+			ProposerIndex: 1,
+			ParentRoot:    types.Root{0x01},
+			StateRoot:     types.Root{0x02},
+			Body: &types.BlindedBeaconBlockBody{
+				RandaoReveal:  types.Signature{0xa1},
+				Eth1Data:      &types.Eth1Data{},
+				Graffiti:      types.Hash{0xa2},
+				SyncAggregate: &types.SyncAggregate{},
+				ExecutionPayloadHeader: &types.ExecutionPayloadHeader{
+					ParentHash:   _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+					BlockHash:    _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab1"),
+					BlockNumber:  12345,
+					FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+				},
+			},
+		},
+	}
+
+	t.Run("Node with the most reputation but slowest is used", func(t *testing.T) {
+		backend := newTestBackend(t, 3, time.Second, []uint64{0, 0, 700})
+
+		// Hardcode some reputations, where [2] is the best
+		backend.boost.relays[0].OKResponses = 10
+		backend.boost.relays[1].OKResponses = 10
+		backend.boost.relays[2].OKResponses = 100 // <- Best
+
+		backend.boost.relays[0].NOKResponses = 30
+		backend.boost.relays[1].NOKResponses = 10
+		backend.boost.relays[2].NOKResponses = 1 // <- Best
+
+		rr := backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		resp := new(types.GetPayloadResponse)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
+
+		// Check that reputations are updated accordingly
+		require.Equal(t, uint64(30), backend.boost.relays[0].NOKResponses)
+		require.Equal(t, uint64(10), backend.boost.relays[1].NOKResponses)
+		require.Equal(t, uint64(1), backend.boost.relays[2].NOKResponses)
+
+		// First node that responses is the one with the lowest delay
+		require.Equal(t, uint64(10), backend.boost.relays[0].OKResponses)
+		require.Equal(t, uint64(10), backend.boost.relays[1].OKResponses)
+		require.Equal(t, uint64(100+1), backend.boost.relays[2].OKResponses)
 	})
 }
