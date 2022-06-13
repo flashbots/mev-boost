@@ -46,7 +46,7 @@ run:
 	./mev-boost
 
 run-boost-with-relay:
-	./mev-boost -relays http://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@127.0.0.1:28545
+	./mev-boost -mainnet -relays http://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@127.0.0.1:28545
 
 run-dev:
 	go run cmd/mev-boost/main.go

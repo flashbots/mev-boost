@@ -52,16 +52,21 @@ type BoostService struct {
 	log        *logrus.Entry
 	srv        *http.Server
 
-	serverTimeouts HTTPServerTimeouts
+	builderSigningDomain types.Domain
+	serverTimeouts       HTTPServerTimeouts
 
 	httpClient http.Client
 }
 
 // NewBoostService created a new BoostService
-func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
-	// TODO: validate relays
+func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, genesisForkVersionHex string, relayRequestTimeout time.Duration) (*BoostService, error) {
 	if len(relays) == 0 {
 		return nil, errors.New("no relays")
+	}
+
+	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, genesisForkVersionHex, types.Root{}.String())
+	if err != nil {
+		return nil, err
 	}
 
 	return &BoostService{
@@ -69,8 +74,9 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 		relays:     relays,
 		log:        log.WithField("module", "service"),
 
-		serverTimeouts: NewDefaultHTTPServerTimeouts(),
-		httpClient:     http.Client{Timeout: relayRequestTimeout},
+		builderSigningDomain: builderSigningDomain,
+		serverTimeouts:       NewDefaultHTTPServerTimeouts(),
+		httpClient:           http.Client{Timeout: relayRequestTimeout},
 	}, nil
 }
 
@@ -145,7 +151,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			return
 		}
 
-		ok, err := types.VerifySignature(registration.Message, types.DomainBuilder, registration.Message.Pubkey[:], registration.Signature[:])
+		ok, err := types.VerifySignature(registration.Message, m.builderSigningDomain, registration.Message.Pubkey[:], registration.Signature[:])
 		if err != nil {
 			log.WithError(err).Warn("error occurred while verifying signature")
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -252,8 +258,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Verify the relay signature in the relay response
-			ok, err := types.VerifySignature(responsePayload.Data.Message, types.DomainBuilder, relayPubKey[:],
-				responsePayload.Data.Signature[:])
+			ok, err := types.VerifySignature(responsePayload.Data.Message, m.builderSigningDomain, relayPubKey[:], responsePayload.Data.Signature[:])
 			if err != nil {
 				log.WithError(err).Warn("error validating response signature")
 				return

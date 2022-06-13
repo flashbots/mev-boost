@@ -11,20 +11,32 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	genesisForkVersionMainnet = "0x00000000"
+	genesisForkVersionKiln    = "0x70000069"
+	genesisForkVersionRopsten = "0x80000069"
+)
+
 var (
 	version = "dev" // is set during build process
 
 	// defaults
-	defaultListenAddr = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
-	//defaultRelayURLs      = getEnv("RELAY_URLS", "http://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@localhost:28545") // can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
-	defaultRelayTimeoutMs = getEnvInt("RELAY_TIMEOUT_MS", 2000) // timeout for all the requests to the relay
-	defaultRelayCheck     = os.Getenv("RELAY_STARTUP_CHECK") != ""
+	defaultListenAddr         = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
+	defaultRelayTimeoutMs     = getEnvInt("RELAY_TIMEOUT_MS", 2000) // timeout for all the requests to the relay
+	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
+	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
 
 	// cli flags
 	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (schema://pubkey@ip:port)")
 	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
 	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "whether to check relay status on startup")
+
+	// helpers
+	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet genesis fork version 0x00000000 (for signature validation)")
+	useGenesisForkVersionKiln    = flag.Bool("kiln", false, "use Kiln genesis fork version 0x70000069 (for signature validation)")
+	useGenesisForkVersionRopsten = flag.Bool("ropsten", false, "use Ropsten genesis fork version 0x80000069 (for signature validation)")
+	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version (for signature validation)")
 )
 
 var log = logrus.WithField("module", "cmd/mev-boost")
@@ -32,6 +44,20 @@ var log = logrus.WithField("module", "cmd/mev-boost")
 func main() {
 	flag.Parse()
 	log.Printf("mev-boost %s", version)
+
+	genesisForkVersionHex := ""
+	if *useCustomGenesisForkVersion != "" {
+		genesisForkVersionHex = *useCustomGenesisForkVersion
+	} else if *useGenesisForkVersionMainnet {
+		genesisForkVersionHex = genesisForkVersionMainnet
+	} else if *useGenesisForkVersionKiln {
+		genesisForkVersionHex = genesisForkVersionKiln
+	} else if *useGenesisForkVersionRopsten {
+		genesisForkVersionHex = genesisForkVersionRopsten
+	} else {
+		log.Fatal("Please specify a genesis fork version (eg. -mainnet or -kiln or -ropsten or -genesis-fork-version flags)")
+	}
+	log.Infof("Using genesis fork version: %s", genesisForkVersionHex)
 
 	relays := parseRelayURLs(*relayURLs)
 	if len(relays) == 0 {
@@ -44,7 +70,7 @@ func main() {
 	}
 
 	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
-	server, err := server.NewBoostService(*listenAddr, relays, log, relayTimeout)
+	server, err := server.NewBoostService(*listenAddr, relays, log, genesisForkVersionHex, relayTimeout)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
 	}
