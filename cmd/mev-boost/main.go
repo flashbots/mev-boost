@@ -32,7 +32,7 @@ var (
 	relayURLs                    = flag.String("relays", "", "relay urls - single entry or comma-separated list (schema://pubkey@host)")
 	relayTimeoutMs               = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
 	relayCheck                   = flag.Bool("relay-check", defaultRelayCheck, "whether to check relay status on startup")
-	registerValidatorIntervalSec = flag.Int("register-validator-interval", defaultRegisterValidatorInterval, "the interval used to resend the validator preferences (fee recipient and gas limit)")
+	registerValidatorIntervalSec = flag.Int("register-validator-interval-sec", defaultRegisterValidatorInterval, "the interval used to resend the validator preferences (fee recipient and gas limit)")
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet genesis fork version 0x00000000 (for signature validation)")
