@@ -25,7 +25,7 @@ var (
 	defaultRelayTimeoutMs            = getEnvInt("RELAY_TIMEOUT_MS", 2000) // timeout for all the requests to the relay
 	defaultRelayCheck                = os.Getenv("RELAY_STARTUP_CHECK") != ""
 	defaultGenesisForkVersion        = getEnv("GENESIS_FORK_VERSION", "")
-	defaultRegisterValidatorInterval = getEnvInt("REGISTER_VALIDATOR_INTERVAL_SEC", 5)
+	defaultRegisterValidatorInterval = getEnvInt("REGISTER_VALIDATOR_INTERVAL_SEC", 384)
 
 	// cli flags
 	listenAddr                   = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
