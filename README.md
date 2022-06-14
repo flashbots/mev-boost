@@ -70,16 +70,29 @@ go install github.com/ferranbt/fastssz/sszgen@latest
 go install github.com/mgechev/revive@latest
 go install honnef.co/go/tools/cmd/staticcheck@master
 ```
-## Build
+## Build & Run
 
-```
+```bash
 make build
+./mev-boost -h
+./mev-boost -kiln -relays http://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@localhost:28545
 ```
 
-and then run it with:
+Alternatively, run mev-boost without compile step:
 
+```bash
+go run cmd/mev-boost/main.go -h
+go run cmd/mev-boost/main.go -kiln -relays http://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@localhost:28545
 ```
-./mev-boost
+
+Note that you'll need to set the correct genesis fork version (either manually with `-genesis-fork-version` or a helper flag `-mainnet`/`-kiln`/`-ropsten`).
+
+If the test or target application crashes with an "illegal instruction" exception, run/rebuild with CGO_CFLAGS environment variable set to `-O -D__BLST_PORTABLE__`. This error also happens if you are on an ARM-based system, including the Apple M1/M2 chip.
+
+
+```bash
+export CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
+export CGO_CFLAGS="-O -D__BLST_PORTABLE__" 
 ```
 
 ## Lint & Test

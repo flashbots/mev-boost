@@ -52,16 +52,21 @@ type BoostService struct {
 	log        *logrus.Entry
 	srv        *http.Server
 
-	serverTimeouts HTTPServerTimeouts
+	builderSigningDomain types.Domain
+	serverTimeouts       HTTPServerTimeouts
 
 	httpClient http.Client
 }
 
 // NewBoostService created a new BoostService
-func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, relayRequestTimeout time.Duration) (*BoostService, error) {
-	// TODO: validate relays
+func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, genesisForkVersionHex string, relayRequestTimeout time.Duration) (*BoostService, error) {
 	if len(relays) == 0 {
 		return nil, errors.New("no relays")
+	}
+
+	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, genesisForkVersionHex, types.Root{}.String())
+	if err != nil {
+		return nil, err
 	}
 
 	return &BoostService{
@@ -69,8 +74,9 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 		relays:     relays,
 		log:        log.WithField("module", "service"),
 
-		serverTimeouts: NewDefaultHTTPServerTimeouts(),
-		httpClient:     http.Client{Timeout: relayRequestTimeout},
+		builderSigningDomain: builderSigningDomain,
+		serverTimeouts:       NewDefaultHTTPServerTimeouts(),
+		httpClient:           http.Client{Timeout: relayRequestTimeout},
 	}, nil
 }
 
@@ -141,6 +147,18 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		}
 
 		if len(registration.Signature) != 96 {
+			http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
+			return
+		}
+
+		ok, err := types.VerifySignature(registration.Message, m.builderSigningDomain, registration.Message.Pubkey[:], registration.Signature[:])
+		if err != nil {
+			log.WithError(err).WithField("registration", registration).Error("error verifying registerValidator signature")
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if !ok {
+			log.WithError(err).WithField("registration", registration).Error("failed to verify registerValidator signature")
 			http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
 			return
 		}
@@ -218,7 +236,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	var wg sync.WaitGroup
 	for _, relay := range m.relays {
 		wg.Add(1)
-		go func(relayAddr string) {
+		go func(relayAddr string, relayPubKey types.PublicKey) {
 			defer wg.Done()
 			url := fmt.Sprintf("%s/eth/v1/builder/header/%s/%s/%s", relayAddr, slot, parentHashHex, pubkey)
 			log := log.WithField("url", url)
@@ -230,14 +248,32 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
-			// Compare value of header, skip processing this result if lower fee than current
-			mu.Lock()
-			defer mu.Unlock()
-
 			// Skip if invalid payload
 			if responsePayload.Data == nil || responsePayload.Data.Message == nil || responsePayload.Data.Message.Header == nil || responsePayload.Data.Message.Header.BlockHash == nilHash {
 				return
 			}
+
+			log = log.WithFields(logrus.Fields{
+				"blockNumber": responsePayload.Data.Message.Header.BlockNumber,
+				"blockHash":   responsePayload.Data.Message.Header.BlockHash,
+				"txRoot":      responsePayload.Data.Message.Header.TransactionsRoot.String(),
+				"value":       responsePayload.Data.Message.Value.String(),
+			})
+
+			// Verify the relay signature in the relay response
+			ok, err := types.VerifySignature(responsePayload.Data.Message, m.builderSigningDomain, relayPubKey[:], responsePayload.Data.Signature[:])
+			if err != nil {
+				log.WithError(err).Error("error verifying relay signature")
+				return
+			}
+			if !ok {
+				log.WithError(errInvalidSignature).Error("failed to verify relay signature")
+				return
+			}
+
+			// Compare value of header, skip processing this result if lower fee than current
+			mu.Lock()
+			defer mu.Unlock()
 
 			// Skip if not a higher value
 			if result.Data != nil && responsePayload.Data.Message.Value.Cmp(&result.Data.Message.Value) < 1 {
@@ -246,22 +282,16 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 			// Use this relay's response as mev-boost response because it's most profitable
 			*result = *responsePayload
-			log.WithFields(logrus.Fields{
-				"blockNumber": result.Data.Message.Header.BlockNumber,
-				"blockHash":   result.Data.Message.Header.BlockHash,
-				"txRoot":      result.Data.Message.Header.TransactionsRoot.String(),
-				"value":       result.Data.Message.Value.String(),
-				"url":         relayAddr,
-			}).Info("getHeader: successfully got more valuable payload header")
-		}(relay.Address)
+			log.Info("successfully got more valuable payload header")
+		}(relay.Address, relay.PublicKey)
 	}
 
 	// Wait for all requests to complete...
 	wg.Wait()
 
 	if result.Data == nil || result.Data.Message == nil || result.Data.Message.Header == nil || result.Data.Message.Header.BlockHash == nilHash {
-		log.Warn("getHeader: no successful response from relays")
-		http.Error(w, "no valid getHeader response", http.StatusBadGateway)
+		log.Warn("no successful relay response")
+		http.Error(w, "no successful relay response", http.StatusBadGateway)
 		return
 	}
 

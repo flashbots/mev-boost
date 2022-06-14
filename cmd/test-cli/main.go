@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/sirupsen/logrus"
 
@@ -206,33 +205,33 @@ func main() {
 		doGenerateValidator(validatorDataFile, gasLimit, validatorFeeRecipient)
 	case "register":
 		registerCommand.Parse(os.Args[2:])
-		builderSigningDomain := computeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
+		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
+		if err != nil {
+			log.WithError(err).Fatal("computing signing domain failed")
+		}
 		doRegisterValidator(mustLoadValidator(validatorDataFile), boostEndpoint, builderSigningDomain)
 	case "getHeader":
 		getHeaderCommand.Parse(os.Args[2:])
-		builderSigningDomain := computeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
+		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
+		if err != nil {
+			log.WithError(err).Fatal("computing signing domain failed")
+		}
 		doGetHeader(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, builderSigningDomain)
 	case "getPayload":
 		getPayloadCommand.Parse(os.Args[2:])
-		builderSigningDomain := computeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
-		proposerSigningDomain := computeDomain(boostTypes.DomainTypeBeaconProposer, bellatrixForkVersionStr, genesisValidatorsRootStr)
+		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
+		if err != nil {
+			log.WithError(err).Fatal("computing signing domain failed")
+		}
+		proposerSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeBeaconProposer, bellatrixForkVersionStr, genesisValidatorsRootStr)
+		if err != nil {
+			log.WithError(err).Fatal("computing signing domain failed")
+		}
 		doGetPayload(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, builderSigningDomain, proposerSigningDomain)
 	default:
 		fmt.Println("Expected generate|register|getHeader|getPayload subcommand")
 		os.Exit(1)
 	}
-}
-
-func computeDomain(domainType boostTypes.DomainType, forkVersionHex string, genesisValidatorsRootHex string) boostTypes.Domain {
-	genesisValidatorsRoot := boostTypes.Root(common.HexToHash(genesisValidatorsRootHex))
-	forkVersionBytes, err := hexutil.Decode(forkVersionHex)
-	if err != nil || len(forkVersionBytes) > 4 {
-		fmt.Println("Invalid fork version passed")
-		os.Exit(1)
-	}
-	var forkVersion [4]byte
-	copy(forkVersion[:], forkVersionBytes[:4])
-	return boostTypes.ComputeDomain(domainType, forkVersion, genesisValidatorsRoot)
 }
 
 func getEnv(key string, defaultValue string) string {

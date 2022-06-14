@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/flashbots/go-boost-utils/bls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/flashbots/go-boost-utils/bls"
 
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
@@ -29,22 +29,14 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	relayEntries := make([]RelayEntry, numRelays)
 	for i := 0; i < numRelays; i++ {
 		// Generate private key for relay
-		blsPrivateKey, blsPublicKey, err := bls.GenerateNewKeypair()
+		blsPrivateKey, _, err := bls.GenerateNewKeypair()
 		require.NoError(t, err)
 
 		// Create a mock relay
 		backend.relays[i] = newMockRelay(t, blsPrivateKey)
-
-		// Create the relay.RelayEntry used to identify the relay
-		relayEntries[i], err = NewRelayEntry(backend.relays[i].Server.URL)
-		require.NoError(t, err)
-
-		// Hardcode relay's public key
-		publicKeyString := hexutil.Encode(blsPublicKey.Compress())
-		publicKey := _HexToPubkey(publicKeyString)
-		relayEntries[i].PublicKey = publicKey
+		relayEntries[i] = backend.relays[i].RelayEntry
 	}
-	service, err := NewBoostService("localhost:12345", relayEntries, testLog, relayTimeout)
+	service, err := NewBoostService("localhost:12345", relayEntries, testLog, "0x00000000", relayTimeout)
 	require.NoError(t, err)
 
 	backend.boost = service
@@ -71,7 +63,7 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(":123", []RelayEntry{}, testLog, time.Second)
+		_, err := NewBoostService(":123", []RelayEntry{}, testLog, "0x00000000", time.Second)
 		require.Error(t, err)
 	})
 }
@@ -241,32 +233,84 @@ func TestGetHeader(t *testing.T) {
 	})
 
 	t.Run("Use header with highest value", func(t *testing.T) {
+		// Create backend and register 3 relays.
 		backend := newTestBackend(t, 3, time.Second)
+
+		// First relay will return signed response with value 12345.
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
-		backend.relays[1].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+
+		// First relay will return signed response with value 12347.
+		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
 			12347,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
-		backend.relays[2].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+
+		// First relay will return signed response with value 12346.
+		backend.relays[2].GetHeaderResponse = backend.relays[2].MakeGetHeaderResponse(
 			12346,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
 
+		// Run the request.
 		rr := backend.request(t, http.MethodGet, path, nil)
+
+		// Each relay must have received the request.
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
 		require.Equal(t, 1, backend.relays[2].GetRequestCount(path))
+
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		// Highest value should be 12347, i.e. second relay.
 		resp := new(types.GetHeaderResponse)
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
 		require.NoError(t, err)
 		require.Equal(t, types.IntToU256(12347), resp.Data.Message.Value)
+	})
+
+	t.Run("Invalid relay public key", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+
+		// Simulate a different public key registered to mev-boost
+		pk := types.PublicKey{}
+		backend.boost.relays[0].PublicKey = pk
+
+		rr := backend.request(t, http.MethodGet, path, nil)
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+		// Request should have failed
+		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
+
+	t.Run("Invalid relay signature", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+
+		// Scramble the signature
+		backend.relays[0].GetHeaderResponse.Data.Signature = types.Signature{}
+
+		rr := backend.request(t, http.MethodGet, path, nil)
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+		// Request should have failed
+		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
 }
 
