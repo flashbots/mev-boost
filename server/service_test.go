@@ -76,6 +76,8 @@ func TestNewBoostServiceErrors(t *testing.T) {
 func TestWebserver(t *testing.T) {
 	t.Run("errors when webserver is already existing", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
+		defer backend.boost.shutdown()
+
 		backend.boost.srv = &http.Server{}
 		err := backend.boost.StartServer()
 		require.Error(t, err)
@@ -83,6 +85,8 @@ func TestWebserver(t *testing.T) {
 
 	t.Run("webserver error on invalid listenAddr", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
+		defer backend.boost.shutdown()
+
 		backend.boost.listenAddr = "localhost:876543"
 		err := backend.boost.StartServer()
 		require.Error(t, err)
@@ -101,6 +105,7 @@ func TestWebserver(t *testing.T) {
 
 func TestWebserverRootHandler(t *testing.T) {
 	backend := newTestBackend(t, 1, time.Second)
+	defer backend.boost.shutdown()
 
 	// Check root handler
 	req, _ := http.NewRequest("GET", "/", nil)
@@ -126,6 +131,8 @@ var payloadRegisterValidator = types.SignedValidatorRegistration{
 
 func TestStatus(t *testing.T) {
 	backend := newTestBackend(t, 1, time.Second)
+	defer backend.boost.shutdown()
+
 	path := "/eth/v1/builder/status"
 	rr := backend.request(t, http.MethodGet, path, payloadRegisterValidator)
 	require.Equal(t, http.StatusOK, rr.Code)
@@ -148,6 +155,8 @@ func TestRegisterValidator(t *testing.T) {
 
 	t.Run("Normal function", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
+		defer backend.boost.shutdown()
+
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -155,6 +164,7 @@ func TestRegisterValidator(t *testing.T) {
 
 	t.Run("Relay error response", func(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
+		defer backend.boost.shutdown()
 
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
@@ -184,6 +194,8 @@ func TestRegisterValidator(t *testing.T) {
 
 	t.Run("mev-boost relay timeout works with slow relay", func(t *testing.T) {
 		backend := newTestBackend(t, 1, 5*time.Millisecond) // 10ms max
+		defer backend.boost.shutdown()
+
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 
@@ -208,6 +220,8 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Okay response from relay", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
+		defer backend.boost.shutdown()
+
 		rr := backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -215,6 +229,8 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Bad response from relays", func(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
+		defer backend.boost.shutdown()
+
 		resp := backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
@@ -240,6 +256,7 @@ func TestGetHeader(t *testing.T) {
 	t.Run("Use header with highest value", func(t *testing.T) {
 		// Create backend and register 3 relays.
 		backend := newTestBackend(t, 3, time.Second)
+		defer backend.boost.shutdown()
 
 		// First relay will return signed response with value 12345.
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
@@ -281,6 +298,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Invalid relay public key", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
+		defer backend.boost.shutdown()
 
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
@@ -301,6 +319,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Invalid relay signature", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
+		defer backend.boost.shutdown()
 
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
@@ -347,6 +366,8 @@ func TestGetPayload(t *testing.T) {
 
 	t.Run("Okay response from relay", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
+		defer backend.boost.shutdown()
+
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -359,6 +380,8 @@ func TestGetPayload(t *testing.T) {
 
 	t.Run("Bad response from relays", func(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
+		defer backend.boost.shutdown()
+
 		resp := new(types.GetPayloadResponse)
 
 		// Delays are needed because otherwise one relay might never receive a request
