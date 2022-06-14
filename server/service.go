@@ -61,10 +61,8 @@ type BoostService struct {
 
 	httpClient http.Client
 
-	// Used by registerValidator to share new incoming registration request with the goroutine holding the ticker
-	newRegistrationsRequests chan []types.SignedValidatorRegistration
-	// Used by registerValidatorAtInterval to share the number of successful requests with the registerValidator handler
-	numSuccessRequestsToRelay chan uint64
+	// Used to share new incoming registration requests along with the unique channel for sharing valid responses count
+	registrationsRequests chan sharedRegistrationsRequests
 }
 
 // NewBoostService created a new BoostService
@@ -91,8 +89,7 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 		serverTimeouts:       NewDefaultHTTPServerTimeouts(),
 		httpClient:           http.Client{Timeout: relayRequestTimeout},
 
-		newRegistrationsRequests:  make(chan []types.SignedValidatorRegistration),
-		numSuccessRequestsToRelay: make(chan uint64),
+		registrationsRequests: make(chan sharedRegistrationsRequests),
 	}, nil
 }
 
@@ -195,9 +192,9 @@ func (m *BoostService) registerValidatorAtInterval(interval time.Duration) {
 		case <-m.ctx.Done():
 			// mev-boost has probably stopped
 			return
-		case payload = <-m.newRegistrationsRequests:
+		case srr := <-m.registrationsRequests:
 			// registerValidator has received new registrations and forwards them to here
-			m.numSuccessRequestsToRelay <- m.sendValidatorPreferences(log, payload)
+			srr.numSuccessRequestsToRelay <- m.sendValidatorPreferences(log, srr.preferences)
 			// Reset the timer to avoid overload
 			ticker.Reset(interval)
 		case <-ticker.C:
@@ -241,10 +238,16 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		}
 	}
 
+	srr := sharedRegistrationsRequests{
+		preferences:               payload,
+		numSuccessRequestsToRelay: make(chan uint64),
+	}
+
 	// Send the payload to the goroutine responsible for handling the resend at interval
-	m.newRegistrationsRequests <- payload
+	m.registrationsRequests <- srr
+
 	// Block until we get the number of successful requests back from this goroutine
-	numSuccessRequestsToRelay := <-m.numSuccessRequestsToRelay
+	numSuccessRequestsToRelay := <-srr.numSuccessRequestsToRelay
 
 	if numSuccessRequestsToRelay > 0 {
 		w.Header().Set("Content-Type", "application/json")
