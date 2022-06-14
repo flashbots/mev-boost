@@ -69,7 +69,7 @@ func main() {
 
 	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
 	registerValidatorInterval := time.Duration(*registerValidatorIntervalSec) * time.Second
-	server, err := server.NewBoostService(*listenAddr, relays, log, genesisForkVersionHex, relayTimeout, registerValidatorInterval)
+	server, err := server.NewBoostService(*listenAddr, relays, log, genesisForkVersionHex, relayTimeout)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
 	}
@@ -79,7 +79,7 @@ func main() {
 	}
 
 	log.Println("listening on", *listenAddr)
-	log.Fatal(server.StartServer())
+	log.Fatal(server.StartServer(registerValidatorInterval))
 }
 
 func getEnv(key string, defaultValue string) string {

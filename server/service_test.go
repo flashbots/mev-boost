@@ -37,9 +37,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
 
-	registerValidatorInterval := time.Second * 5
-
-	service, err := NewBoostService("localhost:12345", relayEntries, testLog, "0x00000000", relayTimeout, registerValidatorInterval)
+	service, err := NewBoostService("localhost:12345", relayEntries, testLog, "0x00000000", relayTimeout)
 	require.NoError(t, err)
 
 	go service.registerValidatorAtInterval(time.Second*384, service.done)
@@ -68,7 +66,7 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(":123", []RelayEntry{}, testLog, "0x00000000", time.Second, time.Second)
+		_, err := NewBoostService(":123", []RelayEntry{}, testLog, "0x00000000", time.Second)
 		require.Error(t, err)
 	})
 }
@@ -79,7 +77,7 @@ func TestWebserver(t *testing.T) {
 		defer backend.boost.shutdown()
 
 		backend.boost.srv = &http.Server{}
-		err := backend.boost.StartServer()
+		err := backend.boost.StartServer(time.Second * 384)
 		require.Error(t, err)
 	})
 
@@ -88,7 +86,7 @@ func TestWebserver(t *testing.T) {
 		defer backend.boost.shutdown()
 
 		backend.boost.listenAddr = "localhost:876543"
-		err := backend.boost.StartServer()
+		err := backend.boost.StartServer(time.Second * 384)
 		require.Error(t, err)
 	})
 
