@@ -42,6 +42,8 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	service, err := NewBoostService("localhost:12345", relayEntries, testLog, "0x00000000", relayTimeout, registerValidatorInterval)
 	require.NoError(t, err)
 
+	go service.registerValidatorAtInterval(time.Second*384, service.done)
+
 	backend.boost = service
 	return &backend
 }
