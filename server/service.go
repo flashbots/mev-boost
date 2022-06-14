@@ -58,8 +58,12 @@ type BoostService struct {
 
 	httpClient http.Client
 
-	// The validators preferred fee recipient and gas limit
-	vp ValidatorPreferences
+	// Used to stop registerValidatorAtInterval
+	done chan bool
+	// Used by registerValidator to share new incoming registration request with the goroutine holding the ticker
+	newRegistrationsRequests chan []types.SignedValidatorRegistration
+	// Used by registerValidatorAtInterval to share the number of successful requests with the registerValidator handler
+	numSuccessRequestsToRelay chan uint64
 }
 
 // NewBoostService created a new BoostService
@@ -81,10 +85,10 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 		builderSigningDomain: builderSigningDomain,
 		serverTimeouts:       NewDefaultHTTPServerTimeouts(),
 		httpClient:           http.Client{Timeout: relayRequestTimeout},
-		vp: ValidatorPreferences{
-			preferences: make(map[string]types.SignedValidatorRegistration),
-			interval:    validatorPreferencesResendInterval,
-		},
+
+		done:                      make(chan bool),
+		newRegistrationsRequests:  make(chan []types.SignedValidatorRegistration),
+		numSuccessRequestsToRelay: make(chan uint64),
 	}, nil
 }
 
@@ -119,12 +123,8 @@ func (m *BoostService) StartServer() error {
 	}
 
 	// Start separate process to send validator preferences at regular interval.
-	done := make(chan bool)
-	go m.registerValidatorAtInterval(m.vp.interval, done)
-
-	defer func() {
-		done <- true
-	}()
+	go m.registerValidatorAtInterval(time.Second*384, m.done)
+	defer m.Shutdown()
 
 	err := m.srv.ListenAndServe()
 	if err == http.ErrServerClosed {
@@ -179,11 +179,8 @@ func (m *BoostService) sendValidatorPreferences(log *logrus.Entry, payload []typ
 	return numSuccessRequestsToRelay
 }
 
-// registerValidatorAtInterval is used to update the registered validators preferences,
-// sending them to each relay at a given interval.
-//
-// Sending a value in the channel will stop the ticker.
 func (m *BoostService) registerValidatorAtInterval(interval time.Duration, done chan bool) {
+	var payload []types.SignedValidatorRegistration
 	log := m.log.WithField("method", "registerValidatorAtInterval")
 
 	ticker := time.NewTicker(interval)
@@ -192,10 +189,15 @@ func (m *BoostService) registerValidatorAtInterval(interval time.Duration, done 
 	for {
 		select {
 		case <-done:
+			// mev-boost has probably stopped
 			return
+		case payload = <-m.newRegistrationsRequests:
+			// registerValidator has received new registrations and forwards them to here
+			m.numSuccessRequestsToRelay <- m.sendValidatorPreferences(log, payload)
+			// Reset the timer to avoid overload
+			ticker.Reset(interval)
 		case <-ticker.C:
-			payload := m.vp.PreparePayload()
-			_ = m.sendValidatorPreferences(log, payload)
+			m.sendValidatorPreferences(log, payload)
 		}
 	}
 }
@@ -233,12 +235,12 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
 			return
 		}
-
-		// Saves the validator preferences for further use
-		m.vp.Save(registration)
 	}
 
-	numSuccessRequestsToRelay := m.sendValidatorPreferences(log, payload)
+	// Send the payload to the goroutine responsible for handling the resend at interval
+	m.newRegistrationsRequests <- payload
+	// Block until we get the number of successful requests back from this goroutine
+	numSuccessRequestsToRelay := <-m.numSuccessRequestsToRelay
 
 	if numSuccessRequestsToRelay > 0 {
 		w.Header().Set("Content-Type", "application/json")
@@ -432,4 +434,8 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (m *BoostService) Shutdown() {
+	m.done <- true
 }
