@@ -48,6 +48,9 @@ func NewDefaultHTTPServerTimeouts() HTTPServerTimeouts {
 
 // BoostService TODO
 type BoostService struct {
+	ctx        context.Context
+	cancelFunc context.CancelFunc
+
 	listenAddr string
 	relays     []RelayEntry
 	log        *logrus.Entry
@@ -58,8 +61,6 @@ type BoostService struct {
 
 	httpClient http.Client
 
-	// Used to stop registerValidatorAtInterval
-	done chan bool
 	// Used by registerValidator to share new incoming registration request with the goroutine holding the ticker
 	newRegistrationsRequests chan []types.SignedValidatorRegistration
 	// Used by registerValidatorAtInterval to share the number of successful requests with the registerValidator handler
@@ -77,7 +78,11 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 		return nil, err
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	return &BoostService{
+		ctx:        ctx,
+		cancelFunc: cancel,
+
 		listenAddr: listenAddr,
 		relays:     relays,
 		log:        log.WithField("module", "service"),
@@ -86,7 +91,6 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 		serverTimeouts:       NewDefaultHTTPServerTimeouts(),
 		httpClient:           http.Client{Timeout: relayRequestTimeout},
 
-		done:                      make(chan bool),
 		newRegistrationsRequests:  make(chan []types.SignedValidatorRegistration),
 		numSuccessRequestsToRelay: make(chan uint64),
 	}, nil
@@ -123,7 +127,7 @@ func (m *BoostService) StartServer(registerValidatorInterval time.Duration) erro
 	}
 
 	// Start separate process to send validator preferences at regular interval.
-	go m.registerValidatorAtInterval(registerValidatorInterval, m.done)
+	go m.registerValidatorAtInterval(registerValidatorInterval)
 	defer m.shutdown()
 
 	err := m.srv.ListenAndServe()
@@ -179,7 +183,7 @@ func (m *BoostService) sendValidatorPreferences(log *logrus.Entry, payload []typ
 	return numSuccessRequestsToRelay
 }
 
-func (m *BoostService) registerValidatorAtInterval(interval time.Duration, done chan bool) {
+func (m *BoostService) registerValidatorAtInterval(interval time.Duration) {
 	var payload []types.SignedValidatorRegistration
 	log := m.log.WithField("method", "registerValidatorAtInterval")
 
@@ -188,7 +192,7 @@ func (m *BoostService) registerValidatorAtInterval(interval time.Duration, done 
 
 	for {
 		select {
-		case <-done:
+		case <-m.ctx.Done():
 			// mev-boost has probably stopped
 			return
 		case payload = <-m.newRegistrationsRequests:
@@ -453,5 +457,5 @@ func (m *BoostService) CheckRelays() bool {
 }
 
 func (m *BoostService) shutdown() {
-	m.done <- true
+	m.cancelFunc()
 }
