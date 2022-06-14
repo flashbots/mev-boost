@@ -124,7 +124,7 @@ func (m *BoostService) StartServer() error {
 
 	// Start separate process to send validator preferences at regular interval.
 	go m.registerValidatorAtInterval(time.Second*384, m.done)
-	defer m.Shutdown()
+	defer m.shutdown()
 
 	err := m.srv.ListenAndServe()
 	if err == http.ErrServerClosed {
@@ -452,6 +452,6 @@ func (m *BoostService) CheckRelays() bool {
 	return true
 }
 
-func (m *BoostService) Shutdown() {
+func (m *BoostService) shutdown() {
 	m.done <- true
 }
