@@ -67,7 +67,7 @@ type BoostService struct {
 }
 
 // NewBoostService created a new BoostService
-func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, genesisForkVersionHex string, relayRequestTimeout, validatorPreferencesResendInterval time.Duration) (*BoostService, error) {
+func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, genesisForkVersionHex string, relayRequestTimeout time.Duration) (*BoostService, error) {
 	if len(relays) == 0 {
 		return nil, errors.New("no relays")
 	}
@@ -107,7 +107,7 @@ func (m *BoostService) getRouter() http.Handler {
 }
 
 // StartServer starts the HTTP server for this boost service instance
-func (m *BoostService) StartServer() error {
+func (m *BoostService) StartServer(registerValidatorInterval time.Duration) error {
 	if m.srv != nil {
 		return errServerAlreadyRunning
 	}
@@ -123,7 +123,7 @@ func (m *BoostService) StartServer() error {
 	}
 
 	// Start separate process to send validator preferences at regular interval.
-	go m.registerValidatorAtInterval(time.Second*384, m.done)
+	go m.registerValidatorAtInterval(registerValidatorInterval, m.done)
 	defer m.shutdown()
 
 	err := m.srv.ListenAndServe()
