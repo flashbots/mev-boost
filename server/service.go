@@ -195,6 +195,7 @@ func (m *BoostService) registerValidatorAtInterval(interval time.Duration) {
 		case srr := <-m.registrationsRequests:
 			// registerValidator has received new registrations and forwards them to here
 			srr.numSuccessRequestsToRelay <- m.sendValidatorPreferences(log, srr.preferences)
+			payload = srr.preferences
 			// Reset the timer to avoid overload
 			ticker.Reset(interval)
 		case <-ticker.C:
