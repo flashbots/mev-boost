@@ -34,7 +34,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			name:     "Relay URL without protocol scheme, without public key",
 			relayURL: "foo.com",
 
-			expectedErr:       types.ErrLength,
+			expectedErr:       ErrMissingRelayPubkey,
 			expectedAddress:   "",
 			expectedPublicKey: "",
 			expectedURL:       "",

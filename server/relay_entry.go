@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"net/url"
 	"strings"
 
@@ -40,7 +39,7 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 
 	// Extract the relay's public key from the parsed URL.
 	if entry.URL.User.Username() == "" {
-		return entry, errors.New("missing relay public key")
+		return entry, ErrMissingRelayPubkey
 	}
 	err = entry.PublicKey.UnmarshalText([]byte(entry.URL.User.Username()))
 	return entry, err
