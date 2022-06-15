@@ -28,7 +28,7 @@ var (
 
 	// cli flags
 	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (schema://pubkey@ip:port)")
+	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (schema://pubkey@host)")
 	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
 	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "whether to check relay status on startup")
 
