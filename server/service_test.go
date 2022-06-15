@@ -375,3 +375,21 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
 }
+
+func TestCheckRelays(t *testing.T) {
+	t.Run("At least one relay is okay", func(t *testing.T) {
+		backend := newTestBackend(t, 3, time.Second)
+		status := backend.boost.CheckRelays()
+
+		require.Equal(t, true, status)
+	})
+
+	t.Run("Every relays are down", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+		backend.relays[0].Server.Close()
+
+		status := backend.boost.CheckRelays()
+
+		require.Equal(t, false, status)
+	})
+}

@@ -65,14 +65,14 @@ func main() {
 	}
 	log.WithField("relays", relays).Infof("using %d relays", len(relays))
 
-	if *relayCheck {
-		relayStartupCheck(relays)
-	}
-
 	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
 	server, err := server.NewBoostService(*listenAddr, relays, log, genesisForkVersionHex, relayTimeout)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
+	}
+
+	if *relayCheck && !server.CheckRelays() {
+		log.Fatal("relays unavailable")
 	}
 
 	log.Println("listening on", *listenAddr)
@@ -106,16 +106,4 @@ func parseRelayURLs(relayURLs string) []server.RelayEntry {
 		ret = append(ret, relay)
 	}
 	return ret
-}
-
-func relayStartupCheck(relays []server.RelayEntry) error {
-	log.Fatal("TODO: Checking relays...")
-	for _, relay := range relays {
-		log.WithField("relay", relay).Info("Checking relay")
-		// err := relay.Check()
-		// if err != nil {
-		//     log.WithError(err).WithField("relay", relay).Fatal("Relay check failed")
-		// }
-	}
-	return nil
 }
