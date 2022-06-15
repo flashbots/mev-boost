@@ -77,7 +77,7 @@ make build
 ./mev-boost -h
 
 # Run mev-boost pointed at our Kiln builder+relay
-./mev-boost -kiln -relays http://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@localhost:28545
+./mev-boost -kiln -relays https://0xb5246e299aeb782fbc7c91b41b3284245b1ed5206134b0028b81dfb974e5900616c67847c2354479934fc4bb75519ee1@builder-relay-kiln.flashbots.net
 ```
 
 Alternatively, run mev-boost without compile step:
@@ -86,7 +86,7 @@ Alternatively, run mev-boost without compile step:
 go run cmd/mev-boost/main.go -h
 
 # Run mev-boost pointed at our Kiln builder+relay
-go run cmd/mev-boost/main.go -kiln -relays http://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@localhost:28545
+go run cmd/mev-boost/main.go -kiln -relays https://0xb5246e299aeb782fbc7c91b41b3284245b1ed5206134b0028b81dfb974e5900616c67847c2354479934fc4bb75519ee1@builder-relay-kiln.flashbots.net
 ```
 
 Note that you'll need to set the correct genesis fork version (either manually with `-genesis-fork-version` or a helper flag `-mainnet`/`-kiln`/`-ropsten`).
