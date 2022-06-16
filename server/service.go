@@ -14,6 +14,8 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/gorilla/mux"
+	prysmTypes "github.com/prysmaticlabs/eth2-types"
+	"github.com/prysmaticlabs/prysm/v2/time/slots"
 	"github.com/sirupsen/logrus"
 )
 
@@ -91,6 +93,9 @@ func (m *BoostService) getRouter() http.Handler {
 
 // StartHTTPServer starts the HTTP server for this boost service instance
 func (m *BoostService) StartHTTPServer() error {
+	// Routine updating relays reputations on every slot
+	go m.UpdateReputations()
+
 	if m.srv != nil {
 		return errServerAlreadyRunning
 	}
@@ -110,6 +115,61 @@ func (m *BoostService) StartHTTPServer() error {
 		return nil
 	}
 	return err
+}
+
+// Runs once at the end of each slot
+func (m *BoostService) UpdateReputations() {
+	// TODO: Hardcoded
+	mainnetGenesis := uint64(1606824023)
+	lastSlotCommited := uint64(0)
+	for {
+		currentSlot := GetSlotFromTime(time.Now())
+		slotStartTime := slots.StartTime(mainnetGenesis, prysmTypes.Slot(currentSlot))
+		slotEndTime := slotStartTime.Unix() + 12
+		nowTime := time.Now().Unix()
+
+		// Very important that it enters just once per slot
+		if (slotEndTime-nowTime) <= 1 && (currentSlot > lastSlotCommited) {
+
+			// At the end of each slot, "judge" the relays based on what happened
+			// TODO: Obvious possible problem is the relay sends the payload in the
+			// last second, since we update at the 11th second. But most likely
+			// we want to disincentive relays from responding that late
+			m.CommitSlotReputation(currentSlot)
+			lastSlotCommited = currentSlot
+		}
+
+		time.Sleep(900 * time.Millisecond)
+	}
+}
+
+// Function to be called once per slot, to commit the relays reputation
+func (m *BoostService) CommitSlotReputation(currentSlot uint64) {
+	log := m.log.WithField("method", "CommitSlotReputation")
+	log.Info("Slot ", currentSlot, " about to end, committing reputation of relays")
+
+	// Update relays reputation based on what happened in this slot
+	for i, relay := range m.relays {
+		status := 0
+
+		// Update the status of each relay based on what happened. This status
+		// is used to calculate the reputation
+		if relay.PayloadSent {
+			status = PayloadReturned
+		} else if !relay.CommittedToHeader && !relay.PayloadSent {
+			status = NotSelected
+		} else if relay.CommittedToHeader && !relay.PayloadSent {
+			status = PayloadWithdrawn
+		}
+
+		m.relays[i].SetResponseStatus(status)
+
+		log.Info("Relay ", i, " reputation: ", m.relays[i].GetRelayReputation())
+
+		// Reset the flags for next slot
+		m.relays[i].CommittedToHeader = false
+		m.relays[i].PayloadSent = false
+	}
 }
 
 func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
@@ -213,11 +273,23 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	result := new(types.GetHeaderResponse)
+	relayIndex := -1
 	var mu sync.Mutex
 
 	// Call the relays
 	var wg sync.WaitGroup
-	for _, relay := range m.relays {
+	for i, relay := range m.relays {
+		i := i
+		// Skip relays that contain less than x reputation where. Note its a float number:
+		// -1 is the worst. it withdrawn always in a windows of the last n slots
+		//  0 is neutral, i.e. a new relay
+		// +1 is the best, the relay always responded with the payload
+		// Skip also relays that were blacklisted
+		minReputationScore := 0.0
+		if relay.IsBlackListed || relay.GetRelayReputation() < minReputationScore {
+			continue
+		}
+
 		wg.Add(1)
 		go func(relayAddr string) {
 			defer wg.Done()
@@ -237,6 +309,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 			// Skip if invalid payload
 			if responsePayload.Data == nil || responsePayload.Data.Message == nil || responsePayload.Data.Message.Header == nil || responsePayload.Data.Message.Header.BlockHash == nilHash {
+				m.relays[i].IsBlackListed = true
 				return
 			}
 
@@ -247,6 +320,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 			// Use this relay's response as mev-boost response because it's most profitable
 			*result = *responsePayload
+			relayIndex = i
 			log.WithFields(logrus.Fields{
 				"blockNumber": result.Data.Message.Header.BlockNumber,
 				"blockHash":   result.Data.Message.Header.BlockHash,
@@ -259,6 +333,10 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	// Wait for all requests to complete...
 	wg.Wait()
+
+	if relayIndex != -1 {
+		m.relays[relayIndex].CommittedToHeader = true
+	}
 
 	if result.Data == nil || result.Data.Message == nil || result.Data.Message.Header == nil || result.Data.Message.Header.BlockHash == nilHash {
 		log.Warn("getHeader: no successful response from relays")
@@ -298,12 +376,6 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	for i, relay := range m.relays {
 		i := i
 
-		// Skip relays that contain less than x reputation
-		minReputationScore := 5.0
-		if relay.GetRelayReputation() < minReputationScore {
-			continue
-		}
-
 		wg.Add(1)
 		go func(relayAddr string) {
 			defer wg.Done()
@@ -321,14 +393,14 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 				// Dirty hack
 				if strings.Contains(err.Error(), "context deadline exceeded") {
-					m.relays[i].NOKResponses++
+					// TODO: Retry? We have until the slot is done to retry and
+					// see if we are lucky. We shouldn't fail in the first attempt
 				}
 				return
 			}
 
 			if responsePayload.Data == nil || responsePayload.Data.BlockHash == nilHash {
-				log.Warn("invalid response")
-				m.relays[i].NOKResponses++
+				m.relays[i].IsBlackListed = true
 				return
 			}
 
@@ -354,7 +426,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			// Received successful response. Now cancel other requests and return immediately
 			requestCtxCancel()
 			*result = *responsePayload
-			m.relays[i].OKResponses++
+			m.relays[i].PayloadSent = true
 			log.WithFields(logrus.Fields{
 				"blockHash":   responsePayload.Data.BlockHash,
 				"blockNumber": responsePayload.Data.BlockNumber,
