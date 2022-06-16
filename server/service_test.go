@@ -221,7 +221,7 @@ func TestGetHeader(t *testing.T) {
 	})
 
 	t.Run("Bad response from relays", func(t *testing.T) {
-		backend := newTestBackend(t, 2, time.Second, []uint64{0})
+		backend := newTestBackend(t, 2, time.Second, []uint64{0, 0})
 		resp := backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
@@ -239,13 +239,13 @@ func TestGetHeader(t *testing.T) {
 		// 2/2 failing responses are okay
 		backend.relays[1].GetHeaderResponse = resp
 		rr = backend.request(t, http.MethodGet, path, nil)
-		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
 
 	t.Run("Use header with highest value", func(t *testing.T) {
-		backend := newTestBackend(t, 3, time.Second, []uint64{0})
+		backend := newTestBackend(t, 3, time.Second, []uint64{0, 0, 0})
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
