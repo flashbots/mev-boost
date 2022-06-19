@@ -38,7 +38,7 @@ Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-ru
 
 ### From source
 
-#### Dependencies
+Install the dependencies:
 
 - [Install go 1.18](https://go.dev/doc/install).
 - Install required utilities:
@@ -55,14 +55,14 @@ go install honnef.co/go/tools/cmd/staticcheck@master
 sudo apt install make gcc
 ```
 
-### Build
+Build:
 
 ```bash
 make build
 ./mev-boost --help
 ```
 
-### Docker image
+### From Docker image
 
 - [Install docker engine](https://docs.docker.com/engine/install/).
 
