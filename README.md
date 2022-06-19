@@ -149,6 +149,10 @@ You are welcome here <3.
 - If you would like to contribute with code, check the [CONTRIBUTING file](CONTRIBUTING.md).
 - We just ask you to be nice. Read our [code of conduct](CODE_OF_CONDUCT.md).
 
+## Security
+
+If you find a security vulnerability on this project or any other initiative related to Flashbots, please let us know sending an email to security@flashbots.net.
+
 ## License
 
 The code in this project is free software under the [MIT License](LICENSE).
