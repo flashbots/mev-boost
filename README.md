@@ -65,6 +65,7 @@ make build
 ### From Docker image
 
 - [Install docker engine](https://docs.docker.com/engine/install/).
+- Pull the latest image:
 
 ```bash
 docker pull flashbots/mev-boost:latest
