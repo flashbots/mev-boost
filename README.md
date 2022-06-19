@@ -134,9 +134,9 @@ sequenceDiagram
 
 ## Maintainers
 
-- @metachris
-- @Ruteri
-- @elopio
+- [@metachris](https://github.com/metachris)
+- [@Ruteri](https://github.com/Ruteri)
+- [@elopio](https://github.com/elopio)
 
 ## Contributing
 
