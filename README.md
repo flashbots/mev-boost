@@ -6,7 +6,7 @@
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=rounded-square)](https://github.com/RichardLitt/standard-readme)
 
-`mev-boost` allows validators in Ethereum Proof of Stake to request blocks from a network of builders.
+`mev-boost` allows validators in Ethereum proof-of-stake to request blocks from a network of builders.
 
 This project is part of the Flashbots research towards proposer/builder separation for Maximal Extractable Value (MEV) mitigation. `mev-boost` is connected to a relay that aggregates multiple builders. The builders prepare full blocks, optimizing for MEV extraction and fair distribution of the rewards. The Consensus Layer client of the validator proposes the most profitable block received from `mev-boost`.
 
@@ -26,11 +26,13 @@ This project is part of the Flashbots research towards proposer/builder separati
 
 ## Background
 
-Flashbots is a research and development organization working on mitigating the negative externalities of MEV extraction techniques and avoiding the existential risks MEV could cause to stateful blockchains like Ethereum. Flashbots started as a builder specializing in MEV extraction in proof-of-work Ethereum to democratize access to MEV and make the most profitable blocks available to all miners. >90% of miners are outsourcing some of their block construction to Flashbots today.
+MEV is a centralizing force on Ethereum. Unattended, the competition for MEV opportunities leads to consensus security instability and permissioned communication infrastructure between traders and block producers. This erodes neutrality, transparency, decentralization, and permissionlessness.
 
-`mev-boost` is a new middleware in which validators can sell their blockspace to not just Flashbots but other builders as well. This opens up the market to more builders and creates competition between them, leading to more revenue and choice for validators, and better censorship-resistance for Ethereum.
+Flashbots is a research and development organization working on mitigating the negative externalities of MEV. Flashbots started as a builder specializing in MEV extraction in proof-of-work Ethereum to democratize access to MEV and make the most profitable blocks available to all miners. >90% of miners are outsourcing some of their block construction to Flashbots today.
 
-In the future, PBS will be enshrined in the Ethereum protocol itself to further harden its trust model.
+`mev-boost` is a new middleware in which validators can sell their blockspace to not just Flashbots but other builders as well. This opens up the market to more builders and creates competition between them, leading to more revenue and choice for validators, and better censorship-resistance for Ethereum. From our [early explorations in Ethereum proof-of-stake](https://writings.flashbots.net/research/mev-eth2/) we found that “MEV can increase validator rewards by 75.3%, or give an APR of 12.86% rather than a non-MEV APR of 7.35% from staking eth.”
+
+In the future, [proposer/builder separation](https://ethresear.ch/t/two-slot-proposer-builder-separation/10980) will be enshrined in the Ethereum protocol itself to further harden its trust model.
 
 Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-run-mevboost/) and in the [Frequently Asked Questions](https://github.com/flashbots/mev-boost/wiki/Frequently-Asked-Questions).
 
