@@ -27,24 +27,6 @@ var (
 
 var nilHash = types.Hash{}
 
-// HTTPServerTimeouts are various timeouts for requests to the mev-boost HTTP server
-type HTTPServerTimeouts struct {
-	Read       time.Duration // Timeout for body reads. None if 0.
-	ReadHeader time.Duration // Timeout for header reads. None if 0.
-	Write      time.Duration // Timeout for writes. None if 0.
-	Idle       time.Duration // Timeout to disconnect idle client connections. None if 0.
-}
-
-// NewDefaultHTTPServerTimeouts creates default server timeouts
-func NewDefaultHTTPServerTimeouts() HTTPServerTimeouts {
-	return HTTPServerTimeouts{
-		Read:       4 * time.Second,
-		ReadHeader: 2 * time.Second,
-		Write:      6 * time.Second,
-		Idle:       10 * time.Second,
-	}
-}
-
 // BoostService TODO
 type BoostService struct {
 	listenAddr string
@@ -53,9 +35,7 @@ type BoostService struct {
 	srv        *http.Server
 
 	builderSigningDomain types.Domain
-	serverTimeouts       HTTPServerTimeouts
-
-	httpClient http.Client
+	httpClient           http.Client
 }
 
 // NewBoostService created a new BoostService
@@ -75,7 +55,6 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 		log:        log.WithField("module", "service"),
 
 		builderSigningDomain: builderSigningDomain,
-		serverTimeouts:       NewDefaultHTTPServerTimeouts(),
 		httpClient:           http.Client{Timeout: relayRequestTimeout},
 	}, nil
 }
@@ -104,10 +83,10 @@ func (m *BoostService) StartHTTPServer() error {
 		Addr:    m.listenAddr,
 		Handler: m.getRouter(),
 
-		ReadTimeout:       m.serverTimeouts.Read,
-		ReadHeaderTimeout: m.serverTimeouts.ReadHeader,
-		WriteTimeout:      m.serverTimeouts.Write,
-		IdleTimeout:       m.serverTimeouts.Idle,
+		ReadTimeout:       0,
+		ReadHeaderTimeout: 0,
+		WriteTimeout:      0,
+		IdleTimeout:       0,
 	}
 
 	err := m.srv.ListenAndServe()
