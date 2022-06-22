@@ -4,15 +4,26 @@
 [![Test status](https://github.com/flashbots/mev-boost/workflows/Go/badge.svg)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Go%22)
 [![Discord](https://img.shields.io/discord/755466764501909692)](https://discord.gg/7hvTycdNcK)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=rounded-square)](https://github.com/RichardLitt/standard-readme)
 
 `mev-boost` allows validators in Ethereum proof-of-stake to request blocks from a network of builders.
 
-This project is part of the Flashbots research towards proposer/builder separation for Maximal Extractable Value (MEV) mitigation. `mev-boost` is connected to a relay that aggregates multiple builders. The builders prepare full blocks, optimizing for MEV extraction and fair distribution of the rewards. The Consensus Layer client of the validator proposes the most profitable block received from `mev-boost`.
+This project is part of the Flashbots research towards proposer/builder separation for Maximal Extractable Value (MEV) mitigation. `mev-boost` can connect to relays that aggregate multiple builders. The builders prepare full blocks, optimizing for MEV extraction and fair distribution of the rewards. The Consensus Layer client of the validator proposes the most profitable block received from `mev-boost`.
+
+---
 
 [![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)](https://excalidraw.com/#json=VHl16agggXE1wIcnRD2RP,1irpGwhVpEgt6k05u-MbaQ)
 
-## Table of Contents
+---
+
+See also:
+
+* [Builder API specification](https://ethereum.github.io/builder-specs/)
+* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags)
+* [Integration docs (mev-boost wiki)](https://github.com/flashbots/mev-boost/wiki)
+
+---
+
+# Table of Contents
 
 - [Background](#background)
 - [Install](#install)
@@ -24,7 +35,7 @@ This project is part of the Flashbots research towards proposer/builder separati
 - [Contributing](#contributing)
 - [Security](#security)
 
-## Background
+# Background
 
 MEV is a centralizing force on Ethereum. Unattended, the competition for MEV opportunities leads to consensus security instability and permissioned communication infrastructure between traders and block producers. This erodes neutrality, transparency, decentralization, and permissionlessness.
 
@@ -36,38 +47,32 @@ In the future, [proposer/builder separation](https://ethresear.ch/t/two-slot-pro
 
 Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-run-mevboost/) and in the [Frequently Asked Questions](https://github.com/flashbots/mev-boost/wiki/Frequently-Asked-Questions).
 
-## Install
+# Install
 
-### From source
+## From source
 
 Install the dependencies:
 
-- [Install go 1.18](https://go.dev/doc/install).
-- Install required utilities:
-
-```bash
-go install github.com/ferranbt/fastssz/sszgen@latest
-go install github.com/mgechev/revive@latest
-go install honnef.co/go/tools/cmd/staticcheck@master
-```
-
+- [Install Go 1.18](https://go.dev/doc/install)
 - Install build dependencies (in Ubuntu):
 
 ```bash
 sudo apt install make gcc
 ```
 
-Build:
+Build & run:
 
 ```bash
 make build
 ./mev-boost --help
 ```
 
-### From Docker image
+## From Docker image
 
-- [Install docker engine](https://docs.docker.com/engine/install/).
-- Pull the latest image:
+We maintain a mev-boost Docker image at https://hub.docker.com/r/flashbots/mev-boost
+
+- [Install Docker Engine](https://docs.docker.com/engine/install/)
+- Pull & run the latest image:
 
 ```bash
 docker pull flashbots/mev-boost:latest
@@ -144,9 +149,8 @@ sequenceDiagram
 
 You are welcome here <3.
 
-- If you want to join us, come and say hi in our [Discord chat](https://discord.com/invite/7hvTycdNcK).
 - If you have a question, feedback or a bug report for this project, please [open a new Issue](https://github.com/flashbots/mev-boost/issues).
-- If you would like to contribute with code, check the [CONTRIBUTING file](CONTRIBUTING.md).
+- If you would like to contribute with code, check the [CONTRIBUTING file](CONTRIBUTING.md) for further info about the development environment.
 - We just ask you to be nice. Read our [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Security

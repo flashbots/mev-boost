@@ -6,6 +6,14 @@ Please start by reading our [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Set up
 
+Install a few dev dependencies:
+
+```bash
+go install github.com/ferranbt/fastssz/sszgen@latest
+go install github.com/mgechev/revive@latest
+go install honnef.co/go/tools/cmd/staticcheck@master
+```
+
 Look at the [README for instructions to install the dependencies and build `mev-boost`](README.md#install)
 
 Alternatively, run mev-boost without build step:
@@ -28,6 +36,10 @@ make test
 make lint
 make run-mergemock-integration
 ```
+
+### Testing with test-cli
+
+[test-cli readme](cmd/test-cli/README.md)
 
 ### Testing with mergemock
 
@@ -61,10 +73,6 @@ to run mergemock in dev mode:
 ```bash
 make MERGEMOCK_BIN='go run .' run-mergemock-integration
 ```
-
-### Testing with test-cli
-
-[test-cli readme](cmd/test-cli/README.md)
 
 ## Code style
 
