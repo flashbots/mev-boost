@@ -21,11 +21,25 @@ var (
 	errInvalidHash      = errors.New("invalid hash")
 	errInvalidPubkey    = errors.New("invalid pubkey")
 	errInvalidSignature = errors.New("invalid signature")
+	errRelayResponse    = errors.New("no successful relay response")
 
 	errServerAlreadyRunning = errors.New("server already running")
 )
 
 var nilHash = types.Hash{}
+
+type httpErrorResp struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func respondError(w http.ResponseWriter, code int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	if err := json.NewEncoder(w).Encode(httpErrorResp{code, message}); err != nil {
+		http.Error(w, message, code)
+	}
+}
 
 // HTTPServerTimeouts are various timeouts for requests to the mev-boost HTTP server
 type HTTPServerTimeouts struct {
@@ -136,30 +150,30 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 
 	payload := []types.SignedValidatorRegistration{}
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	for _, registration := range payload {
 		if len(registration.Message.Pubkey) != 48 {
-			http.Error(w, errInvalidPubkey.Error(), http.StatusBadRequest)
+			respondError(w, http.StatusBadRequest, errInvalidPubkey.Error())
 			return
 		}
 
 		if len(registration.Signature) != 96 {
-			http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
+			respondError(w, http.StatusBadRequest, errInvalidSignature.Error())
 			return
 		}
 
 		ok, err := types.VerifySignature(registration.Message, m.builderSigningDomain, registration.Message.Pubkey[:], registration.Signature[:])
 		if err != nil {
 			log.WithError(err).WithField("registration", registration).Error("error verifying registerValidator signature")
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		if !ok {
 			log.WithError(err).WithField("registration", registration).Error("failed to verify registerValidator signature")
-			http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
+			respondError(w, http.StatusBadRequest, errInvalidSignature.Error())
 			return
 		}
 	}
@@ -196,7 +210,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{}`)
 	} else {
-		w.WriteHeader(http.StatusBadGateway)
+		respondError(w, http.StatusBadGateway, errRelayResponse.Error())
 	}
 }
 
@@ -215,17 +229,17 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	log.Info("getHeader")
 
 	if _, err := strconv.ParseUint(slot, 10, 64); err != nil {
-		http.Error(w, errInvalidSlot.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, errInvalidSlot.Error())
 		return
 	}
 
 	if len(pubkey) != 98 {
-		http.Error(w, errInvalidPubkey.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, errInvalidPubkey.Error())
 		return
 	}
 
 	if len(parentHashHex) != 66 {
-		http.Error(w, errInvalidHash.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, errInvalidHash.Error())
 		return
 	}
 
@@ -291,14 +305,15 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	if result.Data == nil || result.Data.Message == nil || result.Data.Message.Header == nil || result.Data.Message.Header.BlockHash == nilHash {
 		log.Warn("no successful relay response")
-		http.Error(w, "no successful relay response", http.StatusBadGateway)
+		respondError(w, http.StatusBadGateway, errRelayResponse.Error())
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(result); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.WithError(err).Warn("error writing response getting payload header")
+		respondError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 }
@@ -309,12 +324,12 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	payload := new(types.SignedBlindedBeaconBlock)
 	if err := json.NewDecoder(req.Body).Decode(payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if len(payload.Signature) != 96 {
-		http.Error(w, errInvalidSignature.Error(), http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, errInvalidSignature.Error())
 		return
 	}
 
@@ -375,13 +390,15 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	if result.Data == nil || result.Data.BlockHash == nilHash {
 		log.Warn("getPayload: no valid response from relay")
-		http.Error(w, "no valid getPayload response", http.StatusBadGateway)
+		respondError(w, http.StatusBadGateway, errRelayResponse.Error())
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(result); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.WithError(err).Warn("error writing response getting payload")
+		respondError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 }
