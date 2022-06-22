@@ -44,7 +44,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	return &backend
 }
 
-func (be *testBackend) request(t *testing.T, method string, path string, payload interface{}) *httptest.ResponseRecorder {
+func (be *testBackend) request(t *testing.T, method string, path string, payload any) *httptest.ResponseRecorder {
 	var req *http.Request
 	var err error
 
@@ -197,7 +197,7 @@ func TestRegisterValidator(t *testing.T) {
 		invalidPayload := []types.SignedValidatorRegistration{reg}
 		invalidPayload[0].Signature = _HexToSignature(
 			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9")
-		
+
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodPost, path, invalidPayload)
 		require.Equal(t, `{"code":400,"message":"invalid signature"}`+"\n", rr.Body.String())
@@ -216,7 +216,7 @@ func TestGetHeader(t *testing.T) {
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
 	path := getPath(1, hash, pubkey)
 	require.Equal(t, "/eth/v1/builder/header/1/0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249", path)
-	
+
 	t.Run("Okay response from relay", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, path, nil)

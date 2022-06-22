@@ -17,11 +17,11 @@ import (
 )
 
 var (
-	errInvalidSlot      = errors.New("invalid slot")
-	errInvalidHash      = errors.New("invalid hash")
-	errInvalidPubkey    = errors.New("invalid pubkey")
-	errInvalidSignature = errors.New("invalid signature")
-	errRelayResponse    = errors.New("no successful relay response")
+	errInvalidSlot               = errors.New("invalid slot")
+	errInvalidHash               = errors.New("invalid hash")
+	errInvalidPubkey             = errors.New("invalid pubkey")
+	errInvalidSignature          = errors.New("invalid signature")
+	errNoSuccessfulRelayResponse = errors.New("no successful relay response")
 
 	errServerAlreadyRunning = errors.New("server already running")
 )
@@ -210,7 +210,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{}`)
 	} else {
-		respondError(w, http.StatusBadGateway, errRelayResponse.Error())
+		respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 	}
 }
 
@@ -305,7 +305,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	if result.Data == nil || result.Data.Message == nil || result.Data.Message.Header == nil || result.Data.Message.Header.BlockHash == nilHash {
 		log.Warn("no successful relay response")
-		respondError(w, http.StatusBadGateway, errRelayResponse.Error())
+		respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
 
@@ -390,7 +390,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	if result.Data == nil || result.Data.BlockHash == nilHash {
 		log.Warn("getPayload: no valid response from relay")
-		respondError(w, http.StatusBadGateway, errRelayResponse.Error())
+		respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
 
