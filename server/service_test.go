@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -172,6 +173,7 @@ func TestRegisterValidator(t *testing.T) {
 			w.WriteHeader(http.StatusBadRequest)
 		}
 		rr = backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code)
 		require.Equal(t, 3, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 3, backend.relays[1].GetRequestCount(path))
@@ -185,8 +187,22 @@ func TestRegisterValidator(t *testing.T) {
 		// Now make the relay return slowly, mev-boost should return an error
 		backend.relays[0].ResponseDelay = 10 * time.Millisecond
 		rr = backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code)
 		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Invalid validator signature", func(t *testing.T) {
+		// signature does not match message
+		invalidPayload := []types.SignedValidatorRegistration{reg}
+		invalidPayload[0].Signature = _HexToSignature(
+			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9")
+
+		backend := newTestBackend(t, 1, time.Second)
+		rr := backend.request(t, http.MethodPost, path, invalidPayload)
+		require.Equal(t, `{"code":400,"message":"invalid signature"}`+"\n", rr.Body.String())
+		require.Equal(t, http.StatusBadRequest, rr.Code)
+		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 	})
 }
 
@@ -229,6 +245,7 @@ func TestGetHeader(t *testing.T) {
 		rr = backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
+		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
 
@@ -291,6 +308,7 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
 		// Request should have failed
+		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
 
@@ -310,7 +328,40 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
 		// Request should have failed
+		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
+
+	t.Run("Invalid slot number", func(t *testing.T) {
+		// Number larger than uint64 creates parsing error
+		slot := fmt.Sprintf("%d0", uint64(math.MaxUint64))
+		invalidSlotPath := fmt.Sprintf("/eth/v1/builder/header/%s/%s/%s", slot, hash.String(), pubkey.String())
+
+		backend := newTestBackend(t, 1, time.Second)
+		rr := backend.request(t, http.MethodGet, invalidSlotPath, nil)
+		require.Equal(t, `{"code":400,"message":"invalid slot"}`+"\n", rr.Body.String())
+		require.Equal(t, http.StatusBadRequest, rr.Code, rr.Body.String())
+		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Invalid pubkey length", func(t *testing.T) {
+		invalidPubkeyPath := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", 1, hash.String(), "0x1")
+
+		backend := newTestBackend(t, 1, time.Second)
+		rr := backend.request(t, http.MethodGet, invalidPubkeyPath, nil)
+		require.Equal(t, `{"code":400,"message":"invalid pubkey"}`+"\n", rr.Body.String())
+		require.Equal(t, http.StatusBadRequest, rr.Code, rr.Body.String())
+		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Invalid hash length", func(t *testing.T) {
+		invalidSlotPath := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", 1, "0x1", pubkey.String())
+
+		backend := newTestBackend(t, 1, time.Second)
+		rr := backend.request(t, http.MethodGet, invalidSlotPath, nil)
+		require.Equal(t, `{"code":400,"message":"invalid hash"}`+"\n", rr.Body.String())
+		require.Equal(t, http.StatusBadRequest, rr.Code, rr.Body.String())
+		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 	})
 }
 
@@ -372,6 +423,7 @@ func TestGetPayload(t *testing.T) {
 		rr = backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
+		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
 }
