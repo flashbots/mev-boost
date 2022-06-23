@@ -15,6 +15,7 @@ const (
 	genesisForkVersionMainnet = "0x00000000"
 	genesisForkVersionKiln    = "0x70000069"
 	genesisForkVersionRopsten = "0x80000069"
+	genesisForkVersionSepolia = "0x90000069"
 )
 
 var (
@@ -36,6 +37,7 @@ var (
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet genesis fork version 0x00000000 (for signature validation)")
 	useGenesisForkVersionKiln    = flag.Bool("kiln", false, "use Kiln genesis fork version 0x70000069 (for signature validation)")
 	useGenesisForkVersionRopsten = flag.Bool("ropsten", false, "use Ropsten genesis fork version 0x80000069 (for signature validation)")
+	useGenesisForkVersionSepolia = flag.Bool("sepolia", false, "use Sepolia genesis fork version 0x90000069 (for signature validation)")
 	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version (for signature validation)")
 )
 
@@ -54,6 +56,8 @@ func main() {
 		genesisForkVersionHex = genesisForkVersionKiln
 	} else if *useGenesisForkVersionRopsten {
 		genesisForkVersionHex = genesisForkVersionRopsten
+	} else if *useGenesisForkVersionSepolia {
+		genesisForkVersionHex = genesisForkVersionSepolia
 	} else {
 		log.Fatal("Please specify a genesis fork version (eg. -mainnet or -kiln or -ropsten or -genesis-fork-version flags)")
 	}
