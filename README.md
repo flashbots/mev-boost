@@ -1,8 +1,7 @@
 # mev-boost
 
 [![Goreport status](https://goreportcard.com/badge/github.com/flashbots/mev-boost)](https://goreportcard.com/report/github.com/flashbots/mev-boost)
-[![Test status](https://github.com/flashbots/mev-boost/workflows/Go/badge.svg)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Go%22)
-[![Discord](https://img.shields.io/discord/755466764501909692)](https://discord.gg/7hvTycdNcK)
+[![Test status](https://github.com/flashbots/mev-boost/workflows/Tests/badge.svg)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Tests%22)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
 `mev-boost` allows validators in Ethereum proof-of-stake to request blocks from a network of builders.
@@ -11,7 +10,7 @@ This project is part of the Flashbots research towards proposer/builder separati
 
 ---
 
-[![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)](https://excalidraw.com/#json=VHl16agggXE1wIcnRD2RP,1irpGwhVpEgt6k05u-MbaQ)
+![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
 
 ---
 
@@ -26,7 +25,7 @@ See also:
 # Table of Contents
 
 - [Background](#background)
-- [Install](#install)
+- [Installing](#installing)
 - [Usage](#usage)
 - [Consensus Clients Implementation Status](#consensus-clients-implementation-status)
 - [The Plan](#the-plan)
@@ -41,13 +40,13 @@ MEV is a centralizing force on Ethereum. Unattended, the competition for MEV opp
 
 Flashbots is a research and development organization working on mitigating the negative externalities of MEV. Flashbots started as a builder specializing in MEV extraction in proof-of-work Ethereum to democratize access to MEV and make the most profitable blocks available to all miners. >90% of miners are outsourcing some of their block construction to Flashbots today.
 
-`mev-boost` is a new middleware in which validators can sell their blockspace to not just Flashbots but other builders as well. This opens up the market to more builders and creates competition between them, leading to more revenue and choice for validators, and better censorship-resistance for Ethereum. From our [early explorations in Ethereum proof-of-stake](https://writings.flashbots.net/research/mev-eth2/) we found that “MEV can increase validator rewards by 75.3%, or give an APR of 12.86% rather than a non-MEV APR of 7.35% from staking eth.”
+`mev-boost` is a new middleware in which validators can offer their blockspace to not just Flashbots but other builders as well. This opens up the market to more builders and creates competition between them, leading to more revenue and choice for validators, and better censorship-resistance for Ethereum. From our [early explorations in Ethereum proof-of-stake](https://writings.flashbots.net/research/mev-eth2/) we found that “MEV can increase validator rewards by 75.3%, or give an APR of 12.86% rather than a non-MEV APR of 7.35% from staking eth.”
 
 In the future, [proposer/builder separation](https://ethresear.ch/t/two-slot-proposer-builder-separation/10980) will be enshrined in the Ethereum protocol itself to further harden its trust model.
 
 Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-run-mevboost/) and in the [Frequently Asked Questions](https://github.com/flashbots/mev-boost/wiki/Frequently-Asked-Questions).
 
-# Install
+# Installing
 
 ## From source
 
@@ -79,7 +78,7 @@ docker pull flashbots/mev-boost:latest
 docker run flashbots/mev-boost --help
 ```
 
-## Usage
+# Usage
 
 First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status). 
 
@@ -105,7 +104,7 @@ Run mev-boost pointed at our Ropsten builder+relay:
 
 `test-cli` is a utility to execute all proposer requests against mev-boost+relay. See also the [test-cli readme](cmd/test-cli/README.md).
 
-## Consensus Clients Implementation Status
+# Consensus Clients Implementation Status
 
 | Project                                             | Status
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -118,13 +117,13 @@ Run mev-boost pointed at our Ropsten builder+relay:
 [Notes for implementers](https://github.com/flashbots/mev-boost/wiki#implementation-resources).
 
 
-## The Plan
+# The Plan
 
 `mev-boost` is the next step on our exploration towards a trustless and decentralized MEV market. It is a service developed in collaboration with the Ethereum developers and researchers.
 
 The roadmap, expected deliveries and estimated deadlines are described in [the plan](https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)). Join us in this repository while we explore the remaining [open research questions](https://github.com/flashbots/mev-boost/wiki/Research#open-questions) with all the relevant organizations in the ecosystem.
 
-## API
+# API
 
 `mev-boost` implements the latest [Builder Specification](https://github.com/ethereum/builder-specs).
 
@@ -154,13 +153,13 @@ sequenceDiagram
     mev_boost-->>consensus: submitBlindedBlock response
 ```
 
-## Maintainers
+# Maintainers
 
 - [@metachris](https://github.com/metachris)
 - [@Ruteri](https://github.com/Ruteri)
 - [@elopio](https://github.com/elopio)
 
-## Contributing
+# Contributing
 
 [Flashbots](https://flashbots.net) is a research and development collective working on mitigating the negative externalities of decentralized economies. We contribute with the larger free software community to illuminate the dark forest.
 
@@ -170,11 +169,11 @@ You are welcome here <3.
 - If you would like to contribute with code, check the [CONTRIBUTING file](CONTRIBUTING.md) for further info about the development environment.
 - We just ask you to be nice. Read our [code of conduct](CODE_OF_CONDUCT.md).
 
-## Security
+# Security
 
 If you find a security vulnerability on this project or any other initiative related to Flashbots, please let us know sending an email to security@flashbots.net.
 
-## License
+# License
 
 The code in this project is free software under the [MIT License](LICENSE).
 
