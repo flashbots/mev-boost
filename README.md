@@ -5,34 +5,128 @@
 [![Discord](https://img.shields.io/discord/755466764501909692)](https://discord.gg/7hvTycdNcK)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-A service that allows Ethereum Consensus Layer (CL) clients to outsource block construction to third party block builders in addition to execution clients.
+`mev-boost` allows validators in Ethereum proof-of-stake to request blocks from a network of builders.
 
-See also:
-
-* **[Builder API specification](https://ethereum.github.io/builder-specs/)** ([Github](https://github.com/ethereum/builder-specs))
-* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags)
-* [Integration docs (mev-boost wiki)](https://github.com/flashbots/mev-boost/wiki)
-
-Further references:
-
-* https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)
-* https://ethresear.ch/t/mev-boost-merge-ready-flashbots-architecture/11177/
-* https://hackmd.io/@paulhauner/H1XifIQ_t
-
-Testnet relays/builders:
-
-* https://builder-relay-kiln.flashbots.net
-* https://builder-relay-ropsten.flashbots.net
+This project is part of the Flashbots research towards proposer/builder separation for Maximal Extractable Value (MEV) mitigation. `mev-boost` can connect to relays that aggregate multiple builders. The builders prepare full blocks, optimizing for MEV extraction and fair distribution of the rewards. The Consensus Layer client of the validator proposes the most profitable block received from `mev-boost`.
 
 ---
 
-### System diagram
+[![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)](https://excalidraw.com/#json=VHl16agggXE1wIcnRD2RP,1irpGwhVpEgt6k05u-MbaQ)
 
-![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
+---
 
-([source](https://excalidraw.com/#json=VHl16agggXE1wIcnRD2RP,1irpGwhVpEgt6k05u-MbaQ))
+See also:
 
-### Request sequence
+* [Builder API specification](https://ethereum.github.io/builder-specs/)
+* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags)
+* [Integration docs (mev-boost wiki)](https://github.com/flashbots/mev-boost/wiki)
+
+---
+
+# Table of Contents
+
+- [Background](#background)
+- [Install](#install)
+- [Usage](#usage)
+- [Consensus Clients Implementation Status](#consensus-clients-implementation-status)
+- [The Plan](#the-plan)
+- [API](#api)
+- [Maintainers](#maintainers)
+- [Contributing](#contributing)
+- [Security](#security)
+
+# Background
+
+MEV is a centralizing force on Ethereum. Unattended, the competition for MEV opportunities leads to consensus security instability and permissioned communication infrastructure between traders and block producers. This erodes neutrality, transparency, decentralization, and permissionlessness.
+
+Flashbots is a research and development organization working on mitigating the negative externalities of MEV. Flashbots started as a builder specializing in MEV extraction in proof-of-work Ethereum to democratize access to MEV and make the most profitable blocks available to all miners. >90% of miners are outsourcing some of their block construction to Flashbots today.
+
+`mev-boost` is a new middleware in which validators can sell their blockspace to not just Flashbots but other builders as well. This opens up the market to more builders and creates competition between them, leading to more revenue and choice for validators, and better censorship-resistance for Ethereum. From our [early explorations in Ethereum proof-of-stake](https://writings.flashbots.net/research/mev-eth2/) we found that “MEV can increase validator rewards by 75.3%, or give an APR of 12.86% rather than a non-MEV APR of 7.35% from staking eth.”
+
+In the future, [proposer/builder separation](https://ethresear.ch/t/two-slot-proposer-builder-separation/10980) will be enshrined in the Ethereum protocol itself to further harden its trust model.
+
+Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-run-mevboost/) and in the [Frequently Asked Questions](https://github.com/flashbots/mev-boost/wiki/Frequently-Asked-Questions).
+
+# Install
+
+## From source
+
+Install the dependencies:
+
+- [Install Go 1.18](https://go.dev/doc/install)
+- Install build dependencies (in Ubuntu):
+
+```bash
+sudo apt install make gcc
+```
+
+Build & run:
+
+```bash
+make build
+./mev-boost --help
+```
+
+## From Docker image
+
+We maintain a mev-boost Docker image at https://hub.docker.com/r/flashbots/mev-boost
+
+- [Install Docker Engine](https://docs.docker.com/engine/install/)
+- Pull & run the latest image:
+
+```bash
+docker pull flashbots/mev-boost:latest
+docker run flashbots/mev-boost --help
+```
+
+## Usage
+
+First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status). 
+
+#### Kiln testnet
+
+Here are general setup instructions for Kiln: https://notes.ethereum.org/@launchpad/kiln
+
+Run mev-boost pointed at our Kiln builder+relay:
+
+```bash
+./mev-boost -kiln -relays https://0xb5246e299aeb782fbc7c91b41b3284245b1ed5206134b0028b81dfb974e5900616c67847c2354479934fc4bb75519ee1@builder-relay-kiln.flashbots.net
+```
+
+#### Ropsten testnet
+
+Run mev-boost pointed at our Ropsten builder+relay:
+
+```
+ ./mev-boost -ropsten -relays https://0xb124d80a00b80815397b4e7f1f05377ccc83aeeceb6be87963ba3649f1e6efa32ca870a88845917ec3f26a8e2aa25c77@builder-relay-ropsten.flashbots.net
+```
+
+#### `test-cli`
+
+`test-cli` is a utility to execute all proposer requests against mev-boost+relay. See also the [test-cli readme](cmd/test-cli/README.md).
+
+## Consensus Clients Implementation Status
+
+| Project                                             | Status
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [Teku](https://github.com/ConsenSys/teku)           | Completed, ready for testing ([#156](https://github.com/flashbots/mev-boost/issues/156)) |
+| [Lighthouse](https://github.com/sigp/lighthouse)    | Advanced ([#160](https://github.com/flashbots/mev-boost/issues/160))                     |
+| [Lodestar](https://github.com/ChainSafe/lodestar)   | Advanced ([#157](https://github.com/flashbots/mev-boost/issues/157))                     |
+| [Nimbus](https://github.com/status-im/nimbus-eth2/) | In progress ([#159](https://github.com/flashbots/mev-boost/issues/159))                  |
+| [Prysm](https://github.com/prysmaticlabs/prysm/)    | In progress ([#158](https://github.com/flashbots/mev-boost/issues/158))                  |
+
+[Notes for implementers](https://github.com/flashbots/mev-boost/wiki#implementation-resources).
+
+
+## The Plan
+
+`mev-boost` is the next step on our exploration towards a trustless and decentralized MEV market. It is a service developed in collaboration with the Ethereum developers and researchers.
+
+The roadmap, expected deliveries and estimated deadlines are described in [the plan](https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)). Join us in this repository while we explore the remaining [open research questions](https://github.com/flashbots/mev-boost/wiki/Research#open-questions) with all the relevant organizations in the ecosystem.
+
+## API
+
+`mev-boost` implements the latest [Builder Specification](https://github.com/ethereum/builder-specs).
 
 ```mermaid
 sequenceDiagram
@@ -51,95 +145,39 @@ sequenceDiagram
     Note over mev_boost: select best payload
     mev_boost-->>consensus: getHeader response
     Note over consensus: sign the header
-    consensus->>mev_boost: getPayload
+    consensus->>mev_boost: submitBlindedBlock
     Note over mev_boost: identify payload source
-    mev_boost->>relays: getPayload
+    mev_boost->>relays: submitBlindedBlock
     Note over relays: validate signature
-    relays-->>mev_boost: getPayload response
+    relays-->>mev_boost: submitBlindedBlock response
     Note over mev_boost: verify response matches expected
-    mev_boost-->>consensus: getPayload response
+    mev_boost-->>consensus: submitBlindedBlock response
 ```
 
-# Developing
+## Maintainers
 
+- [@metachris](https://github.com/metachris)
+- [@Ruteri](https://github.com/Ruteri)
+- [@elopio](https://github.com/elopio)
 
-Install required utilities:
+## Contributing
 
-```bash
-go install github.com/ferranbt/fastssz/sszgen@latest
-go install github.com/mgechev/revive@latest
-go install honnef.co/go/tools/cmd/staticcheck@master
-```
-## Build & Run
+[Flashbots](https://flashbots.net) is a research and development collective working on mitigating the negative externalities of decentralized economies. We contribute with the larger free software community to illuminate the dark forest.
 
-```bash
-make build
-./mev-boost -h
+You are welcome here <3.
 
-# Run mev-boost pointed at our Kiln builder+relay
-./mev-boost -kiln -relays https://0xb5246e299aeb782fbc7c91b41b3284245b1ed5206134b0028b81dfb974e5900616c67847c2354479934fc4bb75519ee1@builder-relay-kiln.flashbots.net
-```
+- If you have a question, feedback or a bug report for this project, please [open a new Issue](https://github.com/flashbots/mev-boost/issues).
+- If you would like to contribute with code, check the [CONTRIBUTING file](CONTRIBUTING.md) for further info about the development environment.
+- We just ask you to be nice. Read our [code of conduct](CODE_OF_CONDUCT.md).
 
-Alternatively, run mev-boost without compile step:
+## Security
 
-```bash
-go run cmd/mev-boost/main.go -h
+If you find a security vulnerability on this project or any other initiative related to Flashbots, please let us know sending an email to security@flashbots.net.
 
-# Run mev-boost pointed at our Kiln builder+relay
-go run cmd/mev-boost/main.go -kiln -relays https://0xb5246e299aeb782fbc7c91b41b3284245b1ed5206134b0028b81dfb974e5900616c67847c2354479934fc4bb75519ee1@builder-relay-kiln.flashbots.net
-```
+## License
 
-Note that you'll need to set the correct genesis fork version (either manually with `-genesis-fork-version` or a helper flag `-mainnet`/`-kiln`/`-ropsten`).
+The code in this project is free software under the [MIT License](LICENSE).
 
-If the test or target application crashes with an "illegal instruction" exception, run/rebuild with CGO_CFLAGS environment variable set to `-O -D__BLST_PORTABLE__`. This error also happens if you are on an ARM-based system, including the Apple M1/M2 chip.
+---
 
-
-```bash
-export CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
-export CGO_CFLAGS="-O -D__BLST_PORTABLE__" 
-```
-
-## Lint & Test
-
-```
-make test
-make lint
-make run-mergemock-integration
-```
-
-## Testing with mergemock
-
-Mergemock is fully integrated: https://github.com/protolambda/mergemock
-
-Make sure you've setup and built mergemock first, refer to its [README](https://github.com/flashbots/mergemock#quick-start) but here's a quick setup guide:
-
-```
-git clone https://github.com/protolambda/mergemock.git
-cd mergemock
-go build . mergemock
-wget https://gist.githubusercontent.com/lightclient/799c727e826483a2804fc5013d0d3e3d/raw/2e8824fa8d9d9b040f351b86b75c66868fb9b115/genesis.json
-openssl rand -hex 32 | tr -d "\n" > jwt.hex
-```
-
-Then you can run an integration test with mergemock, spawning both a mergemock relay+execution engine and a mergemock consensus client pointing to mev-boost, which in turn points to the mergemock relay:
-
-```
-cd mev-boost
-make run-mergemock-integration
-```
-
-The path to the mergemock repo is assumed to be `../mergemock`, you can override like so:
-
-```
-make MERGEMOCK_DIR=/PATH-TO-MERGEMOCK-REPO run-mergemock-integration
-```
-
-to run mergemock in dev mode:
-
-```
-make MERGEMOCK_BIN='go run .' run-mergemock-integration
-```
-
-## Testing with test-cli
-
-[test-cli readme](cmd/test-cli/README.md)
+Made with ☀️ by the ⚡🤖 collective.
