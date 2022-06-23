@@ -1,5 +1,7 @@
 # test-cli
 
+test-cli is a utility to run through all the proposer requests against mev-boost+relay.
+
 ## Build
 
 ```

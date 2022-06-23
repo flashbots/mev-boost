@@ -28,8 +28,8 @@ See also:
 - [Background](#background)
 - [Install](#install)
 - [Usage](#usage)
-- [The Plan](#the-plan)
 - [Consensus Clients Implementation Status](#consensus-clients-implementation-status)
+- [The Plan](#the-plan)
 - [API](#api)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
@@ -81,19 +81,29 @@ docker run flashbots/mev-boost --help
 
 ## Usage
 
-First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status). Here are the instructions to run a node in Kiln: https://notes.ethereum.org/@launchpad/kiln
+First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status). 
 
-Then, run mev-boost pointed at our Kiln builder+relay:
+#### Kiln testnet
+
+Here are general setup instructions for Kiln: https://notes.ethereum.org/@launchpad/kiln
+
+Run mev-boost pointed at our Kiln builder+relay:
 
 ```bash
 ./mev-boost -kiln -relays https://0xb5246e299aeb782fbc7c91b41b3284245b1ed5206134b0028b81dfb974e5900616c67847c2354479934fc4bb75519ee1@builder-relay-kiln.flashbots.net
 ```
 
-## The Plan
+#### Ropsten testnet
 
-`mev-boost` is the next step on our exploration towards a trustless and decentralized MEV market. It is a service developed in collaboration with the Ethereum developers and researchers.
+Run mev-boost pointed at our Ropsten builder+relay:
 
-The roadmap, expected deliveries and estimated deadlines are described in [the plan](https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)). Join us in this repository while we explore the remaining [open research questions](https://github.com/flashbots/mev-boost/wiki/Research#open-questions) with all the relevant organizations in the ecosystem.
+```
+ ./mev-boost -ropsten -relays https://0xb124d80a00b80815397b4e7f1f05377ccc83aeeceb6be87963ba3649f1e6efa32ca870a88845917ec3f26a8e2aa25c77@builder-relay-ropsten.flashbots.net
+```
+
+#### `test-cli`
+
+`test-cli` is a utility to execute all proposer requests against mev-boost+relay. See also the [test-cli readme](cmd/test-cli/README.md).
 
 ## Consensus Clients Implementation Status
 
@@ -107,9 +117,16 @@ The roadmap, expected deliveries and estimated deadlines are described in [the p
 
 [Notes for implementers](https://github.com/flashbots/mev-boost/wiki#implementation-resources).
 
+
+## The Plan
+
+`mev-boost` is the next step on our exploration towards a trustless and decentralized MEV market. It is a service developed in collaboration with the Ethereum developers and researchers.
+
+The roadmap, expected deliveries and estimated deadlines are described in [the plan](https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)). Join us in this repository while we explore the remaining [open research questions](https://github.com/flashbots/mev-boost/wiki/Research#open-questions) with all the relevant organizations in the ecosystem.
+
 ## API
 
-`mev-boost` implements the [Builder API v0.1.0](https://github.com/ethereum/builder-specs/tree/v0.1.0).
+`mev-boost` implements the latest [Builder Specification](https://github.com/ethereum/builder-specs).
 
 ```mermaid
 sequenceDiagram
@@ -128,13 +145,13 @@ sequenceDiagram
     Note over mev_boost: select best payload
     mev_boost-->>consensus: getHeader response
     Note over consensus: sign the header
-    consensus->>mev_boost: getPayload
+    consensus->>mev_boost: submitBlindedBlock
     Note over mev_boost: identify payload source
-    mev_boost->>relays: getPayload
+    mev_boost->>relays: submitBlindedBlock
     Note over relays: validate signature
-    relays-->>mev_boost: getPayload response
+    relays-->>mev_boost: submitBlindedBlock response
     Note over mev_boost: verify response matches expected
-    mev_boost-->>consensus: getPayload response
+    mev_boost-->>consensus: submitBlindedBlock response
 ```
 
 ## Maintainers

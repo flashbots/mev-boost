@@ -39,7 +39,7 @@ make run-mergemock-integration
 
 ### Testing with test-cli
 
-[test-cli readme](cmd/test-cli/README.md)
+test-cli is a utility to run through all the proposer requests against mev-boost+relay. See also the [test-cli readme](cmd/test-cli/README.md).
 
 ### Testing with mergemock
 
