@@ -41,6 +41,21 @@ func respondError(w http.ResponseWriter, code int, message string) {
 	}
 }
 
+func respondOK(w http.ResponseWriter, result any) error {
+	var err error
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if result == nil {
+		_, err = fmt.Fprintf(w, `{}`)
+	} else {
+		err = json.NewEncoder(w).Encode(result)
+	}
+
+	return err
+}
+
 // BoostService TODO
 type BoostService struct {
 	listenAddr string
@@ -111,9 +126,7 @@ func (m *BoostService) StartHTTPServer() error {
 }
 
 func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{}`)
+	respondOK(w, nil)
 }
 
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
@@ -185,9 +198,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	wg.Wait()
 
 	if numSuccessRequestsToRelay > 0 {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{}`)
+		respondOK(w, nil)
 	} else {
 		respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 	}
@@ -288,12 +299,9 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(result); err != nil {
+	if err := respondOK(w, result); err != nil {
 		log.WithError(err).Warn("error writing response getting payload header")
 		respondError(w, http.StatusInternalServerError, "internal server error")
-		return
 	}
 }
 
@@ -373,12 +381,9 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(result); err != nil {
+	if err := respondOK(w, result); err != nil {
 		log.WithError(err).Warn("error writing response getting payload")
 		respondError(w, http.StatusInternalServerError, "internal server error")
-		return
 	}
 }
 
