@@ -126,10 +126,24 @@ func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 	m.respondOK(w, nilResponse)
 }
 
+// handleStatus sends calls to the status endpoint of every relay.
+// It returns OK if at least one returned OK, and returns KO otherwise.
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{}`)
+	for _, relay := range m.relays {
+		m.log.WithField("relay", relay).Info("Checking relay status")
+
+		url := relay.Address + pathStatus
+		err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, nil, nil)
+
+		if err == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, `{}`)
+			return
+		}
+	}
+
+	respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
 }
 
 // RegisterValidatorV1 - returns 200 if at least one relay returns 200

@@ -125,7 +125,7 @@ func TestStatus(t *testing.T) {
 	path := "/eth/v1/builder/status"
 	rr := backend.request(t, http.MethodGet, path, payloadRegisterValidator)
 	require.Equal(t, http.StatusOK, rr.Code)
-	require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+	require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 }
 
 func TestRegisterValidator(t *testing.T) {
