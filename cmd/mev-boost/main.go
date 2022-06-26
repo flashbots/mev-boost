@@ -22,12 +22,17 @@ var (
 	version = "dev" // is set during build process
 
 	// defaults
+	defaultLogJSON            = os.Getenv("LOG_JSON") != ""
+	defaultLogLevel           = getEnv("LOG_LEVEL", "info")
 	defaultListenAddr         = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
 	defaultRelayTimeoutMs     = getEnvInt("RELAY_TIMEOUT_MS", 2000) // timeout for all the requests to the relay
 	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
 
 	// cli flags
+	logJSON  = flag.Bool("json", defaultLogJSON, "log in JSON formate instead of text")
+	logLevel = flag.String("loglevel", defaultLogLevel, "log-level: trace, debug, info, warn/warning, error, fatal, panic")
+
 	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (schema://pubkey@host)")
 	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
@@ -45,7 +50,26 @@ var log = logrus.WithField("module", "cmd/mev-boost")
 
 func main() {
 	flag.Parse()
-	log.Printf("mev-boost %s", version)
+	logrus.SetOutput(os.Stdout)
+
+	if *logJSON {
+		log.Logger.SetFormatter(&logrus.JSONFormatter{})
+	} else {
+		log.Logger.SetFormatter(&logrus.TextFormatter{
+			FullTimestamp: true,
+		})
+
+	}
+
+	if *logLevel != "" {
+		lvl, err := logrus.ParseLevel(*logLevel)
+		if err != nil {
+			log.Fatalf("Invalid loglevel: %s", *logLevel)
+		}
+		logrus.SetLevel(lvl)
+	}
+
+	log.Infof("mev-boost %s", version)
 
 	genesisForkVersionHex := ""
 	if *useCustomGenesisForkVersion != "" {
