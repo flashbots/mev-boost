@@ -30,7 +30,7 @@ var (
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
 
 	// cli flags
-	logJSON  = flag.Bool("json", defaultLogJSON, "log in JSON formate instead of text")
+	logJSON  = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
 	logLevel = flag.String("loglevel", defaultLogLevel, "log-level: trace, debug, info, warn/warning, error, fatal, panic")
 
 	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")

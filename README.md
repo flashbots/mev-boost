@@ -100,6 +100,14 @@ Run mev-boost pointed at our Ropsten builder+relay:
  ./mev-boost -ropsten -relays https://0xb124d80a00b80815397b4e7f1f05377ccc83aeeceb6be87963ba3649f1e6efa32ca870a88845917ec3f26a8e2aa25c77@builder-relay-ropsten.flashbots.net
 ```
 
+#### Sepolia testnet
+
+Run mev-boost pointed at our Sepolia builder+relay:
+
+```
+ ./mev-boost -sepolia -relays https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@builder-relay-sepolia.flashbots.net
+```
+
 #### `test-cli`
 
 `test-cli` is a utility to execute all proposer requests against mev-boost+relay. See also the [test-cli readme](cmd/test-cli/README.md).
