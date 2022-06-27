@@ -191,19 +191,6 @@ func TestRegisterValidator(t *testing.T) {
 		require.Equal(t, http.StatusBadGateway, rr.Code)
 		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
 	})
-
-	t.Run("Invalid validator signature", func(t *testing.T) {
-		// signature does not match message
-		invalidPayload := []types.SignedValidatorRegistration{reg}
-		invalidPayload[0].Signature = _HexToSignature(
-			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9")
-
-		backend := newTestBackend(t, 1, time.Second)
-		rr := backend.request(t, http.MethodPost, path, invalidPayload)
-		require.Equal(t, `{"code":400,"message":"invalid signature"}`+"\n", rr.Body.String())
-		require.Equal(t, http.StatusBadRequest, rr.Code)
-		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
-	})
 }
 
 func TestGetHeader(t *testing.T) {
