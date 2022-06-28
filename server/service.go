@@ -158,9 +158,7 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	if numSuccessRequestsToRelay == 0 {
 		respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
 	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{}`)
+		respondOK(w, nilResponse)
 	}
 }
 
