@@ -27,6 +27,7 @@ var (
 )
 
 var nilHash = types.Hash{}
+var nilResponse = struct{}{}
 
 type httpErrorResp struct {
 	Code    int    `json:"code"`
@@ -42,18 +43,13 @@ func respondError(w http.ResponseWriter, code int, message string) {
 }
 
 func respondOK(w http.ResponseWriter, result any) error {
-	var err error
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	if result == nil {
-		_, err = fmt.Fprintf(w, `{}`)
-	} else {
-		err = json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		return err
 	}
-
-	return err
+	return nil
 }
 
 // BoostService TODO
@@ -126,7 +122,7 @@ func (m *BoostService) StartHTTPServer() error {
 }
 
 func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
-	respondOK(w, nil)
+	respondOK(w, nilResponse)
 }
 
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
@@ -198,7 +194,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	wg.Wait()
 
 	if numSuccessRequestsToRelay > 0 {
-		respondOK(w, nil)
+		respondOK(w, nilResponse)
 	} else {
 		respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 	}

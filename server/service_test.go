@@ -103,7 +103,7 @@ func TestWebserverRootHandler(t *testing.T) {
 	rr := httptest.NewRecorder()
 	backend.boost.getRouter().ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
-	require.Equal(t, "{}", rr.Body.String())
+	require.Equal(t, "{}\n", rr.Body.String())
 }
 
 // Example good registerValidator payload
