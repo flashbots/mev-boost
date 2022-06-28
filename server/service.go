@@ -133,30 +133,6 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		return
 	}
 
-	for _, registration := range payload {
-		if len(registration.Message.Pubkey) != 48 {
-			respondError(w, http.StatusBadRequest, errInvalidPubkey.Error())
-			return
-		}
-
-		if len(registration.Signature) != 96 {
-			respondError(w, http.StatusBadRequest, errInvalidSignature.Error())
-			return
-		}
-
-		ok, err := types.VerifySignature(registration.Message, m.builderSigningDomain, registration.Message.Pubkey[:], registration.Signature[:])
-		if err != nil {
-			log.WithError(err).WithField("registration", registration).Error("error verifying registerValidator signature")
-			respondError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		if !ok {
-			log.WithError(err).WithField("registration", registration).Error("failed to verify registerValidator signature")
-			respondError(w, http.StatusBadRequest, errInvalidSignature.Error())
-			return
-		}
-	}
-
 	numSuccessRequestsToRelay := 0
 	var mu sync.Mutex
 
