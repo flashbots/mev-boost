@@ -45,11 +45,7 @@ func respondError(w http.ResponseWriter, code int, message string) {
 func respondOK(w http.ResponseWriter, result any) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		return err
-	}
-	return nil
+	return json.NewEncoder(w).Encode(result)
 }
 
 // BoostService TODO
