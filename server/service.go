@@ -156,9 +156,9 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	wg.Wait()
 
 	if numSuccessRequestsToRelay == 0 {
-		respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
+		m.respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
 	} else {
-		respondOK(w, nilResponse)
+		m.respondOK(w, nilResponse)
 	}
 }
 
