@@ -34,20 +34,6 @@ type httpErrorResp struct {
 	Message string `json:"message"`
 }
 
-func respondError(w http.ResponseWriter, code int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	if err := json.NewEncoder(w).Encode(httpErrorResp{code, message}); err != nil {
-		http.Error(w, message, code)
-	}
-}
-
-func respondOK(w http.ResponseWriter, result any) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	return json.NewEncoder(w).Encode(result)
-}
-
 // BoostService TODO
 type BoostService struct {
 	listenAddr string
@@ -78,6 +64,25 @@ func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, 
 		builderSigningDomain: builderSigningDomain,
 		httpClient:           http.Client{Timeout: relayRequestTimeout},
 	}, nil
+}
+
+func (m *BoostService) respondError(w http.ResponseWriter, code int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	resp := httpErrorResp{code, message}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		m.log.WithField("response", resp).WithError(err).Error("Couldn't write error response")
+		http.Error(w, "", http.StatusInternalServerError)
+	}
+}
+
+func (m *BoostService) respondOK(w http.ResponseWriter, response any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		m.log.WithField("response", response).WithError(err).Error("Couldn't write OK response")
+		http.Error(w, "", http.StatusInternalServerError)
+	}
 }
 
 func (m *BoostService) getRouter() http.Handler {
@@ -118,7 +123,7 @@ func (m *BoostService) StartHTTPServer() error {
 }
 
 func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
-	respondOK(w, nilResponse)
+	m.respondOK(w, nilResponse)
 }
 
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
@@ -134,7 +139,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 
 	payload := []types.SignedValidatorRegistration{}
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
+		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -166,9 +171,9 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	wg.Wait()
 
 	if numSuccessRequestsToRelay > 0 {
-		respondOK(w, nilResponse)
+		m.respondOK(w, nilResponse)
 	} else {
-		respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
+		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 	}
 }
 
@@ -187,17 +192,17 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	log.Info("getHeader")
 
 	if _, err := strconv.ParseUint(slot, 10, 64); err != nil {
-		respondError(w, http.StatusBadRequest, errInvalidSlot.Error())
+		m.respondError(w, http.StatusBadRequest, errInvalidSlot.Error())
 		return
 	}
 
 	if len(pubkey) != 98 {
-		respondError(w, http.StatusBadRequest, errInvalidPubkey.Error())
+		m.respondError(w, http.StatusBadRequest, errInvalidPubkey.Error())
 		return
 	}
 
 	if len(parentHashHex) != 66 {
-		respondError(w, http.StatusBadRequest, errInvalidHash.Error())
+		m.respondError(w, http.StatusBadRequest, errInvalidHash.Error())
 		return
 	}
 
@@ -263,14 +268,11 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	if result.Data == nil || result.Data.Message == nil || result.Data.Message.Header == nil || result.Data.Message.Header.BlockHash == nilHash {
 		log.Warn("no successful relay response")
-		respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
+		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
 
-	if err := respondOK(w, result); err != nil {
-		log.WithError(err).Warn("error writing response getting payload header")
-		respondError(w, http.StatusInternalServerError, "internal server error")
-	}
+	m.respondOK(w, result)
 }
 
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
@@ -279,12 +281,12 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	payload := new(types.SignedBlindedBeaconBlock)
 	if err := json.NewDecoder(req.Body).Decode(payload); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
+		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if len(payload.Signature) != 96 {
-		respondError(w, http.StatusBadRequest, errInvalidSignature.Error())
+		m.respondError(w, http.StatusBadRequest, errInvalidSignature.Error())
 		return
 	}
 
@@ -345,14 +347,11 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	if result.Data == nil || result.Data.BlockHash == nilHash {
 		log.Warn("getPayload: no valid response from relay")
-		respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
+		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
 
-	if err := respondOK(w, result); err != nil {
-		log.WithError(err).Warn("error writing response getting payload")
-		respondError(w, http.StatusInternalServerError, "internal server error")
-	}
+	m.respondOK(w, result)
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status
