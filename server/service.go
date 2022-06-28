@@ -133,19 +133,6 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
 
-	// At the end, we wait for every routine and return status according to relay's ones.
-	defer func() {
-		wg.Wait()
-
-		if numSuccessRequestsToRelay == 0 {
-			respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `{}`)
-		}
-	}()
-
 	for _, r := range m.relays {
 		wg.Add(1)
 
@@ -163,6 +150,17 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 			}
 			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
 		}(r)
+	}
+
+	// At the end, we wait for every routine and return status according to relay's ones.
+	wg.Wait()
+
+	if numSuccessRequestsToRelay == 0 {
+		respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{}`)
 	}
 }
 
