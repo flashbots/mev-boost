@@ -152,7 +152,7 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 		go func(relay RelayEntry) {
 			defer wg.Done()
 
-			m.log.WithField("relay", relay).Info("Checking relay status")
+			m.log.WithField("relay", relay).Debug("Checking relay status")
 
 			url := relay.Address + pathStatus
 			err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, nil, nil)
