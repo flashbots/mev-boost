@@ -27,6 +27,7 @@ var (
 )
 
 var nilHash = types.Hash{}
+var nilResponse = struct{}{}
 
 type httpErrorResp struct {
 	Code    int    `json:"code"`
@@ -39,6 +40,12 @@ func respondError(w http.ResponseWriter, code int, message string) {
 	if err := json.NewEncoder(w).Encode(httpErrorResp{code, message}); err != nil {
 		http.Error(w, message, code)
 	}
+}
+
+func respondOK(w http.ResponseWriter, result any) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	return json.NewEncoder(w).Encode(result)
 }
 
 // BoostService TODO
@@ -111,9 +118,7 @@ func (m *BoostService) StartHTTPServer() error {
 }
 
 func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{}`)
+	respondOK(w, nilResponse)
 }
 
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
@@ -161,9 +166,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	wg.Wait()
 
 	if numSuccessRequestsToRelay > 0 {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{}`)
+		respondOK(w, nilResponse)
 	} else {
 		respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 	}
@@ -264,12 +267,9 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(result); err != nil {
+	if err := respondOK(w, result); err != nil {
 		log.WithError(err).Warn("error writing response getting payload header")
 		respondError(w, http.StatusInternalServerError, "internal server error")
-		return
 	}
 }
 
@@ -349,12 +349,9 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(result); err != nil {
+	if err := respondOK(w, result); err != nil {
 		log.WithError(err).Warn("error writing response getting payload")
 		respondError(w, http.StatusInternalServerError, "internal server error")
-		return
 	}
 }
 
