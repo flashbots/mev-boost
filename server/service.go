@@ -146,7 +146,7 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 			err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, nil, nil)
 
 			if err != nil {
-				m.log.WithError(err).Error("failed to retrieve relay status")
+				log.WithError(err).Error("failed to retrieve relay status")
 				return
 			}
 			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
