@@ -19,7 +19,7 @@ jobs:
           go-version: ^1.18
         id: go
 
-      - name: Check out code into the Go module directory
+      - name: Checkout sources
         uses: actions/checkout@v2
 
       - name: Run unit tests and generate the coverage report
@@ -45,7 +45,7 @@ jobs:
           go-version: ^1.18
         id: go
 
-      - name: Check out code into the Go module directory
+      - name: Checkout sources
         uses: actions/checkout@v2
 
       - name: Install revive linter
