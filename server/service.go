@@ -20,6 +20,7 @@ import (
 var (
 	errInvalidSlot               = errors.New("invalid slot")
 	errInvalidHash               = errors.New("invalid hash")
+	errInvalidParentHash         = errors.New("invalid parent hash")
 	errInvalidPubkey             = errors.New("invalid pubkey")
 	errInvalidSignature          = errors.New("invalid signature")
 	errNoSuccessfulRelayResponse = errors.New("no successful relay response")
@@ -276,6 +277,12 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 			if !ok {
 				log.WithError(errInvalidSignature).Error("failed to verify relay signature")
+				return
+			}
+
+			// Verify response coherence with proposer's input data
+			if responsePayload.Data != nil && responsePayload.Data.Message.Header.ParentHash.String() != parentHashHex {
+				log.WithError(errInvalidParentHash).Error("proposer and relay parent hashes are not the same")
 				return
 			}
 

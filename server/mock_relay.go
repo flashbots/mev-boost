@@ -144,7 +144,8 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) 
 	// Fill the payload with custom values.
 	message := &types.BuilderBid{
 		Header: &types.ExecutionPayloadHeader{
-			BlockHash: _HexToHash(hash),
+			BlockHash:  _HexToHash(hash),
+			ParentHash: _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
 		},
 		Value:  types.IntToU256(value),
 		Pubkey: _HexToPubkey(publicKey),
