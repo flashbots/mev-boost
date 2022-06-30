@@ -281,7 +281,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Verify response coherence with proposer's input data
-			if responsePayload.Data != nil && responsePayload.Data.Message.Header.ParentHash.String() != parentHashHex {
+			if responsePayload.Data.Message.Header.ParentHash.String() != parentHashHex {
 				log.WithError(errInvalidParentHash).Error("proposer and relay parent hashes are not the same")
 				return
 			}
