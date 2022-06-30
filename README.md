@@ -16,8 +16,8 @@ This project is part of the Flashbots research towards proposer/builder separati
 
 See also:
 
-* [Builder API specification](https://ethereum.github.io/builder-specs/)
-* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags)
+* [Builder API specification](https://ethereum.github.io/builder-specs)
+* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost)
 * [Integration docs (mev-boost wiki)](https://github.com/flashbots/mev-boost/wiki)
 
 ---

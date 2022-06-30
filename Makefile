@@ -8,10 +8,10 @@ v:
 	@echo "${VERSION}"
 
 build:
-	go build ./cmd/mev-boost
+	go build -ldflags "-X main.version=${VERSION}" -v -o mev-boost ./cmd/mev-boost
 
-build-cli:
-	go build ./cmd/test-cli
+build-testcli:
+	go build -ldflags "-X main.version=${VERSION}" -v -o test-cli ./cmd/test-cli
 
 test:
 	go test ./...
