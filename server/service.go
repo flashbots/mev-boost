@@ -20,7 +20,6 @@ import (
 var (
 	errInvalidSlot               = errors.New("invalid slot")
 	errInvalidHash               = errors.New("invalid hash")
-	errInvalidParentHash         = errors.New("invalid parent hash")
 	errInvalidPubkey             = errors.New("invalid pubkey")
 	errInvalidSignature          = errors.New("invalid signature")
 	errNoSuccessfulRelayResponse = errors.New("no successful relay response")
@@ -281,8 +280,12 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Verify response coherence with proposer's input data
-			if responsePayload.Data.Message.Header.ParentHash.String() != parentHashHex {
-				log.WithError(errInvalidParentHash).Error("proposer and relay parent hashes are not the same")
+			responseParentHash := responsePayload.Data.Message.Header.ParentHash.String()
+			if responseParentHash != parentHashHex {
+				log.WithFields(logrus.Fields{
+					"originalParentHash": parentHashHex,
+					"responseParentHash": responseParentHash,
+				}).Error("proposer and relay parent hashes are not the same")
 				return
 			}
 
