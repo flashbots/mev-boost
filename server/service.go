@@ -279,6 +279,16 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
+			// Verify response coherence with proposer's input data
+			responseParentHash := responsePayload.Data.Message.Header.ParentHash.String()
+			if responseParentHash != parentHashHex {
+				log.WithFields(logrus.Fields{
+					"originalParentHash": parentHashHex,
+					"responseParentHash": responseParentHash,
+				}).Error("proposer and relay parent hashes are not the same")
+				return
+			}
+
 			// Compare value of header, skip processing this result if lower fee than current
 			mu.Lock()
 			defer mu.Unlock()

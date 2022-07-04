@@ -366,6 +366,16 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, rr.Code, rr.Body.String())
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 	})
+
+	t.Run("Invalid parent hash", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+
+		invalidParentHashPath := getPath(1, types.Hash{}, pubkey)
+		rr := backend.request(t, http.MethodGet, invalidParentHashPath, nil)
+
+		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
+		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+	})
 }
 
 func TestGetPayload(t *testing.T) {
