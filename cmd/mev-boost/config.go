@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
 )
 
 type validatorRegistrationConfig struct {
@@ -36,4 +37,14 @@ func configFromJSON(raw json.RawMessage) (*configuration, error) {
 	}
 
 	return config, nil
+}
+
+// configFromFile reads a JSON file and creates a configuration out of it.
+func configFromFile(filename string) (*configuration, error) {
+	bytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	return configFromJSON(bytes)
 }

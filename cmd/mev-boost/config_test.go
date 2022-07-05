@@ -11,7 +11,7 @@ func TestCreateConfigFromJSON(t *testing.T) {
 		name       string
 		rawMessage json.RawMessage
 
-		expectedError         error
+		expectedError         bool
 		expectedConfiguration *configuration
 	}{
 		{
@@ -47,7 +47,7 @@ func TestCreateConfigFromJSON(t *testing.T) {
 					}	
 				}
 			`),
-			expectedError: nil,
+			expectedError: false,
 			expectedConfiguration: &configuration{
 				BuilderRelaysGroups: map[string][]string{
 					"groupA": {
@@ -78,13 +78,50 @@ func TestCreateConfigFromJSON(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:                  "It fails to read empty JSON",
+			rawMessage:            []byte(""),
+			expectedError:         true,
+			expectedConfiguration: nil,
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			config, err := configFromJSON(tt.rawMessage)
 
-			if tt.expectedError != nil {
+			if tt.expectedError {
+				require.Error(t, err)
+				require.Nil(t, config)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedConfiguration, config)
+			}
+		})
+	}
+}
+
+func TestCreateConfigurationFromFile(t *testing.T) {
+	testCases := []struct {
+		name     string
+		filename string
+
+		expectedError         bool
+		expectedConfiguration *configuration
+	}{
+		{
+			name:                  "It fails to reads configuration from JSON file",
+			filename:              "",
+			expectedError:         true,
+			expectedConfiguration: nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := configFromFile(tt.filename)
+
+			if tt.expectedError {
 				require.Error(t, err)
 				require.Nil(t, config)
 			} else {
