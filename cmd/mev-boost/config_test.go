@@ -37,7 +37,14 @@ func TestCreateConfigFromJSON(t *testing.T) {
 								"gas_limit": "12345654321"
 							}
 						}
-					}
+					},
+					"default_config": {
+						"fee_recipient": "0x6e35733c5af9B61374A128e6F85f553aF09ff89A",
+						"validator_registration": {
+							"enabled": false,
+							"builder_relays": ["groupB"]
+						}
+					}	
 				}
 			`),
 			expectedError: nil,
@@ -55,11 +62,18 @@ func TestCreateConfigFromJSON(t *testing.T) {
 				ProposerConfig: map[string]proposerConfig{
 					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
 						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-						ValidatorRegistration: validatorRegistration{
+						ValidatorRegistration: validatorRegistrationConfig{
 							Enabled:       true,
 							BuilderRelays: []string{"https://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@builder-relay-kiln.flashbots.net"},
 							GasLimit:      "12345654321",
 						},
+					},
+				},
+				DefaultConfig: proposerConfig{
+					FeeRecipient: "0x6e35733c5af9B61374A128e6F85f553aF09ff89A",
+					ValidatorRegistration: validatorRegistrationConfig{
+						Enabled:       false,
+						BuilderRelays: []string{"groupB"},
 					},
 				},
 			},

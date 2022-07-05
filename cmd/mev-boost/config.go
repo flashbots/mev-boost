@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 )
 
-type validatorRegistration struct {
+type validatorRegistrationConfig struct {
 	Enabled       bool     `json:"enabled"`
 	BuilderRelays []string `json:"builder_relays"`
 	GasLimit      string   `json:"gas_limit"`
 }
 
 type proposerConfig struct {
-	FeeRecipient          string                `json:"fee_recipient"`
-	ValidatorRegistration validatorRegistration `json:"validator_registration"`
+	FeeRecipient          string                      `json:"fee_recipient"`
+	ValidatorRegistration validatorRegistrationConfig `json:"validator_registration"`
 }
 
 // configuration is used by mev-boost to allow validators to only trust a specific list of relays.
@@ -20,6 +20,7 @@ type proposerConfig struct {
 type configuration struct {
 	BuilderRelaysGroups map[string][]string       `json:"builder_relays_groups"`
 	ProposerConfig      map[string]proposerConfig `json:"proposer_config"`
+	DefaultConfig       proposerConfig            `json:"default_config"`
 }
 
 // configFromJSON builds a new configuration from a given JSON raw object.
