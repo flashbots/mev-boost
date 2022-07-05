@@ -35,35 +35,47 @@ type httpErrorResp struct {
 	Message string `json:"message"`
 }
 
+// BoostServiceOpts provides all available options for use with NewBoostService
+type BoostServiceOpts struct {
+	Log                   *logrus.Entry
+	ListenAddr            string
+	Relays                []RelayEntry
+	GenesisForkVersionHex string
+	RelayRequestTimeout   time.Duration
+	RelayCheck            bool
+}
+
 // BoostService TODO
 type BoostService struct {
 	listenAddr string
 	relays     []RelayEntry
 	log        *logrus.Entry
 	srv        *http.Server
+	relayCheck bool
 
 	builderSigningDomain types.Domain
 	httpClient           http.Client
 }
 
 // NewBoostService created a new BoostService
-func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, genesisForkVersionHex string, relayRequestTimeout time.Duration) (*BoostService, error) {
-	if len(relays) == 0 {
+func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
+	if len(opts.Relays) == 0 {
 		return nil, errors.New("no relays")
 	}
 
-	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, genesisForkVersionHex, types.Root{}.String())
+	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
 	if err != nil {
 		return nil, err
 	}
 
 	return &BoostService{
-		listenAddr: listenAddr,
-		relays:     relays,
-		log:        log.WithField("module", "service"),
+		listenAddr: opts.ListenAddr,
+		relays:     opts.Relays,
+		log:        opts.Log.WithField("module", "service"),
+		relayCheck: opts.RelayCheck,
 
 		builderSigningDomain: builderSigningDomain,
-		httpClient:           http.Client{Timeout: relayRequestTimeout},
+		httpClient:           http.Client{Timeout: opts.RelayRequestTimeout},
 	}, nil
 }
 
@@ -130,9 +142,16 @@ func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 // handleStatus sends calls to the status endpoint of every relay.
 // It returns OK if at least one returned OK, and returns KO otherwise.
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
+	if !m.relayCheck {
+		m.respondOK(w, nilResponse)
+		return
+	}
+
+	// If relayCheck is enabled, make sure at least 1 relay returns success
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
-
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for _, r := range m.relays {
 		wg.Add(1)
 
@@ -143,23 +162,26 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 			log.Debug("Checking relay status")
 
 			url := relay.Address + pathStatus
-			err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, nil, nil)
+			err := SendHTTPRequest(ctx, m.httpClient, http.MethodGet, url, nil, nil)
 
-			if err != nil {
+			if err != nil && ctx.Err() != context.Canceled {
 				log.WithError(err).Error("failed to retrieve relay status")
 				return
 			}
+
+			// Success: increase counter and cancel all pending requests to other relays
 			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
+			cancel()
 		}(r)
 	}
 
-	// At the end, we wait for every routine and return status according to relay's ones.
+	// At the end, wait for every routine and return status according to relay's ones.
 	wg.Wait()
 
-	if numSuccessRequestsToRelay == 0 {
-		m.respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
-	} else {
+	if numSuccessRequestsToRelay > 0 {
 		m.respondOK(w, nilResponse)
+	} else {
+		m.respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
 	}
 }
 
