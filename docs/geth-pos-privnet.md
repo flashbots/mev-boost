@@ -21,7 +21,7 @@ Special thanks to Mateusz ([@mmrosum](https://twitter.com/mmrosum)) who put the 
 6. Generate a valid account using your favorite tool, take note of the address.  here are 3 options:
     1. `ethkey generate` + geth’s —nodekey
     2. geth console + eth.newAccount
-    3. create a new address in something like metamask, and copy the private key
+    3. create a new address in something like metamask, and copy the private key.  inside a geth session, run `web3.personal.importRawKey("<Private Key>","<Password>")`
 7. Initialize geth from the json: `geth init --datadir ~/.ethereum/local-testnet/testnet/geth-node-1 ~/path/to/ethereum-genesis-generator/data/el/geth.json`
 8. Check the node starts to mine and kill it quickly
 You only have 100 blocks until fork is enabled and 400 blocks until node stops mining
