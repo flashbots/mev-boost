@@ -17,21 +17,23 @@ Special thanks to Mateusz ([@mmrosum](https://twitter.com/mmrosum)) who put the 
     1. Set chain id to `4242`
     2. Remove clique altogether or set `enabled: false`
 4. Run `docker run -it -u $UID -v $PWD/data:/data -p 127.0.0.1:8000:8000 skylenet/ethereum-genesis-generator:latest el`
-5. Check the genesis file in data/el/geth.json - verify clique is not present
-6. Generate a valid account using your favorite tool, take note of the address:
+5. Check the genesis file in data/el/geth.json - verify clique is not present.  it is probably generated anyways - delete the corresponding JSON entry.
+6. Generate a valid account using your favorite tool, take note of the address.  here are 3 options:
     1. `ethkey generate` + geth’s —nodekey
     2. geth console + eth.newAccount
+    3. create a new address in something like metamask, and copy the private key
 7. Initialize geth from the json: `geth init --datadir ~/.ethereum/local-testnet/testnet/geth-node-1 ~/path/to/ethereum-genesis-generator/data/el/geth.json`
 8. Check the node starts to mine and kill it quickly
 You only have 100 blocks until fork is enabled and 400 blocks until node stops mining
-`geth --datadir ~/.ethereum/local-testnet/testnet/geth-node-1 --networkid 4242 --http --http.port 8545 --discovery.dns "" --port 30303 --mine --miner.etherbase=<address> --miner.threads 1 --miner.gaslimit 1000000000 --miner.maxmergedbundles 1 --unlock "<address>" --password <(echo "<password>") --allow-insecure-unlock > ~/.ethereum/miner.log 2>&1`
+`geth --datadir ~/.ethereum/local-testnet/testnet/geth-node-1 --networkid 4242 --http --http.port 8545 --discovery.dns "" --port 30303 --mine --miner.etherbase=<address> --miner.threads 1 --miner.gaslimit 1000000000 --unlock "<address>" --password <(echo "<password>") --allow-insecure-unlock > ~/.ethereum/miner.log 2>&1`
+where `<address>` is the public key of the wallet you created in step (6)
 
 ### Prepare PoS chain
 
 1. Clone https://github.com/sigp/lighthouse
 2. Go to `scripts/local_testnet`
     1. Modify vars.env:
-        1. Set `ETH1_NETWORK_MNEMONIC, DEPOSIT_CONTRACT_ADDRESS, GENESIS_FORK_VERSION` to be the same as in PoW’s config
+        1. Set `ETH1_NETWORK_MNEMONIC, DEPOSIT_CONTRACT_ADDRESS, GENESIS_FORK_VERSION` to be the same as in PoW’s config (GENESIS_FORK_VERSION is in `ethereum-genesis-generator/data/cl/config.yaml`)
         2. Set `GENESIS_DELAY` to 30
         3. Set `ALTAIR_FORK_EPOCH` to 1
         4. Add `MERGE_FORK_EPOCH=1`
@@ -45,6 +47,9 @@ You only have 100 blocks until fork is enabled and 400 blocks until node stops m
         1. Add `--merge-fork-epoch $MERGE_FORK_EPOCH`
     4. Modify start_local_testnet.sh:
         1. Remove/comment ganache [`https://github.com/sigp/lighthouse/blob/stable/scripts/local_testnet/start_local_testnet.sh#L93`](https://github.com/sigp/lighthouse/blob/stable/scripts/local_testnet/start_local_testnet.sh#L93)
+3. install lighthouse and lcli:
+    1. make
+    2. make install-lcli  
 
 ### Run and hope for the best
 
