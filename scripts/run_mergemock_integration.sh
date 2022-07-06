@@ -4,15 +4,10 @@ set -euo pipefail
 PROJECT_DIR=$(cd $(dirname "${BASH_SOURCE[0]}")/.. && pwd)
 
 #
-# Ensure that mergemock exists.
+# Default to these values for mergemock.
 #
 MERGEMOCK_DIR=${MERGEMOCK_DIR:-$PROJECT_DIR/../mergemock}
 MERGEMOCK_BIN=${MERGEMOCK_BIN:-./mergemock}
-if [ ! -f "$MERGEMOCK_DIR/$MERGEMOCK_BIN" ]; then
-  echo "Cannot find mergemock. Expected at: $(realpath $MERGEMOCK_DIR/$MERGEMOCK_BIN)"
-  echo "Please build clone and build mergemock. Then re-run this."
-  exit -1
-fi
 
 #
 # This function will ensure there are no lingering processes afterwards.
