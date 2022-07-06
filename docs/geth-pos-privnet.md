@@ -25,7 +25,7 @@ you will also need to install `go-ethereum` to run the PoW chain.
 7. Initialize geth from the json: `geth init --datadir ~/.ethereum/local-testnet/testnet/geth-node-1 ~/path/to/ethereum-genesis-generator/data/el/geth.json`
 8. Check the node starts to mine and kill it quickly
 You only have 100 blocks until fork is enabled and 400 blocks until node stops mining
-`geth --datadir ~/.ethereum/local-testnet/testnet/geth-node-1 --networkid 4242 --http --http.port 8545 --discovery.dns "" --port 30303 --mine --miner.etherbase=<address> --miner.threads 1 --miner.gaslimit 1000000000 --unlock "<address>" --password <(echo "<password>") --allow-insecure-unlock > ~/.ethereum/miner.log 2>&1`
+`geth --datadir ~/.ethereum/local-testnet/testnet/geth-node-1 --networkid 4242 --http --http.port 8545 --http.api personal,eth,net,web3,engine,debug --discovery.dns "" --port 30303 --mine --miner.etherbase=<address> --miner.threads 1 --miner.gaslimit 1000000000 --unlock "<address>" --password <(echo "<password>") --allow-insecure-unlock > ~/.ethereum/miner.log 2>&1`
 where `<address>` is the public key of the wallet you created in step (6)
 
 ### Prepare PoS chain
