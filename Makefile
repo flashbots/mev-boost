@@ -33,11 +33,6 @@ lint:
 	go vet ./...
 	staticcheck ./...
 
-.PHONY: generate-ssz
-generate-ssz:
-	rm -f types/builder_encoding.go
-	sszgen --path types --include ../go-ethereum/common/hexutil --objs Eth1Data,BeaconBlockHeader,SignedBeaconBlockHeader,ProposerSlashing,Checkpoint,AttestationData,IndexedAttestation,AttesterSlashing,Attestation,Deposit,VoluntaryExit,SyncAggregate,ExecutionPayloadHeader,VersionedExecutionPayloadHeader,BlindedBeaconBlockBody,BlindedBeaconBlock,RegisterValidatorRequestMessage,BuilderBid,SignedBuilderBid
-
 .PHONY: test-coverage
 test-coverage:
 	go test -race -v -covermode=atomic -coverprofile=coverage.out ./...
@@ -55,17 +50,9 @@ cover-html:
 	go tool cover -html=coverage.out
 	unlink coverage.out
 
-.PHONY: run
-run:
-	./mev-boost
-
 .PHONY: run-boost-with-relay
 run-boost-with-relay:
 	./mev-boost -mainnet -relays http://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@127.0.0.1:28545
-
-.PHONY: run-dev
-run-dev:
-	go run cmd/mev-boost/main.go
 
 .PHONY: run-mergemock-engine
 run-mergemock-engine:
@@ -88,12 +75,16 @@ build-for-docker:
 	GOOS=linux go build -ldflags "-X main.version=${VERSION}" -v -o mev-boost ./cmd/mev-boost
 
 .PHONY: docker-image
-docker-image:
+docker-image: clean build-for-docker
 	DOCKER_BUILDKIT=1 docker build . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
 	docker tag mev-boost:latest ${DOCKER_REPO}:latest
 
 .PHONY: docker-push
-docker-push:
+docker-push: docker-image
 	docker push ${DOCKER_REPO}:${VERSION}
 	docker push ${DOCKER_REPO}:latest
+
+.PHONY: clean
+clean:
+	rm -rf mev-boost
