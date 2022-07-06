@@ -333,7 +333,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	wg.Wait()
 
 	if result.Data == nil || result.Data.Message == nil || result.Data.Message.Header == nil || result.Data.Message.Header.BlockHash == nilHash {
-		log.Warn("no successful relay response")
+		log.Info("no bids received from relay")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
