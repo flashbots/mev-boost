@@ -37,7 +37,16 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		backend.relays[i] = newMockRelay(t, blsPrivateKey)
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
-	service, err := NewBoostService("localhost:12345", relayEntries, testLog, "0x00000000", relayTimeout)
+
+	opts := BoostServiceOpts{
+		Log:                   testLog,
+		ListenAddr:            "localhost:12345",
+		Relays:                relayEntries,
+		GenesisForkVersionHex: "0x00000000",
+		RelayRequestTimeout:   relayTimeout,
+		RelayCheck:            true,
+	}
+	service, err := NewBoostService(opts)
 	require.NoError(t, err)
 
 	backend.boost = service
@@ -64,7 +73,7 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(":123", []RelayEntry{}, testLog, "0x00000000", time.Second)
+		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, "0x00000000", time.Second, true})
 		require.Error(t, err)
 	})
 }
@@ -248,8 +257,7 @@ func TestGetHeader(t *testing.T) {
 		rr = backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
-		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
-		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+		require.Equal(t, http.StatusNoContent, rr.Code)
 	})
 
 	t.Run("Use header with highest value", func(t *testing.T) {
@@ -310,9 +318,8 @@ func TestGetHeader(t *testing.T) {
 		rr := backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
-		// Request should have failed
-		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
-		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+		// Request should have no content
+		require.Equal(t, http.StatusNoContent, rr.Code)
 	})
 
 	t.Run("Invalid relay signature", func(t *testing.T) {
@@ -330,9 +337,8 @@ func TestGetHeader(t *testing.T) {
 		rr := backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
-		// Request should have failed
-		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
-		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+		// Request should have no content
+		require.Equal(t, http.StatusNoContent, rr.Code)
 	})
 
 	t.Run("Invalid slot number", func(t *testing.T) {
@@ -372,8 +378,7 @@ func TestGetHeader(t *testing.T) {
 
 		invalidParentHashPath := getPath(1, types.Hash{}, pubkey)
 		rr := backend.request(t, http.MethodGet, invalidParentHashPath, nil)
-
-		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
+		require.Equal(t, http.StatusNoContent, rr.Code)
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 	})
 }
