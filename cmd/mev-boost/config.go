@@ -5,15 +5,15 @@ import (
 	"io/ioutil"
 )
 
-type validatorRegistrationConfig struct {
+type builderRegistrationConfig struct {
 	Enabled       bool     `json:"enabled"`
 	BuilderRelays []string `json:"builder_relays"`
 	GasLimit      string   `json:"gas_limit"`
 }
 
 type proposerConfig struct {
-	FeeRecipient          string                      `json:"fee_recipient"`
-	ValidatorRegistration validatorRegistrationConfig `json:"validator_registration"`
+	FeeRecipient        string                    `json:"fee_recipient"`
+	BuilderRegistration builderRegistrationConfig `json:"builder_registration"`
 }
 
 // configuration is used by mev-boost to allow validators to only trust a specific list of relays.
