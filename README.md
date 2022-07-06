@@ -27,6 +27,7 @@ See also:
 - [Background](#background)
 - [Installing](#installing)
 - [Usage](#usage)
+ - [Arguments](#arguments)
 - [Consensus Clients Implementation Status](#consensus-clients-implementation-status)
 - [The Plan](#the-plan)
 - [API](#api)
@@ -111,6 +112,32 @@ Run mev-boost pointed at our Sepolia builder+relay:
 #### `test-cli`
 
 `test-cli` is a utility to execute all proposer requests against mev-boost+relay. See also the [test-cli readme](cmd/test-cli/README.md).
+
+## CLI Arguments
+```
+  -addr string
+    	listen-address for mev-boost server (default "localhost:18550")
+  -genesis-fork-version string
+    	use a custom genesis fork version (for signature validation)
+  -json
+    	log in JSON format instead of text
+  -kiln
+    	use Kiln genesis fork version 0x70000069 (for signature validation)
+  -loglevel string
+    	log-level: trace, debug, info, warn/warning, error, fatal, panic (default "info")
+  -mainnet
+    	use Mainnet genesis fork version 0x00000000 (for signature validation)
+  -relay-check
+    	whether to check relay status on startup
+  -relays string
+    	relay urls - single entry or comma-separated list (schema://pubkey@host)
+  -request-timeout int
+    	timeout for requests to a relay [ms] (default 2000)
+  -ropsten
+    	use Ropsten genesis fork version 0x80000069 (for signature validation)
+  -sepolia
+    	use Sepolia genesis fork version 0x90000069 (for signature validation)
+```
 
 # Consensus Clients Implementation Status
 
