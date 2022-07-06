@@ -37,7 +37,16 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		backend.relays[i] = newMockRelay(t, blsPrivateKey)
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
-	service, err := NewBoostService("localhost:12345", relayEntries, testLog, "0x00000000", relayTimeout)
+
+	opts := BoostServiceOpts{
+		Log:                   testLog,
+		ListenAddr:            "localhost:12345",
+		Relays:                relayEntries,
+		GenesisForkVersionHex: "0x00000000",
+		RelayRequestTimeout:   relayTimeout,
+		RelayCheck:            true,
+	}
+	service, err := NewBoostService(opts)
 	require.NoError(t, err)
 
 	backend.boost = service
@@ -64,7 +73,7 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(":123", []RelayEntry{}, testLog, "0x00000000", time.Second)
+		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, "0x00000000", time.Second, true})
 		require.Error(t, err)
 	})
 }

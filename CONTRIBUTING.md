@@ -9,9 +9,9 @@ Please start by reading our [code of conduct](CODE_OF_CONDUCT.md).
 Install a few dev dependencies:
 
 ```bash
-go install github.com/ferranbt/fastssz/sszgen@latest
 go install github.com/mgechev/revive@latest
 go install honnef.co/go/tools/cmd/staticcheck@master
+go install github.com/ferranbt/fastssz/sszgen@latest
 ```
 
 Look at the [README for instructions to install the dependencies and build `mev-boost`](README.md#installing)

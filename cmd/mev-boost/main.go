@@ -36,7 +36,7 @@ var (
 	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
 	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
-	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "whether to check relay status on startup")
+	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet genesis fork version 0x00000000 (for signature validation)")
@@ -94,13 +94,22 @@ func main() {
 	log.WithField("relays", relays).Infof("using %d relays", len(relays))
 
 	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
-	server, err := server.NewBoostService(*listenAddr, relays, log, genesisForkVersionHex, relayTimeout)
+
+	opts := server.BoostServiceOpts{
+		Log:                   log,
+		ListenAddr:            *listenAddr,
+		Relays:                relays,
+		GenesisForkVersionHex: genesisForkVersionHex,
+		RelayRequestTimeout:   relayTimeout,
+		RelayCheck:            *relayCheck,
+	}
+	server, err := server.NewBoostService(opts)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
 	}
 
 	if *relayCheck && !server.CheckRelays() {
-		log.Fatal("relays unavailable")
+		log.Fatal("no relay available")
 	}
 
 	log.Println("listening on", *listenAddr)
