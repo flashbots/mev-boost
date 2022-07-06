@@ -10,7 +10,7 @@ Special thanks to Mateusz ([@mmrosum](https://twitter.com/mmrosum)) who put the 
 ### No tl;dr, should take around 30 minutes to get it right
 
 ### Prepare PoW chain
-
+you will also need to install `go-ethereum` to run the PoW chain.
 1. Clone https://github.com/skylenet/ethereum-genesis-generator
 2. `cp -r config-example data`
 3. Modify data/el/genesis-config.yaml:
