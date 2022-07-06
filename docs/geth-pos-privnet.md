@@ -41,7 +41,7 @@ where `<address>` is the public key of the wallet you created in step (6)
             1. There seem to be some issues with multiple beacon nodes using the same EL, if doesn’t work set `BN_COUNT` to 1
         6. Do not change `VALIDATOR_COUNT, GENESIS_VALIDATOR_COUNT` to less than 64
     2. Modify scripts/local_testnet/beacon_node.sh:
-        1. Add merge options: `--eth1 --merge --terminal-total-difficulty-override=60000000 --eth1-endpoints [http://127.0.0.1:8545](http://127.0.0.1:8545/) --execution-endpoints [http://127.0.0.1:8545](http://127.0.0.1:8545/) --http-allow-sync-stalled`
+        1. Add merge options: `--eth1 --merge --terminal-total-difficulty-override=60000000 --eth1-endpoints http://127.0.0.1:8545/ --execution-endpoints http://127.0.0.1:8545/ --http-allow-sync-stalled`
         2. Allow all subnets `SUBSCRIBE_ALL_SUBNETS="--subscribe-all-subnets"`
     3. Modify scripts/local_testnet/setup.sh:
         1. Add `--merge-fork-epoch $MERGE_FORK_EPOCH`
