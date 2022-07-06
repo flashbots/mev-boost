@@ -40,6 +40,7 @@ where `<address>` is the public key of the wallet you created in step (6)
         5. Adjust `SECONDS_PER_SLOT, SECONDS_PER_ETH1_BLOCK, BN_COUNT`to your preference
             1. There seem to be some issues with multiple beacon nodes using the same EL, if doesn’t work set `BN_COUNT` to 1
         6. Do not change `VALIDATOR_COUNT, GENESIS_VALIDATOR_COUNT` to less than 64
+        7. modify VC_ARGS line to `VC_ARGS="--suggested-fee-recipient <address>"`, where <address> is the same public key that you registered in the `geth` command #8 above
     2. Modify scripts/local_testnet/beacon_node.sh:
         1. Add merge options: `--eth1 --merge --terminal-total-difficulty-override=60000000 --eth1-endpoints http://127.0.0.1:8545/ --execution-endpoints http://127.0.0.1:8545/ --http-allow-sync-stalled`
         2. Allow all subnets `SUBSCRIBE_ALL_SUBNETS="--subscribe-all-subnets"`
