@@ -31,13 +31,13 @@ You only have 100 blocks until fork is enabled and 400 blocks until node stops m
 1. Clone https://github.com/sigp/lighthouse
 2. Go to `scripts/local_testnet`
     1. Modify vars.env:
-        1. Set `ETH1_NETWORK_MNEMONIC, DEPOSIT_CONTRACT_ADDRESS, GENESIS_FORK_VERSION` to be the same as in PoW’s config
+        1. Set `ETH1_NETWORK_MNEMONIC`, `DEPOSIT_CONTRACT_ADDRESS`, `GENESIS_FORK_VERSION` to be the same as in PoW’s config
         2. Set `GENESIS_DELAY` to 30
         3. Set `ALTAIR_FORK_EPOCH` to 1
         4. Add `MERGE_FORK_EPOCH=1`
-        5. Adjust `SECONDS_PER_SLOT, SECONDS_PER_ETH1_BLOCK, BN_COUNT`to your preference
-            1. There seem to be some issues with multiple beacon nodes using the same EL, if doesn’t work set `BN_COUNT` to 1
-        6. Do not change `VALIDATOR_COUNT, GENESIS_VALIDATOR_COUNT` to less than 64
+        5. Adjust `SECONDS_PER_SLOT`, `SECONDS_PER_ETH1_BLOCK`, `BN_COUNT` to your preference
+            1. There seem to be some issues with multiple beacon nodes using the same EL, if it does not work set `BN_COUNT` to 1
+        6. Do not change `VALIDATOR_COUNT`, `GENESIS_VALIDATOR_COUNT` to less than 64
     2. Modify scripts/local_testnet/beacon_node.sh:
         1. Add merge options: `--eth1 --merge --terminal-total-difficulty-override=60000000 --eth1-endpoints [http://127.0.0.1:8545](http://127.0.0.1:8545/) --execution-endpoints [http://127.0.0.1:8545](http://127.0.0.1:8545/) --http-allow-sync-stalled`
         2. Allow all subnets `SUBSCRIBE_ALL_SUBNETS="--subscribe-all-subnets"`

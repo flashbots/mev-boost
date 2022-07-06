@@ -8,7 +8,7 @@ import (
 )
 
 // RelayEntry represents a relay that mev-boost connects to.
-// Address will be schema://hostname:port
+// Address will be scheme://hostname:port
 // PublicKey holds the relay's BLS public key used to verify message signatures.
 type RelayEntry struct {
 	Address   string

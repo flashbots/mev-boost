@@ -14,7 +14,7 @@ go install github.com/mgechev/revive@latest
 go install honnef.co/go/tools/cmd/staticcheck@master
 ```
 
-Look at the [README for instructions to install the dependencies and build `mev-boost`](README.md#install)
+Look at the [README for instructions to install the dependencies and build `mev-boost`](README.md#installing)
 
 Alternatively, run mev-boost without build step:
 

@@ -46,7 +46,7 @@ type BoostService struct {
 	httpClient           http.Client
 }
 
-// NewBoostService created a new BoostService
+// NewBoostService creates a new BoostService
 func NewBoostService(listenAddr string, relays []RelayEntry, log *logrus.Entry, genesisForkVersionHex string, relayRequestTimeout time.Duration) (*BoostService, error) {
 	if len(relays) == 0 {
 		return nil, errors.New("no relays")
@@ -128,7 +128,7 @@ func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 }
 
 // handleStatus sends calls to the status endpoint of every relay.
-// It returns OK if at least one returned OK, and returns KO otherwise.
+// It returns OK if at least one returned OK, and returns error otherwise.
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
@@ -289,11 +289,10 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
-			// Compare value of header, skip processing this result if lower fee than current
 			mu.Lock()
 			defer mu.Unlock()
 
-			// Skip if not a higher value
+			// Skip if value (fee) is not greater than the current highest value
 			if result.Data != nil && responsePayload.Data.Message.Value.Cmp(&result.Data.Message.Value) < 1 {
 				return
 			}
