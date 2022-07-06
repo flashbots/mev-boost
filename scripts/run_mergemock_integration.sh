@@ -21,9 +21,18 @@ RUN_BOOST_WITH_RELAY_PID=
 RUN_MERGEMOCK_RELAY_PID=
 RUN_MERGEMOCK_CONSENSUS_PID=
 cleanup() {
-  kill -9 $RUN_BOOST_WITH_RELAY_PID 2>/dev/null
-  kill -9 $RUN_MERGEMOCK_RELAY_PID 2>/dev/null
-  kill -9 $RUN_MERGEMOCK_CONSENSUS_PID 2>/dev/null
+  if ps -p $RUN_BOOST_WITH_RELAY_PID &>/dev/null; then
+    disown $RUN_BOOST_WITH_RELAY_PID
+    kill -9 $RUN_BOOST_WITH_RELAY_PID &>/dev/null
+  fi
+  if ps -p $RUN_MERGEMOCK_RELAY_PID &>/dev/null; then
+    disown $RUN_MERGEMOCK_RELAY_PID
+    kill -9 $RUN_MERGEMOCK_RELAY_PID &>/dev/null
+  fi
+  if ps -p $RUN_MERGEMOCK_CONSENSUS_PID &>/dev/null; then
+    disown $RUN_MERGEMOCK_CONSENSUS_PID
+    kill -9 $RUN_MERGEMOCK_CONSENSUS_PID &>/dev/null
+  fi
 }
 trap cleanup exit
 
