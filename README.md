@@ -114,8 +114,8 @@ Run mev-boost pointed at our Sepolia builder+relay:
 
 # Consensus Clients Implementation Status
 
-| Project                                             | Status
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Project                                             | Status                                                                                   |
+|-----------------------------------------------------|------------------------------------------------------------------------------------------|
 | [Teku](https://github.com/ConsenSys/teku)           | Completed, ready for testing ([#156](https://github.com/flashbots/mev-boost/issues/156)) |
 | [Lighthouse](https://github.com/sigp/lighthouse)    | Advanced ([#160](https://github.com/flashbots/mev-boost/issues/160))                     |
 | [Lodestar](https://github.com/ChainSafe/lodestar)   | Advanced ([#157](https://github.com/flashbots/mev-boost/issues/157))                     |

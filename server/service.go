@@ -140,7 +140,7 @@ func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 }
 
 // handleStatus sends calls to the status endpoint of every relay.
-// It returns OK if at least one returned OK, and returns KO otherwise.
+// It returns OK if at least one returned OK, and returns error otherwise.
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	if !m.relayCheck {
 		m.respondOK(w, nilResponse)
@@ -311,11 +311,10 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
-			// Compare value of header, skip processing this result if lower fee than current
 			mu.Lock()
 			defer mu.Unlock()
 
-			// Skip if not a higher value
+			// Skip if value (fee) is not greater than the current highest value
 			if result.Data != nil && responsePayload.Data.Message.Value.Cmp(&result.Data.Message.Value) < 1 {
 				return
 			}
