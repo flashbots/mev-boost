@@ -36,7 +36,7 @@ var (
 	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (schema://pubkey@host)")
 	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
-	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "whether to check relay status on startup")
+	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet genesis fork version 0x00000000 (for signature validation)")
