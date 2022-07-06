@@ -75,7 +75,7 @@ build-for-docker:
 	GOOS=linux go build -ldflags "-X main.version=${VERSION}" -v -o mev-boost ./cmd/mev-boost
 
 .PHONY: docker-image
-docker-image: clean build-for-docker
+docker-image: build-for-docker
 	DOCKER_BUILDKIT=1 docker build . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
 	docker tag mev-boost:latest ${DOCKER_REPO}:latest
@@ -87,4 +87,4 @@ docker-push: docker-image
 
 .PHONY: clean
 clean:
-	rm -rf mev-boost
+	git clean -fdx
