@@ -257,8 +257,8 @@ func TestGetHeader(t *testing.T) {
 		rr = backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
-		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
-		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+		require.Equal(t, http.StatusNoContent, rr.Code)
+		// require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 	})
 
 	t.Run("Use header with highest value", func(t *testing.T) {
@@ -320,8 +320,8 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
 		// Request should have failed
-		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
-		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+		require.Equal(t, http.StatusNoContent, rr.Code)
+		// require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 	})
 
 	t.Run("Invalid relay signature", func(t *testing.T) {
@@ -340,8 +340,8 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
 		// Request should have failed
-		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
-		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+		require.Equal(t, http.StatusNoContent, rr.Code)
+		// require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 	})
 
 	t.Run("Invalid slot number", func(t *testing.T) {
@@ -381,8 +381,9 @@ func TestGetHeader(t *testing.T) {
 
 		invalidParentHashPath := getPath(1, types.Hash{}, pubkey)
 		rr := backend.request(t, http.MethodGet, invalidParentHashPath, nil)
+		require.Equal(t, http.StatusNoContent, rr.Code)
 
-		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
+		// require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 	})
 }

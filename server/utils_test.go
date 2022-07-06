@@ -11,6 +11,6 @@ import (
 func TestMakePostRequest(t *testing.T) {
 	// Test errors
 	var x chan bool
-	err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, "", x, nil)
+	_, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, "", x, nil)
 	require.Error(t, err)
 }
