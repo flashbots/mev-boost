@@ -117,10 +117,10 @@ Run mev-boost pointed at our Sepolia builder+relay:
 | Project                                             | Status                                                                                   |
 |-----------------------------------------------------|------------------------------------------------------------------------------------------|
 | [Teku](https://github.com/ConsenSys/teku)           | Completed, ready for testing ([#156](https://github.com/flashbots/mev-boost/issues/156)) |
+| [Prysm](https://github.com/prysmaticlabs/prysm/)    | Completed, ready for testing ([#158](https://github.com/flashbots/mev-boost/issues/158)) |
 | [Lighthouse](https://github.com/sigp/lighthouse)    | Advanced ([#160](https://github.com/flashbots/mev-boost/issues/160))                     |
 | [Lodestar](https://github.com/ChainSafe/lodestar)   | Advanced ([#157](https://github.com/flashbots/mev-boost/issues/157))                     |
 | [Nimbus](https://github.com/status-im/nimbus-eth2/) | In progress ([#159](https://github.com/flashbots/mev-boost/issues/159))                  |
-| [Prysm](https://github.com/prysmaticlabs/prysm/)    | In progress ([#158](https://github.com/flashbots/mev-boost/issues/158))                  |
 
 [Notes for implementers](https://github.com/flashbots/mev-boost/wiki#implementation-resources).
 
