@@ -13,7 +13,7 @@ type builderRegistrationConfig struct {
 	GasLimit      string   `json:"gas_limit"`
 }
 
-type proposerConfig struct {
+type rawProposerConfig struct {
 	FeeRecipient        string                    `json:"fee_recipient"`
 	BuilderRegistration builderRegistrationConfig `json:"builder_registration"`
 }
@@ -21,16 +21,16 @@ type proposerConfig struct {
 // configuration is used by mev-boost to allow validators to only trust a specific list of relays.
 // It also contains the validators preferences.
 type configuration struct {
-	BuilderRelaysGroups map[string][]string       `json:"builder_relays_groups"`
-	ProposerConfig      map[string]proposerConfig `json:"proposer_config"`
-	DefaultConfig       proposerConfig            `json:"default_config"`
+	BuilderRelaysGroups map[string][]string          `json:"builder_relays_groups"`
+	ProposerConfig      map[string]rawProposerConfig `json:"proposer_config"`
+	DefaultConfig       rawProposerConfig            `json:"default_config"`
 }
 
 // configFromJSON builds a new configuration from a given JSON raw object.
 func configFromJSON(raw json.RawMessage) (*configuration, error) {
 	config := &configuration{
 		BuilderRelaysGroups: make(map[string][]string),
-		ProposerConfig:      make(map[string]proposerConfig),
+		ProposerConfig:      make(map[string]rawProposerConfig),
 	}
 
 	// Tries to unmarshal content in JSON.
@@ -51,7 +51,14 @@ func configFromFile(filename string) (*configuration, error) {
 	return configFromJSON(bytes)
 }
 
-type proposerConfigurationStorage map[types.PublicKey][]RelayEntry
+type proposerConfiguration struct {
+	FeeRecipient types.Address
+	Enabled      bool
+	Relays       []RelayEntry
+	GasLimit     string
+}
+
+type proposerConfigurationStorage map[types.PublicKey]*proposerConfiguration
 
 // buildProposerConfigurationStorage creates a storage containing a mapping of each proposer
 // address extracted from the configuration file and its preferred relays.
@@ -67,6 +74,19 @@ func (c *configuration) buildProposerConfigurationStorage() (proposerConfigurati
 			return nil, err
 		}
 
+		// Then, we'll save the proposer's preferences.
+		feeRecipient, err := types.HexToAddress(config.FeeRecipient)
+		if err != nil {
+			return nil, err
+		}
+
+		storage[address] = &proposerConfiguration{
+			FeeRecipient: feeRecipient,
+			Enabled:      config.BuilderRegistration.Enabled,
+			Relays:       nil,
+			GasLimit:     config.BuilderRegistration.GasLimit,
+		}
+
 		for _, builderRelay := range config.BuilderRegistration.BuilderRelays {
 			if c.BuilderRelaysGroups[builderRelay] == nil {
 				// At this point, builderRelay can either be an empty or non-existing group,
@@ -77,7 +97,7 @@ func (c *configuration) buildProposerConfigurationStorage() (proposerConfigurati
 				}
 
 				// Save this relay as the preference for this validator.
-				storage[address] = append(storage[address], entry)
+				storage[address].Relays = append(storage[address].Relays, entry)
 				continue
 			}
 
@@ -95,7 +115,7 @@ func (c *configuration) buildProposerConfigurationStorage() (proposerConfigurati
 				}
 
 				// Save this each relay of this group as the preference for this validator.
-				storage[address] = append(storage[address], entry)
+				storage[address].Relays = append(storage[address].Relays, entry)
 			}
 		}
 	}

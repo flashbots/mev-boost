@@ -68,7 +68,7 @@ func TestCreateConfigFromJSON(t *testing.T) {
 						"B2",
 					},
 				},
-				ProposerConfig: map[string]proposerConfig{
+				ProposerConfig: map[string]rawProposerConfig{
 					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
 						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
 						BuilderRegistration: builderRegistrationConfig{
@@ -78,7 +78,7 @@ func TestCreateConfigFromJSON(t *testing.T) {
 						},
 					},
 				},
-				DefaultConfig: proposerConfig{
+				DefaultConfig: rawProposerConfig{
 					FeeRecipient: "0x6e35733c5af9B61374A128e6F85f553aF09ff89A",
 					BuilderRegistration: builderRegistrationConfig{
 						Enabled:       false,
@@ -160,7 +160,7 @@ func TestBuildProposerConfigurationStorage(t *testing.T) {
 							"builder3-relay-kiln.flashbots.net"),
 					},
 				},
-				ProposerConfig: map[string]proposerConfig{
+				ProposerConfig: map[string]rawProposerConfig{
 					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
 						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
 						BuilderRegistration: builderRegistrationConfig{
@@ -186,7 +186,7 @@ func TestBuildProposerConfigurationStorage(t *testing.T) {
 					},
 					"groupC": {},
 				},
-				ProposerConfig: map[string]proposerConfig{
+				ProposerConfig: map[string]rawProposerConfig{
 					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
 						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
 						BuilderRegistration: builderRegistrationConfig{
@@ -210,7 +210,7 @@ func TestBuildProposerConfigurationStorage(t *testing.T) {
 							"builder1-relay-kiln.flashbots.net"),
 					},
 				},
-				ProposerConfig: map[string]proposerConfig{
+				ProposerConfig: map[string]rawProposerConfig{
 					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
 						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
 						BuilderRegistration: builderRegistrationConfig{
@@ -241,7 +241,7 @@ func TestBuildProposerConfigurationStorage(t *testing.T) {
 							"builder3-relay-kiln.flashbots.net"),
 					},
 				},
-				ProposerConfig: map[string]proposerConfig{
+				ProposerConfig: map[string]rawProposerConfig{
 					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
 						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
 						BuilderRegistration: builderRegistrationConfig{
@@ -253,12 +253,17 @@ func TestBuildProposerConfigurationStorage(t *testing.T) {
 				},
 			},
 			expectedError: false,
-			expectedStorage: map[types.PublicKey][]RelayEntry{
+			expectedStorage: map[types.PublicKey]*proposerConfiguration{
 				_HexToPubkey("0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a"): {
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s",
-						types.PublicKey{0x02}.String(), "builder2-relay-kiln.flashbots.net")),
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s",
-						types.PublicKey{0x03}.String(), "builder3-relay-kiln.flashbots.net")),
+					FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
+					Enabled:      true,
+					Relays: []RelayEntry{
+						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s",
+							types.PublicKey{0x02}.String(), "builder2-relay-kiln.flashbots.net")),
+						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s",
+							types.PublicKey{0x03}.String(), "builder3-relay-kiln.flashbots.net")),
+					},
+					GasLimit: "12345654321",
 				},
 			},
 		},
@@ -279,7 +284,7 @@ func TestBuildProposerConfigurationStorage(t *testing.T) {
 							"builder3-relay-kiln.flashbots.net"),
 					},
 				},
-				ProposerConfig: map[string]proposerConfig{
+				ProposerConfig: map[string]rawProposerConfig{
 					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
 						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
 						BuilderRegistration: builderRegistrationConfig{
@@ -294,10 +299,15 @@ func TestBuildProposerConfigurationStorage(t *testing.T) {
 				},
 			},
 			expectedError: false,
-			expectedStorage: map[types.PublicKey][]RelayEntry{
+			expectedStorage: map[types.PublicKey]*proposerConfiguration{
 				_HexToPubkey("0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a"): {
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
-						"builder4-relay-kiln.flashbots.net")),
+					FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
+					Enabled:      true,
+					Relays: []RelayEntry{
+						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
+							"builder4-relay-kiln.flashbots.net")),
+					},
+					GasLimit: "12345654321",
 				},
 			},
 		},
@@ -318,7 +328,7 @@ func TestBuildProposerConfigurationStorage(t *testing.T) {
 							"builder3-relay-kiln.flashbots.net"),
 					},
 				},
-				ProposerConfig: map[string]proposerConfig{
+				ProposerConfig: map[string]rawProposerConfig{
 					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
 						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
 						BuilderRegistration: builderRegistrationConfig{
@@ -334,14 +344,19 @@ func TestBuildProposerConfigurationStorage(t *testing.T) {
 				},
 			},
 			expectedError: false,
-			expectedStorage: map[types.PublicKey][]RelayEntry{
+			expectedStorage: map[types.PublicKey]*proposerConfiguration{
 				_HexToPubkey("0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a"): {
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-						"builder2-relay-kiln.flashbots.net")),
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-						"builder3-relay-kiln.flashbots.net")),
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
-						"builder4-relay-kiln.flashbots.net")),
+					FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
+					Enabled:      true,
+					Relays: []RelayEntry{
+						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
+							"builder2-relay-kiln.flashbots.net")),
+						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
+							"builder3-relay-kiln.flashbots.net")),
+						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
+							"builder4-relay-kiln.flashbots.net")),
+					},
+					GasLimit: "12345654321",
 				},
 			},
 		},
