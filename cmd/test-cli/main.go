@@ -190,7 +190,9 @@ func main() {
 	generateCommand.StringVar(&validatorFeeRecipient, "feeRecipient", envValidatorFeeRecipient, "FeeRecipient to register the validator with")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s [generate|register|getHeader|getPayload]:\n", os.Args[0])
+		if _, err := fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s [generate|register|getHeader|getPayload]:\n", os.Args[0]); err != nil {
+			log.Fatal(err)
+		}
 		flag.PrintDefaults()
 	}
 
@@ -201,24 +203,32 @@ func main() {
 
 	switch os.Args[1] {
 	case "generate":
-		generateCommand.Parse(os.Args[2:])
+		if err := generateCommand.Parse(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 		doGenerateValidator(validatorDataFile, gasLimit, validatorFeeRecipient)
 	case "register":
-		registerCommand.Parse(os.Args[2:])
+		if err := registerCommand.Parse(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
 		if err != nil {
 			log.WithError(err).Fatal("computing signing domain failed")
 		}
 		doRegisterValidator(mustLoadValidator(validatorDataFile), boostEndpoint, builderSigningDomain)
 	case "getHeader":
-		getHeaderCommand.Parse(os.Args[2:])
+		if err := getHeaderCommand.Parse(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
 		if err != nil {
 			log.WithError(err).Fatal("computing signing domain failed")
 		}
 		doGetHeader(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, builderSigningDomain)
 	case "getPayload":
-		getPayloadCommand.Parse(os.Args[2:])
+		if err := getPayloadCommand.Parse(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
 		if err != nil {
 			log.WithError(err).Fatal("computing signing domain failed")

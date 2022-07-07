@@ -42,7 +42,11 @@ func sendJSONRequest(endpoint string, payload any, dst any) error {
 		fetchLog.WithError(err).Error("could not send request")
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err = resp.Body.Close(); err != nil {
+			fetchLog.WithError(err).Error("could not close body")
+		}
+	}()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	fetchLog.WithField("bodyBytes", string(bodyBytes)).Info("got response")
