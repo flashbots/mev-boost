@@ -12,22 +12,13 @@ MERGEMOCK_BIN=${MERGEMOCK_BIN:-./mergemock}
 #
 # This function will ensure there are no lingering processes afterwards.
 #
-BOOST_WITH_RELAY_PID=
-MERGEMOCK_RELAY_PID=
-MERGEMOCK_CONSENSUS_PID=
 cleanup() {
-  if ps -p $BOOST_WITH_RELAY_PID &>/dev/null; then
-    disown $BOOST_WITH_RELAY_PID
-    kill -9 $BOOST_WITH_RELAY_PID &>/dev/null
-  fi
-  if ps -p $MERGEMOCK_RELAY_PID &>/dev/null; then
-    disown $MERGEMOCK_RELAY_PID
-    kill -9 $MERGEMOCK_RELAY_PID &>/dev/null
-  fi
-  if ps -p $MERGEMOCK_CONSENSUS_PID &>/dev/null; then
-    disown $MERGEMOCK_CONSENSUS_PID
-    kill -9 $MERGEMOCK_CONSENSUS_PID &>/dev/null
-  fi
+  for pid in $BOOST_WITH_RELAY_PID $MERGEMOCK_RELAY_PID $MERGEMOCK_CONSENSUS_PID; do
+    if ps -p $pid &>/dev/null; then
+      disown $pid
+      kill -9 $pid &>/dev/null
+    fi
+  done
 }
 trap cleanup exit
 
