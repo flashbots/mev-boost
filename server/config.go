@@ -123,3 +123,53 @@ func (c *configuration) buildProposerConfigurationStorage() (proposerConfigurati
 	// TODO : Maybe remove duplicates ? For example, when a proposer contains a fusion of two groups with common relay URLs.
 	return storage, nil
 }
+
+// buildDefaultConfiguration uses the default field of the configuration file to extract the
+// proposer preferences.
+func (c *configuration) buildDefaultConfiguration() (*proposerConfiguration, error) {
+	storage := &proposerConfiguration{}
+
+	feeRecipient, err := types.HexToAddress(c.DefaultConfig.FeeRecipient)
+	if err != nil {
+		return nil, err
+	}
+
+	storage.FeeRecipient = feeRecipient
+	storage.Enabled = c.DefaultConfig.BuilderRegistration.Enabled
+	storage.GasLimit = c.DefaultConfig.BuilderRegistration.GasLimit
+
+	for _, builderRelay := range c.DefaultConfig.BuilderRegistration.BuilderRelays {
+		if c.BuilderRelaysGroups[builderRelay] == nil {
+			// At this point, builderRelay can either be an empty or non-existing group,
+			// or a relay entry.
+			entry, err := NewRelayEntry(builderRelay)
+			if err != nil {
+				return nil, err
+			}
+
+			// Save this relay as the preference for this validator.
+			storage.Relays = append(storage.Relays, entry)
+			continue
+		}
+
+		// At this point, builderRelay is a group of relay URLs.
+		// TODO : Maybe verify if the group's name matches a regex / is not empty ?
+		if len(c.BuilderRelaysGroups[builderRelay]) == 0 {
+			// Empty group.
+			return nil, errors.New("group contains nothing")
+		}
+
+		for _, relayURL := range c.BuilderRelaysGroups[builderRelay] {
+			entry, err := NewRelayEntry(relayURL)
+			if err != nil {
+				return nil, err
+			}
+
+			// Save this each relay of this group as the preference for this validator.
+			storage.Relays = append(storage.Relays, entry)
+		}
+	}
+
+	// TODO : Maybe remove duplicates ? For example, when a proposer contains a fusion of two groups with common relay URLs.
+	return storage, nil
+}
