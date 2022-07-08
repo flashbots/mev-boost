@@ -68,7 +68,11 @@ func NewProposerConfigurationStorage(filename string) (*ProposerConfigurationSto
 	pcs := &ProposerConfigurationStorage{
 		proposerConfigurations: map[types.PublicKey]*ConfigurationStorage{},
 	}
+
 	pcs.defaultConfiguration, err = newConfigurationStorage(&raw.DefaultConfig, raw.BuilderRelaysGroups)
+	if err != nil {
+		return nil, err
+	}
 
 	// For each proposer, save its own configuration.
 	for proposer, configuration := range raw.ProposerConfig {
