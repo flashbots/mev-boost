@@ -41,6 +41,7 @@ func newRawConfigurationFile(filename string) (*rawConfigurationFile, error) {
 	return placeholder, nil
 }
 
+// ConfigurationStorage holds one proposer configuration.
 type ConfigurationStorage struct {
 	FeeRecipient types.Address
 	Enabled      bool
