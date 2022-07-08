@@ -1,0 +1,8 @@
+{
+    builder_relays_groups: {},
+    default_config: {
+        fee_recipient: "",
+        validator_registration: {builder_relays: [], enabled: false}
+    },
+    proposer_config: {},
+}

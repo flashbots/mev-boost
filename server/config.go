@@ -7,139 +7,114 @@ import (
 	"io/ioutil"
 )
 
-type builderRegistrationConfig struct {
-	Enabled       bool     `json:"enabled"`
-	BuilderRelays []string `json:"builder_relays"`
-	GasLimit      string   `json:"gas_limit"`
+type rawConfiguration struct {
+	FeeRecipient          string `json:"fee_recipient"`
+	ValidatorRegistration struct {
+		BuilderRelays []string `json:"builder_relays"`
+		Enabled       bool     `json:"enabled"`
+		GasLimit      string   `json:"gas_limit"`
+	} `json:"validator_registration"`
 }
 
-type rawProposerConfig struct {
-	FeeRecipient        string                    `json:"fee_recipient"`
-	BuilderRegistration builderRegistrationConfig `json:"builder_registration"`
+type rawConfigurationFile struct {
+	BuilderRelaysGroups map[string][]string `json:"builder_relays_groups"`
+
+	ProposerConfig map[string]rawConfiguration `json:"proposer_config"`
+	DefaultConfig  rawConfiguration            `json:"default_config"`
 }
 
-// configuration is used by mev-boost to allow validators to only trust a specific list of relays.
-// It also contains the validators preferences.
-type configuration struct {
-	BuilderRelaysGroups map[string][]string          `json:"builder_relays_groups"`
-	ProposerConfig      map[string]rawProposerConfig `json:"proposer_config"`
-	DefaultConfig       rawProposerConfig            `json:"default_config"`
-}
-
-// configFromJSON builds a new configuration from a given JSON raw object.
-func configFromJSON(raw json.RawMessage) (*configuration, error) {
-	config := &configuration{
-		BuilderRelaysGroups: make(map[string][]string),
-		ProposerConfig:      make(map[string]rawProposerConfig),
-	}
-
-	// Tries to unmarshal content in JSON.
-	if err := json.Unmarshal(raw, &config); err != nil {
-		return nil, err
-	}
-
-	return config, nil
-}
-
-// configFromFile reads a JSON file and creates a configuration out of it.
-func configFromFile(filename string) (*configuration, error) {
+// newRawConfigurationFile creates a temporary rawConfigurationFile used to build a
+// ProposerConfigurationStorage, by reading content from a JSON file.
+func newRawConfigurationFile(filename string) (*rawConfigurationFile, error) {
+	// Read JSON file content.
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	return configFromJSON(bytes)
+	// Tries to unmarshal content in JSON.
+	placeholder := &rawConfigurationFile{}
+	if err := json.Unmarshal(bytes, placeholder); err != nil {
+		return nil, err
+	}
+
+	return placeholder, nil
 }
 
-type proposerConfiguration struct {
+type ConfigurationStorage struct {
 	FeeRecipient types.Address
 	Enabled      bool
 	Relays       []RelayEntry
 	GasLimit     string
 }
 
-type proposerConfigurationStorage map[types.PublicKey]*proposerConfiguration
+// ProposerConfigurationStorage holds both the default configuration and the proposers ones.
+type ProposerConfigurationStorage struct {
+	proposerConfigurations map[types.PublicKey]*ConfigurationStorage
+	defaultConfiguration   *ConfigurationStorage
+}
 
-// buildProposerConfigurationStorage creates a storage containing a mapping of each proposer
-// address extracted from the configuration file and its preferred relays.
-func (c *configuration) buildProposerConfigurationStorage() (proposerConfigurationStorage, error) {
-	// Initialize the storage.
-	storage := make(proposerConfigurationStorage)
+// NewProposerConfigurationStorage creates a new storage holding each proposer preferences using
+// the content extracted from a JSON file.
+func NewProposerConfigurationStorage(filename string) (*ProposerConfigurationStorage, error) {
+	// Tries to create the raw configuration extracted from the JSON file.
+	raw, err := newRawConfigurationFile(filename)
+	if err != nil {
+		return nil, err
+	}
 
-	for proposer, config := range c.ProposerConfig {
-		// First, we'll verify if the proposer address is valid.
-		// It will be used as the key in the storage to reference this proposer's preferences.
+	// Initialize the storage and save default configuration.
+	pcs := &ProposerConfigurationStorage{
+		proposerConfigurations: map[types.PublicKey]*ConfigurationStorage{},
+	}
+	pcs.defaultConfiguration, err = newConfigurationStorage(&raw.DefaultConfig, raw.BuilderRelaysGroups)
+
+	// For each proposer, save its own configuration.
+	for proposer, configuration := range raw.ProposerConfig {
 		address, err := types.HexToPubkey(proposer)
 		if err != nil {
 			return nil, err
 		}
 
-		// Then, we'll save the proposer's preferences.
-		feeRecipient, err := types.HexToAddress(config.FeeRecipient)
+		configurationStorage, err := newConfigurationStorage(&configuration, raw.BuilderRelaysGroups)
 		if err != nil {
 			return nil, err
 		}
 
-		storage[address] = &proposerConfiguration{
-			FeeRecipient: feeRecipient,
-			Enabled:      config.BuilderRegistration.Enabled,
-			Relays:       nil,
-			GasLimit:     config.BuilderRegistration.GasLimit,
-		}
-
-		for _, builderRelay := range config.BuilderRegistration.BuilderRelays {
-			if c.BuilderRelaysGroups[builderRelay] == nil {
-				// At this point, builderRelay can either be an empty or non-existing group,
-				// or a relay entry.
-				entry, err := NewRelayEntry(builderRelay)
-				if err != nil {
-					return nil, err
-				}
-
-				// Save this relay as the preference for this validator.
-				storage[address].Relays = append(storage[address].Relays, entry)
-				continue
-			}
-
-			// At this point, builderRelay is a group of relay URLs.
-			// TODO : Maybe verify if the group's name matches a regex / is not empty ?
-			if len(c.BuilderRelaysGroups[builderRelay]) == 0 {
-				// Empty group.
-				return nil, errors.New("group contains nothing")
-			}
-
-			for _, relayURL := range c.BuilderRelaysGroups[builderRelay] {
-				entry, err := NewRelayEntry(relayURL)
-				if err != nil {
-					return nil, err
-				}
-
-				// Save this each relay of this group as the preference for this validator.
-				storage[address].Relays = append(storage[address].Relays, entry)
-			}
-		}
+		pcs.proposerConfigurations[address] = configurationStorage
 	}
 
-	// TODO : Maybe remove duplicates ? For example, when a proposer contains a fusion of two groups with common relay URLs.
-	return storage, nil
+	return pcs, nil
 }
 
-// buildDefaultConfiguration uses the default field of the configuration file to extract the
-// proposer preferences.
-func (c *configuration) buildDefaultConfiguration() (*proposerConfiguration, error) {
-	storage := &proposerConfiguration{}
+// GetProposerConfiguration looks for a specific configuration for the given proposer, if not found it
+// returns the default configuration.
+func (s *ProposerConfigurationStorage) GetProposerConfiguration(proposer types.PublicKey) *ConfigurationStorage {
+	res := s.proposerConfigurations[proposer]
+	if res == nil {
+		res = s.defaultConfiguration
+	}
 
-	feeRecipient, err := types.HexToAddress(c.DefaultConfig.FeeRecipient)
+	return res
+}
+
+// newConfigurationStorage creates a new ConfigurationStorage from a rawConfiguration
+// previously extracted from a JSON file and the relay groups available.
+// Used to create the default configuration and each proposer's one.
+func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]string) (*ConfigurationStorage, error) {
+	feeRecipient, err := types.HexToAddress(rawConf.FeeRecipient)
 	if err != nil {
 		return nil, err
 	}
 
-	storage.FeeRecipient = feeRecipient
-	storage.Enabled = c.DefaultConfig.BuilderRegistration.Enabled
-	storage.GasLimit = c.DefaultConfig.BuilderRegistration.GasLimit
+	configuration := &ConfigurationStorage{
+		FeeRecipient: feeRecipient,
+		Enabled:      rawConf.ValidatorRegistration.Enabled,
+		GasLimit:     rawConf.ValidatorRegistration.GasLimit,
+	}
 
-	for _, builderRelay := range c.DefaultConfig.BuilderRegistration.BuilderRelays {
-		if c.BuilderRelaysGroups[builderRelay] == nil {
+	for _, builderRelay := range rawConf.ValidatorRegistration.BuilderRelays {
+		if groups[builderRelay] == nil {
 			// At this point, builderRelay can either be an empty or non-existing group,
 			// or a relay entry.
 			entry, err := NewRelayEntry(builderRelay)
@@ -148,28 +123,28 @@ func (c *configuration) buildDefaultConfiguration() (*proposerConfiguration, err
 			}
 
 			// Save this relay as the preference for this validator.
-			storage.Relays = append(storage.Relays, entry)
+			configuration.Relays = append(configuration.Relays, entry)
 			continue
 		}
 
 		// At this point, builderRelay is a group of relay URLs.
 		// TODO : Maybe verify if the group's name matches a regex / is not empty ?
-		if len(c.BuilderRelaysGroups[builderRelay]) == 0 {
+		if len(groups[builderRelay]) == 0 {
 			// Empty group.
 			return nil, errors.New("group contains nothing")
 		}
 
-		for _, relayURL := range c.BuilderRelaysGroups[builderRelay] {
+		for _, relayURL := range groups[builderRelay] {
 			entry, err := NewRelayEntry(relayURL)
 			if err != nil {
 				return nil, err
 			}
 
 			// Save this each relay of this group as the preference for this validator.
-			storage.Relays = append(storage.Relays, entry)
+			configuration.Relays = append(configuration.Relays, entry)
 		}
 	}
 
-	// TODO : Maybe remove duplicates ? For example, when a proposer contains a fusion of two groups with common relay URLs.
-	return storage, nil
+	// TODO : Maybe remove duplicates ? For example, when a configuration contains a fusion of two groups with common relay URLs.
+	return configuration, nil
 }

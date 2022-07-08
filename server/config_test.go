@@ -1,356 +1,313 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-func _NewRelayEntry(t *testing.T, relayURL string) RelayEntry {
+func _newRelayEntry(t *testing.T, relayURL string) RelayEntry {
 	entry, err := NewRelayEntry(relayURL)
 	require.NoError(t, err)
 
 	return entry
 }
 
-func TestCreateConfigFromJSON(t *testing.T) {
-	testCases := []struct {
-		name       string
-		rawMessage json.RawMessage
+func _newRelayEntries(t *testing.T, l, h int) []RelayEntry {
+	var res []RelayEntry
 
-		expectedError         bool
-		expectedConfiguration *configuration
-	}{
-		{
-			name: "It creates a valid configuration",
-			rawMessage: []byte(`
-				{
-					"builder_relays_groups": {
-						"groupA": [
-							"A1",
-							"A2"
-						],
-						"groupB": [
-							"B1",
-							"B2"
-						]
-					},
-					"proposer_config": {
-						"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
-							"fee_recipient": "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-							"builder_registration": {
-								"enabled": true,
-								"builder_relays": ["https://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@builder-relay-kiln.flashbots.net"],
-								"gas_limit": "12345654321"
-							}
-						}
-					},
-					"default_config": {
-						"fee_recipient": "0x6e35733c5af9B61374A128e6F85f553aF09ff89A",
-						"builder_registration": {
-							"enabled": false,
-							"builder_relays": ["groupB"]
-						}
-					}	
-				}
-			`),
-			expectedError: false,
-			expectedConfiguration: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupA": {
-						"A1",
-						"A2",
-					},
-					"groupB": {
-						"B1",
-						"B2",
-					},
-				},
-				ProposerConfig: map[string]rawProposerConfig{
-					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
-						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-						BuilderRegistration: builderRegistrationConfig{
-							Enabled:       true,
-							BuilderRelays: []string{"https://0x821961b64d99b997c934c22b4fd6109790acf00f7969322c4e9dbf1ca278c333148284c01c5ef551a1536ddd14b178b9@builder-relay-kiln.flashbots.net"},
-							GasLimit:      "12345654321",
-						},
-					},
-				},
-				DefaultConfig: rawProposerConfig{
-					FeeRecipient: "0x6e35733c5af9B61374A128e6F85f553aF09ff89A",
-					BuilderRegistration: builderRegistrationConfig{
-						Enabled:       false,
-						BuilderRelays: []string{"groupB"},
-					},
-				},
-			},
-		},
-		{
-			name:                  "It fails to read empty JSON",
-			rawMessage:            []byte(""),
-			expectedError:         true,
-			expectedConfiguration: nil,
-		},
+	for i := l; i < h; i++ {
+		pubKey := types.PublicKey{byte(i)}.String()
+		newEntry := fmt.Sprintf("https://%s@%s%d%s", pubKey, "builder", i, "-relay-kiln.flashbots.net/")
+
+		res = append(res, _newRelayEntry(t, newEntry))
 	}
 
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			config, err := configFromJSON(tt.rawMessage)
-
-			if tt.expectedError {
-				require.Error(t, err)
-				require.Nil(t, config)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tt.expectedConfiguration, config)
-			}
-		})
-	}
+	return res
 }
 
-func TestCreateConfigurationFromFile(t *testing.T) {
+func TestCreateNewRawConfiguration(t *testing.T) {
 	testCases := []struct {
 		name     string
 		filename string
 
-		expectedError         bool
-		expectedConfiguration *configuration
+		expectedError                bool
+		expectedRawConfigurationFile *rawConfigurationFile
 	}{
 		{
-			name:                  "It fails to reads configuration from JSON file",
-			filename:              "",
-			expectedError:         true,
-			expectedConfiguration: nil,
+			name:                         "It detects non-existing file",
+			filename:                     "deadbeef",
+			expectedError:                true,
+			expectedRawConfigurationFile: nil,
+		},
+		{
+			name:                         "It detects invalid JSON",
+			filename:                     "testdata/invalid_json.input",
+			expectedError:                true,
+			expectedRawConfigurationFile: nil,
+		},
+		{
+			name:          "It creates a valid raw configuration from file",
+			filename:      "testdata/valid_json.input",
+			expectedError: false,
+			expectedRawConfigurationFile: &rawConfigurationFile{
+				BuilderRelaysGroups: make(map[string][]string),
+				ProposerConfig:      make(map[string]rawConfiguration),
+				DefaultConfig: rawConfiguration{
+					ValidatorRegistration: struct {
+						BuilderRelays []string `json:"builder_relays"`
+						Enabled       bool     `json:"enabled"`
+						GasLimit      string   `json:"gas_limit"`
+					}(struct {
+						BuilderRelays []string
+						Enabled       bool
+						GasLimit      string
+					}{BuilderRelays: []string{}, Enabled: false, GasLimit: ""}),
+				},
+			},
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			config, err := configFromFile(tt.filename)
+			rcf, err := newRawConfigurationFile(tt.filename)
 
 			if tt.expectedError {
 				require.Error(t, err)
-				require.Nil(t, config)
+				require.Nil(t, rcf)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tt.expectedConfiguration, config)
+				require.Equal(t, tt.expectedRawConfigurationFile, rcf)
 			}
 		})
 	}
 }
 
-func TestBuildProposerConfigurationStorage(t *testing.T) {
-	testCases := []struct {
-		name string
-		conf *configuration
+func TestCreateNewConfigurationStorage(t *testing.T) {
+	relay0 := fmt.Sprintf("https://%s@%s", types.PublicKey{0x00}.String(), "builder0-relay-kiln.flashbots.net/")
+	relay1 := fmt.Sprintf("https://%s@%s", types.PublicKey{0x01}.String(), "builder1-relay-kiln.flashbots.net/")
+	gasLimit := "123456"
+	feeRecipient := _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3")
 
-		expectedError   bool
-		expectedStorage proposerConfigurationStorage
+	testCases := []struct {
+		name    string
+		rawConf *rawConfiguration
+		groups  map[string][]string
+
+		expectedError                bool
+		expectedConfigurationStorage *ConfigurationStorage
 	}{
 		{
-			name: "It detects non-existing group",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupB": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-							"builder2-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-							"builder3-relay-kiln.flashbots.net"),
+			name: "It detects invalid fee recipient",
+			rawConf: &rawConfiguration{
+				FeeRecipient: "0xdeadbeef",
+				ValidatorRegistration: struct {
+					BuilderRelays []string `json:"builder_relays"`
+					Enabled       bool     `json:"enabled"`
+					GasLimit      string   `json:"gas_limit"`
+				}{
+					BuilderRelays: []string{
+						relay0,
 					},
-				},
-				ProposerConfig: map[string]rawProposerConfig{
-					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
-						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-						BuilderRegistration: builderRegistrationConfig{
-							Enabled:       true,
-							BuilderRelays: []string{"groupB", "groupC"},
-							GasLimit:      "12345654321",
-						},
-					},
+					GasLimit: gasLimit,
 				},
 			},
-			expectedError:   true,
-			expectedStorage: nil,
+			groups: map[string][]string{
+				"groupA": {relay0},
+			},
+			expectedError:                true,
+			expectedConfigurationStorage: nil,
+		},
+		{
+			name: "It detects invalid relay0 entry in raw configuration",
+			rawConf: &rawConfiguration{
+				FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
+				ValidatorRegistration: struct {
+					BuilderRelays []string `json:"builder_relays"`
+					Enabled       bool     `json:"enabled"`
+					GasLimit      string   `json:"gas_limit"`
+				}{
+					BuilderRelays: []string{
+						"deadbeef",
+					},
+					GasLimit: gasLimit,
+				},
+			},
+			groups: map[string][]string{
+				"groupA": {relay0},
+			},
+			expectedError:                true,
+			expectedConfigurationStorage: nil,
 		},
 		{
 			name: "It detects empty group",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupB": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-							"builder2-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-							"builder3-relay-kiln.flashbots.net"),
+			rawConf: &rawConfiguration{
+				FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
+				ValidatorRegistration: struct {
+					BuilderRelays []string `json:"builder_relays"`
+					Enabled       bool     `json:"enabled"`
+					GasLimit      string   `json:"gas_limit"`
+				}{
+					BuilderRelays: []string{
+						"groupA",
 					},
-					"groupC": {},
-				},
-				ProposerConfig: map[string]rawProposerConfig{
-					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
-						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-						BuilderRegistration: builderRegistrationConfig{
-							Enabled:       true,
-							BuilderRelays: []string{"groupB", "groupC"},
-							GasLimit:      "12345654321",
-						},
-					},
+					GasLimit: gasLimit,
 				},
 			},
-			expectedError:   true,
-			expectedStorage: nil,
+			groups: map[string][]string{
+				"groupA": {},
+			},
+			expectedError:                true,
+			expectedConfigurationStorage: nil,
 		},
 		{
-			name: "It detects invalid relay URLs in group",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupA": {
-						fmt.Sprintf("https://%s", "builder0-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x01}.String(),
-							"builder1-relay-kiln.flashbots.net"),
+			name: "It detects invalid relay0 entry in group",
+			rawConf: &rawConfiguration{
+				FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
+				ValidatorRegistration: struct {
+					BuilderRelays []string `json:"builder_relays"`
+					Enabled       bool     `json:"enabled"`
+					GasLimit      string   `json:"gas_limit"`
+				}{
+					BuilderRelays: []string{
+						"groupA",
 					},
-				},
-				ProposerConfig: map[string]rawProposerConfig{
-					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
-						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-						BuilderRegistration: builderRegistrationConfig{
-							Enabled:       true,
-							BuilderRelays: []string{"groupA"},
-							GasLimit:      "12345654321",
-						},
-					},
+					GasLimit: gasLimit,
 				},
 			},
-			expectedError:   true,
-			expectedStorage: nil,
+			groups: map[string][]string{
+				"groupA": {
+					"deadbeef",
+				},
+			},
+			expectedError:                true,
+			expectedConfigurationStorage: nil,
 		},
 		{
-			name: "It creates storage from group only",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupA": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x00}.String(),
-							"builder0-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x01}.String(),
-							"builder1-relay-kiln.flashbots.net"),
+			name: "It creates valid configuration storage from group only",
+			rawConf: &rawConfiguration{
+				FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
+				ValidatorRegistration: struct {
+					BuilderRelays []string `json:"builder_relays"`
+					Enabled       bool     `json:"enabled"`
+					GasLimit      string   `json:"gas_limit"`
+				}{
+					BuilderRelays: []string{
+						"groupA",
 					},
-					"groupB": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-							"builder2-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-							"builder3-relay-kiln.flashbots.net"),
-					},
+					GasLimit: gasLimit,
 				},
-				ProposerConfig: map[string]rawProposerConfig{
-					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
-						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-						BuilderRegistration: builderRegistrationConfig{
-							Enabled:       true,
-							BuilderRelays: []string{"groupB"},
-							GasLimit:      "12345654321",
-						},
-					},
+			},
+			groups: map[string][]string{
+				"groupA": {
+					relay0,
 				},
 			},
 			expectedError: false,
-			expectedStorage: map[types.PublicKey]*proposerConfiguration{
-				_HexToPubkey("0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a"): {
-					FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
-					Enabled:      true,
-					Relays: []RelayEntry{
-						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s",
-							types.PublicKey{0x02}.String(), "builder2-relay-kiln.flashbots.net")),
-						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s",
-							types.PublicKey{0x03}.String(), "builder3-relay-kiln.flashbots.net")),
-					},
-					GasLimit: "12345654321",
-				},
+			expectedConfigurationStorage: &ConfigurationStorage{
+				FeeRecipient: feeRecipient,
+				Enabled:      false,
+				Relays:       _newRelayEntries(t, 0, 1),
+				GasLimit:     gasLimit,
 			},
 		},
 		{
-			name: "It creates storage from raw URLs only",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupA": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x00}.String(),
-							"builder0-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x01}.String(),
-							"builder1-relay-kiln.flashbots.net"),
+			name: "It creates valid configuration storage from raw relay0 entries only",
+			rawConf: &rawConfiguration{
+				FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
+				ValidatorRegistration: struct {
+					BuilderRelays []string `json:"builder_relays"`
+					Enabled       bool     `json:"enabled"`
+					GasLimit      string   `json:"gas_limit"`
+				}{
+					BuilderRelays: []string{
+						relay0,
 					},
-					"groupB": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-							"builder2-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-							"builder3-relay-kiln.flashbots.net"),
-					},
-				},
-				ProposerConfig: map[string]rawProposerConfig{
-					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
-						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-						BuilderRegistration: builderRegistrationConfig{
-							Enabled: true,
-							BuilderRelays: []string{
-								fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
-									"builder4-relay-kiln.flashbots.net"),
-							},
-							GasLimit: "12345654321",
-						},
-					},
+					GasLimit: gasLimit,
 				},
 			},
+			groups:        map[string][]string{},
 			expectedError: false,
-			expectedStorage: map[types.PublicKey]*proposerConfiguration{
-				_HexToPubkey("0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a"): {
-					FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
-					Enabled:      true,
-					Relays: []RelayEntry{
-						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
-							"builder4-relay-kiln.flashbots.net")),
-					},
-					GasLimit: "12345654321",
-				},
+			expectedConfigurationStorage: &ConfigurationStorage{
+				FeeRecipient: feeRecipient,
+				Enabled:      false,
+				Relays:       _newRelayEntries(t, 0, 1),
+				GasLimit:     gasLimit,
 			},
 		},
 		{
-			name: "It creates storage from group and raw URLs",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupB": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-							"builder2-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-							"builder3-relay-kiln.flashbots.net"),
+			name: "It creates valid configuration storage from both raw relay0 entries and groups",
+			rawConf: &rawConfiguration{
+				FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
+				ValidatorRegistration: struct {
+					BuilderRelays []string `json:"builder_relays"`
+					Enabled       bool     `json:"enabled"`
+					GasLimit      string   `json:"gas_limit"`
+				}{
+					BuilderRelays: []string{
+						"groupA",
+						relay1,
 					},
+					GasLimit: gasLimit,
 				},
-				ProposerConfig: map[string]rawProposerConfig{
-					"0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
-						FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-						BuilderRegistration: builderRegistrationConfig{
-							Enabled: true,
-							BuilderRelays: []string{
-								"groupB",
-								fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
-									"builder4-relay-kiln.flashbots.net"),
-							},
-							GasLimit: "12345654321",
-						},
-					},
+			},
+			groups: map[string][]string{
+				"groupA": {
+					relay0,
 				},
 			},
 			expectedError: false,
-			expectedStorage: map[types.PublicKey]*proposerConfiguration{
-				_HexToPubkey("0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a"): {
-					FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
-					Enabled:      true,
-					Relays: []RelayEntry{
-						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-							"builder2-relay-kiln.flashbots.net")),
-						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-							"builder3-relay-kiln.flashbots.net")),
-						_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
-							"builder4-relay-kiln.flashbots.net")),
+			expectedConfigurationStorage: &ConfigurationStorage{
+				FeeRecipient: feeRecipient,
+				Enabled:      false,
+				Relays:       _newRelayEntries(t, 0, 2),
+				GasLimit:     gasLimit,
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			configurationStorage, err := newConfigurationStorage(tt.rawConf, tt.groups)
+
+			if tt.expectedError {
+				require.Error(t, err)
+				require.Nil(t, configurationStorage)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedConfigurationStorage, configurationStorage)
+			}
+		})
+	}
+}
+
+func TestCreateNewProposerConfigurationStorage(t *testing.T) {
+	testCases := []struct {
+		name     string
+		filename string
+
+		expectedError                        bool
+		expectedProposerConfigurationStorage *ProposerConfigurationStorage
+	}{
+		{
+			name:          "It creates a valid raw configuration from file",
+			filename:      "testdata/valid_config.json",
+			expectedError: false,
+			expectedProposerConfigurationStorage: &ProposerConfigurationStorage{
+				proposerConfigurations: map[types.PublicKey]*ConfigurationStorage{
+					_HexToPubkey("0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a"): {
+						FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
+						Enabled:      true,
+						Relays:       _newRelayEntries(t, 2, 6),
+						GasLimit:     "123456",
 					},
-					GasLimit: "12345654321",
+				},
+				defaultConfiguration: &ConfigurationStorage{
+					FeeRecipient: _HexToAddress("0x0000000000000000000000000000000000000000"),
+					Enabled:      false,
+					Relays:       _newRelayEntries(t, 6, 7),
+					GasLimit:     "333333",
 				},
 			},
 		},
@@ -358,215 +315,74 @@ func TestBuildProposerConfigurationStorage(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			storage, err := tt.conf.buildProposerConfigurationStorage()
+			storage, err := NewProposerConfigurationStorage(tt.filename)
 
 			if tt.expectedError {
 				require.Error(t, err)
 				require.Nil(t, storage)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tt.expectedStorage, storage)
+				require.Equal(t, tt.expectedProposerConfigurationStorage, storage)
 			}
 		})
 	}
 }
 
-func TestBuildDefaultConfigurationStorage(t *testing.T) {
-	testCases := []struct {
-		name string
-		conf *configuration
+func TestGetProposerConfiguration(t *testing.T) {
+	proposerPubKey := _HexToPubkey("0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a")
+	feeRecipient := _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3")
+	gasLimit := "12345654321"
 
-		expectedError   bool
-		expectedStorage *proposerConfiguration
+	testCases := []struct {
+		name    string
+		storage ProposerConfigurationStorage
+
+		expectedConfiguration *ConfigurationStorage
 	}{
 		{
-			name: "It detects non-existing group",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupB": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-							"builder2-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-							"builder3-relay-kiln.flashbots.net"),
-					},
-				},
-				DefaultConfig: rawProposerConfig{
-					FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-					BuilderRegistration: builderRegistrationConfig{
-						Enabled:       true,
-						BuilderRelays: []string{"groupB", "groupC"},
-						GasLimit:      "12345654321",
+			name: "It gets specific configuration",
+			storage: ProposerConfigurationStorage{
+				proposerConfigurations: map[types.PublicKey]*ConfigurationStorage{
+					proposerPubKey: {
+						FeeRecipient: feeRecipient,
+						Enabled:      true,
+						Relays:       _newRelayEntries(t, 0, 1),
+						GasLimit:     gasLimit,
 					},
 				},
 			},
-			expectedError:   true,
-			expectedStorage: nil,
-		},
-		{
-			name: "It detects empty group",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupB": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-							"builder2-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-							"builder3-relay-kiln.flashbots.net"),
-					},
-					"groupC": {},
-				},
-				DefaultConfig: rawProposerConfig{
-					FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-					BuilderRegistration: builderRegistrationConfig{
-						Enabled:       true,
-						BuilderRelays: []string{"groupB", "groupC"},
-						GasLimit:      "12345654321",
-					},
-				},
-			},
-			expectedError:   true,
-			expectedStorage: nil,
-		},
-		{
-			name: "It detects invalid relay URLs in group",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupA": {
-						fmt.Sprintf("https://%s", "builder0-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x01}.String(),
-							"builder1-relay-kiln.flashbots.net"),
-					},
-				},
-				DefaultConfig: rawProposerConfig{
-					FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-					BuilderRegistration: builderRegistrationConfig{
-						Enabled:       true,
-						BuilderRelays: []string{"groupA"},
-						GasLimit:      "12345654321",
-					},
-				},
-			},
-			expectedError:   true,
-			expectedStorage: nil,
-		},
-		{
-			name: "It creates default configuration from group only",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupB": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-							"builder2-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-							"builder3-relay-kiln.flashbots.net"),
-					},
-				},
-				DefaultConfig: rawProposerConfig{
-					FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-					BuilderRegistration: builderRegistrationConfig{
-						Enabled:       true,
-						BuilderRelays: []string{"groupB"},
-						GasLimit:      "12345654321",
-					},
-				},
-			},
-			expectedError: false,
-			expectedStorage: &proposerConfiguration{
-				FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
+			expectedConfiguration: &ConfigurationStorage{
+				FeeRecipient: feeRecipient,
 				Enabled:      true,
-				Relays: []RelayEntry{
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s",
-						types.PublicKey{0x02}.String(), "builder2-relay-kiln.flashbots.net")),
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s",
-						types.PublicKey{0x03}.String(), "builder3-relay-kiln.flashbots.net")),
-				},
-				GasLimit: "12345654321",
+				Relays:       _newRelayEntries(t, 0, 1),
+				GasLimit:     gasLimit,
 			},
 		},
 		{
-			name: "It creates storage from raw URLs only",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupA": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x00}.String(),
-							"builder0-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x01}.String(),
-							"builder1-relay-kiln.flashbots.net"),
-					},
-				},
-				DefaultConfig: rawProposerConfig{
-					FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-					BuilderRegistration: builderRegistrationConfig{
-						Enabled: true,
-						BuilderRelays: []string{
-							fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
-								"builder4-relay-kiln.flashbots.net"),
-						},
-						GasLimit: "12345654321",
-					},
+			name: "It gets default configuration",
+			storage: ProposerConfigurationStorage{
+				defaultConfiguration: &ConfigurationStorage{
+					FeeRecipient: feeRecipient,
+					Enabled:      true,
+					Relays:       _newRelayEntries(t, 0, 2),
+					GasLimit:     gasLimit,
 				},
 			},
-			expectedError: false,
-			expectedStorage: &proposerConfiguration{
-				FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
+			expectedConfiguration: &ConfigurationStorage{
+				FeeRecipient: feeRecipient,
 				Enabled:      true,
-				Relays: []RelayEntry{
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
-						"builder4-relay-kiln.flashbots.net")),
-				},
-				GasLimit: "12345654321",
-			},
-		},
-		{
-			name: "It creates storage from group and raw URLs",
-			conf: &configuration{
-				BuilderRelaysGroups: map[string][]string{
-					"groupB": {
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-							"builder2-relay-kiln.flashbots.net"),
-						fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-							"builder3-relay-kiln.flashbots.net"),
-					},
-				},
-				DefaultConfig: rawProposerConfig{
-					FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
-					BuilderRegistration: builderRegistrationConfig{
-						Enabled: true,
-						BuilderRelays: []string{
-							"groupB",
-							fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
-								"builder4-relay-kiln.flashbots.net"),
-						},
-						GasLimit: "12345654321",
-					},
-				},
-			},
-			expectedError: false,
-			expectedStorage: &proposerConfiguration{
-				FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
-				Enabled:      true,
-				Relays: []RelayEntry{
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x02}.String(),
-						"builder2-relay-kiln.flashbots.net")),
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x03}.String(),
-						"builder3-relay-kiln.flashbots.net")),
-					_NewRelayEntry(t, fmt.Sprintf("https://%s@%s", types.PublicKey{0x04}.String(),
-						"builder4-relay-kiln.flashbots.net")),
-				},
-				GasLimit: "12345654321",
+				Relays:       _newRelayEntries(t, 0, 2),
+				GasLimit:     gasLimit,
 			},
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			defaultStorage, err := tt.conf.buildDefaultConfiguration()
+			configurationStorage := tt.storage.GetProposerConfiguration(proposerPubKey)
 
-			if tt.expectedError {
-				require.Error(t, err)
-				require.Nil(t, defaultStorage)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tt.expectedStorage, defaultStorage)
-			}
+			require.NotNil(t, configurationStorage)
+			require.Equal(t, tt.expectedConfiguration, configurationStorage)
 		})
 	}
 }

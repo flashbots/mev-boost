@@ -1,0 +1,36 @@
+{
+    "builder_relays_groups": {
+        "groupA": [
+            "https://0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@builder0-relay-kiln.flashbots.net/",
+            "https://0x010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@builder1-relay-kiln.flashbots.net/"
+        ],
+        "groupB": [
+            "https://0x020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@builder2-relay-kiln.flashbots.net/",
+            "https://0x030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@builder3-relay-kiln.flashbots.net/",
+            "https://0x040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@builder4-relay-kiln.flashbots.net/"
+        ]
+    },
+    "proposer_config": {
+        "0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a": {
+            "fee_recipient": "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
+            "validator_registration": {
+                "builder_relays": [
+                    "groupB",
+                    "https://0x050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@builder5-relay-kiln.flashbots.net/"
+                ],
+                "enabled": true,
+                "gas_limit": "123456"
+            }
+        }
+    },
+    "default_config": {
+        "fee_recipient": "0x0000000000000000000000000000000000000000",
+        "validator_registration": {
+            "builder_relays": [
+                "https://0x060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@builder6-relay-kiln.flashbots.net/"
+            ],
+            "enabled": false,
+            "gas_limit": "333333"
+        }
+    }
+}
