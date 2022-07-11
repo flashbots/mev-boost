@@ -46,7 +46,7 @@ type ConfigurationStorage struct {
 	FeeRecipient types.Address
 	Enabled      bool
 	Relays       []RelayEntry
-	GasLimit     string
+	GasLimit     types.U256Str
 }
 
 // ProposerConfigurationStorage holds both the default configuration and the proposers ones.
@@ -112,10 +112,16 @@ func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]stri
 		return nil, err
 	}
 
+	gasLimit := types.U256Str{}
+	err = gasLimit.UnmarshalText([]byte(rawConf.ValidatorRegistration.GasLimit))
+	if err != nil {
+		return nil, err
+	}
+
 	configuration := &ConfigurationStorage{
 		FeeRecipient: feeRecipient,
 		Enabled:      rawConf.ValidatorRegistration.Enabled,
-		GasLimit:     rawConf.ValidatorRegistration.GasLimit,
+		GasLimit:     gasLimit,
 	}
 
 	for _, builderRelay := range rawConf.ValidatorRegistration.BuilderRelays {
