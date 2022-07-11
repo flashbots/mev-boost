@@ -27,6 +27,15 @@ func _newRelayEntries(t *testing.T, l, h int) []RelayEntry {
 	return res
 }
 
+func _newGasLimit(t *testing.T, input string) types.U256Str {
+	gasLimit := types.U256Str{}
+	err := gasLimit.UnmarshalText([]byte(input))
+
+	require.NoError(t, err)
+
+	return gasLimit
+}
+
 func TestCreateNewRawConfiguration(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -209,7 +218,7 @@ func TestCreateNewConfigurationStorage(t *testing.T) {
 				FeeRecipient: feeRecipient,
 				Enabled:      false,
 				Relays:       _newRelayEntries(t, 0, 1),
-				GasLimit:     gasLimit,
+				GasLimit:     _newGasLimit(t, gasLimit),
 			},
 		},
 		{
@@ -233,7 +242,7 @@ func TestCreateNewConfigurationStorage(t *testing.T) {
 				FeeRecipient: feeRecipient,
 				Enabled:      false,
 				Relays:       _newRelayEntries(t, 0, 1),
-				GasLimit:     gasLimit,
+				GasLimit:     _newGasLimit(t, gasLimit),
 			},
 		},
 		{
@@ -262,7 +271,7 @@ func TestCreateNewConfigurationStorage(t *testing.T) {
 				FeeRecipient: feeRecipient,
 				Enabled:      false,
 				Relays:       _newRelayEntries(t, 0, 2),
-				GasLimit:     gasLimit,
+				GasLimit:     _newGasLimit(t, gasLimit),
 			},
 		},
 	}
@@ -300,14 +309,14 @@ func TestCreateNewProposerConfigurationStorage(t *testing.T) {
 						FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
 						Enabled:      true,
 						Relays:       _newRelayEntries(t, 2, 6),
-						GasLimit:     "123456",
+						GasLimit:     _newGasLimit(t, "123456"),
 					},
 				},
 				defaultConfiguration: &ConfigurationStorage{
 					FeeRecipient: _HexToAddress("0x0000000000000000000000000000000000000000"),
 					Enabled:      false,
 					Relays:       _newRelayEntries(t, 6, 7),
-					GasLimit:     "333333",
+					GasLimit:     _newGasLimit(t, "333333"),
 				},
 			},
 		},
@@ -347,7 +356,7 @@ func TestGetProposerConfiguration(t *testing.T) {
 						FeeRecipient: feeRecipient,
 						Enabled:      true,
 						Relays:       _newRelayEntries(t, 0, 1),
-						GasLimit:     gasLimit,
+						GasLimit:     _newGasLimit(t, gasLimit),
 					},
 				},
 			},
@@ -355,7 +364,7 @@ func TestGetProposerConfiguration(t *testing.T) {
 				FeeRecipient: feeRecipient,
 				Enabled:      true,
 				Relays:       _newRelayEntries(t, 0, 1),
-				GasLimit:     gasLimit,
+				GasLimit:     _newGasLimit(t, gasLimit),
 			},
 		},
 		{
@@ -365,14 +374,14 @@ func TestGetProposerConfiguration(t *testing.T) {
 					FeeRecipient: feeRecipient,
 					Enabled:      true,
 					Relays:       _newRelayEntries(t, 0, 2),
-					GasLimit:     gasLimit,
+					GasLimit:     _newGasLimit(t, gasLimit),
 				},
 			},
 			expectedConfiguration: &ConfigurationStorage{
 				FeeRecipient: feeRecipient,
 				Enabled:      true,
 				Relays:       _newRelayEntries(t, 0, 2),
-				GasLimit:     gasLimit,
+				GasLimit:     _newGasLimit(t, gasLimit),
 			},
 		},
 	}
