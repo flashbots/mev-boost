@@ -124,6 +124,10 @@ func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]stri
 		GasLimit:     gasLimit,
 	}
 
+	if len(rawConf.ValidatorRegistration.BuilderRelays) == 0 {
+		return nil, errors.New("no builder is associated to this proposer")
+	}
+
 	for _, builderRelay := range rawConf.ValidatorRegistration.BuilderRelays {
 		if groups[builderRelay] == nil {
 			// At this point, builderRelay can either be an empty or non-existing group,
