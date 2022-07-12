@@ -44,6 +44,7 @@ type BoostServiceOpts struct {
 	GenesisForkVersionHex string
 	RelayRequestTimeout   time.Duration
 	RelayCheck            bool
+	PCS                   *ProposerConfigurationStorage
 }
 
 // BoostService - the mev-boost service
