@@ -44,6 +44,7 @@ type BoostServiceOpts struct {
 	RelayRequestTimeout   time.Duration
 	RelayCheck            bool
 	MaxHeaderBytes        int
+	PCS                   *ProposerConfigurationStorage
 }
 
 // BoostService TODO
