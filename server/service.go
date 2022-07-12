@@ -75,7 +75,12 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		relayCheck: opts.RelayCheck,
 
 		builderSigningDomain: builderSigningDomain,
-		httpClient:           http.Client{Timeout: opts.RelayRequestTimeout},
+		httpClient: http.Client{
+			Timeout: opts.RelayRequestTimeout,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 	}, nil
 }
 
