@@ -2,11 +2,13 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +47,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		GenesisForkVersionHex: "0x00000000",
 		RelayRequestTimeout:   relayTimeout,
 		RelayCheck:            true,
+		MaxHeaderBytes:        4000,
 	}
 	service, err := NewBoostService(opts)
 	require.NoError(t, err)
@@ -73,7 +76,7 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, "0x00000000", time.Second, true})
+		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, "0x00000000", time.Second, true, 4000})
 		require.Error(t, err)
 	})
 }
@@ -113,6 +116,22 @@ func TestWebserverRootHandler(t *testing.T) {
 	backend.boost.getRouter().ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.Equal(t, "{}\n", rr.Body.String())
+}
+
+func TestWebserverMaxHeaderSize(t *testing.T) {
+	backend := newTestBackend(t, 1, time.Second)
+	addr := "localhost:1234"
+	backend.boost.listenAddr = addr
+	go func() {
+		err := backend.boost.StartHTTPServer()
+		require.NoError(t, err)
+	}()
+	time.Sleep(time.Millisecond * 100)
+	path := "http://" + addr + "?" + strings.Repeat("abc", 4000) // path with characters of size over 4kb
+	code, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, path, nil, nil)
+	require.Error(t, err)
+	require.Equal(t, http.StatusRequestHeaderFieldsTooLarge, code)
+	backend.boost.srv.Close()
 }
 
 // Example good registerValidator payload
@@ -460,18 +479,6 @@ func TestCheckRelays(t *testing.T) {
 
 		status := backend.boost.CheckRelays()
 
-		require.Equal(t, false, status)
-	})
-
-	t.Run("Should not follow redirects", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
-		redirectAddress := backend.relays[0].Server.URL
-		backend.relays[0].Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, redirectAddress, http.StatusTemporaryRedirect)
-		}))
-
-		backend.boost.relays[0].Address = backend.relays[0].Server.URL
-		status := backend.boost.CheckRelays()
 		require.Equal(t, false, status)
 	})
 }
