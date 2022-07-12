@@ -194,6 +194,27 @@ func TestCreateNewConfigurationStorage(t *testing.T) {
 			expectedConfigurationStorage: nil,
 		},
 		{
+			name: "It detects empty relay array in proposer configuration",
+			rawConf: &rawConfiguration{
+				FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
+				ValidatorRegistration: struct {
+					BuilderRelays []string `json:"builder_relays"`
+					Enabled       bool     `json:"enabled"`
+					GasLimit      string   `json:"gas_limit"`
+				}{
+					BuilderRelays: []string{},
+					GasLimit:      gasLimit,
+				},
+			},
+			groups: map[string][]string{
+				"groupA": {
+					"deadbeef",
+				},
+			},
+			expectedError:                true,
+			expectedConfigurationStorage: nil,
+		},
+		{
 			name: "It creates valid configuration storage from group only",
 			rawConf: &rawConfiguration{
 				FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
