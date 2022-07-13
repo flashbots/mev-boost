@@ -481,4 +481,16 @@ func TestCheckRelays(t *testing.T) {
 
 		require.Equal(t, false, status)
 	})
+
+	t.Run("Should not follow redirects", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+		redirectAddress := backend.relays[0].Server.URL
+		backend.relays[0].Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, redirectAddress, http.StatusTemporaryRedirect)
+		}))
+
+		backend.boost.relays[0].Address = backend.relays[0].Server.URL
+		status := backend.boost.CheckRelays()
+		require.Equal(t, false, status)
+	})
 }
