@@ -43,6 +43,7 @@ type BoostServiceOpts struct {
 	GenesisForkVersionHex string
 	RelayRequestTimeout   time.Duration
 	RelayCheck            bool
+	MaxHeaderBytes        int
 }
 
 // BoostService TODO
@@ -52,6 +53,8 @@ type BoostService struct {
 	log        *logrus.Entry
 	srv        *http.Server
 	relayCheck bool
+
+	maxHeaderBytes int
 
 	builderSigningDomain types.Domain
 	httpClient           http.Client
@@ -69,10 +72,11 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	}
 
 	return &BoostService{
-		listenAddr: opts.ListenAddr,
-		relays:     opts.Relays,
-		log:        opts.Log.WithField("module", "service"),
-		relayCheck: opts.RelayCheck,
+		listenAddr:     opts.ListenAddr,
+		relays:         opts.Relays,
+		log:            opts.Log.WithField("module", "service"),
+		relayCheck:     opts.RelayCheck,
+		maxHeaderBytes: opts.MaxHeaderBytes,
 
 		builderSigningDomain: builderSigningDomain,
 		httpClient: http.Client{
@@ -131,6 +135,7 @@ func (m *BoostService) StartHTTPServer() error {
 		ReadHeaderTimeout: 0,
 		WriteTimeout:      0,
 		IdleTimeout:       0,
+		MaxHeaderBytes:    m.maxHeaderBytes,
 	}
 
 	err := m.srv.ListenAndServe()
