@@ -48,6 +48,8 @@ Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-ru
 
 # Installing
 
+`mev-boost` can run in any machine, as long as it is reachable by the validator client. The default port is 18550. The most common setup is to install it in the same machine as the validator client.
+
 ## From source
 
 Install the dependencies:
@@ -80,7 +82,7 @@ docker run flashbots/mev-boost --help
 
 # Usage
 
-First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status). 
+First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status).
 
 #### Kiln testnet
 
