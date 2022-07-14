@@ -360,11 +360,6 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	if len(payload.Signature) != 96 {
-		m.respondError(w, http.StatusBadRequest, errInvalidSignature.Error())
-		return
-	}
-
 	result := new(types.GetPayloadResponse)
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
 	defer requestCtxCancel()
