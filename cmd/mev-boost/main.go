@@ -53,6 +53,9 @@ func main() {
 	flag.Parse()
 	logrus.SetOutput(os.Stdout)
 
+	// Set the server version
+	server.Version = version
+
 	if *logJSON {
 		log.Logger.SetFormatter(&logrus.JSONFormatter{})
 	} else {

@@ -1,5 +1,8 @@
 package server
 
+// Version is used to get the version of the backend. It is set by the cli
+var Version = "dev"
+
 // Router paths
 var (
 	pathStatus            = "/eth/v1/builder/status"

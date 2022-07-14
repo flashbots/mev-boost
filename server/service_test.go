@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -469,7 +470,6 @@ func TestCheckRelays(t *testing.T) {
 	t.Run("At least one relay is okay", func(t *testing.T) {
 		backend := newTestBackend(t, 3, time.Second)
 		status := backend.boost.CheckRelays()
-
 		require.Equal(t, true, status)
 	})
 
@@ -478,7 +478,6 @@ func TestCheckRelays(t *testing.T) {
 		backend.relays[0].Server.Close()
 
 		status := backend.boost.CheckRelays()
-
 		require.Equal(t, false, status)
 	})
 
@@ -489,7 +488,9 @@ func TestCheckRelays(t *testing.T) {
 			http.Redirect(w, r, redirectAddress, http.StatusTemporaryRedirect)
 		}))
 
-		backend.boost.relays[0].Address = backend.relays[0].Server.URL
+		url, err := url.ParseRequestURI(backend.relays[0].Server.URL)
+		require.NoError(t, err)
+		backend.boost.relays[0].URL = url
 		status := backend.boost.CheckRelays()
 		require.Equal(t, false, status)
 	})
