@@ -8,8 +8,6 @@ import (
 )
 
 // RelayEntry represents a relay that mev-boost connects to.
-// Address will be scheme://hostname:port
-// PublicKey holds the relay's BLS public key used to verify message signatures.
 type RelayEntry struct {
 	PublicKey types.PublicKey
 	URL       *url.URL
@@ -45,6 +43,10 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 	if entry.URL.User.Username() == "" {
 		return entry, ErrMissingRelayPubkey
 	}
+
+	q := entry.URL.Query()
+	q.Set("boost", Version)
+	entry.URL.RawQuery = q.Encode()
 
 	err = entry.PublicKey.UnmarshalText([]byte(entry.URL.User.Username()))
 	return entry, err
