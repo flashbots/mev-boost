@@ -28,7 +28,6 @@ var (
 	defaultRelayTimeoutMs     = getEnvInt("RELAY_TIMEOUT_MS", 2000) // timeout for all the requests to the relay
 	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
-	maxHeaderBytes            = getEnvInt("MAX_HEADER_BYTES", 4000) // max header byte size for requests for dos prevention
 
 	// cli flags
 	printVersion = flag.Bool("version", false, "only print version")
@@ -116,7 +115,6 @@ func Main() {
 		GenesisForkVersionHex: genesisForkVersionHex,
 		RelayRequestTimeout:   relayTimeout,
 		RelayCheck:            *relayCheck,
-		MaxHeaderBytes:        maxHeaderBytes,
 	}
 	server, err := server.NewBoostService(opts)
 	if err != nil {

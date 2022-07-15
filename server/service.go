@@ -13,6 +13,7 @@ import (
 
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
+	"github.com/flashbots/mev-boost/config"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -43,7 +44,6 @@ type BoostServiceOpts struct {
 	GenesisForkVersionHex string
 	RelayRequestTimeout   time.Duration
 	RelayCheck            bool
-	MaxHeaderBytes        int
 }
 
 // BoostService TODO
@@ -53,8 +53,6 @@ type BoostService struct {
 	log        *logrus.Entry
 	srv        *http.Server
 	relayCheck bool
-
-	maxHeaderBytes int
 
 	builderSigningDomain types.Domain
 	httpClient           http.Client
@@ -72,11 +70,10 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	}
 
 	return &BoostService{
-		listenAddr:     opts.ListenAddr,
-		relays:         opts.Relays,
-		log:            opts.Log.WithField("module", "service"),
-		relayCheck:     opts.RelayCheck,
-		maxHeaderBytes: opts.MaxHeaderBytes,
+		listenAddr: opts.ListenAddr,
+		relays:     opts.Relays,
+		log:        opts.Log.WithField("module", "service"),
+		relayCheck: opts.RelayCheck,
 
 		builderSigningDomain: builderSigningDomain,
 		httpClient: http.Client{
@@ -131,11 +128,12 @@ func (m *BoostService) StartHTTPServer() error {
 		Addr:    m.listenAddr,
 		Handler: m.getRouter(),
 
-		ReadTimeout:       0,
-		ReadHeaderTimeout: 0,
-		WriteTimeout:      0,
-		IdleTimeout:       0,
-		MaxHeaderBytes:    m.maxHeaderBytes,
+		ReadTimeout:       time.Duration(config.ServerReadTimeoutMs) * time.Millisecond,
+		ReadHeaderTimeout: time.Duration(config.ServerReadHeaderTimeoutMs) * time.Millisecond,
+		WriteTimeout:      time.Duration(config.ServerWriteTimeoutMs) * time.Millisecond,
+		IdleTimeout:       time.Duration(config.ServerIdleTimeoutMs) * time.Millisecond,
+
+		MaxHeaderBytes: config.ServerMaxHeaderBytes,
 	}
 
 	err := m.srv.ListenAndServe()
