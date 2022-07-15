@@ -32,9 +32,12 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@v3
+        env:
+          VERSION: ${{ steps.vars.outputs.tag }}
         with:
           push: true
-          tags: flashbots/mev-boost:latest,flashbots/mev-boost:${{ steps.vars.outputs.tag }}
+          # tags: flashbots/mev-boost:latest,flashbots/mev-boost:${{ steps.vars.outputs.tag }}
+          tags: flashbots/mev-boost:${{ steps.vars.outputs.tag }}
           platforms: linux/amd64,linux/arm64
 
 
