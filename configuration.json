@@ -1,0 +1,17 @@
+{
+  "builder_relays_groups": {
+    "defaultGroup": [
+      ""
+    ]
+  },
+  "default_config": {
+    "fee_recipient": "0x0000000000000000000000000000000000000000",
+    "validator_registration": {
+      "builder_relays": [
+        "defaultGroup"
+      ],
+      "enabled": false,
+      "gas_limit": "333333"
+    }
+  }
+}
