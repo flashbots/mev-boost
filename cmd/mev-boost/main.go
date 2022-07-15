@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -31,8 +32,9 @@ var (
 	maxHeaderBytes            = getEnvInt("MAX_HEADER_BYTES", 4000) // max header byte size for requests for dos prevention
 
 	// cli flags
-	logJSON  = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
-	logLevel = flag.String("loglevel", defaultLogLevel, "log-level: trace, debug, info, warn/warning, error, fatal, panic")
+	printVersion = flag.Bool("version", false, "only print version")
+	logJSON      = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
+	logLevel     = flag.String("loglevel", defaultLogLevel, "log-level: trace, debug, info, warn/warning, error, fatal, panic")
 
 	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
@@ -53,6 +55,10 @@ func main() {
 	flag.Parse()
 	logrus.SetOutput(os.Stdout)
 
+	if *printVersion {
+		fmt.Printf("mev-boost %s\n", version)
+		return
+	}
 	// Set the server version
 	server.Version = version
 
