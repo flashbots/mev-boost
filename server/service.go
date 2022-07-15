@@ -160,8 +160,10 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	// If relayCheck is enabled, make sure at least 1 relay returns success
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
+	ua := UserAgent(req.Header.Get("User-Agent"))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	for _, r := range m.relays {
 		wg.Add(1)
 
@@ -171,7 +173,7 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 			log := m.log.WithField("url", url)
 			log.Debug("Checking relay status")
 
-			_, err := SendHTTPRequest(ctx, m.httpClient, http.MethodGet, url, nil, nil)
+			_, err := SendHTTPRequest(ctx, m.httpClient, http.MethodGet, url, ua, nil, nil)
 			if err != nil && ctx.Err() != context.Canceled {
 				log.WithError(err).Error("failed to retrieve relay status")
 				return
@@ -204,11 +206,10 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		return
 	}
 
-	numSuccessRequestsToRelay := 0
-	var mu sync.Mutex
-
-	// Call the relays
 	var wg sync.WaitGroup
+	var numSuccessRequestsToRelay uint32
+	ua := UserAgent(req.Header.Get("User-Agent"))
+
 	for _, relay := range m.relays {
 		wg.Add(1)
 		go func(relay RelayEntry) {
@@ -216,15 +217,13 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			url := relay.GetURI(pathRegisterValidator)
 			log := log.WithField("url", url)
 
-			_, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, payload, nil)
+			_, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, ua, payload, nil)
 			if err != nil {
 				log.WithError(err).Warn("error in registerValidator to relay")
 				return
 			}
 
-			mu.Lock()
-			defer mu.Unlock()
-			numSuccessRequestsToRelay++
+			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
 		}(relay)
 	}
 
@@ -269,6 +268,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	result := new(types.GetHeaderResponse)
 	var mu sync.Mutex
+	ua := UserAgent(req.Header.Get("User-Agent"))
 
 	// Call the relays
 	var wg sync.WaitGroup
@@ -280,7 +280,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			url := relay.GetURI(path)
 			log := log.WithField("url", url)
 			responsePayload := new(types.GetHeaderResponse)
-			code, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, nil, responsePayload)
+			code, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, ua, nil, responsePayload)
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
 				return
@@ -365,6 +365,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	defer requestCtxCancel()
 	var wg sync.WaitGroup
 	var mu sync.Mutex
+	ua := UserAgent(req.Header.Get("User-Agent"))
 
 	for _, relay := range m.relays {
 		wg.Add(1)
@@ -375,7 +376,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			log.Debug("calling getPayload")
 
 			responsePayload := new(types.GetPayloadResponse)
-			_, err := SendHTTPRequest(requestCtx, m.httpClient, http.MethodPost, url, payload, responsePayload)
+			_, err := SendHTTPRequest(requestCtx, m.httpClient, http.MethodPost, url, ua, payload, responsePayload)
 
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
@@ -432,7 +433,7 @@ func (m *BoostService) CheckRelays() bool {
 		m.log.WithField("relay", relay).Info("Checking relay")
 
 		url := relay.GetURI(pathStatus)
-		_, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, nil, nil)
+		_, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, "", nil, nil)
 		if err != nil {
 			m.log.WithError(err).WithField("relay", relay).Error("relay check failed")
 			return false
