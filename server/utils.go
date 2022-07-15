@@ -76,3 +76,14 @@ func ComputeDomain(domainType types.DomainType, forkVersionHex string, genesisVa
 	copy(forkVersion[:], forkVersionBytes[:4])
 	return types.ComputeDomain(domainType, forkVersion, genesisValidatorsRoot), nil
 }
+
+// DecodeJSON reads JSON from io.Reader and decodes it into a struct
+func DecodeJSON(r io.Reader, dst any) error {
+	decoder := json.NewDecoder(r)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(dst); err != nil {
+		return err
+	}
+	return nil
+}
