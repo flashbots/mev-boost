@@ -98,6 +98,9 @@ func main() {
 	log.WithField("relays", relays).Infof("using %d relays", len(relays))
 
 	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
+	if relayTimeout <= 0 {
+		log.Fatal("Please specify a relay timeout greater than 0")
+	}
 
 	opts := server.BoostServiceOpts{
 		Log:                   log,
