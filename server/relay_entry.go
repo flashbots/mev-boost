@@ -44,10 +44,6 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 		return entry, ErrMissingRelayPubkey
 	}
 
-	q := entry.URL.Query()
-	q.Set("boost", Version)
-	entry.URL.RawQuery = q.Encode()
-
 	err = entry.PublicKey.UnmarshalText([]byte(entry.URL.User.Username()))
 	return entry, err
 }

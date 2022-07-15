@@ -31,7 +31,7 @@ func doRegisterValidator(v validatorPrivateData, boostEndpoint string, builderSi
 	if err != nil {
 		log.WithError(err).Fatal("Could not prepare registration message")
 	}
-	_, err = server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/validators", message, nil)
+	_, err = server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/validators", "test-cli", message, nil)
 
 	if err != nil {
 		log.WithError(err).Fatal("Validator registration not successful")
@@ -68,7 +68,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 	uri := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s", boostEndpoint, currentBlock.Slot+1, currentBlockHash, v.Pk.String())
 
 	var getHeaderResp boostTypes.GetHeaderResponse
-	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, uri, nil, &getHeaderResp); err != nil {
+	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, uri, "test-cli", nil, &getHeaderResp); err != nil {
 		log.WithError(err).WithField("currentBlockHash", currentBlockHash).Fatal("Could not get header")
 	}
 
@@ -120,7 +120,7 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 		Signature: signature,
 	}
 	var respPayload boostTypes.GetPayloadResponse
-	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/blinded_blocks", payload, &respPayload); err != nil {
+	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/blinded_blocks", "test-cli", payload, &respPayload); err != nil {
 		log.WithError(err).Fatal("could not get payload")
 	}
 
