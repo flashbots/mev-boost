@@ -31,7 +31,7 @@ func doRegisterValidator(v validatorPrivateData, boostEndpoint string, builderSi
 	if err != nil {
 		log.WithError(err).Fatal("Could not prepare registration message")
 	}
-	err = server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/validators", message, nil)
+	_, err = server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/validators", "test-cli", message, nil)
 
 	if err != nil {
 		log.WithError(err).Fatal("Validator registration not successful")
@@ -68,7 +68,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 	uri := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s", boostEndpoint, currentBlock.Slot+1, currentBlockHash, v.Pk.String())
 
 	var getHeaderResp boostTypes.GetHeaderResponse
-	if err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, uri, nil, &getHeaderResp); err != nil {
+	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, uri, "test-cli", nil, &getHeaderResp); err != nil {
 		log.WithError(err).WithField("currentBlockHash", currentBlockHash).Fatal("Could not get header")
 	}
 
@@ -120,7 +120,7 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 		Signature: signature,
 	}
 	var respPayload boostTypes.GetPayloadResponse
-	if err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/blinded_blocks", payload, &respPayload); err != nil {
+	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/blinded_blocks", "test-cli", payload, &respPayload); err != nil {
 		log.WithError(err).Fatal("could not get payload")
 	}
 
@@ -190,7 +190,9 @@ func main() {
 	generateCommand.StringVar(&validatorFeeRecipient, "feeRecipient", envValidatorFeeRecipient, "FeeRecipient to register the validator with")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s [generate|register|getHeader|getPayload]:\n", os.Args[0])
+		if _, err := fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s [generate|register|getHeader|getPayload]:\n", os.Args[0]); err != nil {
+			log.Fatal(err)
+		}
 		flag.PrintDefaults()
 	}
 
@@ -201,24 +203,32 @@ func main() {
 
 	switch os.Args[1] {
 	case "generate":
-		generateCommand.Parse(os.Args[2:])
+		if err := generateCommand.Parse(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 		doGenerateValidator(validatorDataFile, gasLimit, validatorFeeRecipient)
 	case "register":
-		registerCommand.Parse(os.Args[2:])
+		if err := registerCommand.Parse(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
 		if err != nil {
 			log.WithError(err).Fatal("computing signing domain failed")
 		}
 		doRegisterValidator(mustLoadValidator(validatorDataFile), boostEndpoint, builderSigningDomain)
 	case "getHeader":
-		getHeaderCommand.Parse(os.Args[2:])
+		if err := getHeaderCommand.Parse(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
 		if err != nil {
 			log.WithError(err).Fatal("computing signing domain failed")
 		}
 		doGetHeader(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, builderSigningDomain)
 	case "getPayload":
-		getPayloadCommand.Parse(os.Args[2:])
+		if err := getPayloadCommand.Parse(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
 		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
 		if err != nil {
 			log.WithError(err).Fatal("computing signing domain failed")

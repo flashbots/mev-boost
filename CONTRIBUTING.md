@@ -11,10 +11,9 @@ Install a few dev dependencies:
 ```bash
 go install github.com/mgechev/revive@latest
 go install honnef.co/go/tools/cmd/staticcheck@master
-go install github.com/ferranbt/fastssz/sszgen@latest
 ```
 
-Look at the [README for instructions to install the dependencies and build `mev-boost`](README.md#install)
+Look at the [README for instructions to install the dependencies and build `mev-boost`](README.md#installing)
 
 Alternatively, run mev-boost without build step:
 

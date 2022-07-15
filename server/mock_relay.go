@@ -129,7 +129,7 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 	}
 
 	payload := []types.SignedValidatorRegistration{}
-	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+	if err := DecodeJSON(req.Body, &payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

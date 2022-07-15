@@ -97,7 +97,4 @@ jobs:
 
       - name: Run mergemock consensus tests
         run: |
-          make MERGEMOCK_DIR=./mergemock run-mergemock-relay &
-          make run-boost-with-relay &
-          sleep 5
-          make MERGEMOCK_DIR=./mergemock run-mergemock-consensus
+          make MERGEMOCK_DIR=./mergemock run-mergemock-integration

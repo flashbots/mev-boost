@@ -48,6 +48,8 @@ Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-ru
 
 # Installing
 
+`mev-boost` can run in any machine, as long as it is reachable by the validator client. The default port is 18550. The most common setup is to install it in the same machine as the validator client.
+
 ## From source
 
 Install the dependencies:
@@ -80,7 +82,7 @@ docker run flashbots/mev-boost --help
 
 # Usage
 
-First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status). 
+First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status).
 
 #### Kiln testnet
 
@@ -114,13 +116,13 @@ Run mev-boost pointed at our Sepolia builder+relay:
 
 # Consensus Clients Implementation Status
 
-| Project                                             | Status
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Project                                             | Status                                                                                   |
+|-----------------------------------------------------|------------------------------------------------------------------------------------------|
 | [Teku](https://github.com/ConsenSys/teku)           | Completed, ready for testing ([#156](https://github.com/flashbots/mev-boost/issues/156)) |
+| [Prysm](https://github.com/prysmaticlabs/prysm/)    | Completed, ready for testing ([#158](https://github.com/flashbots/mev-boost/issues/158)) |
 | [Lighthouse](https://github.com/sigp/lighthouse)    | Advanced ([#160](https://github.com/flashbots/mev-boost/issues/160))                     |
 | [Lodestar](https://github.com/ChainSafe/lodestar)   | Advanced ([#157](https://github.com/flashbots/mev-boost/issues/157))                     |
 | [Nimbus](https://github.com/status-im/nimbus-eth2/) | In progress ([#159](https://github.com/flashbots/mev-boost/issues/159))                  |
-| [Prysm](https://github.com/prysmaticlabs/prysm/)    | In progress ([#158](https://github.com/flashbots/mev-boost/issues/158))                  |
 
 [Notes for implementers](https://github.com/flashbots/mev-boost/wiki#implementation-resources).
 
