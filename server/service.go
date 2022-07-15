@@ -199,7 +199,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log.Info("registerValidator")
 
 	payload := []types.SignedValidatorRegistration{}
-	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+	if err := DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -355,7 +355,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	log.Info("getPayload")
 
 	payload := new(types.SignedBlindedBeaconBlock)
-	if err := json.NewDecoder(req.Body).Decode(payload); err != nil {
+	if err := DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
