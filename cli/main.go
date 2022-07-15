@@ -40,6 +40,8 @@ var (
 	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
 	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
 
+	configPath = flag.String("config", "", "configuration for proposer preferences")
+
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet")
 	useGenesisForkVersionKiln    = flag.Bool("kiln", false, "use Kiln")
@@ -100,12 +102,27 @@ func Main() {
 	}
 	log.Infof("Using genesis fork version: %s", genesisForkVersionHex)
 
-	relays := parseRelayURLs(*relayURLs)
-	if len(relays) == 0 {
-		flag.Usage()
-		log.Fatal("No relays specified")
+	if *relayURLs != "" && *configPath != "" {
+		log.Fatal("Please provide either relays from CLI or a configuration file")
 	}
-	log.WithField("relays", relays).Infof("using %d relays", len(relays))
+
+	pcs := &server.ProposerConfigurationStorage{}
+	if relayURLs != nil {
+		relays := parseRelayURLs(*relayURLs)
+		if len(relays) == 0 {
+			flag.Usage()
+			log.Fatal("No relays specified")
+		}
+
+		pcs = pcs.FromRelayList(relays)
+	} else {
+		var err error
+
+		pcs, err = server.NewProposerConfigurationStorage(*configPath)
+		if err != nil {
+			log.Fatal("Error while reading configuration file: %w", err)
+		}
+	}
 
 	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
 	if relayTimeout <= 0 {
@@ -115,22 +132,22 @@ func Main() {
 	opts := server.BoostServiceOpts{
 		Log:                   log,
 		ListenAddr:            *listenAddr,
-		Relays:                relays,
 		GenesisForkVersionHex: genesisForkVersionHex,
 		RelayRequestTimeout:   relayTimeout,
 		RelayCheck:            *relayCheck,
+		PCS:                   pcs,
 	}
-	server, err := server.NewBoostService(opts)
+	srv, err := server.NewBoostService(opts)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
 	}
 
-	if *relayCheck && !server.CheckRelays() {
+	if *relayCheck && !srv.CheckRelays() {
 		log.Fatal("no relay available")
 	}
 
 	log.Println("listening on", *listenAddr)
-	log.Fatal(server.StartHTTPServer())
+	log.Fatal(srv.StartHTTPServer())
 }
 
 func getEnv(key string, defaultValue string) string {

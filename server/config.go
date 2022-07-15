@@ -163,3 +163,23 @@ func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]stri
 	// TODO : Maybe remove duplicates ? For example, when a configuration contains a fusion of two groups with common relay URLs.
 	return configuration, nil
 }
+
+// FromRelayList creates a default configuration with the provided list of relays.
+func (s *ProposerConfigurationStorage) FromRelayList(relays []RelayEntry) *ProposerConfigurationStorage {
+	return &ProposerConfigurationStorage{
+		defaultConfiguration: &ConfigurationStorage{
+			Relays: relays,
+		},
+	}
+}
+
+// GetAllRelays returns all registered relays.
+func (s *ProposerConfigurationStorage) GetAllRelays() []RelayEntry {
+	relays := s.defaultConfiguration.Relays
+
+	for _, configurationStorage := range s.proposerConfigurations {
+		relays = append(relays, configurationStorage.Relays...)
+	}
+
+	return relays
+}

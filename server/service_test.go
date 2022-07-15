@@ -36,9 +36,14 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	}
 
 	opts := BoostServiceOpts{
-		Log:                   testLog,
-		ListenAddr:            "localhost:12345",
-		Relays:                relayEntries,
+		Log:        testLog,
+		ListenAddr: "localhost:12345",
+		PCS: &ProposerConfigurationStorage{
+			proposerConfigurations: map[types.PublicKey]*ConfigurationStorage{},
+			defaultConfiguration: &ConfigurationStorage{
+				Relays: relayEntries,
+			},
+		},
 		GenesisForkVersionHex: "0x00000000",
 		RelayRequestTimeout:   relayTimeout,
 		RelayCheck:            true,
@@ -68,9 +73,56 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 	return rr
 }
 
+func newKeyPair(t *testing.T) (*bls.SecretKey, *types.PublicKey) {
+	blsPrivateKey, blsPublicKey, err := bls.GenerateNewKeypair()
+	require.NoError(t, err)
+
+	publicKey := &types.PublicKey{}
+	publicKey.FromSlice(blsPublicKey.Compress())
+
+	return blsPrivateKey, publicKey
+}
+
+func newGetHeaderPath(slot uint64, parentHash types.Hash, pubkey types.PublicKey) string {
+	return fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), pubkey.String())
+}
+
+func newPayload(t *testing.T, secretKey *bls.SecretKey, slot uint64, parentHash types.Hash) types.SignedBlindedBeaconBlock {
+	message := &types.BlindedBeaconBlock{
+		Slot:          slot,
+		ProposerIndex: 1,
+		ParentRoot:    types.Root{0x01},
+		StateRoot:     types.Root{0x02},
+		Body: &types.BlindedBeaconBlockBody{
+			RandaoReveal:  types.Signature{0xa1},
+			Eth1Data:      &types.Eth1Data{},
+			Graffiti:      types.Hash{0xa2},
+			SyncAggregate: &types.SyncAggregate{},
+			ExecutionPayloadHeader: &types.ExecutionPayloadHeader{
+				ParentHash:   parentHash,
+				BlockHash:    _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab1"),
+				BlockNumber:  12345,
+				FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+			},
+		},
+	}
+
+	signature, err := types.SignMessage(message, types.DomainBuilder, secretKey)
+	require.NoError(t, err)
+
+	return types.SignedBlindedBeaconBlock{
+		Signature: signature,
+		Message:   message,
+	}
+}
+
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, "0x00000000", time.Second, true, nil})
+		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", "0x00000000", time.Second, true, &ProposerConfigurationStorage{
+			defaultConfiguration: &ConfigurationStorage{
+				Relays: []RelayEntry{},
+			},
+		}})
 		require.Error(t, err)
 	})
 }
@@ -233,14 +285,10 @@ func TestRegisterValidator(t *testing.T) {
 }
 
 func TestGetHeader(t *testing.T) {
-	getPath := func(slot uint64, parentHash types.Hash, pubkey types.PublicKey) string {
-		return fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), pubkey.String())
-	}
-
 	hash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
 	pubkey := _HexToPubkey(
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
-	path := getPath(1, hash, pubkey)
+	path := newGetHeaderPath(1, hash, pubkey)
 	require.Equal(t, "/eth/v1/builder/header/1/0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249", path)
 
 	t.Run("Okay response from relay", func(t *testing.T) {
@@ -327,7 +375,7 @@ func TestGetHeader(t *testing.T) {
 
 		// Simulate a different public key registered to mev-boost
 		pk := types.PublicKey{}
-		backend.boost.relays[0].PublicKey = pk
+		backend.boost.pcs.defaultConfiguration.Relays[0].PublicKey = pk
 
 		rr := backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -390,10 +438,61 @@ func TestGetHeader(t *testing.T) {
 	t.Run("Invalid parent hash", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
 
-		invalidParentHashPath := getPath(1, types.Hash{}, pubkey)
+		invalidParentHashPath := newGetHeaderPath(1, types.Hash{}, pubkey)
 		rr := backend.request(t, http.MethodGet, invalidParentHashPath, nil)
 		require.Equal(t, http.StatusNoContent, rr.Code)
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Request specific relay based on proposer", func(t *testing.T) {
+		// Initiate three proposers.
+		_, proposer1 := newKeyPair(t)
+		_, proposer2 := newKeyPair(t)
+		_, proposer3 := newKeyPair(t)
+
+		// Create a backend with 2 relays.
+		// Update the handler to have two distinct routes with one more profitable than the other.
+		backend := newTestBackend(t, 2, time.Second)
+		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
+			1,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
+			2,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+
+		// Bind the first proposer to the first relay only.
+		backend.boost.pcs.proposerConfigurations[*proposer1] = &ConfigurationStorage{
+			Relays: []RelayEntry{
+				backend.relays[0].RelayEntry,
+			},
+		}
+		// Same goes for second proposer and second relay only.
+		backend.boost.pcs.proposerConfigurations[*proposer2] = &ConfigurationStorage{
+			Relays: []RelayEntry{
+				backend.relays[1].RelayEntry,
+			},
+		}
+
+		pathProposer1 := newGetHeaderPath(1, hash, *proposer1)
+		rr := backend.request(t, http.MethodGet, pathProposer1, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(pathProposer1))
+
+		pathProposer2 := newGetHeaderPath(1, hash, *proposer2)
+		rr = backend.request(t, http.MethodGet, pathProposer2, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(pathProposer2))
+
+		// Proposer 3 should have made request to both relays.
+		pathProposer3 := newGetHeaderPath(1, hash, *proposer3)
+		rr = backend.request(t, http.MethodGet, pathProposer3, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(pathProposer3))
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(pathProposer3))
 	})
 }
 
@@ -455,6 +554,71 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
+
+	t.Run("Request specific relay based on proposer", func(t *testing.T) {
+		// Initiate three proposers.
+		skP1, proposer1 := newKeyPair(t)
+		skP2, proposer2 := newKeyPair(t)
+		skP3, proposer3 := newKeyPair(t)
+
+		backend := newTestBackend(t, 2, time.Second)
+
+		// Bind the first proposer to the first relay only.
+		backend.boost.pcs.proposerConfigurations[*proposer1] = &ConfigurationStorage{
+			Relays: []RelayEntry{
+				backend.relays[0].RelayEntry,
+			},
+		}
+		// Same goes for second proposer and second relay only.
+		backend.boost.pcs.proposerConfigurations[*proposer2] = &ConfigurationStorage{
+			Relays: []RelayEntry{
+				backend.relays[1].RelayEntry,
+			},
+		}
+
+		// Simulate prior getHeader which perform registration of proposer public key used in the
+		// getPayload handler.
+		pathProposer1 := newGetHeaderPath(1, types.Hash{0x1}, *proposer1)
+		backend.request(t, http.MethodGet, pathProposer1, nil)
+		pathProposer2 := newGetHeaderPath(1, types.Hash{0x2}, *proposer2)
+		backend.request(t, http.MethodGet, pathProposer2, nil)
+		pathProposer3 := newGetHeaderPath(1, types.Hash{0x3}, *proposer3)
+		backend.request(t, http.MethodGet, pathProposer3, nil)
+
+		// Now we can proceed to getPayload requests..
+		payload1 := newPayload(t, skP1, 1, types.Hash{0x1})
+		payload2 := newPayload(t, skP2, 1, types.Hash{0x2})
+		payload3 := newPayload(t, skP3, 1, types.Hash{0x3})
+
+		rr := backend.request(t, http.MethodPost, path, payload1)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+		resp := new(types.GetPayloadResponse)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
+
+		rr = backend.request(t, http.MethodPost, path, payload2)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
+
+		resp = new(types.GetPayloadResponse)
+		err = json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
+
+		// Proposer 3 should be connected to all relays.
+		rr = backend.request(t, http.MethodPost, path, payload3)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
+		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
+
+		resp = new(types.GetPayloadResponse)
+		err = json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
+	})
 }
 
 func TestCheckRelays(t *testing.T) {
@@ -481,7 +645,7 @@ func TestCheckRelays(t *testing.T) {
 
 		url, err := url.ParseRequestURI(backend.relays[0].Server.URL)
 		require.NoError(t, err)
-		backend.boost.relays[0].URL = url
+		backend.boost.pcs.defaultConfiguration.Relays[0].URL = url
 		status := backend.boost.CheckRelays()
 		require.Equal(t, false, status)
 	})
