@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"flag"
@@ -51,7 +51,8 @@ var (
 
 var log = logrus.WithField("module", "cmd/mev-boost")
 
-func main() {
+// Main starts the mev-boost cli
+func Main() {
 	flag.Parse()
 	logrus.SetOutput(os.Stdout)
 
@@ -93,7 +94,7 @@ func main() {
 	} else if *useGenesisForkVersionSepolia {
 		genesisForkVersionHex = genesisForkVersionSepolia
 	} else {
-		log.Fatal("Please specify a genesis fork version (eg. -mainnet or -kiln or -ropsten or -genesis-fork-version flags)")
+		log.Fatal("Please specify a genesis fork version (eg. -mainnet / -kiln / -ropsten / -sepolia / -genesis-fork-version flags)")
 	}
 	log.Infof("Using genesis fork version: %s", genesisForkVersionHex)
 

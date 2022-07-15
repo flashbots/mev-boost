@@ -50,22 +50,28 @@ Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-ru
 
 `mev-boost` can run in any machine, as long as it is reachable by the validator client. The default port is 18550. The most common setup is to install it in the same machine as the validator client.
 
+## Dependencies
+
+- [Go 1.18+](https://go.dev/doc/install)
+
 ## From source
 
-Install the dependencies:
-
-- [Install Go 1.18](https://go.dev/doc/install)
-- Install build dependencies (in Ubuntu):
+Install mev-boost with `go install`:
 
 ```bash
-sudo apt install make gcc
+go install github.com/flashbots/mev-boost@latest
+mev-boost -help
 ```
 
-Build & run:
+Or clone the repository and build it:
 
 ```bash
+git clone https://github.com/flashbots/mev-boost.git
+cd mev-boost
 make build
-./mev-boost --help
+
+# Show the help
+./mev-boost -help
 ```
 
 ## From Docker image
@@ -77,7 +83,7 @@ We maintain a mev-boost Docker image at https://hub.docker.com/r/flashbots/mev-b
 
 ```bash
 docker pull flashbots/mev-boost:latest
-docker run flashbots/mev-boost --help
+docker run flashbots/mev-boost -help
 ```
 
 # Usage
@@ -86,9 +92,7 @@ First, install and run one of the [supported consensus clients](#consensus-clien
 
 #### Kiln testnet
 
-Here are general setup instructions for Kiln: https://notes.ethereum.org/@launchpad/kiln
-
-Run mev-boost pointed at our Kiln builder+relay:
+Run mev-boost pointed at our [Kiln Relay](https://builder-relay-kiln.flashbots.net):
 
 ```bash
 ./mev-boost -kiln -relays https://0xb5246e299aeb782fbc7c91b41b3284245b1ed5206134b0028b81dfb974e5900616c67847c2354479934fc4bb75519ee1@builder-relay-kiln.flashbots.net
@@ -96,7 +100,7 @@ Run mev-boost pointed at our Kiln builder+relay:
 
 #### Ropsten testnet
 
-Run mev-boost pointed at our Ropsten builder+relay:
+Run mev-boost pointed at our [Ropsten Relay](https://builder-relay-ropsten.flashbots.net/):
 
 ```
  ./mev-boost -ropsten -relays https://0xb124d80a00b80815397b4e7f1f05377ccc83aeeceb6be87963ba3649f1e6efa32ca870a88845917ec3f26a8e2aa25c77@builder-relay-ropsten.flashbots.net
@@ -104,7 +108,7 @@ Run mev-boost pointed at our Ropsten builder+relay:
 
 #### Sepolia testnet
 
-Run mev-boost pointed at our Sepolia builder+relay:
+Run mev-boost pointed at our [Sepolia Relay](https://builder-relay-sepolia.flashbots.net/):
 
 ```
  ./mev-boost -sepolia -relays https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@builder-relay-sepolia.flashbots.net
