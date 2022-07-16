@@ -10,11 +10,11 @@ v:
 
 .PHONY: build
 build:
-	go build -ldflags "-X main.version=${VERSION}" -v -o mev-boost ./cmd/mev-boost
+	go build -ldflags "-X 'github.com/flashbots/mev-boost/config.Version=${VERSION}' -X 'github.com/flashbots/mev-boost/config.BuildTime=$(shell date)'" -v -o mev-boost .
 
 .PHONY: build-testcli
 build-testcli:
-	go build -ldflags "-X main.version=${VERSION}" -v -o test-cli ./cmd/test-cli
+	go build -ldflags "-X 'github.com/flashbots/mev-boost/config.Version=${VERSION}' -X 'github.com/flashbots/mev-boost/config.BuildTime=$(shell date)'" -v -o test-cli ./cmd/test-cli
 
 .PHONY: test
 test:
