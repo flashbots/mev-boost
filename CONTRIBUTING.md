@@ -86,3 +86,12 @@ Follow the [Clean Code](https://flashbots.notion.site/Clean-Code-13016c5c7ca649f
 - Every pull request should be covered by unit tests.
 
 We appreciate you, friend <3.
+
+## Deploying an update
+
+* Ensure linter and tests are working: `make lint && make test-race`
+* Update `Version` in `config/vars.go` to next version (eg. `v1.10.1`), and commit
+* Create a git tag
+* `git push && git push --tags`
+* Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v1.10.2-dev`), and commit
+* In the meantime, Github CI will have produced a new draft release in https://github.com/flashbots/mev-boost/releases. Open it, generate the description and publish.
