@@ -33,7 +33,7 @@ var (
 	// cli flags
 	printVersion = flag.Bool("version", false, "only print version")
 	logJSON      = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
-	logLevel     = flag.String("loglevel", defaultLogLevel, "log-level: trace, debug, info, warn/warning, error, fatal, panic")
+	logLevel     = flag.String("loglevel", defaultLogLevel, "minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic")
 
 	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
@@ -72,6 +72,7 @@ func Main() {
 	if *logLevel != "" {
 		lvl, err := logrus.ParseLevel(*logLevel)
 		if err != nil {
+			flag.Usage()
 			log.Fatalf("Invalid loglevel: %s", *logLevel)
 		}
 		logrus.SetLevel(lvl)
@@ -91,12 +92,14 @@ func Main() {
 	} else if *useGenesisForkVersionSepolia {
 		genesisForkVersionHex = genesisForkVersionSepolia
 	} else {
+		flag.Usage()
 		log.Fatal("Please specify a genesis fork version (eg. -mainnet / -kiln / -ropsten / -sepolia / -genesis-fork-version flags)")
 	}
 	log.Infof("Using genesis fork version: %s", genesisForkVersionHex)
 
 	relays := parseRelayURLs(*relayURLs)
 	if len(relays) == 0 {
+		flag.Usage()
 		log.Fatal("No relays specified")
 	}
 	log.WithField("relays", relays).Infof("using %d relays", len(relays))
