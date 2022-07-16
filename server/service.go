@@ -215,9 +215,9 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	ua := UserAgent(req.Header.Get("User-Agent"))
 
 	for _, registration := range payload {
-		configurationStorage := m.pcs.GetProposerConfiguration(registration.Message.Pubkey)
+		proposerConfig := m.pcs.GetProposerConfiguration(registration.Message.Pubkey)
 
-		for _, relay := range configurationStorage.Relays {
+		for _, relay := range proposerConfig.Relays {
 			wg.Add(1)
 			go func(relay RelayEntry) {
 				defer wg.Done()
