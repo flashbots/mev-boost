@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/config"
 )
 
 // UserAgent is a custom string type to avoid confusing url + userAgent parameters in SendHTTPRequest
@@ -39,7 +40,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 	}
 
 	// Set user agent
-	req.Header.Set("User-Agent", strings.TrimSpace(fmt.Sprintf("mev-boost/%s %s", Version, userAgent)))
+	req.Header.Set("User-Agent", strings.TrimSpace(fmt.Sprintf("mev-boost/%s %s", config.Version, userAgent)))
 
 	// Execute request
 	resp, err := client.Do(req)

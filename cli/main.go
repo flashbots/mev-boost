@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
 )
@@ -20,8 +21,6 @@ const (
 )
 
 var (
-	version = "dev" // is set during build process
-
 	// defaults
 	defaultLogJSON            = os.Getenv("LOG_JSON") != ""
 	defaultLogLevel           = getEnv("LOG_LEVEL", "info")
@@ -57,11 +56,9 @@ func Main() {
 	logrus.SetOutput(os.Stdout)
 
 	if *printVersion {
-		fmt.Printf("mev-boost %s\n", version)
+		fmt.Printf("mev-boost %s\n", config.Version)
 		return
 	}
-	// Set the server version
-	server.Version = version
 
 	if *logJSON {
 		log.Logger.SetFormatter(&logrus.JSONFormatter{})
@@ -80,7 +77,7 @@ func Main() {
 		logrus.SetLevel(lvl)
 	}
 
-	log.Infof("mev-boost %s", version)
+	log.Infof("mev-boost %s", config.Version)
 
 	genesisForkVersionHex := ""
 	if *useCustomGenesisForkVersion != "" {
