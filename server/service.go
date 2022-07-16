@@ -236,9 +236,9 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	relayRespCh := make(chan error, len(m.pcs.GetAllRelays()))
 
 	for _, registration := range payload {
-		configurationStorage := m.pcs.GetProposerConfiguration(registration.Message.Pubkey)
+		proposerConfig := m.pcs.GetProposerConfiguration(registration.Message.Pubkey)
 
-		for _, relay := range configurationStorage.Relays {
+		for _, relay := range proposerConfig.Relays {
 			go func(relay RelayEntry) {
 				url := relay.GetURI(pathRegisterValidator)
 				log := log.WithField("url", url)
