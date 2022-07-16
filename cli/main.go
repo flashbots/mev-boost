@@ -48,7 +48,7 @@ var (
 	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version (for signature validation)")
 )
 
-var log = logrus.WithField("module", "cmd/mev-boost")
+var log = logrus.WithField("module", "cli")
 
 // Main starts the mev-boost cli
 func Main() {
