@@ -40,7 +40,7 @@ var (
 	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
 	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
 
-	configPath = flag.String("config", "", "configuration for proposer preferences")
+	configPath = flag.String("config", "", "configuration file for proposer preferences")
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet")
