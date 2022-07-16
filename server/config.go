@@ -41,8 +41,8 @@ func newRawConfigurationFile(filename string) (*rawConfigurationFile, error) {
 	return placeholder, nil
 }
 
-// ConfigurationStorage holds one proposer configuration.
-type ConfigurationStorage struct {
+// ProposerConfig holds one proposer configuration.
+type ProposerConfig struct {
 	FeeRecipient types.Address
 	Enabled      bool
 	Relays       []RelayEntry
@@ -51,8 +51,8 @@ type ConfigurationStorage struct {
 
 // ProposerConfigurationStorage holds both the default configuration and the proposers ones.
 type ProposerConfigurationStorage struct {
-	proposerConfigurations map[types.PublicKey]*ConfigurationStorage
-	defaultConfiguration   *ConfigurationStorage
+	proposerConfigurations map[types.PublicKey]*ProposerConfig
+	defaultConfiguration   *ProposerConfig
 }
 
 // NewProposerConfigurationStorage creates a new storage holding each proposer preferences using
@@ -66,7 +66,7 @@ func NewProposerConfigurationStorage(filename string) (*ProposerConfigurationSto
 
 	// Initialize the storage and save default configuration.
 	pcs := &ProposerConfigurationStorage{
-		proposerConfigurations: map[types.PublicKey]*ConfigurationStorage{},
+		proposerConfigurations: map[types.PublicKey]*ProposerConfig{},
 	}
 
 	pcs.defaultConfiguration, err = newConfigurationStorage(&raw.DefaultConfig, raw.BuilderRelaysGroups)
@@ -94,7 +94,7 @@ func NewProposerConfigurationStorage(filename string) (*ProposerConfigurationSto
 
 // GetProposerConfiguration looks for a specific configuration for the given proposer, if not found it
 // returns the default configuration.
-func (s *ProposerConfigurationStorage) GetProposerConfiguration(proposer types.PublicKey) *ConfigurationStorage {
+func (s *ProposerConfigurationStorage) GetProposerConfiguration(proposer types.PublicKey) *ProposerConfig {
 	res := s.proposerConfigurations[proposer]
 	if res == nil {
 		res = s.defaultConfiguration
@@ -103,10 +103,10 @@ func (s *ProposerConfigurationStorage) GetProposerConfiguration(proposer types.P
 	return res
 }
 
-// newConfigurationStorage creates a new ConfigurationStorage from a rawConfiguration
+// newConfigurationStorage creates a new ProposerConfig from a rawConfiguration
 // previously extracted from a JSON file and the relay groups available.
 // Used to create the default configuration and each proposer's one.
-func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]string) (*ConfigurationStorage, error) {
+func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]string) (*ProposerConfig, error) {
 	feeRecipient, err := types.HexToAddress(rawConf.FeeRecipient)
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]stri
 		return nil, err
 	}
 
-	configuration := &ConfigurationStorage{
+	configuration := &ProposerConfig{
 		FeeRecipient: feeRecipient,
 		Enabled:      rawConf.ValidatorRegistration.Enabled,
 		GasLimit:     gasLimit,
@@ -167,7 +167,7 @@ func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]stri
 // FromRelayList creates a default configuration with the provided list of relays.
 func (s *ProposerConfigurationStorage) FromRelayList(relays []RelayEntry) *ProposerConfigurationStorage {
 	return &ProposerConfigurationStorage{
-		defaultConfiguration: &ConfigurationStorage{
+		defaultConfiguration: &ProposerConfig{
 			Relays: relays,
 		},
 	}

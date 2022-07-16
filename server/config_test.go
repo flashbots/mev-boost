@@ -105,7 +105,7 @@ func TestCreateNewConfigurationStorage(t *testing.T) {
 		groups  map[string][]string
 
 		expectedError                bool
-		expectedConfigurationStorage *ConfigurationStorage
+		expectedConfigurationStorage *ProposerConfig
 	}{
 		{
 			name: "It detects invalid fee recipient",
@@ -235,7 +235,7 @@ func TestCreateNewConfigurationStorage(t *testing.T) {
 				},
 			},
 			expectedError: false,
-			expectedConfigurationStorage: &ConfigurationStorage{
+			expectedConfigurationStorage: &ProposerConfig{
 				FeeRecipient: feeRecipient,
 				Enabled:      false,
 				Relays:       _newRelayEntries(t, 0, 1),
@@ -259,7 +259,7 @@ func TestCreateNewConfigurationStorage(t *testing.T) {
 			},
 			groups:        map[string][]string{},
 			expectedError: false,
-			expectedConfigurationStorage: &ConfigurationStorage{
+			expectedConfigurationStorage: &ProposerConfig{
 				FeeRecipient: feeRecipient,
 				Enabled:      false,
 				Relays:       _newRelayEntries(t, 0, 1),
@@ -288,7 +288,7 @@ func TestCreateNewConfigurationStorage(t *testing.T) {
 				},
 			},
 			expectedError: false,
-			expectedConfigurationStorage: &ConfigurationStorage{
+			expectedConfigurationStorage: &ProposerConfig{
 				FeeRecipient: feeRecipient,
 				Enabled:      false,
 				Relays:       _newRelayEntries(t, 0, 2),
@@ -325,7 +325,7 @@ func TestCreateNewProposerConfigurationStorage(t *testing.T) {
 			filename:      "testdata/valid_config.json",
 			expectedError: false,
 			expectedProposerConfigurationStorage: &ProposerConfigurationStorage{
-				proposerConfigurations: map[types.PublicKey]*ConfigurationStorage{
+				proposerConfigurations: map[types.PublicKey]*ProposerConfig{
 					_HexToPubkey("0xa057816155ad77931185101128655c0191bd0214c201ca48ed887f6c4c6adf334070efcd75140eada5ac83a92506dd7a"): {
 						FeeRecipient: _HexToAddress("0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3"),
 						Enabled:      true,
@@ -333,7 +333,7 @@ func TestCreateNewProposerConfigurationStorage(t *testing.T) {
 						GasLimit:     _newGasLimit(t, "123456"),
 					},
 				},
-				defaultConfiguration: &ConfigurationStorage{
+				defaultConfiguration: &ProposerConfig{
 					FeeRecipient: _HexToAddress("0x0000000000000000000000000000000000000000"),
 					Enabled:      false,
 					Relays:       _newRelayEntries(t, 6, 7),
@@ -367,12 +367,12 @@ func TestGetProposerConfiguration(t *testing.T) {
 		name    string
 		storage ProposerConfigurationStorage
 
-		expectedConfiguration *ConfigurationStorage
+		expectedConfiguration *ProposerConfig
 	}{
 		{
 			name: "It gets specific configuration",
 			storage: ProposerConfigurationStorage{
-				proposerConfigurations: map[types.PublicKey]*ConfigurationStorage{
+				proposerConfigurations: map[types.PublicKey]*ProposerConfig{
 					proposerPubKey: {
 						FeeRecipient: feeRecipient,
 						Enabled:      true,
@@ -381,7 +381,7 @@ func TestGetProposerConfiguration(t *testing.T) {
 					},
 				},
 			},
-			expectedConfiguration: &ConfigurationStorage{
+			expectedConfiguration: &ProposerConfig{
 				FeeRecipient: feeRecipient,
 				Enabled:      true,
 				Relays:       _newRelayEntries(t, 0, 1),
@@ -391,14 +391,14 @@ func TestGetProposerConfiguration(t *testing.T) {
 		{
 			name: "It gets default configuration",
 			storage: ProposerConfigurationStorage{
-				defaultConfiguration: &ConfigurationStorage{
+				defaultConfiguration: &ProposerConfig{
 					FeeRecipient: feeRecipient,
 					Enabled:      true,
 					Relays:       _newRelayEntries(t, 0, 2),
 					GasLimit:     _newGasLimit(t, gasLimit),
 				},
 			},
-			expectedConfiguration: &ConfigurationStorage{
+			expectedConfiguration: &ProposerConfig{
 				FeeRecipient: feeRecipient,
 				Enabled:      true,
 				Relays:       _newRelayEntries(t, 0, 2),

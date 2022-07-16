@@ -39,8 +39,8 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		Log:        testLog,
 		ListenAddr: "localhost:12345",
 		PCS: &ProposerConfigurationStorage{
-			proposerConfigurations: map[types.PublicKey]*ConfigurationStorage{},
-			defaultConfiguration: &ConfigurationStorage{
+			proposerConfigurations: map[types.PublicKey]*ProposerConfig{},
+			defaultConfiguration: &ProposerConfig{
 				Relays: relayEntries,
 			},
 		},
@@ -119,7 +119,7 @@ func newPayload(t *testing.T, secretKey *bls.SecretKey, slot uint64, parentHash 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
 		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", "0x00000000", time.Second, true, &ProposerConfigurationStorage{
-			defaultConfiguration: &ConfigurationStorage{
+			defaultConfiguration: &ProposerConfig{
 				Relays: []RelayEntry{},
 			},
 		}})
@@ -465,13 +465,13 @@ func TestGetHeader(t *testing.T) {
 		)
 
 		// Bind the first proposer to the first relay only.
-		backend.boost.pcs.proposerConfigurations[*proposer1] = &ConfigurationStorage{
+		backend.boost.pcs.proposerConfigurations[*proposer1] = &ProposerConfig{
 			Relays: []RelayEntry{
 				backend.relays[0].RelayEntry,
 			},
 		}
 		// Same goes for second proposer and second relay only.
-		backend.boost.pcs.proposerConfigurations[*proposer2] = &ConfigurationStorage{
+		backend.boost.pcs.proposerConfigurations[*proposer2] = &ProposerConfig{
 			Relays: []RelayEntry{
 				backend.relays[1].RelayEntry,
 			},
@@ -564,13 +564,13 @@ func TestGetPayload(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
 
 		// Bind the first proposer to the first relay only.
-		backend.boost.pcs.proposerConfigurations[*proposer1] = &ConfigurationStorage{
+		backend.boost.pcs.proposerConfigurations[*proposer1] = &ProposerConfig{
 			Relays: []RelayEntry{
 				backend.relays[0].RelayEntry,
 			},
 		}
 		// Same goes for second proposer and second relay only.
-		backend.boost.pcs.proposerConfigurations[*proposer2] = &ConfigurationStorage{
+		backend.boost.pcs.proposerConfigurations[*proposer2] = &ProposerConfig{
 			Relays: []RelayEntry{
 				backend.relays[1].RelayEntry,
 			},
