@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/flashbots/mev-boost/proposerconfig"
 	"net/http"
 	"strconv"
 	"sync"
@@ -50,7 +51,7 @@ type BoostServiceOpts struct {
 type BoostService struct {
 	listenAddr string
 	pcs        *ProposerConfigurationStorage
-	pks        *proposerPublicKeyStorage
+	pks        *proposerconfig.PublicKeyStorage
 	log        *logrus.Entry
 	srv        *http.Server
 	relayCheck bool
@@ -76,8 +77,8 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		listenAddr: opts.ListenAddr,
 		log:        opts.Log.WithField("module", "service"),
 		pcs:        opts.PCS,
-		pks: &proposerPublicKeyStorage{
-			storage: map[string]types.PublicKey{},
+		pks: &proposerconfig.PublicKeyStorage{
+			Storage: map[proposerconfig.StorageKey]types.PublicKey{},
 		},
 		relayCheck:     opts.RelayCheck,
 		maxHeaderBytes: opts.MaxHeaderBytes,
@@ -248,8 +249,6 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 // GetHeaderV1 TODO
 func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	slot := vars["slot"]
-	parentHashHex := vars["parent_hash"]
 
 	publicKey, err := types.HexToPubkey(vars["pubkey"])
 	if err != nil || len(vars["pubkey"]) != 98 {
@@ -257,30 +256,36 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	log := m.log.WithFields(logrus.Fields{
-		"method":     "getHeader",
-		"slot":       slot,
-		"parentHash": parentHashHex,
-		"pubkey":     publicKey.String(),
-	})
-	log.Info("getHeader")
-
-	if _, err := strconv.ParseUint(slot, 10, 64); err != nil {
+	slot, err := strconv.ParseUint(vars["slot"], 10, 64)
+	if err != nil {
 		m.respondError(w, http.StatusBadRequest, errInvalidSlot.Error())
 		return
 	}
 
-	if len(parentHashHex) != 66 {
+	parentHash := types.Hash{}
+	if err := parentHash.UnmarshalText([]byte(vars["parent_hash"])); err != nil || len(vars["parent_hash"]) != 66 {
 		m.respondError(w, http.StatusBadRequest, errInvalidHash.Error())
 		return
 	}
+
+	log := m.log.WithFields(logrus.Fields{
+		"method":     "getHeader",
+		"slot":       slot,
+		"parentHash": parentHash.String(),
+		"pubkey":     publicKey.String(),
+	})
+	log.Info("getHeader")
 
 	result := new(types.GetHeaderResponse)
 	var mu sync.Mutex
 	ua := UserAgent(req.Header.Get("User-Agent"))
 
 	// Bind this public key to a slot + parent hash.
-	m.pks.storage[slot+parentHashHex] = publicKey
+	key := proposerconfig.StorageKey{
+		Slot:       slot,
+		ParentHash: parentHash,
+	}
+	m.pks.Storage[key] = publicKey
 
 	// Select the relays we want mev-boost to reach.
 	configurationStorage := m.pcs.GetProposerConfiguration(publicKey)
@@ -291,7 +296,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		wg.Add(1)
 		go func(relay RelayEntry) {
 			defer wg.Done()
-			path := fmt.Sprintf("/eth/v1/builder/header/%s/%s/%s", slot, parentHashHex, publicKey.String())
+			path := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), publicKey.String())
 			url := relay.GetURI(path)
 			log := log.WithField("url", url)
 			responsePayload := new(types.GetHeaderResponse)
@@ -331,9 +336,9 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 			// Verify response coherence with proposer's input data
 			responseParentHash := responsePayload.Data.Message.Header.ParentHash.String()
-			if responseParentHash != parentHashHex {
+			if responseParentHash != parentHash.String() {
 				log.WithFields(logrus.Fields{
-					"originalParentHash": parentHashHex,
+					"originalParentHash": parentHash.String(),
 					"responseParentHash": responseParentHash,
 				}).Error("proposer and relay parent hashes are not the same")
 				return
@@ -382,8 +387,11 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	var mu sync.Mutex
 	ua := UserAgent(req.Header.Get("User-Agent"))
 
-	id := strconv.Itoa(int(payload.Message.Slot)) + payload.Message.Body.ExecutionPayloadHeader.ParentHash.String()
-	publicKey := m.pks.storage[id]
+	id := proposerconfig.StorageKey{
+		Slot:       payload.Message.Slot,
+		ParentHash: payload.Message.Body.ExecutionPayloadHeader.ParentHash,
+	}
+	publicKey := m.pks.Storage[id]
 
 	configurationStorage := m.pcs.GetProposerConfiguration(publicKey)
 
