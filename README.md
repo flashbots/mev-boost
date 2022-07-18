@@ -192,6 +192,7 @@ If you find a security vulnerability on this project or any other initiative rel
 # License
 
 The code in this project is free software under the [MIT License](LICENSE).
+Logo by [@lekevicius](https://twitter.com/lekevicius) on CC0 license.
 
 ---
 
