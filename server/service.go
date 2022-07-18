@@ -79,7 +79,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		log:        opts.Log.WithField("module", "service"),
 		pcs:        opts.PCS,
 		pks: &proposerconfig.PublicKeyStorage{
-			Storage: map[proposerconfig.StorageKey]types.PublicKey{},
+			Storage: map[proposerconfig.StorageKey][]types.PublicKey{},
 		},
 		relayCheck:     opts.RelayCheck,
 		bids:			make(map[bidRespKey]bidResp),
@@ -306,7 +306,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		Slot:       slot,
 		ParentHash: parentHash,
 	}
-	m.pks.Storage[key] = publicKey
+	m.pks.Store(publicKey, key)
 
 	// Select the relays we want mev-boost to reach.
 	configurationStorage := m.pcs.GetProposerConfiguration(publicKey)
@@ -443,11 +443,19 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
 	defer requestCtxCancel()
 
-	id := proposerconfig.StorageKey{
+	key := proposerconfig.StorageKey{
 		Slot:       payload.Message.Slot,
 		ParentHash: payload.Message.Body.ExecutionPayloadHeader.ParentHash,
 	}
-	publicKey := m.pks.Storage[id]
+	publicKeys := m.pks.Get(key)
+	publicKey := types.PublicKey{}
+
+	for _, publicKey = range publicKeys {
+		ok, _ := types.VerifySignature(payload.Message, m.builderSigningDomain, publicKey[:], payload.Signature[:])
+		if ok {
+			break
+		}
+	}
 
 	configurationStorage := m.pcs.GetProposerConfiguration(publicKey)
 
@@ -509,6 +517,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		return
 	}
 
+	m.pks.Prune(key)
 	m.respondOK(w, result)
 }
 
