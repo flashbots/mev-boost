@@ -1,3 +1,5 @@
+![mev-boost](https://user-images.githubusercontent.com/15959632/179510107-4151cc25-16b1-4c80-88e1-82391171b86b.png)
+
 # mev-boost
 
 [![Goreport status](https://goreportcard.com/badge/github.com/flashbots/mev-boost)](https://goreportcard.com/report/github.com/flashbots/mev-boost)
