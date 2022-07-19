@@ -1,3 +1,5 @@
+![mev-boost](https://user-images.githubusercontent.com/116939/179831878-dc6a0f76-94f4-46cc-bafd-18a3a4b58ea4.png)
+
 # mev-boost
 
 [![Goreport status](https://goreportcard.com/badge/github.com/flashbots/mev-boost)](https://goreportcard.com/report/github.com/flashbots/mev-boost)
@@ -190,6 +192,8 @@ If you find a security vulnerability on this project or any other initiative rel
 # License
 
 The code in this project is free software under the [MIT License](LICENSE).
+
+Logo by [@lekevicius](https://twitter.com/lekevicius) on CC0 license.
 
 ---
 
