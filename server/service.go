@@ -251,7 +251,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	vars := mux.Vars(req)
 
 	publicKey, err := types.HexToPubkey(vars["pubkey"])
-	if err != nil || len(vars["pubkey"]) != 98 {
+	if err != nil {
 		m.respondError(w, http.StatusBadRequest, errInvalidPubkey.Error())
 		return
 	}
@@ -263,7 +263,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	parentHash := types.Hash{}
-	if err := parentHash.UnmarshalText([]byte(vars["parent_hash"])); err != nil || len(vars["parent_hash"]) != 66 {
+	if err := parentHash.UnmarshalText([]byte(vars["parent_hash"])); err != nil {
 		m.respondError(w, http.StatusBadRequest, errInvalidHash.Error())
 		return
 	}
