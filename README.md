@@ -92,15 +92,15 @@ docker run flashbots/mev-boost -help
 
 First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status).
 
-#### Kiln testnet
+### Goerli Shadow Fork 5
 
-Run mev-boost pointed at our [Kiln Relay](https://builder-relay-kiln.flashbots.net):
+Run mev-boost pointed at our [Goerli Shadow Fork 5 Relay](https://builder-relay-goerli-sf5.flashbots.net):
 
 ```bash
-./mev-boost -kiln -relays https://0xb5246e299aeb782fbc7c91b41b3284245b1ed5206134b0028b81dfb974e5900616c67847c2354479934fc4bb75519ee1@builder-relay-kiln.flashbots.net
+./mev-boost -goerli-shadow-fork-5 -relays https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@builder-relay-goerli-sf5.flashbots.net
 ```
 
-#### Ropsten testnet
+### Ropsten testnet
 
 Run mev-boost pointed at our [Ropsten Relay](https://builder-relay-ropsten.flashbots.net/):
 
@@ -108,7 +108,15 @@ Run mev-boost pointed at our [Ropsten Relay](https://builder-relay-ropsten.flas
  ./mev-boost -ropsten -relays https://0xb124d80a00b80815397b4e7f1f05377ccc83aeeceb6be87963ba3649f1e6efa32ca870a88845917ec3f26a8e2aa25c77@builder-relay-ropsten.flashbots.net
 ```
 
-#### Sepolia testnet
+### Kiln testnet
+
+Run mev-boost pointed at our [Kiln Relay](https://builder-relay-kiln.flashbots.net):
+
+```bash
+./mev-boost -kiln -relays https://0xb5246e299aeb782fbc7c91b41b3284245b1ed5206134b0028b81dfb974e5900616c67847c2354479934fc4bb75519ee1@builder-relay-kiln.flashbots.net
+```
+
+### Sepolia testnet
 
 Run mev-boost pointed at our [Sepolia Relay](https://builder-relay-sepolia.flashbots.net/):
 
