@@ -14,10 +14,11 @@ import (
 )
 
 const (
-	genesisForkVersionMainnet = "0x00000000"
-	genesisForkVersionKiln    = "0x70000069"
-	genesisForkVersionRopsten = "0x80000069"
-	genesisForkVersionSepolia = "0x90000069"
+	genesisForkVersionMainnet   = "0x00000000"
+	genesisForkVersionKiln      = "0x70000069" // https://github.com/eth-clients/merge-testnets/blob/main/kiln/config.yaml#L10
+	genesisForkVersionRopsten   = "0x80000069"
+	genesisForkVersionSepolia   = "0x90000069"
+	genesisForkVersionGoerliSF5 = "0x13001034" // https://github.com/eth-clients/merge-testnets/blob/main/goerli-shadow-fork-5/config.yaml#L11
 )
 
 var (
@@ -41,11 +42,12 @@ var (
 	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
 
 	// helpers
-	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet genesis fork version 0x00000000 (for signature validation)")
-	useGenesisForkVersionKiln    = flag.Bool("kiln", false, "use Kiln genesis fork version 0x70000069 (for signature validation)")
-	useGenesisForkVersionRopsten = flag.Bool("ropsten", false, "use Ropsten genesis fork version 0x80000069 (for signature validation)")
-	useGenesisForkVersionSepolia = flag.Bool("sepolia", false, "use Sepolia genesis fork version 0x90000069 (for signature validation)")
-	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version (for signature validation)")
+	useGenesisForkVersionMainnet   = flag.Bool("mainnet", false, "use Mainnet")
+	useGenesisForkVersionKiln      = flag.Bool("kiln", false, "use Kiln")
+	useGenesisForkVersionRopsten   = flag.Bool("ropsten", false, "use Ropsten")
+	useGenesisForkVersionSepolia   = flag.Bool("sepolia", false, "use Sepolia")
+	useGenesisForkVersionGoerliSF5 = flag.Bool("goerli-shadow-fork-5", false, "use Goerli shadow fork")
+	useCustomGenesisForkVersion    = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
 )
 
 var log = logrus.WithField("module", "cli")
@@ -91,9 +93,11 @@ func Main() {
 		genesisForkVersionHex = genesisForkVersionRopsten
 	} else if *useGenesisForkVersionSepolia {
 		genesisForkVersionHex = genesisForkVersionSepolia
+	} else if *useGenesisForkVersionGoerliSF5 {
+		genesisForkVersionHex = genesisForkVersionGoerliSF5
 	} else {
 		flag.Usage()
-		log.Fatal("Please specify a genesis fork version (eg. -mainnet / -kiln / -ropsten / -sepolia / -genesis-fork-version flags)")
+		log.Fatal("Please specify a genesis fork version (eg. -mainnet / -kiln / -ropsten / -sepolia / -goerli-shadow-fork-5 / -genesis-fork-version flags)")
 	}
 	log.Infof("Using genesis fork version: %s", genesisForkVersionHex)
 
