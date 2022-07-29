@@ -19,8 +19,10 @@ This project is part of the Flashbots research towards proposer/builder separati
 See also:
 
 * [Builder API specification](https://ethereum.github.io/builder-specs)
+* [Relay API documentation](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
 * [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost)
 * [Integration docs (mev-boost wiki)](https://github.com/flashbots/mev-boost/wiki)
+* [boost.flashbots.net](https://boost.flashbots.net)
 
 ---
 
@@ -91,14 +93,6 @@ docker run flashbots/mev-boost -help
 # Usage
 
 First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status).
-
-### Goerli Shadow Fork 5
-
-Run mev-boost pointed at our [Goerli Shadow Fork 5 Relay](https://builder-relay-goerli-sf5.flashbots.net):
-
-```bash
-./mev-boost -goerli-shadow-fork-5 -relays https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@builder-relay-goerli-sf5.flashbots.net
-```
 
 ### Ropsten testnet
 
