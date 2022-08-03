@@ -468,7 +468,15 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	if result.Data == nil || result.Data.BlockHash == nilHash {
 		bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
 		m.bidsLock.Lock()
-		originalResp := m.bids[bidKey]
+		originalResp, ok := m.bids[bidKey]
+		if !ok {
+			m.bidsLock.Unlock()
+			log.WithFields(logrus.Fields{
+				"slot":      payload.Message.Slot,
+				"blockHash": payload.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
+			}).Error("unknown block slot/hash")
+			return
+		}
 		m.bidsLock.Unlock()
 		log.WithField("relays", strings.Join(originalResp.relays, ", ")).Errorf("no payload received from relay -- withholding or network error --")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
