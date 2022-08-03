@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -97,4 +98,18 @@ func DecodeJSON(r io.Reader, dst any) error {
 		return err
 	}
 	return nil
+}
+
+// bidResp are entries in the bids cache
+type bidResp struct {
+	t         time.Time
+	response  types.GetHeaderResponse
+	blockHash string
+	relays    []string
+}
+
+// bidRespKey is used as key for the bids cache
+type bidRespKey struct {
+	slot      uint64
+	blockHash string
 }
