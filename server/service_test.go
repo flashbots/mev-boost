@@ -447,7 +447,6 @@ func TestGetPayload(t *testing.T) {
 		// Delays are needed because otherwise one relay might never receive a request
 		backend.relays[0].ResponseDelay = 10 * time.Millisecond
 		backend.relays[1].ResponseDelay = 10 * time.Millisecond
-
 		// 1/2 failing responses are okay
 		backend.relays[0].GetPayloadResponse = resp
 		rr := backend.request(t, http.MethodPost, path, payload)
@@ -457,6 +456,10 @@ func TestGetPayload(t *testing.T) {
 
 		// 2/2 failing responses are okay
 		backend.relays[1].GetPayloadResponse = resp
+		backend.boost.bids[bidRespKey{
+			slot:      1,
+			blockHash: "0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab1",
+		}] = bidResp{}
 		rr = backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
