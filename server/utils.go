@@ -102,9 +102,10 @@ func DecodeJSON(r io.Reader, dst any) error {
 
 // bidResp are entries in the bids cache
 type bidResp struct {
-	t        time.Time
-	response types.GetHeaderResponse
-	relay    string
+	t         time.Time
+	response  types.GetHeaderResponse
+	blockHash string
+	relays    []string
 }
 
 // bidRespKey is used as key for the bids cache

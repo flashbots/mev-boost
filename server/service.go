@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -284,6 +285,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	var mu sync.Mutex
+	relays := make(map[string][]string) // relays per blockHash
 	result := bidResp{}
 
 	ua := UserAgent(req.Header.Get("User-Agent"))
@@ -314,9 +316,10 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
+			blockHash := responsePayload.Data.Message.Header.BlockHash.String()
 			log = log.WithFields(logrus.Fields{
 				"blockNumber": responsePayload.Data.Message.Header.BlockNumber,
-				"blockHash":   responsePayload.Data.Message.Header.BlockHash,
+				"blockHash":   blockHash,
 				"txRoot":      responsePayload.Data.Message.Header.TransactionsRoot.String(),
 				"value":       responsePayload.Data.Message.Value.String(),
 			})
@@ -345,15 +348,22 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			mu.Lock()
 			defer mu.Unlock()
 
+			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
+			if _, ok := relays[blockHash]; !ok {
+				relays[blockHash] = []string{relay.String()}
+			} else {
+				relays[blockHash] = append(relays[blockHash], relay.String())
+			}
+
 			// Skip if value (fee) is not greater than the current highest value
 			if result.response.Data != nil && responsePayload.Data.Message.Value.Cmp(&result.response.Data.Message.Value) < 1 {
 				return
 			}
 
 			// Use this relay's response as mev-boost response because it's most profitable
-			log.Debug("received a better bid")
+			log.Debug("received a good bid")
 			result.response = *responsePayload
-			result.relay = relay.String()
+			result.blockHash = blockHash
 			result.t = time.Now()
 		}(relay)
 	}
@@ -361,29 +371,30 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// Wait for all requests to complete...
 	wg.Wait()
 
-	if result.response.Data == nil {
+	if result.blockHash == "" {
 		log.Info("no bid received")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
+	// Return the bid
+	m.respondOK(w, result.response)
+
 	// Log result
+	result.relays = relays[result.blockHash]
 	log.WithFields(logrus.Fields{
+		"blockHash":   result.blockHash,
 		"blockNumber": result.response.Data.Message.Header.BlockNumber,
-		"blockHash":   result.response.Data.Message.Header.BlockHash,
 		"txRoot":      result.response.Data.Message.Header.TransactionsRoot.String(),
 		"value":       result.response.Data.Message.Value.String(),
-		"relay":       result.relay,
+		"relays":      strings.Join(result.relays, ", "),
 	}).Info("best bid")
 
 	// Remember the bid, for future logging in case of withholding
-	bidKey := bidRespKey{slot: _slot, blockHash: result.response.Data.Message.Header.BlockHash.String()}
+	bidKey := bidRespKey{slot: _slot, blockHash: result.blockHash}
 	m.bidsLock.Lock()
 	m.bids[bidKey] = result
 	m.bidsLock.Unlock()
-
-	// Return the bid
-	m.respondOK(w, result.response)
 }
 
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
@@ -460,7 +471,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		m.bidsLock.Lock()
 		originalResp := m.bids[bidKey]
 		m.bidsLock.Unlock()
-		log.WithField("relay", originalResp.relay).Errorf("no payload received from relay -- withholding or network error --")
+		log.WithField("relays", strings.Join(originalResp.relays, ", ")).Errorf("no payload received from relay -- withholding or network error --")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
