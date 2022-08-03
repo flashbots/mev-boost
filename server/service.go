@@ -377,9 +377,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// Return the bid
-	m.respondOK(w, result.response)
-
 	// Log result
 	result.relays = relays[result.blockHash]
 	log.WithFields(logrus.Fields{
@@ -395,6 +392,9 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.bidsLock.Lock()
 	m.bids[bidKey] = result
 	m.bidsLock.Unlock()
+
+	// Return the bid
+	m.respondOK(w, result.response)
 }
 
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
@@ -407,12 +407,15 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	result := new(types.GetPayloadResponse)
-	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
-	defer requestCtxCancel()
+	log = log.WithField("blockHash", payload.Message.Body.ExecutionPayloadHeader.BlockHash.String())
 	var wg sync.WaitGroup
 	var mu sync.Mutex
+	result := new(types.GetPayloadResponse)
 	ua := UserAgent(req.Header.Get("User-Agent"))
+
+	// Prepare the request context, which will be cancelled after the first successful response from a relay
+	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
+	defer requestCtxCancel()
 
 	for _, relay := range m.relays {
 		wg.Add(1)
@@ -438,8 +441,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			// Ensure the response blockhash matches the request
 			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Data.BlockHash {
 				log.WithFields(logrus.Fields{
-					"payloadBlockHash":  payload.Message.Body.ExecutionPayloadHeader.BlockHash,
-					"responseBlockHash": responsePayload.Data.BlockHash,
+					"responseBlockHash": responsePayload.Data.BlockHash.String(),
 				}).Error("requestBlockHash does not equal responseBlockHash")
 				return
 			}
@@ -455,10 +457,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			// Received successful response. Now cancel other requests and return immediately
 			requestCtxCancel()
 			*result = *responsePayload
-			log.WithFields(logrus.Fields{
-				"blockHash":   responsePayload.Data.BlockHash,
-				"blockNumber": responsePayload.Data.BlockNumber,
-			}).Info("getPayload: received payload from relay")
+			log.Info("received payload from relay")
 		}(relay)
 	}
 
