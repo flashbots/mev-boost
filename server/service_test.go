@@ -196,6 +196,9 @@ func TestRegisterValidator(t *testing.T) {
 	t.Run("Relay error response", func(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
 
+		backend.relays[0].ResponseDelay = 5 * time.Millisecond
+		backend.relays[1].ResponseDelay = 5 * time.Millisecond
+
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -444,22 +447,19 @@ func TestGetPayload(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
 		resp := new(types.GetPayloadResponse)
 
-		// Delays are needed because otherwise one relay might never receive a request
-		backend.relays[0].ResponseDelay = 10 * time.Millisecond
-		backend.relays[1].ResponseDelay = 10 * time.Millisecond
-
 		// 1/2 failing responses are okay
 		backend.relays[0].GetPayloadResponse = resp
 		rr := backend.request(t, http.MethodPost, path, payload)
-		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
+		require.GreaterOrEqual(t, backend.relays[1].GetRequestCount(path)+backend.relays[0].GetRequestCount(path), 1)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 		// 2/2 failing responses are okay
+		backend = newTestBackend(t, 2, time.Second)
+		backend.relays[0].GetPayloadResponse = resp
 		backend.relays[1].GetPayloadResponse = resp
 		rr = backend.request(t, http.MethodPost, path, payload)
-		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
 		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
