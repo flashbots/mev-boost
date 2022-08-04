@@ -215,7 +215,7 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 // handleRegisterValidator - returns 200 if at least one relay returns 200, else 502
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "registerValidator")
-	log.Info("registerValidator")
+	log.Debug("registerValidator")
 
 	payload := []types.SignedValidatorRegistration{}
 	if err := DecodeJSON(req.Body, &payload); err != nil {
@@ -223,9 +223,14 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		return
 	}
 
+	ua := UserAgent(req.Header.Get("User-Agent"))
+	log = log.WithFields(logrus.Fields{
+		"numRegistrations": len(payload),
+		"ua":               ua,
+	})
+
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
-	ua := UserAgent(req.Header.Get("User-Agent"))
 
 	for _, relay := range m.relays {
 		wg.Add(1)
@@ -236,7 +241,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 
 			_, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, ua, payload, nil)
 			if err != nil {
-				log.WithError(err).Warn("error in registerValidator to relay")
+				log.WithError(err).Warn("error calling registerValidator on relay")
 				return
 			}
 
