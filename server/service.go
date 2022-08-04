@@ -229,34 +229,31 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		"ua":               ua,
 	})
 
-	var wg sync.WaitGroup
-	var numSuccessRequestsToRelay uint32
+	relayRespCh := make(chan error, len(m.relays))
 
 	for _, relay := range m.relays {
-		wg.Add(1)
 		go func(relay RelayEntry) {
-			defer wg.Done()
 			url := relay.GetURI(pathRegisterValidator)
 			log := log.WithField("url", url)
 
 			_, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, ua, payload, nil)
+			relayRespCh <- err
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
 				return
 			}
-
-			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
 		}(relay)
 	}
 
-	// Wait for all requests to complete...
-	wg.Wait()
-
-	if numSuccessRequestsToRelay > 0 {
-		m.respondOK(w, nilResponse)
-	} else {
-		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
+	for i := 0; i < len(m.relays); i++ {
+		respErr := <-relayRespCh
+		if respErr == nil {
+			m.respondOK(w, nilResponse)
+			return
+		}
 	}
+
+	m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 }
 
 // handleGetHeader requests bids from the relays
