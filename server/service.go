@@ -309,7 +309,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			if code == http.StatusNoContent {
-				log.Info("no-content response")
+				log.Debug("no-content response")
 				return
 			}
 

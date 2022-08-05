@@ -17,11 +17,11 @@ This project is part of the Flashbots research towards proposer/builder separati
 
 See also:
 
-* [Builder API specification](https://ethereum.github.io/builder-specs)
-* [Relay API documentation](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
+* Documentation: [Builder API](https://ethereum.github.io/builder-specs), [Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
 * [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost)
-* [Integration docs (mev-boost wiki)](https://github.com/flashbots/mev-boost/wiki)
 * [boost.flashbots.net](https://boost.flashbots.net)
+* [Wiki](https://github.com/flashbots/mev-boost/wiki)
+* [Troubleshooting guide](https://github.com/flashbots/mev-boost/wiki/Troubleshooting)
 
 ---
 
@@ -51,7 +51,7 @@ Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-ru
 
 # Installing
 
-`mev-boost` can run in any machine, as long as it is reachable by the validator client. The default port is 18550. The most common setup is to install it in the same machine as the validator client.
+`mev-boost` can run in any machine, as long as it is reachable by the beacon client. The default port is 18550. The most common setup is to install it in the same machine as the beacon client.
 
 ## Dependencies
 
@@ -91,7 +91,7 @@ docker run flashbots/mev-boost -help
 
 # Usage
 
-First, install and run one of the [supported consensus clients](#consensus-clients-implementation-status).
+A single mev-boost instance can be used by multiple beacon nodes.
 
 ### Ropsten testnet
 
@@ -129,24 +129,6 @@ Run mev-boost pointed at our [Goerli Relay](https://builder-relay-goerli.flashbo
 
 `test-cli` is a utility to execute all proposer requests against mev-boost+relay. See also the [test-cli readme](cmd/test-cli/README.md).
 
-# Consensus Clients Implementation Status
-
-| Project                                             | Status                                                                                   |
-|-----------------------------------------------------|------------------------------------------------------------------------------------------|
-| [Teku](https://github.com/ConsenSys/teku)           | Completed, ready for testing ([#156](https://github.com/flashbots/mev-boost/issues/156)) |
-| [Prysm](https://github.com/prysmaticlabs/prysm/)    | Completed, ready for testing ([#158](https://github.com/flashbots/mev-boost/issues/158)) |
-| [Lighthouse](https://github.com/sigp/lighthouse)    | Advanced ([#160](https://github.com/flashbots/mev-boost/issues/160))                     |
-| [Lodestar](https://github.com/ChainSafe/lodestar)   | Advanced ([#157](https://github.com/flashbots/mev-boost/issues/157))                     |
-| [Nimbus](https://github.com/status-im/nimbus-eth2/) | In progress ([#159](https://github.com/flashbots/mev-boost/issues/159))                  |
-
-[Notes for implementers](https://github.com/flashbots/mev-boost/wiki#implementation-resources).
-
-
-# The Plan
-
-`mev-boost` is the next step on our exploration towards a trustless and decentralized MEV market. It is a service developed in collaboration with the Ethereum developers and researchers.
-
-The roadmap, expected deliveries and estimated deadlines are described in [the plan](https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)). Join us in this repository while we explore the remaining [open research questions](https://github.com/flashbots/mev-boost/wiki/Research#open-questions) with all the relevant organizations in the ecosystem.
 
 # API
 
@@ -177,6 +159,12 @@ sequenceDiagram
     Note over mev_boost: verify response matches expected
     mev_boost-->>consensus: submitBlindedBlock response
 ```
+
+# The Plan
+
+`mev-boost` is the next step on our exploration towards a trustless and decentralized MEV market. It is a service developed in collaboration with the Ethereum developers and researchers.
+
+The roadmap, expected deliveries and estimated deadlines are described in [the plan](https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)). Join us in this repository while we explore the remaining [open research questions](https://github.com/flashbots/mev-boost/wiki/Research#open-questions) with all the relevant organizations in the ecosystem.
 
 # Maintainers
 
