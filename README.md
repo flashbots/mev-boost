@@ -30,12 +30,12 @@ See also:
 - [Background](#background)
 - [Installing](#installing)
 - [Usage](#usage)
-- [Consensus Clients Implementation Status](#consensus-clients-implementation-status)
 - [The Plan](#the-plan)
 - [API](#api)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
 - [Security](#security)
+- [License](#license)
 
 # Background
 
