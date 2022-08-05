@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flashbots/go-boost-utils/bls"
-
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
 )
@@ -32,12 +30,8 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 
 	relayEntries := make([]RelayEntry, numRelays)
 	for i := 0; i < numRelays; i++ {
-		// Generate private key for relay
-		blsPrivateKey, _, err := bls.GenerateNewKeypair()
-		require.NoError(t, err)
-
 		// Create a mock relay
-		backend.relays[i] = newMockRelay(t, blsPrivateKey)
+		backend.relays[i] = newMockRelay(t)
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
 
