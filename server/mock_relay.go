@@ -34,9 +34,9 @@ type mockRelay struct {
 	requestCount map[string]int
 
 	// Overriders
-	HandlerOverrideRegisterValidator func(w http.ResponseWriter, req *http.Request)
-	HandlerOverrideGetHeader         func(w http.ResponseWriter, req *http.Request)
-	HandlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
+	handlerOverrideRegisterValidator func(w http.ResponseWriter, req *http.Request)
+	handlerOverrideGetHeader         func(w http.ResponseWriter, req *http.Request)
+	handlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
 
 	// Default responses placeholders, used if overrider does not exist
 	GetHeaderResponse  *types.GetHeaderResponse
@@ -123,8 +123,10 @@ func (m *mockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
 
 // By default, handleRegisterValidator returns a default types.SignedValidatorRegistration
 func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
-	if m.HandlerOverrideRegisterValidator != nil {
-		m.HandlerOverrideRegisterValidator(w, req)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.handlerOverrideRegisterValidator != nil {
+		m.handlerOverrideRegisterValidator(w, req)
 		return
 	}
 
@@ -166,9 +168,11 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) 
 
 // handleGetHeader handles incoming requests to server.pathGetHeader
 func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	// Try to override default behavior is custom handler is specified.
-	if m.HandlerOverrideGetHeader != nil {
-		m.HandlerOverrideGetHeader(w, req)
+	if m.handlerOverrideGetHeader != nil {
+		m.handlerOverrideGetHeader(w, req)
 		return
 	}
 
@@ -208,9 +212,11 @@ func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient s
 
 // handleGetPayload handles incoming requests to server.pathGetPayload
 func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	// Try to override default behavior is custom handler is specified.
-	if m.HandlerOverrideGetPayload != nil {
-		m.HandlerOverrideGetPayload(w, req)
+	if m.handlerOverrideGetPayload != nil {
+		m.handlerOverrideGetPayload(w, req)
 		return
 	}
 
@@ -233,4 +239,11 @@ func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (m *mockRelay) overrideHandleRegisterValidator(method func(w http.ResponseWriter, req *http.Request)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.handlerOverrideRegisterValidator = method
 }
