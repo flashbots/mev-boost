@@ -357,9 +357,17 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				relays[blockHash] = append(relays[blockHash], relay.String())
 			}
 
-			// Skip if value (fee) is not greater than the current highest value
-			if result.response.Data != nil && responsePayload.Data.Message.Value.Cmp(&result.response.Data.Message.Value) < 1 {
-				return
+			// Compare the bid with already known top bid (if any)
+			if result.response.Data != nil {
+				valueDiff := responsePayload.Data.Message.Value.Cmp(&result.response.Data.Message.Value)
+				if valueDiff == -1 { // current bid is less profitable than already known one
+					return
+				} else if valueDiff == 0 { // current bid is equally profitable as already known one. Use hash as tiebreaker
+					previousBidBlockHash := result.response.Data.Message.Header.BlockHash.String()
+					if blockHash >= previousBidBlockHash {
+						return
+					}
+				}
 			}
 
 			// Use this relay's response as mev-boost response because it's most profitable
