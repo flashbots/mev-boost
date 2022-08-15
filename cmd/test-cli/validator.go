@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -22,11 +22,11 @@ func (v *validatorPrivateData) SaveValidator(filePath string) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filePath, validatorData, 0644)
+	return os.WriteFile(filePath, validatorData, 0644)
 }
 
 func mustLoadValidator(filePath string) validatorPrivateData {
-	fileData, err := ioutil.ReadFile(filePath)
+	fileData, err := os.ReadFile(filePath)
 	if err != nil {
 		log.WithField("filePath", filePath).WithError(err).Fatal("Could not load validator data")
 	}
