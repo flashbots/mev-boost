@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/flashbots/go-boost-utils/bls"
-
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
 )
@@ -32,12 +30,8 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 
 	relayEntries := make([]RelayEntry, numRelays)
 	for i := 0; i < numRelays; i++ {
-		// Generate private key for relay
-		blsPrivateKey, _, err := bls.GenerateNewKeypair()
-		require.NoError(t, err)
-
 		// Create a mock relay
-		backend.relays[i] = newMockRelay(t, blsPrivateKey)
+		backend.relays[i] = newMockRelay(t)
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
 
@@ -205,20 +199,18 @@ func TestRegisterValidator(t *testing.T) {
 		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
 
 		// Now make one relay return an error
-		backend.relays[0].HandlerOverrideRegisterValidator = func(w http.ResponseWriter,
-			r *http.Request) {
+		backend.relays[0].overrideHandleRegisterValidator(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
-		}
+		})
 		rr = backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
 
 		// Now make both relays return an error - which should cause the request to fail
-		backend.relays[1].HandlerOverrideRegisterValidator = func(w http.ResponseWriter,
-			r *http.Request) {
+		backend.relays[1].overrideHandleRegisterValidator(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
-		}
+		})
 		rr = backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code)

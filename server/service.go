@@ -326,6 +326,11 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				"value":       responsePayload.Data.Message.Value.String(),
 			})
 
+			if relay.PublicKey != responsePayload.Data.Message.Pubkey {
+				log.Errorf("bid pubkey mismatch. expected: %s - got: %s", relay.PublicKey.String(), responsePayload.Data.Message.Pubkey.String())
+				return
+			}
+
 			// Verify the relay signature in the relay response
 			ok, err := types.VerifySignature(responsePayload.Data.Message, m.builderSigningDomain, relay.PublicKey[:], responsePayload.Data.Signature[:])
 			if err != nil {

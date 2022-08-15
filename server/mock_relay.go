@@ -17,6 +17,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	mockRelaySecretKeyHex = "0x4e343a647c5a5c44d76c2c58b63f02cdf3a9a0ec40f102ebc26363b4b1b95033"
+	// mockRelayPublicKeyHex = "0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"
+	skBytes, _            = hexutil.Decode(mockRelaySecretKeyHex)
+	mockRelaySecretKey, _ = bls.SecretKeyFromBytes(skBytes[:])
+	mockRelayPublicKey    = bls.PublicKeyFromSecretKey(mockRelaySecretKey)
+)
+
 // mockRelay is used to fake a relay's behavior.
 // You can override each of its handler by setting the instance's HandlerOverride_METHOD_TO_OVERRIDE to your own
 // handler.
@@ -34,9 +42,9 @@ type mockRelay struct {
 	requestCount map[string]int
 
 	// Overriders
-	HandlerOverrideRegisterValidator func(w http.ResponseWriter, req *http.Request)
-	HandlerOverrideGetHeader         func(w http.ResponseWriter, req *http.Request)
-	HandlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
+	handlerOverrideRegisterValidator func(w http.ResponseWriter, req *http.Request)
+	handlerOverrideGetHeader         func(w http.ResponseWriter, req *http.Request)
+	handlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
 
 	// Default responses placeholders, used if overrider does not exist
 	GetHeaderResponse  *types.GetHeaderResponse
@@ -49,9 +57,8 @@ type mockRelay struct {
 
 // newMockRelay creates a mocked relay which implements the backend.BoostBackend interface
 // A secret key must be provided to sign default and custom response messages
-func newMockRelay(t *testing.T, secretKey *bls.SecretKey) *mockRelay {
-	publicKey := bls.PublicKeyFromSecretKey(secretKey)
-	relay := &mockRelay{t: t, secretKey: secretKey, publicKey: publicKey, requestCount: make(map[string]int)}
+func newMockRelay(t *testing.T) *mockRelay {
+	relay := &mockRelay{t: t, secretKey: mockRelaySecretKey, publicKey: mockRelayPublicKey, requestCount: make(map[string]int)}
 
 	// Initialize server
 	relay.Server = httptest.NewServer(relay.getRouter())
@@ -59,7 +66,7 @@ func newMockRelay(t *testing.T, secretKey *bls.SecretKey) *mockRelay {
 	// Create the RelayEntry with correct pubkey
 	url, err := url.Parse(relay.Server.URL)
 	require.NoError(t, err)
-	urlWithKey := fmt.Sprintf("%s://%s@%s", url.Scheme, hexutil.Encode(publicKey.Compress()), url.Host)
+	urlWithKey := fmt.Sprintf("%s://%s@%s", url.Scheme, hexutil.Encode(mockRelayPublicKey.Compress()), url.Host)
 	relay.RelayEntry, err = NewRelayEntry(urlWithKey)
 	require.NoError(t, err)
 	return relay
@@ -123,8 +130,10 @@ func (m *mockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
 
 // By default, handleRegisterValidator returns a default types.SignedValidatorRegistration
 func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
-	if m.HandlerOverrideRegisterValidator != nil {
-		m.HandlerOverrideRegisterValidator(w, req)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.handlerOverrideRegisterValidator != nil {
+		m.handlerOverrideRegisterValidator(w, req)
 		return
 	}
 
@@ -166,9 +175,11 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) 
 
 // handleGetHeader handles incoming requests to server.pathGetHeader
 func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	// Try to override default behavior is custom handler is specified.
-	if m.HandlerOverrideGetHeader != nil {
-		m.HandlerOverrideGetHeader(w, req)
+	if m.handlerOverrideGetHeader != nil {
+		m.handlerOverrideGetHeader(w, req)
 		return
 	}
 
@@ -208,9 +219,11 @@ func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient s
 
 // handleGetPayload handles incoming requests to server.pathGetPayload
 func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	// Try to override default behavior is custom handler is specified.
-	if m.HandlerOverrideGetPayload != nil {
-		m.HandlerOverrideGetPayload(w, req)
+	if m.handlerOverrideGetPayload != nil {
+		m.handlerOverrideGetPayload(w, req)
 		return
 	}
 
@@ -233,4 +246,11 @@ func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (m *mockRelay) overrideHandleRegisterValidator(method func(w http.ResponseWriter, req *http.Request)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.handlerOverrideRegisterValidator = method
 }
