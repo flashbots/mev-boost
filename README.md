@@ -23,7 +23,7 @@ Relays aggregate blocks from **multiple** builders in order to select the block 
 
 ## Who can run MEV-Boost?
 
-MEV-Boost is a piece of software that any PoS Ethereum node operator (including solo validators) can run as part of their Beacon Client software. It is compatible with any Ethereum client. Support and installation instructions for each client can be found [here](#installing).
+MEV-Boost is a piece of software that any PoS Ethereum node operator (including solo validators) can run as part of their Beacon Client software. It is compatible with any Ethereum consensus client. Support and installation instructions for each client can be found [here](#installing).
 
 
 ---
