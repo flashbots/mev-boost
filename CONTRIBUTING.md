@@ -89,9 +89,13 @@ We appreciate you, friend <3.
 
 ## Deploying an update
 
+The extended deploy steps are necessary for installations with `go install` to include the correct version.
+
 * Ensure linter and tests are working: `make lint && make test-race`
-* Update `Version` in `config/vars.go` to next version (eg. `v1.10.1`), and commit
+* Update `Version` in `config/vars.go`
+  * it will be next_version-dev (eg. `v0.7.11-dev`)
+  * change it to the next version (eg. `v0.7.11`), and commit
 * Create a git tag
-* `git push && git push --tags`
-* Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v1.10.2-dev`), and commit
+* Now push to main and push the tag: `git push && git push --tags`
+* Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v0.7.12-dev`), and commit
 * In the meantime, Github CI will have produced a new draft release in https://github.com/flashbots/mev-boost/releases. Open it, generate the description and publish.

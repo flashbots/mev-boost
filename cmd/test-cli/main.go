@@ -179,11 +179,11 @@ func main() {
 
 	var gasLimit uint64
 	envGasLimitStr := getEnv("VALIDATOR_GAS_LIMIT", "30000000")
-	envGasLimit, err := strconv.Atoi(envGasLimitStr)
+	envGasLimit, err := strconv.ParseUint(envGasLimitStr, 10, 64)
 	if err != nil {
 		log.WithError(err).Fatal("invalid gas limit specified")
 	}
-	generateCommand.Uint64Var(&gasLimit, "gas-limit", uint64(envGasLimit), "Gas limit to register the validator with")
+	generateCommand.Uint64Var(&gasLimit, "gas-limit", envGasLimit, "Gas limit to register the validator with")
 
 	var validatorFeeRecipient string
 	envValidatorFeeRecipient := getEnv("VALIDATOR_FEE_RECIPIENT", "0x0000000000000000000000000000000000000000")
