@@ -352,6 +352,11 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
+			if responsePayload.Data.Message.Value.String() == "0" {
+				log.Warn("ignoring block with 0 value")
+				return
+			}
+
 			mu.Lock()
 			defer mu.Unlock()
 
