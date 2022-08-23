@@ -48,7 +48,7 @@ PBS was initially proposed by Ethereum researchers as a response to the risk tha
 In the future, [proposer/builder separation](https://ethresear.ch/t/two-slot-proposer-builder-separation/10980) will be enshrined in the Ethereum protocol itself to further harden its trust model.
 
 
-See also:
+# Resources
 
 * Specs: [Builder API](https://ethereum.github.io/builder-specs), [Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
 * [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost)
