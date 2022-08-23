@@ -5,41 +5,8 @@
 [![Goreport status](https://goreportcard.com/badge/github.com/flashbots/mev-boost)](https://goreportcard.com/report/github.com/flashbots/mev-boost)
 [![Test status](https://github.com/flashbots/mev-boost/workflows/Tests/badge.svg)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Tests%22)
 
-## What is MEV-Boost?
-
-`mev-boost` is open source middleware run by validators to access a competitive block-building market. MEV-Boost was built by Flashbots as an implementation of [proposer-builder separation (PBS)](https://ethresear.ch/t/proposer-block-builder-separation-friendly-fee-market-designs/9725) for proof-of-stake (PoS) Ethereum.
-
-With MEV-Boost, validators can access blocks from a marketplace of builders. Builders produce blocks containing transaction orderflow and a fee for the block proposing validator. Separating the role of proposers from block builders promotes greater competition, decentralization, and censorship-resistance for Ethereum.
-
-## How does MEV_Boost work?
-
-
-PoS node operators must run three pieces of software: a validator client, consensus client, and an execution client. MEV-boost is a sidecar for the Consensus Client, a separate piece of open source software, which queries and outsources block-building to a network of builders. Block builders prepare full blocks, optimizing for MEV extraction and fair distribution of rewards. They then submit their blocks to relays. 
-
-Relays aggregate blocks from **multiple** builders in order to select the block with the highest fees. One instance of MEV-boost can be configured by a validator to connect to **multple** relays. The Consensus Layer client of a validator proposes the most profitable block received from MEV-boost to the Ethereum network for attestation and block inclusion.
-
-
-![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
-
-## Who can run MEV-Boost?
-
-MEV-Boost is a piece of software that any PoS Ethereum node operator (including solo validators) can run as part of their Beacon Client software. It is compatible with any Ethereum consensus client. Support and installation instructions for each client can be found [here](#installing).
-
-
----
-
-See also:
-
-* Documentation: [Builder API](https://ethereum.github.io/builder-specs), [Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
-* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost)
-* [boost.flashbots.net](https://boost.flashbots.net)
-* [Wiki](https://github.com/flashbots/mev-boost/wiki)
-* [Troubleshooting guide](https://github.com/flashbots/mev-boost/wiki/Troubleshooting)
-
-
 # Table of Contents
-
-- [Background](#background)
+- [Introduction](#introduction)
 - [Installing](#installing)
 - [Usage](#usage)
 - [The Plan](#the-plan)
@@ -49,17 +16,45 @@ See also:
 - [Security](#security)
 - [License](#license)
 
-# Background
+# Introduction
+## What is MEV-Boost?
 
-MEV is a centralizing force on Ethereum. Unattended, the competition for MEV opportunities leads to consensus security instability and permissioned communication infrastructure between traders and block producers. This erodes neutrality, transparency, decentralization, and permissionlessness.
+`mev-boost` is open source middleware run by validators to access a competitive block-building market. MEV-Boost was built by Flashbots as an implementation of [proposer-builder separation (PBS)](https://ethresear.ch/t/proposer-block-builder-separation-friendly-fee-market-designs/9725) for proof-of-stake (PoS) Ethereum.
 
-Proposer/block-builder separation (PBS) was initially proposed by Ethereum researchers as a response to the risk that MEV poses to decentralization of consensus networks. They have suggested that uncontrolled MEV extraction promotes economies of scale which are centralizing in nature, and complicate decentralized pooling.
+With MEV-Boost, validators can access blocks from a marketplace of builders. Builders produce blocks containing transaction orderflow and a fee for the block proposing validator. Separating the role of proposers from block builders promotes greater competition, decentralization, and censorship-resistance for Ethereum.
 
-Flashbots is a research and development organization working on mitigating the negative externalities of MEV. Flashbots started as a builder specializing in MEV extraction in proof-of-work Ethereum to democratize access to MEV and make the most profitable blocks available to all miners. >90% of miners are outsourcing some of their block construction to Flashbots today.
+## Why MEV-Boost?
+
+MEV is a centralizing force on Ethereum. Unattended, the competition for MEV opportunities leads to consensus instability and permissioned communication infrastructure between searchers, block producers, and validators. Access to MEV is even more important in PoS Ethereum, as the planned [reduction in block subsidies](https://hackmd.io/@flashbots/mev-in-eth2) will make MEV an even [larger share of total staking revenue](https://github.com/flashbots/eth2-research/blob/main/notebooks/mev-in-eth2/eth2-mev-calc.ipynb). 
+
+Validators running MEV-Boost maximize their staking reward by selling their blockspace to an open market. It is estimated that validators running MEV-Boost can increase [staking rewards by over 60%](https://hackmd.io/@flashbots/mev-in-eth2). 
+## How does MEV_Boost work?
+
+PoS node operators must run three pieces of software: a validator client, consensus client, and an execution client. MEV-boost is a sidecar for the Consensus Client, a separate piece of open source software, which queries and outsources block-building to a network of builders. Block builders prepare full blocks, optimizing for MEV extraction and fair distribution of rewards. They then submit their blocks to relays. 
+
+Relays aggregate blocks from **multiple** builders in order to select the block with the highest fees. One instance of MEV-boost can be configured by a validator to connect to **multiple** relays. The Consensus Layer client of a validator proposes the most profitable block received from MEV-boost to the Ethereum network for attestation and block inclusion.
+
+
+![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
+
+## Who can run MEV-Boost?
+
+MEV-Boost is a piece of software that any PoS Ethereum node operator (including solo validators) can run as part of their Beacon Client software. It is compatible with any Ethereum consensus client. Support and installation instructions for each client can be found [here](#installing).
+
+## The future of MEV-Boost
+
+PBS was initially proposed by Ethereum researchers as a response to the risk that MEV poses to the decentralization of consensus networks. MEV-boost acts as a prototype for PBS, providing the necessary logic and middleware currently missing from PoS Ethereum.
 
 In the future, [proposer/builder separation](https://ethresear.ch/t/two-slot-proposer-builder-separation/10980) will be enshrined in the Ethereum protocol itself to further harden its trust model.
 
-Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-run-mevboost/) and in the [Frequently Asked Questions](https://github.com/flashbots/mev-boost/wiki/Frequently-Asked-Questions).
+
+See also:
+
+* Documentation: [Builder API](https://ethereum.github.io/builder-specs), [Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
+* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost)
+* [boost.flashbots.net](https://boost.flashbots.net)
+* [Wiki](https://github.com/flashbots/mev-boost/wiki)
+* [Troubleshooting guide](https://github.com/flashbots/mev-boost/wiki/Troubleshooting)
 
 # Installing
 
