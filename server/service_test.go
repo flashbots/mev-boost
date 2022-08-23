@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/flashbots/go-boost-utils/bls"
 	"math"
 	"net/http"
 	"net/http/httptest"
