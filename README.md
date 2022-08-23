@@ -53,7 +53,6 @@ See also:
 * Documentation: [Builder API](https://ethereum.github.io/builder-specs), [Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
 * [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost)
 * [boost.flashbots.net](https://boost.flashbots.net)
-* [Wiki](https://github.com/flashbots/mev-boost/wiki)
 * [Troubleshooting guide](https://github.com/flashbots/mev-boost/wiki/Troubleshooting)
 
 # Installing
