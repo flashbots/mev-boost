@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/flashbots/go-boost-utils/types"
-	"io/ioutil"
+	"os"
 )
 
 type rawConfiguration struct {
@@ -27,7 +27,7 @@ type rawConfigurationFile struct {
 // ProposerConfigurationStorage, by reading content from a JSON file.
 func newRawConfigurationFile(filename string) (*rawConfigurationFile, error) {
 	// Read JSON file content.
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
