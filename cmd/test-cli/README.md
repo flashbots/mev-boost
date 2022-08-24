@@ -5,7 +5,7 @@ test-cli is a utility to run through all the proposer requests against mev-boost
 ## Build
 
 ```
-make build-cli
+make build-testcli
 ```
 
 ## Usage
