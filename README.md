@@ -28,7 +28,7 @@ With MEV-Boost, validators can access blocks from a marketplace of builders. Bui
 MEV is a centralizing force on Ethereum. Unattended, the competition for MEV opportunities leads to consensus instability and permissioned communication infrastructure between searchers, block producers, and validators. Access to MEV is even more important in PoS Ethereum, as the planned [reduction in block subsidies](https://hackmd.io/@flashbots/mev-in-eth2) will make MEV an even [larger share of total staking revenue](https://github.com/flashbots/eth2-research/blob/main/notebooks/mev-in-eth2/eth2-mev-calc.ipynb). 
 
 Validators running MEV-Boost maximize their staking reward by selling their blockspace to an open market. It is estimated that validators running MEV-Boost can increase [staking rewards by over 60%](https://hackmd.io/@flashbots/mev-in-eth2). 
-## How does MEV_Boost work?
+## How does MEV-Boost work?
 
 PoS node operators must run three pieces of software: a validator client, consensus client, and an execution client. MEV-boost is a sidecar for the Consensus Client, a separate piece of open source software, which queries and outsources block-building to a network of builders. Block builders prepare full blocks, optimizing for MEV extraction and fair distribution of rewards. They then submit their blocks to relays. 
 
