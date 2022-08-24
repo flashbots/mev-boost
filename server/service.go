@@ -352,8 +352,10 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
-			if responsePayload.Data.Message.Value.String() == "0" {
-				log.Warn("ignoring block with 0 value")
+			isZeroValue := responsePayload.Data.Message.Value.String() == "0"
+			isEmptyListTxRoot := responsePayload.Data.Message.Header.TransactionsRoot.String() == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
+			if isZeroValue || isEmptyListTxRoot {
+				log.Warn("ignoring bid with 0 value")
 				return
 			}
 
