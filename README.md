@@ -89,6 +89,15 @@ make build
 ./mev-boost -help
 ```
 
+If mev-boost crashes with [`"SIGILL: illegal instruction"`](https://github.com/flashbots/mev-boost/issues/256) then you need to create a portable build:
+
+```bash
+CGO_CFLAGS=-"O -D__BLST_PORTABLE__" go install github.com/flashbots/mev-boost@latest
+
+# or
+make build-portable
+```
+
 ## From Docker image
 
 We maintain a mev-boost Docker image at https://hub.docker.com/r/flashbots/mev-boost
