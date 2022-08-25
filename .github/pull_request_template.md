@@ -16,5 +16,4 @@
 
 * [ ] `make lint`
 * [ ] `make test-race`
-* [ ] `make run-mergemock-integration`
 * [ ] `go mod tidy`
