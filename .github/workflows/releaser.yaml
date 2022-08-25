@@ -40,6 +40,16 @@ jobs:
           tags: flashbots/mev-boost:latest,flashbots/mev-boost:${{ steps.vars.outputs.tag }}
           platforms: linux/amd64,linux/arm64
 
+      - name: Build and push portable
+        uses: docker/build-push-action@v3
+        env:
+          VERSION: ${{ steps.vars.outputs.tag }}
+          CGO_CFLAGS: "O -D__BLST_PORTABLE__"
+        with:
+          context: .
+          push: true
+          tags: flashbots/mev-boost:latest-portable,flashbots/mev-boost:${{ steps.vars.outputs.tag }}-portable
+          platforms: linux/amd64,linux/arm64
 
   github-release:
     runs-on: ubuntu-latest
