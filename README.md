@@ -1,6 +1,6 @@
 ![mev-boost](https://user-images.githubusercontent.com/116939/179831878-dc6a0f76-94f4-46cc-bafd-18a3a4b58ea4.png)
 
-# 
+#
 
 [![Goreport status](https://goreportcard.com/badge/github.com/flashbots/mev-boost)](https://goreportcard.com/report/github.com/flashbots/mev-boost)
 [![Test status](https://github.com/flashbots/mev-boost/workflows/Tests/badge.svg)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Tests%22)
@@ -14,7 +14,7 @@ With MEV-Boost, validators can access blocks from a marketplace of builders. Bui
 ## How does MEV_Boost work?
 
 
-PoS node operators must run three pieces of software: a validator client, consensus client, and an execution client. MEV-boost is a sidecar for the Consensus Client, a separate piece of open source software, which queries and outsources block-building to a network of builders. Block builders prepare full blocks, optimizing for MEV extraction and fair distribution of rewards. They then submit their blocks to relays. 
+PoS node operators must run three pieces of software: a validator client, consensus client, and an execution client. MEV-boost is a sidecar for the Consensus Client, a separate piece of open source software, which queries and outsources block-building to a network of builders. Block builders prepare full blocks, optimizing for MEV extraction and fair distribution of rewards. They then submit their blocks to relays.
 
 Relays aggregate blocks from **multiple** builders in order to select the block with the highest fees. One instance of MEV-boost can be configured by a validator to connect to **multiple** relays. The Consensus Layer client of a validator proposes the most profitable block received from MEV-boost to the Ethereum network for attestation and block inclusion.
 
@@ -30,11 +30,13 @@ MEV-Boost is a piece of software that any PoS Ethereum node operator (including 
 
 See also:
 
-* Documentation: [Builder API](https://ethereum.github.io/builder-specs), [Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
-* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost)
 * [boost.flashbots.net](https://boost.flashbots.net)
-* [Wiki](https://github.com/flashbots/mev-boost/wiki)
-* [Troubleshooting guide](https://github.com/flashbots/mev-boost/wiki/Troubleshooting)
+* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost)
+* [wiki](https://github.com/flashbots/mev-boost/wiki) & [troubleshooting guide](https://github.com/flashbots/mev-boost/wiki/Troubleshooting)
+* [mev-boost relay source code](https://github.com/flashbots/mev-boost-relay)
+* Specs:
+  * [Builder API](https://ethereum.github.io/builder-specs)
+  * [Flashbots Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
 
 
 # Table of Contents
@@ -87,6 +89,15 @@ make build
 
 # Show the help
 ./mev-boost -help
+```
+
+If mev-boost crashes with [`"SIGILL: illegal instruction"`](https://github.com/flashbots/mev-boost/issues/256) then you need to create a portable build:
+
+```bash
+CGO_CFLAGS=-"O -D__BLST_PORTABLE__" go install github.com/flashbots/mev-boost@latest
+
+# or
+make build-portable
 ```
 
 ## From Docker image
