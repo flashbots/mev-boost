@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/flashbots/mev-boost/proposerconfig"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/flashbots/mev-boost/common"
+	"github.com/flashbots/mev-boost/proposerconfig"
 
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
@@ -44,14 +46,13 @@ type BoostServiceOpts struct {
 	GenesisForkVersionHex string
 	RelayRequestTimeout   time.Duration
 	RelayCheck            bool
-	PCS                   *ProposerConfigurationStorage
+	PCS                   *proposerconfig.ProposerConfigurationStorage
 }
 
 // BoostService - the mev-boost service
 type BoostService struct {
 	listenAddr string
-	pcs        *ProposerConfigurationStorage
-	pks        *proposerconfig.PublicKeyStorage
+	pcs        *proposerconfig.ProposerConfigurationStorage
 	log        *logrus.Entry
 	srv        *http.Server
 	relayCheck bool
@@ -69,7 +70,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		return nil, errors.New("no relays")
 	}
 
-	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
+	builderSigningDomain, err := common.ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
 	if err != nil {
 		return nil, err
 	}
@@ -78,11 +79,8 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		listenAddr: opts.ListenAddr,
 		log:        opts.Log.WithField("module", "service"),
 		pcs:        opts.PCS,
-		pks: &proposerconfig.PublicKeyStorage{
-			Storage: map[proposerconfig.StorageKey][]types.PublicKey{},
-		},
-		relayCheck:     opts.RelayCheck,
-		bids:			make(map[bidRespKey]bidResp),
+		relayCheck: opts.RelayCheck,
+		bids:       make(map[bidRespKey]bidResp),
 
 		builderSigningDomain: builderSigningDomain,
 		httpClient: http.Client{
@@ -117,10 +115,10 @@ func (m *BoostService) getRouter() http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/", m.handleRoot)
 
-	r.HandleFunc(pathStatus, m.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
-	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
-	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(common.PathStatus, m.handleStatus).Methods(http.MethodGet)
+	r.HandleFunc(common.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
+	r.HandleFunc(common.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	r.HandleFunc(common.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
@@ -182,20 +180,20 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	// If relayCheck is enabled, make sure at least 1 relay returns success
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
-	ua := UserAgent(req.Header.Get("User-Agent"))
+	ua := common.UserAgent(req.Header.Get("User-Agent"))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	for _, r := range m.pcs.GetAllRelays() {
 		wg.Add(1)
 
-		go func(relay RelayEntry) {
+		go func(relay common.RelayEntry) {
 			defer wg.Done()
-			url := relay.GetURI(pathStatus)
+			url := relay.GetURI(common.PathStatus)
 			log := m.log.WithField("url", url)
 			log.Debug("Checking relay status")
 
-			_, err := SendHTTPRequest(ctx, m.httpClient, http.MethodGet, url, ua, nil, nil)
+			_, err := common.SendHTTPRequest(ctx, m.httpClient, http.MethodGet, url, ua, nil, nil)
 			if err != nil && ctx.Err() != context.Canceled {
 				log.WithError(err).Error("failed to retrieve relay status")
 				return
@@ -223,12 +221,12 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log.Debug("registerValidator")
 
 	payload := []types.SignedValidatorRegistration{}
-	if err := DecodeJSON(req.Body, &payload); err != nil {
+	if err := common.DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	ua := UserAgent(req.Header.Get("User-Agent"))
+	ua := common.UserAgent(req.Header.Get("User-Agent"))
 	log = log.WithFields(logrus.Fields{
 		"numRegistrations": len(payload),
 		"ua":               ua,
@@ -240,11 +238,11 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		proposerConfig := m.pcs.GetProposerConfiguration(registration.Message.Pubkey)
 
 		for _, relay := range proposerConfig.Relays {
-			go func(relay RelayEntry) {
-				url := relay.GetURI(pathRegisterValidator)
+			go func(relay common.RelayEntry) {
+				url := relay.GetURI(common.PathRegisterValidator)
 				log := log.WithField("url", url)
 
-				_, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, ua, payload, nil)
+				_, err := common.SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, ua, payload, nil)
 				relayRespCh <- err
 				if err != nil {
 					log.WithError(err).Warn("error calling registerValidator on relay")
@@ -295,33 +293,32 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	})
 	log.Debug("getHeader")
 
-	var mu sync.Mutex
-	relays := make(map[string][]string) // relays per blockHash
-	result := bidResp{}
+	// relayResponses remembers which relays deliverd a given blockhash
+	relayResponses := make(map[string][]string) // key: blockhash, value []relays
 
-	ua := UserAgent(req.Header.Get("User-Agent"))
-
-	// Bind this public key to a slot + parent hash.
-	key := proposerconfig.StorageKey{
-		Slot:       slot,
-		ParentHash: parentHash,
+	// bid-memory for withholding logging in getPayload
+	bid := bidResp{
+		proposerPubkey: publicKey,
 	}
-	m.pks.Store(publicKey, key)
+
+	// Pass the useragent along to the relays
+	ua := common.UserAgent(req.Header.Get("User-Agent"))
 
 	// Select the relays we want mev-boost to reach.
-	configurationStorage := m.pcs.GetProposerConfiguration(publicKey)
+	relays := m.pcs.GetProposerConfiguration(publicKey).Relays
 
 	// Call the relays
 	var wg sync.WaitGroup
-	for _, relay := range configurationStorage.Relays {
+	var mu sync.Mutex
+	for _, relay := range relays {
 		wg.Add(1)
-		go func(relay RelayEntry) {
+		go func(relay common.RelayEntry) {
 			defer wg.Done()
 			path := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), publicKey.String())
 			url := relay.GetURI(path)
 			log := log.WithField("url", url)
 			responsePayload := new(types.GetHeaderResponse)
-			code, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, ua, nil, responsePayload)
+			code, err := common.SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, ua, nil, responsePayload)
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
 				return
@@ -382,52 +379,48 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			defer mu.Unlock()
 
 			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
-			if _, ok := relays[blockHash]; !ok {
-				relays[blockHash] = []string{relay.String()}
-			} else {
-				relays[blockHash] = append(relays[blockHash], relay.String())
-			}
+			relayResponses[blockHash] = append(relayResponses[blockHash], relay.String())
 
 			// Skip if value (fee) is not greater than the current highest value
-			if result.response.Data != nil && responsePayload.Data.Message.Value.Cmp(&result.response.Data.Message.Value) < 1 {
+			if bid.response.Data != nil && responsePayload.Data.Message.Value.Cmp(&bid.response.Data.Message.Value) < 1 {
 				return
 			}
 
 			// Use this relay's response as mev-boost response because it's most profitable
 			log.Debug("received a good bid")
-			result.response = *responsePayload
-			result.blockHash = blockHash
-			result.t = time.Now()
+			bid.response = *responsePayload
+			bid.blockHash = blockHash
+			bid.t = time.Now()
 		}(relay)
 	}
 
 	// Wait for all requests to complete...
 	wg.Wait()
 
-	if result.blockHash == "" {
+	if bid.blockHash == "" {
 		log.Info("no bid received")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
 	// Log result
-	result.relays = relays[result.blockHash]
+	bid.relays = relayResponses[bid.blockHash]
 	log.WithFields(logrus.Fields{
-		"blockHash":   result.blockHash,
-		"blockNumber": result.response.Data.Message.Header.BlockNumber,
-		"txRoot":      result.response.Data.Message.Header.TransactionsRoot.String(),
-		"value":       result.response.Data.Message.Value.String(),
-		"relays":      strings.Join(result.relays, ", "),
+		"blockHash":   bid.blockHash,
+		"blockNumber": bid.response.Data.Message.Header.BlockNumber,
+		"txRoot":      bid.response.Data.Message.Header.TransactionsRoot.String(),
+		"value":       bid.response.Data.Message.Value.String(),
+		"relays":      strings.Join(bid.relays, ", "),
 	}).Info("best bid")
 
 	// Remember the bid, for future logging in case of withholding
-	bidKey := bidRespKey{slot: slot, blockHash: result.blockHash}
+	bidKey := bidRespKey{slot: slot, blockHash: bid.blockHash}
 	m.bidsLock.Lock()
-	m.bids[bidKey] = result
+	m.bids[bidKey] = bid
 	m.bidsLock.Unlock()
 
 	// Return the bid
-	m.respondOK(w, result.response)
+	m.respondOK(w, bid.response)
 }
 
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
@@ -435,7 +428,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	log.Debug("getPayload")
 
 	payload := new(types.SignedBlindedBeaconBlock)
-	if err := DecodeJSON(req.Body, &payload); err != nil {
+	if err := common.DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -444,38 +437,31 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	result := new(types.GetPayloadResponse)
-	ua := UserAgent(req.Header.Get("User-Agent"))
+	ua := common.UserAgent(req.Header.Get("User-Agent"))
+
+	// Retrieve the bid entry
+	bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
+	m.bidsLock.Lock()
+	bid := m.bids[bidKey]
+	m.bidsLock.Unlock()
+
+	// Get relays from for this proposer pubkey
+	relays := m.pcs.GetProposerConfiguration(bid.proposerPubkey).Relays
 
 	// Prepare the request context, which will be cancelled after the first successful response from a relay
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
 	defer requestCtxCancel()
 
-	key := proposerconfig.StorageKey{
-		Slot:       payload.Message.Slot,
-		ParentHash: payload.Message.Body.ExecutionPayloadHeader.ParentHash,
-	}
-	publicKeys := m.pks.Get(key)
-	publicKey := types.PublicKey{}
-
-	for _, publicKey = range publicKeys {
-		ok, _ := types.VerifySignature(payload.Message, m.builderSigningDomain, publicKey[:], payload.Signature[:])
-		if ok {
-			break
-		}
-	}
-
-	configurationStorage := m.pcs.GetProposerConfiguration(publicKey)
-
-	for _, relay := range configurationStorage.Relays {
+	for _, relay := range relays {
 		wg.Add(1)
-		go func(relay RelayEntry) {
+		go func(relay common.RelayEntry) {
 			defer wg.Done()
-			url := relay.GetURI(pathGetPayload)
+			url := relay.GetURI(common.PathGetPayload)
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
 
 			responsePayload := new(types.GetPayloadResponse)
-			_, err := SendHTTPRequest(requestCtx, m.httpClient, http.MethodPost, url, ua, payload, responsePayload)
+			_, err := common.SendHTTPRequest(requestCtx, m.httpClient, http.MethodPost, url, ua, payload, responsePayload)
 
 			if err != nil {
 				log.WithError(err).Error("error making request to relay")
@@ -515,16 +501,12 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	// If no payload has been received from relay, log loudly about withholding!
 	if result.Data == nil || result.Data.BlockHash == nilHash {
-		bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
-		m.bidsLock.Lock()
-		originalResp := m.bids[bidKey]
-		m.bidsLock.Unlock()
-		log.WithField("relays", strings.Join(originalResp.relays, ", ")).Errorf("no payload received from relay -- withholding or network error --")
+		log.WithField("relays", strings.Join(bid.relays, ", ")).Errorf("no payload received from relay -- withholding or network error --")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
 
-	m.pks.Prune(key)
+	// m.pks.Prune(key) todo
 	m.respondOK(w, result)
 }
 
@@ -533,8 +515,8 @@ func (m *BoostService) CheckRelays() bool {
 	for _, relay := range m.pcs.GetAllRelays() {
 		m.log.WithField("relay", relay.String()).Info("Checking relay")
 
-		url := relay.GetURI(pathStatus)
-		_, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, "", nil, nil)
+		url := relay.GetURI(common.PathStatus)
+		_, err := common.SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, "", nil, nil)
 		if err != nil {
 			m.log.WithError(err).WithField("relay", relay.String()).Error("relay check failed")
 			return false

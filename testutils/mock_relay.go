@@ -1,4 +1,4 @@
-package server
+package testutils
 
 import (
 	"encoding/json"
@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/common"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
@@ -25,17 +26,17 @@ var (
 	mockRelayPublicKey    = bls.PublicKeyFromSecretKey(mockRelaySecretKey)
 )
 
-// mockRelay is used to fake a relay's behavior.
+// MockRelay is used to fake a relay's behavior.
 // You can override each of its handler by setting the instance's HandlerOverride_METHOD_TO_OVERRIDE to your own
 // handler.
-type mockRelay struct {
+type MockRelay struct {
 	// Used to panic if impossible error happens
 	t *testing.T
 
 	// KeyPair used to sign messages
 	secretKey  *bls.SecretKey
 	publicKey  *bls.PublicKey
-	RelayEntry RelayEntry
+	RelayEntry common.RelayEntry
 
 	// Used to count each Request made to the relay, either if it fails or not, for each method
 	mu           sync.Mutex
@@ -55,10 +56,10 @@ type mockRelay struct {
 	ResponseDelay time.Duration
 }
 
-// newMockRelay creates a mocked relay which implements the backend.BoostBackend interface
+// NewMockRelay creates a mocked relay which implements the backend.BoostBackend interface
 // A secret key must be provided to sign default and custom response messages
-func newMockRelay(t *testing.T) *mockRelay {
-	relay := &mockRelay{t: t, secretKey: mockRelaySecretKey, publicKey: mockRelayPublicKey, requestCount: make(map[string]int)}
+func NewMockRelay(t *testing.T) *MockRelay {
+	relay := &MockRelay{t: t, secretKey: mockRelaySecretKey, publicKey: mockRelayPublicKey, requestCount: make(map[string]int)}
 
 	// Initialize server
 	relay.Server = httptest.NewServer(relay.getRouter())
@@ -67,13 +68,13 @@ func newMockRelay(t *testing.T) *mockRelay {
 	url, err := url.Parse(relay.Server.URL)
 	require.NoError(t, err)
 	urlWithKey := fmt.Sprintf("%s://%s@%s", url.Scheme, hexutil.Encode(mockRelayPublicKey.Compress()), url.Host)
-	relay.RelayEntry, err = NewRelayEntry(urlWithKey)
+	relay.RelayEntry, err = common.NewRelayEntry(urlWithKey)
 	require.NoError(t, err)
 	return relay
 }
 
 // newTestMiddleware creates a middleware which increases the Request counter and creates a fake delay for the response
-func (m *mockRelay) newTestMiddleware(next http.Handler) http.Handler {
+func (m *MockRelay) newTestMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			// Request counter
@@ -93,43 +94,43 @@ func (m *mockRelay) newTestMiddleware(next http.Handler) http.Handler {
 }
 
 // getRouter registers all methods from the backend, apply the test middleware a,nd return the configured router
-func (m *mockRelay) getRouter() http.Handler {
+func (m *MockRelay) getRouter() http.Handler {
 	// Create router.
 	r := mux.NewRouter()
 
 	// Register handlers
 	r.HandleFunc("/", m.handleRoot).Methods(http.MethodGet)
-	r.HandleFunc(pathStatus, m.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
-	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
-	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(common.PathStatus, m.handleStatus).Methods(http.MethodGet)
+	r.HandleFunc(common.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
+	r.HandleFunc(common.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	r.HandleFunc(common.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
 	return m.newTestMiddleware(r)
 }
 
 // GetRequestCount returns the number of Request made to a specific URL
-func (m *mockRelay) GetRequestCount(path string) int {
+func (m *MockRelay) GetRequestCount(path string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.requestCount[path]
 }
 
 // By default, handleRoot returns the relay's status
-func (m *mockRelay) handleRoot(w http.ResponseWriter, req *http.Request) {
+func (m *MockRelay) handleRoot(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{}`)
 }
 
 // By default, handleStatus returns the relay's status as http.StatusOK
-func (m *mockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
+func (m *MockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{}`)
 }
 
 // By default, handleRegisterValidator returns a default types.SignedValidatorRegistration
-func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
+func (m *MockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.handlerOverrideRegisterValidator != nil {
@@ -138,7 +139,7 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 	}
 
 	payload := []types.SignedValidatorRegistration{}
-	if err := DecodeJSON(req.Body, &payload); err != nil {
+	if err := common.DecodeJSON(req.Body, &payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -149,15 +150,15 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 
 // MakeGetHeaderResponse is used to create the default or can be used to create a custom response to the getHeader
 // method
-func (m *mockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) *types.GetHeaderResponse {
+func (m *MockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) *types.GetHeaderResponse {
 	// Fill the payload with custom values.
 	message := &types.BuilderBid{
 		Header: &types.ExecutionPayloadHeader{
-			BlockHash:  _HexToHash(hash),
-			ParentHash: _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+			BlockHash:  HexToHashP(hash),
+			ParentHash: HexToHashP("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
 		},
 		Value:  types.IntToU256(value),
-		Pubkey: _HexToPubkey(publicKey),
+		Pubkey: HexToPubkeyP(publicKey),
 	}
 
 	// Sign the message.
@@ -174,7 +175,7 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) 
 }
 
 // handleGetHeader handles incoming requests to server.pathGetHeader
-func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
+func (m *MockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	// Try to override default behavior is custom handler is specified.
@@ -205,20 +206,20 @@ func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 
 // MakeGetPayloadResponse is used to create the default or can be used to create a custom response to the getPayload
 // method
-func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *types.GetPayloadResponse {
+func (m *MockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *types.GetPayloadResponse {
 	return &types.GetPayloadResponse{
 		Version: "bellatrix",
 		Data: &types.ExecutionPayload{
-			ParentHash:   _HexToHash(parentHash),
-			BlockHash:    _HexToHash(blockHash),
+			ParentHash:   HexToHashP(parentHash),
+			BlockHash:    HexToHashP(blockHash),
 			BlockNumber:  blockNumber,
-			FeeRecipient: _HexToAddress(feeRecipient),
+			FeeRecipient: HexToAddressP(feeRecipient),
 		},
 	}
 }
 
 // handleGetPayload handles incoming requests to server.pathGetPayload
-func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
+func (m *MockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	// Try to override default behavior is custom handler is specified.
@@ -248,7 +249,8 @@ func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (m *mockRelay) overrideHandleRegisterValidator(method func(w http.ResponseWriter, req *http.Request)) {
+// OverrideHandleRegisterValidator allows a custom override
+func (m *MockRelay) OverrideHandleRegisterValidator(method func(w http.ResponseWriter, req *http.Request)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

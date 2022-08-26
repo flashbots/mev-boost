@@ -8,11 +8,11 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/common"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/sirupsen/logrus"
 
-	"github.com/flashbots/mev-boost/server"
+	"github.com/flashbots/mev-boost/common"
 )
 
 var log = logrus.WithField("service", "cmd/test-cli")
@@ -31,7 +31,7 @@ func doRegisterValidator(v validatorPrivateData, boostEndpoint string, builderSi
 	if err != nil {
 		log.WithError(err).Fatal("Could not prepare registration message")
 	}
-	_, err = server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/validators", "test-cli", message, nil)
+	_, err = common.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/validators", "test-cli", message, nil)
 
 	if err != nil {
 		log.WithError(err).Fatal("Validator registration not successful")
@@ -53,7 +53,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 	}
 
 	var currentBlockHash string
-	var emptyHash common.Hash
+	var emptyHash ethcommon.Hash
 	// Beacon does not return block hash pre-bellatrix, fetch it from the engine if that's the case
 	if currentBlock.BlockHash != emptyHash {
 		currentBlockHash = currentBlock.BlockHash.String()
@@ -68,7 +68,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 	uri := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s", boostEndpoint, currentBlock.Slot+1, currentBlockHash, v.Pk.String())
 
 	var getHeaderResp boostTypes.GetHeaderResponse
-	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, uri, "test-cli", nil, &getHeaderResp); err != nil {
+	if _, err := common.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, uri, "test-cli", nil, &getHeaderResp); err != nil {
 		log.WithError(err).WithField("currentBlockHash", currentBlockHash).Fatal("Could not get header")
 	}
 
@@ -120,7 +120,7 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 		Signature: signature,
 	}
 	var respPayload boostTypes.GetPayloadResponse
-	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/blinded_blocks", "test-cli", payload, &respPayload); err != nil {
+	if _, err := common.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/blinded_blocks", "test-cli", payload, &respPayload); err != nil {
 		log.WithError(err).Fatal("could not get payload")
 	}
 
@@ -211,7 +211,7 @@ func main() {
 		if err := registerCommand.Parse(os.Args[2:]); err != nil {
 			log.Fatal(err)
 		}
-		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
+		builderSigningDomain, err := common.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
 		if err != nil {
 			log.WithError(err).Fatal("computing signing domain failed")
 		}
@@ -220,7 +220,7 @@ func main() {
 		if err := getHeaderCommand.Parse(os.Args[2:]); err != nil {
 			log.Fatal(err)
 		}
-		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
+		builderSigningDomain, err := common.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
 		if err != nil {
 			log.WithError(err).Fatal("computing signing domain failed")
 		}
@@ -229,11 +229,11 @@ func main() {
 		if err := getPayloadCommand.Parse(os.Args[2:]); err != nil {
 			log.Fatal(err)
 		}
-		builderSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
+		builderSigningDomain, err := common.ComputeDomain(boostTypes.DomainTypeAppBuilder, genesisForkVersionStr, boostTypes.Root{}.String())
 		if err != nil {
 			log.WithError(err).Fatal("computing signing domain failed")
 		}
-		proposerSigningDomain, err := server.ComputeDomain(boostTypes.DomainTypeBeaconProposer, bellatrixForkVersionStr, genesisValidatorsRootStr)
+		proposerSigningDomain, err := common.ComputeDomain(boostTypes.DomainTypeBeaconProposer, bellatrixForkVersionStr, genesisValidatorsRootStr)
 		if err != nil {
 			log.WithError(err).Fatal("computing signing domain failed")
 		}

@@ -1,10 +1,12 @@
-package server
+package proposerconfig
 
 import (
 	"encoding/json"
 	"errors"
-	"github.com/flashbots/go-boost-utils/types"
 	"os"
+
+	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/common"
 )
 
 type rawConfiguration struct {
@@ -43,16 +45,14 @@ func newRawConfigurationFile(filename string) (*rawConfigurationFile, error) {
 
 // ProposerConfig holds one proposer configuration.
 type ProposerConfig struct {
-	FeeRecipient types.Address
-	Enabled      bool
-	Relays       []RelayEntry
-	GasLimit     types.U256Str
+	Enabled bool
+	Relays  []common.RelayEntry
 }
 
 // ProposerConfigurationStorage holds both the default configuration and the proposers ones.
 type ProposerConfigurationStorage struct {
-	proposerConfigurations map[types.PublicKey]*ProposerConfig
-	defaultConfiguration   *ProposerConfig
+	ProposerConfigurations map[types.PublicKey]*ProposerConfig
+	DefaultConfiguration   *ProposerConfig
 }
 
 // NewProposerConfigurationStorage creates a new storage holding each proposer preferences using
@@ -66,10 +66,10 @@ func NewProposerConfigurationStorage(filename string) (*ProposerConfigurationSto
 
 	// Initialize the storage and save default configuration.
 	pcs := &ProposerConfigurationStorage{
-		proposerConfigurations: map[types.PublicKey]*ProposerConfig{},
+		ProposerConfigurations: map[types.PublicKey]*ProposerConfig{},
 	}
 
-	pcs.defaultConfiguration, err = newConfigurationStorage(&raw.DefaultConfig, raw.BuilderRelaysGroups)
+	pcs.DefaultConfiguration, err = newConfigurationStorage(&raw.DefaultConfig, raw.BuilderRelaysGroups)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func NewProposerConfigurationStorage(filename string) (*ProposerConfigurationSto
 			return nil, err
 		}
 
-		pcs.proposerConfigurations[address] = configurationStorage
+		pcs.ProposerConfigurations[address] = configurationStorage
 	}
 
 	return pcs, nil
@@ -95,9 +95,9 @@ func NewProposerConfigurationStorage(filename string) (*ProposerConfigurationSto
 // GetProposerConfiguration looks for a specific configuration for the given proposer, if not found it
 // returns the default configuration.
 func (s *ProposerConfigurationStorage) GetProposerConfiguration(proposer types.PublicKey) *ProposerConfig {
-	res := s.proposerConfigurations[proposer]
+	res := s.ProposerConfigurations[proposer]
 	if res == nil {
-		res = s.defaultConfiguration
+		res = s.DefaultConfiguration
 	}
 
 	return res
@@ -107,21 +107,8 @@ func (s *ProposerConfigurationStorage) GetProposerConfiguration(proposer types.P
 // previously extracted from a JSON file and the relay groups available.
 // Used to create the default configuration and each proposer's one.
 func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]string) (*ProposerConfig, error) {
-	feeRecipient, err := types.HexToAddress(rawConf.FeeRecipient)
-	if err != nil {
-		return nil, err
-	}
-
-	gasLimit := types.U256Str{}
-	err = gasLimit.UnmarshalText([]byte(rawConf.ValidatorRegistration.GasLimit))
-	if err != nil {
-		return nil, err
-	}
-
 	configuration := &ProposerConfig{
-		FeeRecipient: feeRecipient,
-		Enabled:      rawConf.ValidatorRegistration.Enabled,
-		GasLimit:     gasLimit,
+		Enabled: rawConf.ValidatorRegistration.Enabled,
 	}
 
 	if len(rawConf.ValidatorRegistration.BuilderRelays) == 0 {
@@ -132,7 +119,7 @@ func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]stri
 		if groups[builderRelay] == nil {
 			// At this point, builderRelay can either be an empty or non-existing group,
 			// or a relay entry.
-			entry, err := NewRelayEntry(builderRelay)
+			entry, err := common.NewRelayEntry(builderRelay)
 			if err != nil {
 				return nil, err
 			}
@@ -150,7 +137,7 @@ func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]stri
 		}
 
 		for _, relayURL := range groups[builderRelay] {
-			entry, err := NewRelayEntry(relayURL)
+			entry, err := common.NewRelayEntry(relayURL)
 			if err != nil {
 				return nil, err
 			}
@@ -165,19 +152,19 @@ func newConfigurationStorage(rawConf *rawConfiguration, groups map[string][]stri
 }
 
 // FromRelayList creates a default configuration with the provided list of relays.
-func (s *ProposerConfigurationStorage) FromRelayList(relays []RelayEntry) *ProposerConfigurationStorage {
+func (s *ProposerConfigurationStorage) FromRelayList(relays []common.RelayEntry) *ProposerConfigurationStorage {
 	return &ProposerConfigurationStorage{
-		defaultConfiguration: &ProposerConfig{
+		DefaultConfiguration: &ProposerConfig{
 			Relays: relays,
 		},
 	}
 }
 
 // GetAllRelays returns all registered relays.
-func (s *ProposerConfigurationStorage) GetAllRelays() []RelayEntry {
-	relays := s.defaultConfiguration.Relays
+func (s *ProposerConfigurationStorage) GetAllRelays() []common.RelayEntry {
+	relays := s.DefaultConfiguration.Relays
 
-	for _, configurationStorage := range s.proposerConfigurations {
+	for _, configurationStorage := range s.ProposerConfigurations {
 		relays = append(relays, configurationStorage.Relays...)
 	}
 

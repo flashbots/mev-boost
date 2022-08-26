@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/flashbots/mev-boost/common"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/flashbots/mev-boost/proposerconfig"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
 )
@@ -40,7 +42,7 @@ var (
 	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
 	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
 
-	configPath = flag.String("config", "", "configuration file for proposer preferences")
+	proposerConfigPath = flag.String("proposer-config", "", "configuration file for proposer preferences")
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet")
@@ -102,11 +104,11 @@ func Main() {
 	}
 	log.Infof("Using genesis fork version: %s", genesisForkVersionHex)
 
-	if *relayURLs != "" && *configPath != "" {
+	if *relayURLs != "" && *proposerConfigPath != "" {
 		log.Fatal("Please provide either relays from CLI or a configuration file")
 	}
 
-	pcs := &server.ProposerConfigurationStorage{}
+	pcs := &proposerconfig.ProposerConfigurationStorage{}
 	if relayURLs != nil {
 		relays := parseRelayURLs(*relayURLs)
 		if len(relays) == 0 {
@@ -118,7 +120,7 @@ func Main() {
 	} else {
 		var err error
 
-		pcs, err = server.NewProposerConfigurationStorage(*configPath)
+		pcs, err = proposerconfig.NewProposerConfigurationStorage(*proposerConfigPath)
 		if err != nil {
 			log.Fatal("Error while reading configuration file: %w", err)
 		}
@@ -167,10 +169,10 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func parseRelayURLs(relayURLs string) []server.RelayEntry {
-	ret := []server.RelayEntry{}
+func parseRelayURLs(relayURLs string) []common.RelayEntry {
+	ret := []common.RelayEntry{}
 	for _, entry := range strings.Split(relayURLs, ",") {
-		relay, err := server.NewRelayEntry(entry)
+		relay, err := common.NewRelayEntry(entry)
 		if err != nil {
 			log.WithError(err).WithField("relayURL", entry).Fatal("Invalid relay URL")
 		}

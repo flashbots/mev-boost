@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/flashbots/mev-boost/server"
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/flashbots/mev-boost/common"
 )
 
 // Beacon - beacon node interface
@@ -17,7 +17,7 @@ type Beacon interface {
 
 type beaconBlockData struct {
 	Slot      uint64
-	BlockHash common.Hash
+	BlockHash ethcommon.Hash
 }
 
 func createBeacon(isMergemock bool, beaconEndpoint string, engineEndpoint string) Beacon {
@@ -44,7 +44,7 @@ type partialSignedBeaconBlock struct {
 			Slot string `json:"slot"`
 			Body struct {
 				ExecutionPayload struct {
-					BlockHash common.Hash `json:"block_hash"`
+					BlockHash ethcommon.Hash `json:"block_hash"`
 				} `json:"execution_payload"`
 			} `json:"body"`
 		} `json:"message"`
@@ -53,7 +53,7 @@ type partialSignedBeaconBlock struct {
 
 func getCurrentBeaconBlock(beaconEndpoint string) (beaconBlockData, error) {
 	var blockResp partialSignedBeaconBlock
-	_, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, beaconEndpoint+"/eth/v2/beacon/blocks/head", "test-cli/beacon", nil, &blockResp)
+	_, err := common.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, beaconEndpoint+"/eth/v2/beacon/blocks/head", "test-cli/beacon", nil, &blockResp)
 	if err != nil {
 		return beaconBlockData{}, err
 	}
