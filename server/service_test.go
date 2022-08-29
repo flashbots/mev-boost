@@ -316,6 +316,46 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, types.IntToU256(12347), resp.Data.Message.Value)
 	})
 
+	t.Run("Use header with lowest blockhash if same value", func(t *testing.T) {
+		// Create backend and register 3 relays.
+		backend := newTestBackend(t, 3, time.Second)
+
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xa38385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+
+		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
+			12345,
+			"0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+
+		backend.relays[2].GetHeaderResponse = backend.relays[2].MakeGetHeaderResponse(
+			12345,
+			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+
+		// Run the request.
+		rr := backend.request(t, http.MethodGet, path, nil)
+
+		// Each relay must have received the request.
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[2].GetRequestCount(path))
+
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		// Highest value should be 12347, i.e. second relay.
+		resp := new(types.GetHeaderResponse)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		require.Equal(t, types.IntToU256(12345), resp.Data.Message.Value)
+		require.Equal(t, "0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7", resp.Data.Message.Header.BlockHash.String())
+	})
+
 	t.Run("Invalid relay public key", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
 
