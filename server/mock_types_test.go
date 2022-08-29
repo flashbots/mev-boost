@@ -1,12 +1,13 @@
 package server
 
 import (
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestHexToBytes(t *testing.T) {
@@ -211,7 +212,8 @@ func TestHexToSignature(t *testing.T) {
 
 	// Convert bls.Signature bytes to types.Signature
 	signature := &types.Signature{}
-	signature.FromSlice(sigBytes)
+	err = signature.FromSlice(sigBytes)
+	require.NoError(t, err)
 
 	testCases := []struct {
 		name string
