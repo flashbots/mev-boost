@@ -48,7 +48,11 @@ func newRandomValidator(gasLimit uint64, feeRecipient string) validatorPrivateDa
 
 func (v *validatorPrivateData) PrepareRegistrationMessage(builderSigningDomain boostTypes.Domain) ([]boostTypes.SignedValidatorRegistration, error) {
 	pk := boostTypes.PublicKey{}
-	pk.FromSlice(v.Pk)
+	err := pk.FromSlice(v.Pk)
+	if err != nil {
+		return []boostTypes.SignedValidatorRegistration{}, err
+	}
+
 	addr, err := boostTypes.HexToAddress(v.FeeRecipientHex)
 	if err != nil {
 		return []boostTypes.SignedValidatorRegistration{}, err
