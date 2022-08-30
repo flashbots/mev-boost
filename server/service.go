@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/flashbots/mev-boost/proposerconfig"
 	"net/http"
 	"strconv"
 	"strings"
@@ -51,7 +50,6 @@ type BoostServiceOpts struct {
 type BoostService struct {
 	listenAddr string
 	pcs        *ProposerConfigurationStorage
-	pks        *proposerconfig.PublicKeyStorage
 	log        *logrus.Entry
 	srv        *http.Server
 	relayCheck bool
@@ -60,7 +58,7 @@ type BoostService struct {
 	httpClient           http.Client
 
 	bidsLock sync.Mutex
-	bids     map[bidRespKey]bidResp // keeping track of bids, to log the originating relay on withholding
+	bids     map[bidRespKey]*bidResp // keeping track of bids, to log the originating relay on withholding
 }
 
 // NewBoostService created a new BoostService
@@ -78,11 +76,8 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		listenAddr: opts.ListenAddr,
 		log:        opts.Log.WithField("module", "service"),
 		pcs:        opts.PCS,
-		pks: &proposerconfig.PublicKeyStorage{
-			Storage: map[proposerconfig.StorageKey][]types.PublicKey{},
-		},
-		relayCheck:     opts.RelayCheck,
-		bids:			make(map[bidRespKey]bidResp),
+		relayCheck: opts.RelayCheck,
+		bids:       make(map[bidRespKey]*bidResp),
 
 		builderSigningDomain: builderSigningDomain,
 		httpClient: http.Client{
@@ -301,12 +296,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	ua := UserAgent(req.Header.Get("User-Agent"))
 
-	// Bind this public key to a slot + parent hash.
-	key := proposerconfig.StorageKey{
-		Slot:       slot,
-		ParentHash: parentHash,
-	}
-	m.pks.Store(publicKey, key)
+	result.proposerPublicKeys = append(result.proposerPublicKeys, publicKey)
 
 	// Select the relays we want mev-boost to reach.
 	configurationStorage := m.pcs.GetProposerConfiguration(publicKey)
@@ -423,7 +413,12 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// Remember the bid, for future logging in case of withholding
 	bidKey := bidRespKey{slot: slot, blockHash: result.blockHash}
 	m.bidsLock.Lock()
-	m.bids[bidKey] = result
+	// If this is not the first time getHeader is called for this bidKey.
+	if m.bids[bidKey] != nil {
+		keysAlreadyRegistered := m.bids[bidKey].proposerPublicKeys
+		result.proposerPublicKeys = append(result.proposerPublicKeys, keysAlreadyRegistered...)
+	}
+	m.bids[bidKey] = &result
 	m.bidsLock.Unlock()
 
 	// Return the bid
@@ -450,11 +445,21 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
 	defer requestCtxCancel()
 
-	key := proposerconfig.StorageKey{
-		Slot:       payload.Message.Slot,
-		ParentHash: payload.Message.Body.ExecutionPayloadHeader.ParentHash,
+	key := bidRespKey{
+		slot:      payload.Message.Slot,
+		blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
 	}
-	publicKeys := m.pks.Get(key)
+
+	// It means that someone is trying to call getPayload without having called getHeader first.
+	fmt.Printf("KEY %+v\n", key)
+	fmt.Printf("BIDS %+v\n", m.bids[key])
+	if m.bids[key] == nil {
+		// TODO: Log error.
+		// log.WithField("", "").Errorf("")
+		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
+		return
+	}
+	publicKeys := m.bids[key].proposerPublicKeys
 	publicKey := types.PublicKey{}
 
 	for _, publicKey = range publicKeys {
@@ -524,7 +529,6 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	m.pks.Prune(key)
 	m.respondOK(w, result)
 }
 
