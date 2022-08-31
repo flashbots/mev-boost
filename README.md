@@ -11,7 +11,7 @@
 
 With MEV-Boost, validators can access blocks from a marketplace of builders. Builders produce blocks containing transaction orderflow and a fee for the block proposing validator. Separating the role of proposers from block builders promotes greater competition, decentralization, and censorship-resistance for Ethereum.
 
-## How does MEV_Boost work?
+## How does MEV-Boost work?
 
 
 PoS node operators must run three pieces of software: a validator client, consensus client, and an execution client. MEV-boost is a sidecar for the Consensus Client, a separate piece of open source software, which queries and outsources block-building to a network of builders. Block builders prepare full blocks, optimizing for MEV extraction and fair distribution of rewards. They then submit their blocks to relays.
