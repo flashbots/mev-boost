@@ -429,6 +429,11 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		return
 	}
 
+	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
+		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
+		return
+	}
+
 	log = log.WithField("blockHash", payload.Message.Body.ExecutionPayloadHeader.BlockHash.String())
 	var wg sync.WaitGroup
 	var mu sync.Mutex
