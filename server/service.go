@@ -451,8 +451,6 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 
 	// It means that someone is trying to call getPayload without having called getHeader first.
-	fmt.Printf("KEY %+v\n", key)
-	fmt.Printf("BIDS %+v\n", m.bids[key])
 	if m.bids[key] == nil {
 		// TODO: Log error.
 		// log.WithField("", "").Errorf("")
