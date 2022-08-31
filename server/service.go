@@ -299,11 +299,11 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	result.proposerPublicKeys = append(result.proposerPublicKeys, publicKey)
 
 	// Select the relays we want mev-boost to reach.
-	configurationStorage := m.pcs.GetProposerConfiguration(publicKey)
+	proposerConfig := m.pcs.GetProposerConfiguration(publicKey)
 
 	// Call the relays
 	var wg sync.WaitGroup
-	for _, relay := range configurationStorage.Relays {
+	for _, relay := range proposerConfig.Relays {
 		wg.Add(1)
 		go func(relay RelayEntry) {
 			defer wg.Done()
