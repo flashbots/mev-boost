@@ -37,6 +37,7 @@ jobs:
           push: true
           build-args: |
             VERSION=${{ steps.vars.outputs.tag }}
+            CGO_CFLAGS=
           tags: flashbots/mev-boost:latest,flashbots/mev-boost:${{ steps.vars.outputs.tag }}
           platforms: linux/amd64,linux/arm64
 
@@ -47,7 +48,7 @@ jobs:
           push: true
           build-args: |
             VERSION=${{ steps.vars.outputs.tag }}
-            CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+            CGO_CFLAGS=-O -D__BLST_PORTABLE__
           tags: flashbots/mev-boost:latest-portable,flashbots/mev-boost:${{ steps.vars.outputs.tag }}-portable
           platforms: linux/amd64,linux/arm64
 
