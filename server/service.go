@@ -296,8 +296,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	ua := UserAgent(req.Header.Get("User-Agent"))
 
-	result.proposerPublicKeys = append(result.proposerPublicKeys, publicKey)
-
 	// Select the relays we want mev-boost to reach.
 	proposerConfig := m.pcs.GetProposerConfiguration(publicKey)
 
@@ -413,11 +411,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// Remember the bid, for future logging in case of withholding
 	bidKey := bidRespKey{slot: slot, blockHash: result.blockHash}
 	m.bidsLock.Lock()
-	// If this is not the first time getHeader is called for this bidKey.
-	if m.bids[bidKey] != nil {
-		keysAlreadyRegistered := m.bids[bidKey].proposerPublicKeys
-		result.proposerPublicKeys = append(result.proposerPublicKeys, keysAlreadyRegistered...)
-	}
+	result.proposerPublicKey = publicKey
 	m.bids[bidKey] = &result
 	m.bidsLock.Unlock()
 
@@ -457,16 +451,8 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
-	publicKeys := m.bids[key].proposerPublicKeys
-	publicKey := types.PublicKey{}
 
-	for _, publicKey = range publicKeys {
-		ok, _ := types.VerifySignature(payload.Message, m.builderSigningDomain, publicKey[:], payload.Signature[:])
-		if ok {
-			break
-		}
-	}
-
+	publicKey := m.bids[key].proposerPublicKey
 	configurationStorage := m.pcs.GetProposerConfiguration(publicKey)
 
 	for _, relay := range configurationStorage.Relays {

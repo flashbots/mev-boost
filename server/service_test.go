@@ -552,68 +552,33 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
 
-	t.Run("Request specific relay based on proposer", func(t *testing.T) {
-		// Initiate three proposers.
-		skP1, proposer1 := newKeyPair(t)
-		skP2, proposer2 := newKeyPair(t)
-		skP3, proposer3 := newKeyPair(t)
-
+	t.Run("Request specific relay based on proposer's preferences", func(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
 
-		// Bind the first proposer to the first relay only.
-		backend.boost.pcs.proposerConfigurations[*proposer1] = &ProposerConfig{
+		// Initiates a proposer.
+		skP1, pub1 := newKeyPair(t)
+		// Bind the proposer to the first relay only.
+		backend.boost.pcs.proposerConfigurations[*pub1] = &ProposerConfig{
 			Relays: []RelayEntry{
 				backend.relays[0].RelayEntry,
 			},
 		}
-		// Same goes for second proposer and second relay only.
-		backend.boost.pcs.proposerConfigurations[*proposer2] = &ProposerConfig{
-			Relays: []RelayEntry{
-				backend.relays[1].RelayEntry,
-			},
-		}
-
 		// Simulate prior getHeader which perform registration of proposer public key used in the
 		// getPayload handler.
 		parentHash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
-		pathProposer1 := newGetHeaderPath(1, parentHash, *proposer1)
+		pathProposer1 := newGetHeaderPath(1, parentHash, *pub1)
 		backend.request(t, http.MethodGet, pathProposer1, nil)
-		pathProposer2 := newGetHeaderPath(1, parentHash, *proposer2)
-		backend.request(t, http.MethodGet, pathProposer2, nil)
-		pathProposer3 := newGetHeaderPath(1, parentHash, *proposer3)
-		backend.request(t, http.MethodGet, pathProposer3, nil)
 
-		// Now we can proceed to getPayload requests..
-		payload1 := newPayload(t, skP1, 1, parentHash)
-		payload2 := newPayload(t, skP2, 1, parentHash)
-		payload3 := newPayload(t, skP3, 1, parentHash)
-
-		rr := backend.request(t, http.MethodPost, path, payload1)
+		// Now we can send the getPayload request.
+		proposerPayload1 := newPayload(t, skP1, 1, parentHash)
+		rr := backend.request(t, http.MethodPost, path, proposerPayload1)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		// The request must have been made to relay 0 only.
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 0, backend.relays[1].GetRequestCount(path))
 
 		resp := new(types.GetPayloadResponse)
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
-		require.NoError(t, err)
-		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
-
-		rr = backend.request(t, http.MethodPost, path, payload2)
-		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
-		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
-
-		resp = new(types.GetPayloadResponse)
-		err = json.Unmarshal(rr.Body.Bytes(), resp)
-		require.NoError(t, err)
-		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
-
-		// Proposer 3 should be connected to all relays.
-		rr = backend.request(t, http.MethodPost, path, payload3)
-		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
-		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
-		require.Equal(t, 2, backend.relays[0].GetRequestCount(path))
-
-		resp = new(types.GetPayloadResponse)
-		err = json.Unmarshal(rr.Body.Bytes(), resp)
 		require.NoError(t, err)
 		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
 	})
