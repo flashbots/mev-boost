@@ -1,0 +1,22 @@
+builds:
+  # -
+  #   id: mev-boost
+  #   env: []
+  #   goos:
+  #     - linux
+  #     - darwin
+  #   goarch:
+  #     - amd64
+  #     - arm64
+  -
+    id: mev-boost-portable
+    env:
+      - CGO_CFLAGS_ALLOW="-O -D__BLST_PORTABLE__"
+      - CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
