@@ -31,7 +31,7 @@ MEV-Boost is a piece of software that any PoS Ethereum node operator (including 
 See also:
 
 * [boost.flashbots.net](https://boost.flashbots.net)
-* [mev-boost Docker image](https://hub.docker.com/r/flashbots/mev-boost)
+* [mev-boost Docker images](https://hub.docker.com/r/flashbots/mev-boost)
 * [wiki](https://github.com/flashbots/mev-boost/wiki) & [troubleshooting guide](https://github.com/flashbots/mev-boost/wiki/Troubleshooting)
 * [mev-boost relay source code](https://github.com/flashbots/mev-boost-relay)
 * Specs:
@@ -102,19 +102,42 @@ make build-portable
 
 ## From Docker image
 
-We maintain a mev-boost Docker image at https://hub.docker.com/r/flashbots/mev-boost
+We maintain a mev-boost Docker images at https://hub.docker.com/r/flashbots/mev-boost
 
 - [Install Docker Engine](https://docs.docker.com/engine/install/)
 - Pull & run the latest image:
 
 ```bash
+# Get the default mev-boost image
 docker pull flashbots/mev-boost:latest
+
+# Get the portable mev-boost image
+docker pull flashbots/mev-boost:latest-portable
+
+# Run it
 docker run flashbots/mev-boost -help
 ```
 
 # Usage
 
 A single mev-boost instance can be used by multiple beacon nodes.
+
+
+### Mainnet
+
+Run mev-boost pointed at our [Mainnet Relay](https://boost-relay.flashbots.net/):
+
+```
+ ./mev-boost -mainnet -relay-check -relays https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net
+```
+
+### Goerli testnet
+
+Run mev-boost pointed at our [Goerli Relay](https://builder-relay-goerli.flashbots.net/):
+
+```
+ ./mev-boost -goerli -relay-check -relays https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@builder-relay-goerli.flashbots.net
+```
 
 ### Ropsten testnet
 
@@ -140,13 +163,6 @@ Run mev-boost pointed at our [Sepolia Relay](https://builder-relay-sepolia.flash
  ./mev-boost -sepolia -relay-check -relays https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@builder-relay-sepolia.flashbots.net
 ```
 
-### Goerli testnet
-
-Run mev-boost pointed at our [Goerli Relay](https://builder-relay-goerli.flashbots.net/):
-
-```
- ./mev-boost -goerli -relay-check -relays https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@builder-relay-goerli.flashbots.net
-```
 
 #### `test-cli`
 
