@@ -113,3 +113,7 @@ type bidRespKey struct {
 	slot      uint64
 	blockHash string
 }
+
+func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
+	return http.ErrUseLastResponse
+}
