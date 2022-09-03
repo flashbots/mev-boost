@@ -120,7 +120,7 @@ docker run flashbots/mev-boost -help
 
 # Usage
 
-A single mev-boost instance can be used by multiple beacon nodes.
+A single mev-boost instance can be used by multiple beacon nodes. Note that aside from running mev-boost, you will need to configure your beacon node to connect to mev-boost and your validator to allow it to register with the relay. This configuration varies and a guide for each consensus client can be found on the [MEV-boost website](https://boost.flashbots.net/#block-356364ebd7cc424fb524428ed0134b21).
 
 
 ### Mainnet
