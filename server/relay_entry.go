@@ -17,12 +17,9 @@ func (r *RelayEntry) String() string {
 	return r.URL.String()
 }
 
-// GetURI returns the full request URI with scheme, host, path and args.
+// GetURI returns the full request URI with scheme, host, path and args for the relay.
 func (r *RelayEntry) GetURI(path string) string {
-	u2 := *r.URL
-	u2.User = nil
-	u2.Path = path
-	return u2.String()
+	return GetURI(r.URL, path)
 }
 
 // NewRelayEntry creates a new instance based on an input string

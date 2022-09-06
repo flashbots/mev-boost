@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -41,6 +42,7 @@ type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
 	Relays                []RelayEntry
+	RelayMonitors         []*url.URL
 	GenesisForkVersionHex string
 	RelayCheck            bool
 
@@ -51,11 +53,12 @@ type BoostServiceOpts struct {
 
 // BoostService - the mev-boost service
 type BoostService struct {
-	listenAddr string
-	relays     []RelayEntry
-	log        *logrus.Entry
-	srv        *http.Server
-	relayCheck bool
+	listenAddr    string
+	relays        []RelayEntry
+	relayMonitors []*url.URL
+	log           *logrus.Entry
+	srv           *http.Server
+	relayCheck    bool
 
 	builderSigningDomain types.Domain
 	httpClientGetHeader  http.Client
@@ -64,6 +67,8 @@ type BoostService struct {
 
 	bidsLock sync.Mutex
 	bids     map[bidRespKey]bidResp // keeping track of bids, to log the originating relay on withholding
+
+	validatorRegistrationCh chan []types.SignedValidatorRegistration
 }
 
 // NewBoostService created a new BoostService
@@ -78,11 +83,13 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	}
 
 	return &BoostService{
-		listenAddr: opts.ListenAddr,
-		relays:     opts.Relays,
-		log:        opts.Log.WithField("module", "service"),
-		relayCheck: opts.RelayCheck,
-		bids:       make(map[bidRespKey]bidResp),
+		listenAddr:              opts.ListenAddr,
+		relays:                  opts.Relays,
+		relayMonitors:           opts.RelayMonitors,
+		log:                     opts.Log.WithField("module", "service"),
+		relayCheck:              opts.RelayCheck,
+		bids:                    make(map[bidRespKey]bidResp),
+		validatorRegistrationCh: make(chan []types.SignedValidatorRegistration),
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
@@ -140,6 +147,8 @@ func (m *BoostService) StartHTTPServer() error {
 	}
 
 	go m.startBidCacheCleanupTask()
+	go m.startRelayMonitorValidatorTask()
+	defer close(m.validatorRegistrationCh)
 
 	m.srv = &http.Server{
 		Addr:    m.listenAddr,
@@ -170,6 +179,28 @@ func (m *BoostService) startBidCacheCleanupTask() {
 			}
 		}
 		m.bidsLock.Unlock()
+	}
+}
+
+func (m *BoostService) startRelayMonitorValidatorTask() {
+	log := m.log.WithField("task", "relayMonitorTask")
+	log.Debug("registerValidator")
+	for {
+		payload := <-m.validatorRegistrationCh
+		log = log.WithField("numRegistrations", len(payload))
+		for _, relayMonitor := range m.relayMonitors {
+			go func(relayMonitor *url.URL) {
+				url := GetURI(relayMonitor, pathRegisterValidator)
+				log := m.log.WithField("url", url)
+				log.Info("requesting relay monitor")
+				_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, UserAgent(""), payload, nil)
+				if err != nil {
+					log.WithError(err).Warn("error calling registerValidator on relay")
+					return
+				}
+				log.Info("success")
+			}(relayMonitor)
+		}
 	}
 }
 
@@ -255,6 +286,8 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			}
 		}(relay)
 	}
+
+	go func() { m.validatorRegistrationCh <- payload }()
 
 	for i := 0; i < len(m.relays); i++ {
 		respErr := <-relayRespCh

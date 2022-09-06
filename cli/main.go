@@ -3,6 +3,7 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -39,9 +40,10 @@ var (
 	logJSON      = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
 	logLevel     = flag.String("loglevel", defaultLogLevel, "minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic")
 
-	listenAddr = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs  = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
-	relayCheck = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
+	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
+	relayURLs        = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
+	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
+	relayMonitorURLs = flag.String("relay-monitors", "", "relay monitor urls - single entry or comma-separated list (scheme://host)")
 
 	relayTimeoutMsGetHeader  = flag.Int("request-timeout-getheader", defaultTimeoutMsGetHeader, "timeout for getHeader requests to the relay [ms]")
 	relayTimeoutMsGetPayload = flag.Int("request-timeout-getpayload", defaultTimeoutMsGetPayload, "timeout for getPayload requests to the relay [ms]")
@@ -114,10 +116,14 @@ func Main() {
 	}
 	log.WithField("relays", relays).Infof("using %d relays", len(relays))
 
+	relayMonitors := parseRelayMonitorURLs(*relayMonitorURLs)
+	log.WithField("relay-monitors", relayMonitors).Infof("using %d relay monitors", len(relayMonitors))
+
 	opts := server.BoostServiceOpts{
 		Log:                      log,
 		ListenAddr:               *listenAddr,
 		Relays:                   relays,
+		RelayMonitors:            relayMonitors,
 		GenesisForkVersionHex:    genesisForkVersionHex,
 		RelayCheck:               *relayCheck,
 		RequestTimeoutGetHeader:  time.Duration(*relayTimeoutMsGetHeader) * time.Millisecond,
@@ -160,6 +166,18 @@ func parseRelayURLs(relayURLs string) []server.RelayEntry {
 		relay, err := server.NewRelayEntry(entry)
 		if err != nil {
 			log.WithError(err).WithField("relayURL", entry).Fatal("Invalid relay URL")
+		}
+		ret = append(ret, relay)
+	}
+	return ret
+}
+
+func parseRelayMonitorURLs(relayMonitorURLs string) []*url.URL {
+	ret := []*url.URL{}
+	for _, entry := range strings.Split(relayMonitorURLs, ",") {
+		relay, err := url.Parse(entry)
+		if err != nil {
+			log.WithError(err).WithField("relayMonitorURL", entry).Fatal("Invalid relay monitor URL")
 		}
 		ret = append(ret, relay)
 	}
