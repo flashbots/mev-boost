@@ -26,19 +26,26 @@ var (
 	defaultLogJSON            = os.Getenv("LOG_JSON") != ""
 	defaultLogLevel           = getEnv("LOG_LEVEL", "info")
 	defaultListenAddr         = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
-	defaultRelayTimeoutMs     = getEnvInt("RELAY_TIMEOUT_MS", 2000) // timeout for all the requests to the relay
 	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
+
+	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
+	defaultTimeoutMsGetHeader         = getEnvInt("RELAY_TIMEOUT_MS_GETHEADER", 950)   // timeout for getHeader requests
+	defaultTimeoutMsGetPayload        = getEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
+	defaultTimeoutMsRegisterValidator = getEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
 
 	// cli flags
 	printVersion = flag.Bool("version", false, "only print version")
 	logJSON      = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
 	logLevel     = flag.String("loglevel", defaultLogLevel, "minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic")
 
-	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
-	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
-	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
+	listenAddr = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
+	relayURLs  = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
+	relayCheck = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
+
+	relayTimeoutMsGetHeader  = flag.Int("request-timeout-getheader", defaultTimeoutMsGetHeader, "timeout for getHeader requests to the relay [ms]")
+	relayTimeoutMsGetPayload = flag.Int("request-timeout-getpayload", defaultTimeoutMsGetPayload, "timeout for getPayload requests to the relay [ms]")
+	relayTimeoutMsRegVal     = flag.Int("request-timeout-regval", defaultTimeoutMsRegisterValidator, "timeout for registerValidator requests [ms]")
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet")
@@ -107,18 +114,15 @@ func Main() {
 	}
 	log.WithField("relays", relays).Infof("using %d relays", len(relays))
 
-	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
-	if relayTimeout <= 0 {
-		log.Fatal("Please specify a relay timeout greater than 0")
-	}
-
 	opts := server.BoostServiceOpts{
-		Log:                   log,
-		ListenAddr:            *listenAddr,
-		Relays:                relays,
-		GenesisForkVersionHex: genesisForkVersionHex,
-		RelayRequestTimeout:   relayTimeout,
-		RelayCheck:            *relayCheck,
+		Log:                      log,
+		ListenAddr:               *listenAddr,
+		Relays:                   relays,
+		GenesisForkVersionHex:    genesisForkVersionHex,
+		RelayCheck:               *relayCheck,
+		RequestTimeoutGetHeader:  time.Duration(*relayTimeoutMsGetHeader) * time.Millisecond,
+		RequestTimeoutGetPayload: time.Duration(*relayTimeoutMsGetPayload) * time.Millisecond,
+		RequestTimeoutRegVal:     time.Duration(*relayTimeoutMsRegVal) * time.Millisecond,
 	}
 	server, err := server.NewBoostService(opts)
 	if err != nil {
