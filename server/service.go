@@ -184,7 +184,7 @@ func (m *BoostService) startBidCacheCleanupTask() {
 
 func (m *BoostService) startRelayMonitorValidatorTask() {
 	log := m.log.WithField("task", "relayMonitorTask")
-	log.Debug("registerValidator")
+	log.Debug("startRelayMonitorValidatorTask")
 	for {
 		payload := <-m.validatorRegistrationCh
 		log = log.WithField("numRegistrations", len(payload))
@@ -192,13 +192,12 @@ func (m *BoostService) startRelayMonitorValidatorTask() {
 			go func(relayMonitor *url.URL) {
 				url := GetURI(relayMonitor, pathRegisterValidator)
 				log := m.log.WithField("url", url)
-				log.Info("requesting relay monitor")
 				_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, UserAgent(""), payload, nil)
 				if err != nil {
 					log.WithError(err).Warn("error calling registerValidator on relay")
 					return
 				}
-				log.Info("success")
+				log.Debug("sent validator registrations to relay monitor")
 			}(relayMonitor)
 		}
 	}
