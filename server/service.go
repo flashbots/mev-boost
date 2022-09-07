@@ -41,6 +41,12 @@ type httpErrorResp struct {
 	Message string `json:"message"`
 }
 
+// AuctionTranscript is the bid and blinded block received from the relay send to the relay monitor
+type AuctionTranscript struct {
+	Bid        *types.SignedBuilderBid         `json:"bid"`
+	Acceptance *types.SignedBlindedBeaconBlock `json:"acceptance"`
+}
+
 // BoostServiceOpts provides all available options for use with NewBoostService
 type BoostServiceOpts struct {
 	Log                   *logrus.Entry
@@ -197,6 +203,24 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types
 			}
 			log.Debug("sent validator registrations to relay monitor")
 		}(relayMonitor)
+	}
+}
+
+func (m *BoostService) sendAuctionTranscriptToRelayMonitors(transcript AuctionTranscript) {
+	log := m.log.WithField("method", "sendAuctionTranscriptToRelayMonitors")
+	for {
+		for _, relayMonitor := range m.relayMonitors {
+			go func(relayMonitor *url.URL) {
+				url := GetURI(relayMonitor, pathAuctionTranscript)
+				log := log.WithField("url", url)
+				_, err := SendHTTPRequest(context.Background(), m.httpClientGetPayload, http.MethodPost, url, UserAgent(""), transcript, nil)
+				if err != nil {
+					log.WithError(err).Warn("error sending auction transcript to relay monitor")
+					return
+				}
+				log.Debug("sent auction transcript to relay monitor")
+			}(relayMonitor)
+		}
 	}
 }
 
@@ -544,6 +568,12 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// Wait for all requests to complete...
 	wg.Wait()
 
+	bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
+	m.bidsLock.Lock()
+	originalResp := m.bids[bidKey]
+	m.bidsLock.Unlock()
+	// send bid and signed block to relay monitor
+	go m.sendAuctionTranscriptToRelayMonitors(AuctionTranscript{Bid: originalResp.response.Data, Acceptance: payload})
 	// If no payload has been received from relay, log loudly about withholding!
 	if result.Data == nil || result.Data.BlockHash == nilHash {
 		originRelays := RelayEntriesToStrings(originalBid.relays)
