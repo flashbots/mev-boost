@@ -67,8 +67,6 @@ type BoostService struct {
 
 	bidsLock sync.Mutex
 	bids     map[bidRespKey]bidResp // keeping track of bids, to log the originating relay on withholding
-
-	validatorRegistrationCh chan []types.SignedValidatorRegistration
 }
 
 // NewBoostService created a new BoostService
@@ -89,7 +87,6 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		log:                     opts.Log.WithField("module", "service"),
 		relayCheck:              opts.RelayCheck,
 		bids:                    make(map[bidRespKey]bidResp),
-		validatorRegistrationCh: make(chan []types.SignedValidatorRegistration),
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
@@ -147,8 +144,6 @@ func (m *BoostService) StartHTTPServer() error {
 	}
 
 	go m.startBidCacheCleanupTask()
-	go m.startRelayMonitorValidatorTask()
-	defer close(m.validatorRegistrationCh)
 
 	m.srv = &http.Server{
 		Addr:    m.listenAddr,
@@ -182,11 +177,9 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
-func (m *BoostService) startRelayMonitorValidatorTask() {
-	log := m.log.WithField("task", "relayMonitorTask")
-	log.Debug("startRelayMonitorValidatorTask")
+func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types.SignedValidatorRegistration) {
+	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors")
 	for {
-		payload := <-m.validatorRegistrationCh
 		log = log.WithField("numRegistrations", len(payload))
 		for _, relayMonitor := range m.relayMonitors {
 			go func(relayMonitor *url.URL) {
@@ -194,7 +187,7 @@ func (m *BoostService) startRelayMonitorValidatorTask() {
 				log := m.log.WithField("url", url)
 				_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, UserAgent(""), payload, nil)
 				if err != nil {
-					log.WithError(err).Warn("error calling registerValidator on relay")
+					log.WithError(err).Warn("error calling registerValidator on relay monitor")
 					return
 				}
 				log.Debug("sent validator registrations to relay monitor")
@@ -286,7 +279,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		}(relay)
 	}
 
-	go func() { m.validatorRegistrationCh <- payload }()
+	go m.sendValidatorRegistrationsToRelayMonitors(payload)
 
 	for i := 0; i < len(m.relays); i++ {
 		respErr := <-relayRespCh
