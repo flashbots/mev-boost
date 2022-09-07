@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -41,6 +42,7 @@ type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
 	Relays                []RelayEntry
+	RelayMonitors         []*url.URL
 	GenesisForkVersionHex string
 	RelayCheck            bool
 
@@ -51,11 +53,12 @@ type BoostServiceOpts struct {
 
 // BoostService - the mev-boost service
 type BoostService struct {
-	listenAddr string
-	relays     []RelayEntry
-	log        *logrus.Entry
-	srv        *http.Server
-	relayCheck bool
+	listenAddr    string
+	relays        []RelayEntry
+	relayMonitors []*url.URL
+	log           *logrus.Entry
+	srv           *http.Server
+	relayCheck    bool
 
 	builderSigningDomain types.Domain
 	httpClientGetHeader  http.Client
@@ -78,11 +81,12 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	}
 
 	return &BoostService{
-		listenAddr: opts.ListenAddr,
-		relays:     opts.Relays,
-		log:        opts.Log.WithField("module", "service"),
-		relayCheck: opts.RelayCheck,
-		bids:       make(map[bidRespKey]bidResp),
+		listenAddr:              opts.ListenAddr,
+		relays:                  opts.Relays,
+		relayMonitors:           opts.RelayMonitors,
+		log:                     opts.Log.WithField("module", "service"),
+		relayCheck:              opts.RelayCheck,
+		bids:                    make(map[bidRespKey]bidResp),
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
@@ -173,6 +177,25 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
+func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types.SignedValidatorRegistration) {
+	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors")
+	for {
+		log = log.WithField("numRegistrations", len(payload))
+		for _, relayMonitor := range m.relayMonitors {
+			go func(relayMonitor *url.URL) {
+				url := GetURI(relayMonitor, pathRegisterValidator)
+				log := m.log.WithField("url", url)
+				_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, UserAgent(""), payload, nil)
+				if err != nil {
+					log.WithError(err).Warn("error calling registerValidator on relay monitor")
+					return
+				}
+				log.Debug("sent validator registrations to relay monitor")
+			}(relayMonitor)
+		}
+	}
+}
+
 func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 	m.respondOK(w, nilResponse)
 }
@@ -255,6 +278,8 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			}
 		}(relay)
 	}
+
+	go m.sendValidatorRegistrationsToRelayMonitors(payload)
 
 	for i := 0; i < len(m.relays); i++ {
 		respErr := <-relayRespCh
