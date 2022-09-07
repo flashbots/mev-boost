@@ -9,4 +9,5 @@ var (
 
 	// Relay Monitor paths
 	pathAuctionTranscript = "/eth/v1/relay-monitor/transcript"
+	pathFault             = "/eth/v1/relay-monitor/fault"
 )

@@ -29,6 +29,7 @@ var (
 	errServerAlreadyRunning = errors.New("server already running")
 )
 
+var slotDuration = time.Second * 12
 var nilHash = types.Hash{}
 var nilResponse = struct{}{}
 
@@ -150,6 +151,7 @@ func (m *BoostService) StartHTTPServer() error {
 	}
 
 	go m.startBidCacheCleanupTask()
+	go m.pollRelayFaultsTask()
 
 	m.srv = &http.Server{
 		Addr:    m.listenAddr,
@@ -212,6 +214,25 @@ func (m *BoostService) sendAuctionTranscriptToRelayMonitors(transcript AuctionTr
 			}
 			log.Debug("sent auction transcript to relay monitor")
 		}(relayMonitor)
+	}
+}
+
+func (m *BoostService) pollRelayFaultsTask() {
+	log := m.log.WithField("task", "pollRelayFaultsTask")
+	for {
+		for _, relayMonitor := range m.relayMonitors {
+			go func(relayMonitor *url.URL) {
+				url := GetURI(relayMonitor, pathFault)
+				log := log.WithField("url", url)
+				log.Debug("Getting relay faults from relay monitor")
+				_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodGet, url, UserAgent(""), nil, nil)
+				if err != nil {
+					log.WithError(err).Warn("error calling relay monitor")
+					return
+				}
+			}(relayMonitor)
+		}
+		time.Sleep(slotDuration)
 	}
 }
 
