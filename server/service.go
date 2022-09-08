@@ -29,7 +29,6 @@ var (
 	errServerAlreadyRunning = errors.New("server already running")
 )
 
-var slotDuration = time.Second * 12
 var nilHash = types.Hash{}
 var nilResponse = struct{}{}
 
@@ -49,23 +48,24 @@ type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
 	Relays                []RelayEntry
-	RelayMonitors         []*url.URL
 	GenesisForkVersionHex string
 	RelayCheck            bool
 
 	RequestTimeoutGetHeader  time.Duration
 	RequestTimeoutGetPayload time.Duration
 	RequestTimeoutRegVal     time.Duration
+
+	RelayMonitors            []*url.URL
+	RelayMonitorPollInterval time.Duration
 }
 
 // BoostService - the mev-boost service
 type BoostService struct {
-	listenAddr    string
-	relays        []RelayEntry
-	relayMonitors []*url.URL
-	log           *logrus.Entry
-	srv           *http.Server
-	relayCheck    bool
+	listenAddr string
+	relays     []RelayEntry
+	log        *logrus.Entry
+	srv        *http.Server
+	relayCheck bool
 
 	builderSigningDomain types.Domain
 	httpClientGetHeader  http.Client
@@ -74,6 +74,9 @@ type BoostService struct {
 
 	bidsLock sync.Mutex
 	bids     map[bidRespKey]bidResp // keeping track of bids, to log the originating relay on withholding
+
+	relayMonitors            []*url.URL
+	relayMonitorPollInterval time.Duration
 }
 
 // NewBoostService created a new BoostService
@@ -230,9 +233,10 @@ func (m *BoostService) pollRelayFaultsTask() {
 					log.WithError(err).Warn("error calling relay monitor")
 					return
 				}
+				log.Debug("Got relay faults from relay monitor")
 			}(relayMonitor)
 		}
-		time.Sleep(slotDuration)
+		time.Sleep(m.relayMonitorPollInterval)
 	}
 }
 

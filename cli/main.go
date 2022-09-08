@@ -35,6 +35,9 @@ var (
 	defaultTimeoutMsGetPayload        = getEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
 	defaultTimeoutMsRegisterValidator = getEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
 
+	// relay-monitor flags
+	defaultRelayMonitorPollInterval = getEnvInt("RELAY_MONITOR_POLL_INTERVAL", 30000) // interval in ms to poll relay monitors
+
 	// cli flags
 	printVersion = flag.Bool("version", false, "only print version")
 	logJSON      = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
@@ -49,6 +52,8 @@ var (
 	relayTimeoutMsGetHeader  = flag.Int("request-timeout-getheader", defaultTimeoutMsGetHeader, "timeout for getHeader requests to the relay [ms]")
 	relayTimeoutMsGetPayload = flag.Int("request-timeout-getpayload", defaultTimeoutMsGetPayload, "timeout for getPayload requests to the relay [ms]")
 	relayTimeoutMsRegVal     = flag.Int("request-timeout-regval", defaultTimeoutMsRegisterValidator, "timeout for registerValidator requests [ms]")
+
+	relayMonitorPollInterval = flag.Int("relay-monitor-poll-interval", defaultRelayMonitorPollInterval, "interval in ms to poll relay monitors for relay faults [ms]")
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet")
@@ -130,12 +135,13 @@ func Main() {
 		Log:                      log,
 		ListenAddr:               *listenAddr,
 		Relays:                   relays,
-		RelayMonitors:            relayMonitors,
 		GenesisForkVersionHex:    genesisForkVersionHex,
 		RelayCheck:               *relayCheck,
 		RequestTimeoutGetHeader:  time.Duration(*relayTimeoutMsGetHeader) * time.Millisecond,
 		RequestTimeoutGetPayload: time.Duration(*relayTimeoutMsGetPayload) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(*relayTimeoutMsRegVal) * time.Millisecond,
+		RelayMonitors:            relayMonitors,
+		RelayMonitorPollInterval: time.Duration(*relayMonitorPollInterval) * time.Millisecond,
 	}
 	server, err := server.NewBoostService(opts)
 	if err != nil {
