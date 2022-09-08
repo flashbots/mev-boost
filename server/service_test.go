@@ -556,7 +556,7 @@ func TestGetPayload(t *testing.T) {
 	})
 
 	t.Run("Bad response from relays", func(t *testing.T) {
-		backend := newTestBackend(t, 2, time.Second)
+		backend := newTestBackend(t, 2, 2*time.Second)
 		resp := new(types.GetPayloadResponse)
 
 		// 1/2 failing responses are okay
