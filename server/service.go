@@ -505,6 +505,16 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 				return
 			}
 
+			// Ensure the response blockhash matches the response block
+			calculatedBlockHash := types.CalculateHash(responsePayload.Data)
+			if responsePayload.Data.BlockHash != calculatedBlockHash {
+				log.WithFields(logrus.Fields{
+					"calculatedBlockHash": calculatedBlockHash.String(),
+					"responseBlockHash": responsePayload.Data.BlockHash.String(),
+				}).Error("responseBlockHash does not equal hash calculated from response block")
+				return
+			}
+
 			// Lock before accessing the shared payload
 			mu.Lock()
 			defer mu.Unlock()
