@@ -408,6 +408,9 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			// Compare the bid with already known top bid (if any)
 			if result.response.Data != nil {
 				valueDiff := responsePayload.Data.Message.Value.Cmp(&result.response.Data.Message.Value)
+
+				log.Infof("Relay %s offered bid with value %s", relay.String(), responsePayload.Data.Message.Value.String())
+
 				if valueDiff == -1 { // current bid is less profitable than already known one
 					return
 				} else if valueDiff == 0 { // current bid is equally profitable as already known one. Use hash as tiebreaker
