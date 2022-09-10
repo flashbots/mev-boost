@@ -172,14 +172,17 @@ func parseRelayURLs(relayURLs string) []server.RelayEntry {
 	return ret
 }
 
-func parseRelayMonitorURLs(relayMonitorURLs string) []*url.URL {
-	ret := []*url.URL{}
+func parseRelayMonitorURLs(relayMonitorURLs string) (ret []*url.URL) {
 	for _, entry := range strings.Split(relayMonitorURLs, ",") {
-		relay, err := url.Parse(entry)
+		if strings.TrimSpace(entry) == "" {
+			continue
+		}
+
+		relayMonitor, err := url.Parse(entry)
 		if err != nil {
 			log.WithError(err).WithField("relayMonitorURL", entry).Fatal("Invalid relay monitor URL")
 		}
-		ret = append(ret, relay)
+		ret = append(ret, relayMonitor)
 	}
 	return ret
 }

@@ -221,12 +221,12 @@ func TestRegisterValidator(t *testing.T) {
 	})
 
 	t.Run("mev-boost relay timeout works with slow relay", func(t *testing.T) {
-		backend := newTestBackend(t, 1, 100*time.Millisecond) // 10ms max
+		backend := newTestBackend(t, 1, 150*time.Millisecond) // 10ms max
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 
 		// Now make the relay return slowly, mev-boost should return an error
-		backend.relays[0].ResponseDelay = 150 * time.Millisecond
+		backend.relays[0].ResponseDelay = 180 * time.Millisecond
 		rr = backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code)
