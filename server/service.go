@@ -395,6 +395,8 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
+			log.Debug("bid received")
+
 			mu.Lock()
 			defer mu.Unlock()
 
@@ -408,9 +410,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			// Compare the bid with already known top bid (if any)
 			if result.response.Data != nil {
 				valueDiff := responsePayload.Data.Message.Value.Cmp(&result.response.Data.Message.Value)
-
-				log.Infof("Relay %s offered bid with value %s", relay.String(), responsePayload.Data.Message.Value.String())
-
 				if valueDiff == -1 { // current bid is less profitable than already known one
 					return
 				} else if valueDiff == 0 { // current bid is equally profitable as already known one. Use hash as tiebreaker
@@ -422,7 +421,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Use this relay's response as mev-boost response because it's most profitable
-			log.Debug("received a good bid")
+			log.Debug("selecting bid")
 			result.response = *responsePayload
 			result.blockHash = blockHash
 			result.t = time.Now()
