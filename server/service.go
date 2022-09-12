@@ -208,19 +208,17 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types
 
 func (m *BoostService) sendAuctionTranscriptToRelayMonitors(transcript AuctionTranscript) {
 	log := m.log.WithField("method", "sendAuctionTranscriptToRelayMonitors")
-	for {
-		for _, relayMonitor := range m.relayMonitors {
-			go func(relayMonitor *url.URL) {
-				url := GetURI(relayMonitor, pathAuctionTranscript)
-				log := log.WithField("url", url)
-				_, err := SendHTTPRequest(context.Background(), m.httpClientGetPayload, http.MethodPost, url, UserAgent(""), transcript, nil)
-				if err != nil {
-					log.WithError(err).Warn("error sending auction transcript to relay monitor")
-					return
-				}
-				log.Debug("sent auction transcript to relay monitor")
-			}(relayMonitor)
-		}
+	for _, relayMonitor := range m.relayMonitors {
+		go func(relayMonitor *url.URL) {
+			url := GetURI(relayMonitor, pathAuctionTranscript)
+			log := log.WithField("url", url)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientGetPayload, http.MethodPost, url, UserAgent(""), transcript, nil)
+			if err != nil {
+				log.WithError(err).Warn("error sending auction transcript to relay monitor")
+				return
+			}
+			log.Debug("sent auction transcript to relay monitor")
+		}(relayMonitor)
 	}
 }
 
