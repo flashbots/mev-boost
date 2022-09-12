@@ -81,12 +81,12 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	}
 
 	return &BoostService{
-		listenAddr:              opts.ListenAddr,
-		relays:                  opts.Relays,
-		relayMonitors:           opts.RelayMonitors,
-		log:                     opts.Log.WithField("module", "service"),
-		relayCheck:              opts.RelayCheck,
-		bids:                    make(map[bidRespKey]bidResp),
+		listenAddr:    opts.ListenAddr,
+		relays:        opts.Relays,
+		relayMonitors: opts.RelayMonitors,
+		log:           opts.Log.WithField("module", "service"),
+		relayCheck:    opts.RelayCheck,
+		bids:          make(map[bidRespKey]bidResp),
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
@@ -178,21 +178,18 @@ func (m *BoostService) startBidCacheCleanupTask() {
 }
 
 func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types.SignedValidatorRegistration) {
-	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors")
-	for {
-		log = log.WithField("numRegistrations", len(payload))
-		for _, relayMonitor := range m.relayMonitors {
-			go func(relayMonitor *url.URL) {
-				url := GetURI(relayMonitor, pathRegisterValidator)
-				log := m.log.WithField("url", url)
-				_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, UserAgent(""), payload, nil)
-				if err != nil {
-					log.WithError(err).Warn("error calling registerValidator on relay monitor")
-					return
-				}
-				log.Debug("sent validator registrations to relay monitor")
-			}(relayMonitor)
-		}
+	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("numRegistrations", len(payload))
+	for _, relayMonitor := range m.relayMonitors {
+		go func(relayMonitor *url.URL) {
+			url := GetURI(relayMonitor, pathRegisterValidator)
+			log = log.WithField("url", url)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, UserAgent(""), payload, nil)
+			if err != nil {
+				log.WithError(err).Warn("error calling registerValidator on relay monitor")
+				return
+			}
+			log.Debug("sent validator registrations to relay monitor")
+		}(relayMonitor)
 	}
 }
 
