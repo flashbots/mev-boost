@@ -4,7 +4,7 @@ ARG VERSION
 ARG CGO_CFLAGS
 WORKDIR /build
 ADD . /build/
-RUN --mount=type=cache,target=/root/.cache/go-build CGO_CFLAGS="$CGO_CFLAGS" GOOS=linux go build -ldflags "-X 'github.com/flashbots/mev-boost/config.Version=$VERSION'" -v -o mev-boost .
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_CFLAGS="$CGO_CFLAGS" GOOS=linux go build -trimpath -ldflags "-s -X 'github.com/flashbots/mev-boost/config.Version=$VERSION'" -v -o mev-boost .
 
 FROM alpine
 RUN apk add --no-cache libstdc++ libc6-compat
