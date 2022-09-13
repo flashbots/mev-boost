@@ -1,0 +1,7 @@
+builds:
+  - skip: true
+release:
+  draft: true
+  extra_files:
+    - glob: ./build/**/*
+    - glob: ./build/checksums.txt

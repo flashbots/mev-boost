@@ -27,3 +27,4 @@
 .vscode/
 /README.internal.md
 /validator_data.json
+/build/
