@@ -421,7 +421,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Use this relay's response as mev-boost response because it's most profitable
-			log.Debug("selecting bid")
+			log.Debug("new best bid")
 			result.response = *responsePayload
 			result.blockHash = blockHash
 			result.t = time.Now()
