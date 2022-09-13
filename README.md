@@ -67,11 +67,18 @@ Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-ru
 
 `mev-boost` can run in any machine, as long as it is reachable by the beacon client. The default port is 18550. The most common setup is to install it in the same machine as the beacon client.
 
-## Dependencies
 
-- [Go 1.18+](https://go.dev/doc/install)
+## Binaries
+
+Each release includes binaries from Linux, Windows and macOS (portable build, for amd and arm). You can find the latest release at
+https://github.com/flashbots/mev-boost/releases
+
 
 ## From source
+
+Requires [Go 1.18+](https://go.dev/doc/install).
+
+### `go install`
 
 Install mev-boost with `go install`:
 
@@ -80,12 +87,15 @@ go install github.com/flashbots/mev-boost@latest
 mev-boost -help
 ```
 
-Or clone the repository and build it:
+### Clone & build
+
+clone the repository and build it:
 
 ```bash
 git clone https://github.com/flashbots/mev-boost.git
 cd mev-boost
 make build
+make build-portable
 
 # Show the help
 ./mev-boost -help
@@ -109,6 +119,31 @@ docker pull flashbots/mev-boost:latest-portable
 docker run flashbots/mev-boost -help
 ```
 
+## Systemd configuration
+
+You can run mev-boost with a systemd config (`/etc/systemd/system/mev-boost.service`) like this:
+
+```ini
+[Unit]
+Description=mev-boost
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=mev-boost
+Group=mev-boost
+WorkingDirectory=/home/mev-boost
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=/home/mev-boost/bin/mev-boost \
+		-mainnet \
+		-relay-check \
+		-relays YOUR_RELAY_CHOICE
+
+[Install]
+WantedBy=multi-user.target
+```
 
 ## Troubleshooting
 
