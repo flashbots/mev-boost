@@ -1,0 +1,14 @@
+project_name: mev-boost
+builds:
+  - id: mev-boost-portable
+    ldflags:
+      - -X github.com/flashbots/mev-boost/config.Version={{.Version}}
+    env:
+      - CGO_ENABLED=1
+      - CGO_CFLAGS_ALLOW="-D__BLST_PORTABLE__"
+      - CGO_CFLAGS="-D__BLST_PORTABLE__"
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
