@@ -36,12 +36,14 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	}
 
 	opts := BoostServiceOpts{
-		Log:                   testLog,
-		ListenAddr:            "localhost:12345",
-		Relays:                relayEntries,
-		GenesisForkVersionHex: "0x00000000",
-		RelayRequestTimeout:   relayTimeout,
-		RelayCheck:            true,
+		Log:                      testLog,
+		ListenAddr:               "localhost:12345",
+		Relays:                   relayEntries,
+		GenesisForkVersionHex:    "0x00000000",
+		RelayCheck:               true,
+		RequestTimeoutGetHeader:  relayTimeout,
+		RequestTimeoutGetPayload: relayTimeout,
+		RequestTimeoutRegVal:     relayTimeout,
 	}
 	service, err := NewBoostService(opts)
 	require.NoError(t, err)
@@ -70,7 +72,7 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, "0x00000000", time.Second, true})
+		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, []*url.URL{}, "0x00000000", true, time.Second, time.Second, time.Second})
 		require.Error(t, err)
 	})
 }
@@ -219,12 +221,12 @@ func TestRegisterValidator(t *testing.T) {
 	})
 
 	t.Run("mev-boost relay timeout works with slow relay", func(t *testing.T) {
-		backend := newTestBackend(t, 1, 5*time.Millisecond) // 10ms max
+		backend := newTestBackend(t, 1, 150*time.Millisecond) // 10ms max
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 
 		// Now make the relay return slowly, mev-boost should return an error
-		backend.relays[0].ResponseDelay = 10 * time.Millisecond
+		backend.relays[0].ResponseDelay = 180 * time.Millisecond
 		rr = backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code)

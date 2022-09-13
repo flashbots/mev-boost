@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -100,6 +101,14 @@ func DecodeJSON(r io.Reader, dst any) error {
 	return nil
 }
 
+// GetURI returns the full request URI with scheme, host, path and args.
+func GetURI(url *url.URL, path string) string {
+	u2 := *url
+	u2.User = nil
+	u2.Path = path
+	return u2.String()
+}
+
 // bidResp are entries in the bids cache
 type bidResp struct {
 	t         time.Time
@@ -112,4 +121,8 @@ type bidResp struct {
 type bidRespKey struct {
 	slot      uint64
 	blockHash string
+}
+
+func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
+	return http.ErrUseLastResponse
 }
