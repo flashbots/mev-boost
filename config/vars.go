@@ -7,7 +7,7 @@ import (
 // Set during build
 var (
 	// Version is the version of the software, set at build time
-	Version = "v1.1.1-dev"
+	Version = "v1.2.0"
 )
 
 // Other settings
