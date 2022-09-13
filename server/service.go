@@ -541,7 +541,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status
-func (m *BoostService) CheckRelays() bool {
+func (m *BoostService) CheckRelays() (numHealthyRelays int) {
 	for _, relay := range m.relays {
 		m.log.WithField("relay", relay.String()).Info("Checking relay")
 
@@ -549,9 +549,10 @@ func (m *BoostService) CheckRelays() bool {
 		_, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil)
 		if err != nil {
 			m.log.WithError(err).WithField("relay", relay.String()).Error("relay check failed")
-			return false
+		} else {
+			numHealthyRelays++
 		}
 	}
 
-	return true
+	return numHealthyRelays
 }

@@ -502,16 +502,16 @@ func TestGetPayload(t *testing.T) {
 func TestCheckRelays(t *testing.T) {
 	t.Run("At least one relay is okay", func(t *testing.T) {
 		backend := newTestBackend(t, 3, time.Second)
-		status := backend.boost.CheckRelays()
-		require.Equal(t, true, status)
+		numHealthyRelays := backend.boost.CheckRelays()
+		require.Equal(t, 3, numHealthyRelays)
 	})
 
 	t.Run("Every relays are down", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
 		backend.relays[0].Server.Close()
 
-		status := backend.boost.CheckRelays()
-		require.Equal(t, false, status)
+		numHealthyRelays := backend.boost.CheckRelays()
+		require.Equal(t, 0, numHealthyRelays)
 	})
 
 	t.Run("Should not follow redirects", func(t *testing.T) {
@@ -524,8 +524,8 @@ func TestCheckRelays(t *testing.T) {
 		url, err := url.ParseRequestURI(backend.relays[0].Server.URL)
 		require.NoError(t, err)
 		backend.boost.relays[0].URL = url
-		status := backend.boost.CheckRelays()
-		require.Equal(t, false, status)
+		numHealthyRelays := backend.boost.CheckRelays()
+		require.Equal(t, 0, numHealthyRelays)
 	})
 }
 
