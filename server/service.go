@@ -458,11 +458,13 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	payload := new(types.SignedBlindedBeaconBlock)
 	if err := DecodeJSON(req.Body, &payload); err != nil {
+		log.WithError(err).Error("could not decode payload (signed blinded beacon block)")
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
+		log.Error("missing parts of the payload")
 		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
 		return
 	}
@@ -530,7 +532,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		m.bidsLock.Lock()
 		originalResp := m.bids[bidKey]
 		m.bidsLock.Unlock()
-		log.WithField("relays", strings.Join(originalResp.relays, ", ")).Errorf("no payload received from relay -- withholding or network error --")
+		log.WithField("relays", strings.Join(originalResp.relays, ", ")).Error("no payload received from relay -- withholding or network error --")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
