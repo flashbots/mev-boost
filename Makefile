@@ -10,15 +10,15 @@ v:
 
 .PHONY: build
 build:
-	go build -ldflags "-X 'github.com/flashbots/mev-boost/config.Version=${VERSION}' -X 'github.com/flashbots/mev-boost/config.BuildTime=$(shell date)'" -v -o mev-boost .
+	go build -trimpath -ldflags "-s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o mev-boost .
 
 .PHONY: build-portable
 build-portable:
-	CGO_CFLAGS="-O -D__BLST_PORTABLE__" go build -ldflags "-X 'github.com/flashbots/mev-boost/config.Version=${VERSION}' -X 'github.com/flashbots/mev-boost/config.BuildTime=$(shell date)'" -v -o mev-boost .
+	CGO_CFLAGS="-O -D__BLST_PORTABLE__" go build -trimpath -ldflags "-s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o mev-boost .
 
 .PHONY: build-testcli
 build-testcli:
-	go build -ldflags "-X 'github.com/flashbots/mev-boost/config.Version=${VERSION}' -X 'github.com/flashbots/mev-boost/config.BuildTime=$(shell date)'" -v -o test-cli ./cmd/test-cli
+	go build -trimpath -ldflags "-s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o test-cli ./cmd/test-cli
 
 .PHONY: test
 test:
