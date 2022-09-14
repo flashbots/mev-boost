@@ -392,6 +392,8 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
+			log.Debug("bid received")
+
 			mu.Lock()
 			defer mu.Unlock()
 
@@ -416,7 +418,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Use this relay's response as mev-boost response because it's most profitable
-			log.Debug("received a good bid")
+			log.Debug("new best bid")
 			result.response = *responsePayload
 			result.blockHash = blockHash
 			result.t = time.Now()
