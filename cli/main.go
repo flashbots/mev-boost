@@ -117,7 +117,9 @@ func Main() {
 	log.WithField("relays", relays).Infof("using %d relays", len(relays))
 
 	relayMonitors := parseRelayMonitorURLs(*relayMonitorURLs)
-	log.WithField("relay-monitors", relayMonitors).Infof("using %d relay monitors", len(relayMonitors))
+	if len(relayMonitors) > 0 {
+		log.WithField("relay-monitors", relayMonitors).Infof("using %d relay monitors", len(relayMonitors))
+	}
 
 	opts := server.BoostServiceOpts{
 		Log:                      log,
