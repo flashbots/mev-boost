@@ -554,18 +554,42 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status
-func (m *BoostService) CheckRelays() (numHealthyRelays int) {
-	for _, relay := range m.relays {
-		m.log.WithField("relay", relay.String()).Info("Checking relay")
+func (m *BoostService) CheckRelays() int {
+	wg := sync.WaitGroup{}
+	wg.Add(len(m.relays) + 1)
 
-		url := relay.GetURI(pathStatus)
-		_, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil)
-		if err != nil {
-			m.log.WithError(err).WithField("relay", relay.String()).Error("relay check failed")
-		} else {
-			numHealthyRelays++
-		}
+	retChan := make(chan bool, len(m.relays))
+	defer close(retChan)
+
+	for _, relay := range m.relays {
+		go func(c chan<- bool, relay RelayEntry) {
+			defer wg.Done()
+
+			m.log.WithField("relay", relay.String()).Info("Checking relay")
+
+			url := relay.GetURI(pathStatus)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil)
+			if err != nil {
+				m.log.WithError(err).WithField("relay", relay.String()).Error("relay check failed")
+				c <- false
+			} else {
+				c <- true
+			}
+		}(retChan, relay)
 	}
+
+	numHealthyRelays := 0
+	go func(c <-chan bool) {
+		defer wg.Done()
+
+		for i := 0; i < len(m.relays); i++ {
+			if ret := <-c; ret {
+				numHealthyRelays++
+			}
+		}
+	}(retChan)
+
+	wg.Wait()
 
 	return numHealthyRelays
 }
