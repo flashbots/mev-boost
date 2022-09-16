@@ -476,6 +476,17 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		"blockHash":  payload.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
 		"parentHash": payload.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
 	})
+
+	bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
+	m.bidsLock.Lock()
+	originalBid := m.bids[bidKey]
+	m.bidsLock.Unlock()
+	if originalBid.blockHash == "" {
+		log.Error("no bid for this getPayload payload found. was getHeader called before?")
+	} else if len(originalBid.relays) == 0 {
+		log.Warn("bid found but no associated relays")
+	}
+
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	result := new(types.GetPayloadResponse)
@@ -534,11 +545,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	// If no payload has been received from relay, log loudly about withholding!
 	if result.Data == nil || result.Data.BlockHash == nilHash {
-		bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
-		m.bidsLock.Lock()
-		originalResp := m.bids[bidKey]
-		m.bidsLock.Unlock()
-		log.WithField("relays", strings.Join(originalResp.relays, ", ")).Error("no payload received from relay -- could be a network error or withholding.")
+		log.WithField("relays", strings.Join(originalBid.relays, ", ")).Error("no payload received from relay -- could be a network error or withholding.")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
