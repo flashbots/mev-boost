@@ -146,9 +146,10 @@ var payloadRegisterValidator = types.SignedValidatorRegistration{
 
 func TestStatus(t *testing.T) {
 	t.Run("At least one relay is available", func(t *testing.T) {
-		backend := newTestBackend(t, 2, time.Second)
+		backend := newTestBackend(t, 1, time.Second)
+		time.Sleep(time.Millisecond * 20)
 		path := "/eth/v1/builder/status"
-		rr := backend.request(t, http.MethodGet, path, payloadRegisterValidator)
+		rr := backend.request(t, http.MethodGet, path, nil)
 
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -156,12 +157,10 @@ func TestStatus(t *testing.T) {
 
 	t.Run("No relays available", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
-
-		// Make the relay unavailable.
-		backend.relays[0].Server.Close()
+		backend.relays[0].Server.Close() // makes the relay unavailable
 
 		path := "/eth/v1/builder/status"
-		rr := backend.request(t, http.MethodGet, path, payloadRegisterValidator)
+		rr := backend.request(t, http.MethodGet, path, nil)
 
 		require.Equal(t, http.StatusServiceUnavailable, rr.Code)
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
