@@ -499,18 +499,26 @@ func TestGetPayload(t *testing.T) {
 }
 
 func TestCheckRelays(t *testing.T) {
-	t.Run("At least one relay is okay", func(t *testing.T) {
-		backend := newTestBackend(t, 3, time.Second)
+	t.Run("One relay is okay", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
 		numHealthyRelays := backend.boost.CheckRelays()
-		require.Equal(t, 3, numHealthyRelays)
+		require.Equal(t, 1, numHealthyRelays)
 	})
 
-	t.Run("Every relays are down", func(t *testing.T) {
+	t.Run("One relay is down", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
 		backend.relays[0].Server.Close()
 
 		numHealthyRelays := backend.boost.CheckRelays()
 		require.Equal(t, 0, numHealthyRelays)
+	})
+
+	t.Run("One relays is up, one down", func(t *testing.T) {
+		backend := newTestBackend(t, 2, time.Second)
+		backend.relays[0].Server.Close()
+
+		numHealthyRelays := backend.boost.CheckRelays()
+		require.Equal(t, 1, numHealthyRelays)
 	})
 
 	t.Run("Should not follow redirects", func(t *testing.T) {
