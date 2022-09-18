@@ -145,6 +145,10 @@ func (m *BoostService) StartHTTPServer() error {
 
 	go m.startBidCacheCleanupTask()
 
+	if !config.DisableNewReleaseCheck {
+		go m.checkForNewMevBoostReleaseLoop()
+	}
+
 	m.srv = &http.Server{
 		Addr:    m.listenAddr,
 		Handler: m.getRouter(),
@@ -553,4 +557,18 @@ func (m *BoostService) CheckRelays() int {
 	// At the end, wait for every routine and return status according to relay's ones.
 	wg.Wait()
 	return int(numSuccessRequestsToRelay)
+}
+
+func (m *BoostService) checkForNewMevBoostReleaseLoop() {
+	for {
+		newVersionAvailable, latestVersion, err := IsNewReleaseAvailable()
+		if err != nil {
+			m.log.WithError(err).Warn("could not check for new release")
+		} else if newVersionAvailable {
+			m.log.Infof("New mev-boost release available (%s) - please update! For more details see https://github.com/flashbots/mev-boost", latestVersion)
+		}
+
+		// Sleep for a while before checking again
+		time.Sleep(time.Duration(config.NewReleaseCheckIntervalHours) * time.Hour)
+	}
 }

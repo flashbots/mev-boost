@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/flashbots/go-utils/cli"
 )
 
@@ -24,5 +26,12 @@ var (
 	// ServerIdleTimeoutMs sets the maximum amount of time to wait for the next request when keep-alives are enabled.
 	ServerIdleTimeoutMs = cli.GetEnvInt("MEV_BOOST_SERVER_IDLE_TIMEOUT_MS", 0)
 
-	ServerMaxHeaderBytes = cli.GetEnvInt("MAX_HEADER_BYTES", 4000) // max header byte size for requests for dos prevention
+	// ServerMaxHeaderBytes sets the maximum header byte size for requests for dos prevention
+	ServerMaxHeaderBytes = cli.GetEnvInt("MAX_HEADER_BYTES", 4000)
+
+	// NewReleaseCheckIntervalHours is the interval between checking for new mev-boost releases in hours
+	NewReleaseCheckIntervalHours = cli.GetEnvInt("NEW_RELEASE_CHECK_INTERVAL_H", 2)
+
+	// DisableNewReleaseCheck disables the check for new mev-boost releases
+	DisableNewReleaseCheck = os.Getenv("DISABLE_NEW_RELEASE_CHECK") == "1"
 )

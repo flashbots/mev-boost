@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
+	golang.org/x/mod v0.5.1
 )
 
 require (

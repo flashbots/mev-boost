@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
+	"golang.org/x/mod/semver"
 )
 
 // UserAgent is a custom string type to avoid confusing url + userAgent parameters in SendHTTPRequest
@@ -125,4 +126,31 @@ type bidRespKey struct {
 
 func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
 	return http.ErrUseLastResponse
+}
+
+// IsNewReleaseAvailable checks Github whether a new mev-boost release is available
+func IsNewReleaseAvailable() (newReleaseAvailable bool, latestVersion string, err error) {
+	url := "https://api.github.com/repos/flashbots/mev-boost/releases/latest"
+	httpClient := http.Client{Timeout: 5 * time.Second}
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return false, "", err
+	}
+	defer resp.Body.Close()
+
+	githubReleaseResponse := &struct {
+		TagName string `json:"tag_name"`
+	}{}
+
+	err = json.NewDecoder(resp.Body).Decode(githubReleaseResponse)
+	if err != nil {
+		return false, "", err
+	}
+
+	if githubReleaseResponse.TagName == "" {
+		return false, githubReleaseResponse.TagName, nil
+	}
+
+	newReleaseAvailable = semver.Compare(config.Version, githubReleaseResponse.TagName) == -1
+	return newReleaseAvailable, githubReleaseResponse.TagName, nil
 }
