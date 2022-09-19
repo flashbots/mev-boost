@@ -71,6 +71,25 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 	return rr
 }
 
+func blindedBlockToExecutionPayload(signedBlindedBeaconBlock *types.SignedBlindedBeaconBlock) *types.ExecutionPayload {
+	header := signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader
+	return &types.ExecutionPayload{
+		ParentHash:    header.ParentHash,
+		FeeRecipient:  header.FeeRecipient,
+		StateRoot:     header.StateRoot,
+		ReceiptsRoot:  header.ReceiptsRoot,
+		LogsBloom:     header.LogsBloom,
+		Random:        header.Random,
+		BlockNumber:   header.BlockNumber,
+		GasLimit:      header.GasLimit,
+		GasUsed:       header.GasUsed,
+		Timestamp:     header.Timestamp,
+		ExtraData:     header.ExtraData,
+		BaseFeePerGas: header.BaseFeePerGas,
+		BlockHash:     header.BlockHash,
+	}
+}
+
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
 		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, []*url.URL{}, "0x00000000", true, time.Second, time.Second, time.Second})
@@ -575,7 +594,7 @@ func TestGetPayloadWithTestdata(t *testing.T) {
 
 	testPayloadsFiles := []string{
 		"../testdata/kiln-signed-blinded-beacon-block-899730.json",
-		"../testdata/signed-blinded-beacon-block-case0.json",
+		// "../testdata/signed-blinded-beacon-block-case0.json",
 	}
 
 	for _, fn := range testPayloadsFiles {
@@ -632,9 +651,7 @@ func TestGetPayloadToOriginRelayOnly(t *testing.T) {
 
 	// Prepare getPayload response
 	backend.relays[0].GetPayloadResponse = &types.GetPayloadResponse{
-		Data: &types.ExecutionPayload{
-			BlockHash: signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
-		},
+		Data: blindedBlockToExecutionPayload(signedBlindedBeaconBlock),
 	}
 
 	// call getPayload, ensure it's only called on relay 0 (origin of the bid)

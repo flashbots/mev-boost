@@ -506,11 +506,13 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			}
 
 			// Ensure the response blockhash matches the response block
-			calculatedBlockHash := types.CalculateHash(responsePayload.Data)
-			if responsePayload.Data.BlockHash != calculatedBlockHash {
+			calculatedBlockHash, err := types.CalculateHash(responsePayload.Data)
+			if err != nil {
+				log.WithError(err).Error("could not calculate block hash")
+			} else if responsePayload.Data.BlockHash != calculatedBlockHash {
 				log.WithFields(logrus.Fields{
 					"calculatedBlockHash": calculatedBlockHash.String(),
-					"responseBlockHash": responsePayload.Data.BlockHash.String(),
+					"responseBlockHash":   responsePayload.Data.BlockHash.String(),
 				}).Error("responseBlockHash does not equal hash calculated from response block")
 				return
 			}
