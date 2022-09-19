@@ -264,6 +264,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"slot":       slot,
 		"parentHash": parentHashHex,
 		"pubkey":     pubkey,
+		"version":    config.Version,
 	})
 	log.Debug("getHeader")
 
@@ -419,7 +420,11 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 }
 
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
-	log := m.log.WithField("method", "getPayload")
+	log := m.log.WithFields(logrus.Fields{
+		"method":  "getPayload",
+		"version": config.Version,
+	})
+
 	log.Debug("getPayload")
 
 	payload := new(types.SignedBlindedBeaconBlock)
