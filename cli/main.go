@@ -114,7 +114,7 @@ func Main() {
 		flag.Usage()
 		log.Fatal("No relays specified")
 	}
-	log.WithField("relays", relays).Infof("using %d relays", len(relays))
+	log.WithField("relays", relaysToStrings(relays)).Infof("using %d relays", len(relays))
 
 	relayMonitors := parseRelayMonitorURLs(*relayMonitorURLs)
 	if len(relayMonitors) > 0 {
@@ -185,6 +185,14 @@ func parseRelayMonitorURLs(relayMonitorURLs string) (ret []*url.URL) {
 			log.WithError(err).WithField("relayMonitorURL", entry).Fatal("Invalid relay monitor URL")
 		}
 		ret = append(ret, relayMonitor)
+	}
+	return ret
+}
+
+func relaysToStrings(relays []server.RelayEntry) []string {
+	ret := []string{}
+	for _, entry := range relays {
+		ret = append(ret, entry.String())
 	}
 	return ret
 }
