@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -541,4 +542,31 @@ func TestEmptyTxRoot(t *testing.T) {
 	txroot, _ := transactions.HashTreeRoot()
 	txRootHex := fmt.Sprintf("0x%x", txroot)
 	require.Equal(t, "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1", txRootHex)
+}
+
+func TestGetPayloadWithTestdata(t *testing.T) {
+	path := "/eth/v1/builder/blinded_blocks"
+
+	jsonFile, err := os.Open("../testdata/kiln-signed-blinded-beacon-block-899730.json")
+	require.NoError(t, err)
+	defer jsonFile.Close()
+	signedBlindedBeaconBlock := new(types.SignedBlindedBeaconBlock)
+	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
+
+	backend := newTestBackend(t, 1, time.Second)
+	mockResp := types.GetPayloadResponse{
+		Data: &types.ExecutionPayload{
+			BlockHash: signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
+		},
+	}
+	backend.relays[0].GetPayloadResponse = &mockResp
+
+	rr := backend.request(t, http.MethodPost, path, signedBlindedBeaconBlock)
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+	resp := new(types.GetPayloadResponse)
+	err = json.Unmarshal(rr.Body.Bytes(), resp)
+	require.NoError(t, err)
+	require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
 }
