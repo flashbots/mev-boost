@@ -39,6 +39,7 @@ var (
 	printVersion = flag.Bool("version", false, "only print version")
 	logJSON      = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
 	logLevel     = flag.String("loglevel", defaultLogLevel, "minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic")
+	logDebug     = flag.Bool("debug", false, "shorthand for '-loglevel debug'")
 
 	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs        = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
@@ -79,6 +80,9 @@ func Main() {
 
 	}
 
+	if *logDebug {
+		*logLevel = "debug"
+	}
 	if *logLevel != "" {
 		lvl, err := logrus.ParseLevel(*logLevel)
 		if err != nil {
@@ -89,6 +93,7 @@ func Main() {
 	}
 
 	log.Infof("mev-boost %s", config.Version)
+	log.Debug("debug logging enabled")
 
 	genesisForkVersionHex := ""
 	if *useCustomGenesisForkVersion != "" {
