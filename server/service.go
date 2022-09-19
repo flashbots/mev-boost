@@ -534,12 +534,8 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// Wait for all requests to complete...
 	wg.Wait()
 
-	bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
-	m.bidsLock.Lock()
-	originalResp := m.bids[bidKey]
-	m.bidsLock.Unlock()
 	// send bid and signed block to relay monitor
-	go m.sendAuctionTranscriptToRelayMonitors(AuctionTranscript{Bid: originalResp.response.Data, Acceptance: payload})
+	go m.sendAuctionTranscriptToRelayMonitors(AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
 	// If no payload has been received from relay, log loudly about withholding!
 	if result.Data == nil || result.Data.BlockHash == nilHash {
 		log.WithField("relays", strings.Join(originalBid.relays, ", ")).Error("no payload received from relay -- could be a network error or withholding.")
