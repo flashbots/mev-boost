@@ -14,7 +14,7 @@ With MEV-Boost, validators can access blocks from a marketplace of builders. Bui
 ## How does MEV-Boost work?
 
 
-PoS node operators must run three pieces of software: a validator client, consensus client, and an execution client. MEV-boost is a sidecar for the Consensus Client, a separate piece of open source software, which queries and outsources block-building to a network of builders. Block builders prepare full blocks, optimizing for MEV extraction and fair distribution of rewards. They then submit their blocks to relays.
+PoS node operators must run three pieces of software: a Validator client, a Consensus client, and an EWxecution client. MEV-boost is a sidecar for the Consensus client, a separate piece of open source software, which queries and outsources block-building to a network of builders. Block builders prepare full blocks, optimizing for MEV extraction and fair distribution of rewards. They then submit their blocks to relays.
 
 Relays aggregate blocks from **multiple** builders in order to select the block with the highest fees. One instance of MEV-boost can be configured by a validator to connect to **multiple** relays. The Consensus Layer client of a validator proposes the most profitable block received from MEV-boost to the Ethereum network for attestation and block inclusion.
 
@@ -94,10 +94,13 @@ clone the repository and build it:
 ```bash
 git clone https://github.com/flashbots/mev-boost.git
 cd mev-boost
+# Checkout the version you want to build based on tags - Example below for v1.3.1
+# Releases are available at https://github.com/flashbots/mev-boost/releases
+git checkout tags/v1.3.1
 make build
+# Use build-portable if the standard build crashes on startup
 make build-portable
-
-# Show the help
+# Show the help. This confirms mev-boost is able to start
 ./mev-boost -help
 ```
 
@@ -162,7 +165,12 @@ make build-portable
 
 # Usage
 
-A single mev-boost instance can be used by multiple beacon nodes. Note that aside from running mev-boost, you will need to configure your beacon node to connect to mev-boost and your validator to allow it to register with the relay. This configuration varies and a guide for each consensus client can be found on the [MEV-boost website](https://boost.flashbots.net/#block-356364ebd7cc424fb524428ed0134b21).
+A single mev-boost instance can be used by multiple beacon nodes and validators. 
+
+Aside from running mev-boost on your local network, you must configure:
+* each **beacon node** to connect to mev-boost 
+* and each **validator** to allow it to register with the relay. 
+This configuration varies and a guide for each consensus client can be found on the [MEV-boost website](https://boost.flashbots.net/#block-356364ebd7cc424fb524428ed0134b21).
 
 
 ### Mainnet
