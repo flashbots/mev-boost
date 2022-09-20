@@ -57,7 +57,6 @@ See also:
     - [Sepolia testnet](#sepolia-testnet)
       - [`test-cli`](#test-cli)
 - [API](#api)
-- [The Plan](#the-plan)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -245,12 +244,6 @@ sequenceDiagram
     Note over mev_boost: verify response matches expected
     mev_boost-->>consensus: submitBlindedBlock response
 ```
-
-# The Plan
-
-`mev-boost` is the next step on our exploration towards a trustless and decentralized MEV market. It is a service developed in collaboration with Ethereum developers and researchers.
-
-The roadmap, expected deliveries and estimated deadlines are described in [the plan](https://github.com/flashbots/mev-boost/wiki/The-Plan-(tm)). Join us in this repository while we explore the remaining [open research questions](https://github.com/flashbots/mev-boost/wiki/Research#open-questions) with relevant organizations in the ecosystem.
 
 # Maintainers
 
