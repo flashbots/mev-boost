@@ -87,7 +87,7 @@ func Main() {
 		lvl, err := logrus.ParseLevel(*logLevel)
 		if err != nil {
 			flag.Usage()
-			log.Fatalf("Invalid loglevel: %s", *logLevel)
+			log.Fatalf("invalid loglevel: %s", *logLevel)
 		}
 		logrus.SetLevel(lvl)
 	}
@@ -110,14 +110,14 @@ func Main() {
 		genesisForkVersionHex = genesisForkVersionGoerli
 	} else {
 		flag.Usage()
-		log.Fatal("Please specify a genesis fork version (eg. -mainnet / -kiln / -ropsten / -sepolia / -goerli / -genesis-fork-version flags)")
+		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -genesis-fork-version flags)")
 	}
-	log.Infof("Using genesis fork version: %s", genesisForkVersionHex)
+	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
 
 	relays := parseRelayURLs(*relayURLs)
 	if len(relays) == 0 {
 		flag.Usage()
-		log.Fatal("No relays specified")
+		log.Fatal("no relays specified")
 	}
 	log.WithField("relays", relaysToStrings(relays)).Infof("using %d relays", len(relays))
 

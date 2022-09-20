@@ -538,9 +538,6 @@ func (m *BoostService) CheckRelays() int {
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	for _, r := range m.relays {
 		wg.Add(1)
 
@@ -548,21 +545,22 @@ func (m *BoostService) CheckRelays() int {
 			defer wg.Done()
 			url := relay.GetURI(pathStatus)
 			log := m.log.WithField("url", url)
-			log.Debug("Checking relay status")
+			log.Debug("checking relay status")
 
-			code, err := SendHTTPRequest(ctx, m.httpClientGetHeader, http.MethodGet, url, "", nil, nil)
-			if err != nil && ctx.Err() != context.Canceled {
+			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil)
+			if err != nil {
 				log.WithError(err).Error("relay status error - request failed")
 				return
 			}
-			if code != http.StatusOK {
+			if code == http.StatusOK {
+				log.Debug("relay status OK")
+			} else {
 				log.Errorf("relay status error - unexpected status code %d", code)
 				return
 			}
 
 			// Success: increase counter and cancel all pending requests to other relays
 			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
-			cancel()
 		}(r)
 	}
 
