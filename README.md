@@ -18,13 +18,14 @@ PoS node operators must run three pieces of software: a Validator client, a Cons
 
 Relays aggregate blocks from **multiple** builders in order to select the block with the highest fees. One instance of MEV-boost can be configured by a validator to connect to **multiple** relays. The Consensus Layer client of a validator proposes the most profitable block received from MEV-boost to the Ethereum network for attestation and block inclusion.
 
+A MEV-Boost Security Assessment was conducted on 2022-06-20 by [lotusbumi](https://github.com/lotusbumi). Additional audits of surrounding infrastructure, such as the Flashbots relay, are currently underway.
+
 
 ![mev-boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
 
 ## Who can run MEV-Boost?
 
 MEV-Boost is a piece of software that any PoS Ethereum node operator (including solo validators) can run as part of their Beacon Client software. It is compatible with any Ethereum consensus client. Support and installation instructions for each client can be found [here](#installing).
-
 
 ---
 
@@ -169,8 +170,7 @@ A single mev-boost instance can be used by multiple beacon nodes and validators.
 
 Aside from running mev-boost on your local network, you must configure:
 * each individual **beacon node** to connect to mev-boost. Beacon Node configuration varies by Consensus client. Guides for each client can be found on the [MEV-boost website](https://boost.flashbots.net/#block-356364ebd7cc424fb524428ed0134b21).
-* each individual **validator** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about the role of relays on the [Flashbots documentation](https://docs.flashbots.net/flashbots-mev-boost/relays). Flashbot relays are listed on the A list of all available relays is maintained by [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) and [Lido](https://research.lido.fi/t/lido-on-ethereum-call-for-relay-providers/2844). 
-
+* each individual **validator** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about the role of relays on the [Flashbots documentation](https://docs.flashbots.net/flashbots-mev-boost/relays). A list of all available relays is maintained by [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) and [Lido](https://research.lido.fi/t/lido-on-ethereum-call-for-relay-providers/2844). 
 
 
 ### Mainnet
