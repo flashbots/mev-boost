@@ -565,7 +565,7 @@ func (m *BoostService) checkForNewMevBoostReleaseLoop() {
 		if err != nil {
 			m.log.WithError(err).Warn("could not check for new release")
 		} else if newVersionAvailable {
-			m.log.Infof("New mev-boost release available (%s) - please update! For more details see https://github.com/flashbots/mev-boost", latestVersion)
+			m.log.Infof("New mev-boost release available (%s) - please update! For more details see https://github.com/flashbots/mev-boost/releases", latestVersion)
 		}
 
 		// Sleep for a while before checking again
