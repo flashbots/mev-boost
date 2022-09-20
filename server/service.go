@@ -1,10 +1,12 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -427,15 +429,24 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	log.Debug("getPayload")
 
+	// Read the body first, so we can log it later on error
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.WithError(err).Error("could not read body of request from the beacon node")
+		m.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Decode the body now
 	payload := new(types.SignedBlindedBeaconBlock)
-	if err := DecodeJSON(req.Body, &payload); err != nil {
-		log.WithError(err).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
+	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
+		log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
-		log.Error("missing parts of the request payload from the beacon-node")
+		log.WithField("body", string(body)).Error("missing parts of the request payload from the beacon-node")
 		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
 		return
 	}
@@ -527,9 +538,6 @@ func (m *BoostService) CheckRelays() int {
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	for _, r := range m.relays {
 		wg.Add(1)
 
@@ -537,21 +545,22 @@ func (m *BoostService) CheckRelays() int {
 			defer wg.Done()
 			url := relay.GetURI(pathStatus)
 			log := m.log.WithField("url", url)
-			log.Debug("Checking relay status")
+			log.Debug("checking relay status")
 
-			code, err := SendHTTPRequest(ctx, m.httpClientGetHeader, http.MethodGet, url, "", nil, nil)
-			if err != nil && ctx.Err() != context.Canceled {
+			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil)
+			if err != nil {
 				log.WithError(err).Error("relay status error - request failed")
 				return
 			}
-			if code != http.StatusOK {
+			if code == http.StatusOK {
+				log.Debug("relay status OK")
+			} else {
 				log.Errorf("relay status error - unexpected status code %d", code)
 				return
 			}
 
 			// Success: increase counter and cancel all pending requests to other relays
 			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
-			cancel()
 		}(r)
 	}
 
