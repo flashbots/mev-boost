@@ -498,11 +498,16 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 		go func(relay RelayEntry) {
 			defer wg.Done()
 			url := relay.GetURI(pathGetPayload)
+
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
+			errorHandler := func(err error) {
+				log.WithError(err).Debug("error making request to relay, retrying")
+			}
 
 			responsePayload := new(types.GetPayloadResponse)
-			_, err := SendHTTPRequest(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload)
+			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload, errorHandler)
+
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
 					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay

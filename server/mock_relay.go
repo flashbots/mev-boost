@@ -147,7 +147,11 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 		m.handlerOverrideRegisterValidator(w, req)
 		return
 	}
+	m.defaultHandleRegisterValidator(w, req)
+}
 
+// defaultHandleRegisterValidator returns the default handler for handleRegisterValidator
+func (m *mockRelay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	payload := []types.SignedValidatorRegistration{}
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -225,7 +229,11 @@ func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 		m.handlerOverrideGetHeader(w, req)
 		return
 	}
+	m.defaultHandleGetHeader(w, req)
+}
 
+// defaultHandleGetHeader returns the default handler for handleGetHeader
+func (m *mockRelay) defaultHandleGetHeader(w http.ResponseWriter, req *http.Request) {
 	// By default, everything will be ok.
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -271,7 +279,11 @@ func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 		m.handlerOverrideGetPayload(w, req)
 		return
 	}
+	m.defaultHandleGetPayload(w, req)
+}
 
+// defaultHandleGetPayload returns the default handler for handleGetPayload
+func (m *mockRelay) defaultHandleGetPayload(w http.ResponseWriter, req *http.Request) {
 	// By default, everything will be ok.
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
