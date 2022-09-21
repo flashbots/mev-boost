@@ -32,7 +32,6 @@ var (
 // UserAgent is a custom string type to avoid confusing url + userAgent parameters in SendHTTPRequest
 type UserAgent string
 
-
 // BlockHashHex is a hex-string representation of a block hash
 type BlockHashHex string
 
@@ -97,33 +96,35 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 
 // SendHTTPRequestWithRetries - prepare and send HTTP request, retrying the request if within the client timeout
 func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload any, dst any, handleError ErrorHandlerFunc) (code int, err error) {
-	// default no retry if no timeout set
-	if client.Timeout == 0 {
-		return SendHTTPRequest(ctx, client, method, url, userAgent, payload, dst)
+	var requestCtx context.Context
+	var cancel context.CancelFunc
+	if client.Timeout > 0 {
+		// Create a context with a timeout as configured in the http client
+		requestCtx, cancel = context.WithTimeout(context.Background(), client.Timeout)
+	} else {
+		requestCtx, cancel = context.WithCancel(context.Background())
 	}
-
-	// Create a context with a timeout as configured in the http client
-	ctxTimeout, cancel := context.WithTimeout(context.Background(), client.Timeout)
 	defer cancel()
 
+	maxRetries := 5
 	attempts := 0
-	retryWaitTime := 1 * time.Second
 	for {
-		select {
-		case <-ctxTimeout.Done():
-			return 0, fmt.Errorf("request timeout reached after %d attempts", attempts)
-		default:
-			attempts++
-			code, err = SendHTTPRequest(ctx, client, method, url, userAgent, payload, dst)
-			if err != nil {
-				if handleError != nil {
-					handleError(err)
-				}
-				time.Sleep(retryWaitTime)
-				continue
-			}
-			return code, nil
+		attempts++
+		if requestCtx.Err() != nil {
+			return 0, fmt.Errorf("request cancelled or timeout reached after %d attempts", attempts)
 		}
+		if attempts > maxRetries {
+			return 0, fmt.Errorf("max retries reached")
+		}
+
+		code, err = SendHTTPRequest(ctx, client, method, url, userAgent, payload, dst)
+		if err != nil {
+			if handleError != nil {
+				handleError(err)
+			}
+			continue
+		}
+		return code, nil
 	}
 }
 

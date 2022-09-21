@@ -805,6 +805,29 @@ func TestGetPayload(t *testing.T) {
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 	})
+
+	t.Run("Error after max retries are reached", func(t *testing.T) {
+		backend := newTestBackend(t, 1, 0)
+
+		count := 0
+		maxRetries := 5
+
+		backend.relays[0].handlerOverrideGetPayload = func(w http.ResponseWriter, r *http.Request) {
+			count++
+			if count > maxRetries {
+				// success response after max retry attempts
+				backend.relays[0].defaultHandleGetPayload(w, r)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
+				require.NoError(t, err)
+			}
+		}
+		rr := backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, 5, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
+		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
 }
 
 func TestCheckRelays(t *testing.T) {
