@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_mockRelay(t *testing.T) {
+func TestMockRelay(t *testing.T) {
 	t.Run("bad payload", func(t *testing.T) {
 		relay := newMockRelay(t)
 		req, err := http.NewRequest("POST", pathRegisterValidator, bytes.NewReader([]byte("123")))

@@ -104,7 +104,7 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 			AttesterSlashings:      []*boostTypes.AttesterSlashing{},
 			Attestations:           []*boostTypes.Attestation{},
 			Deposits:               []*boostTypes.Deposit{},
-			VoluntaryExits:         []*boostTypes.VoluntaryExit{},
+			VoluntaryExits:         []*boostTypes.SignedVoluntaryExit{},
 			SyncAggregate:          &boostTypes.SyncAggregate{},
 			ExecutionPayloadHeader: header.Data.Message.Header,
 		},

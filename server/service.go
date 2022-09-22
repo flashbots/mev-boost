@@ -111,6 +111,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 			Timeout:       opts.RequestTimeoutRegVal,
 			CheckRedirect: httpClientDisallowRedirects,
 		},
+		relayMonitorPollInterval: opts.RelayMonitorPollInterval,
 	}, nil
 }
 
@@ -230,7 +231,7 @@ func (m *BoostService) pollRelayFaultsTask() {
 				log.Debug("Getting relay faults from relay monitor")
 				_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodGet, url, UserAgent(""), nil, nil)
 				if err != nil {
-					log.WithError(err).Warn("error calling relay monitor")
+					log.WithError(err).Warn("error calling relay monitor faults")
 					return
 				}
 				log.Debug("Got relay faults from relay monitor")
