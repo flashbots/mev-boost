@@ -44,3 +44,12 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 	err = entry.PublicKey.UnmarshalText([]byte(entry.URL.User.Username()))
 	return entry, err
 }
+
+// RelayEntriesToStrings returns the string representation of a list of relay entries
+func RelayEntriesToStrings(relays []RelayEntry) []string {
+	ret := make([]string, len(relays))
+	for i, entry := range relays {
+		ret[i] = entry.String()
+	}
+	return ret
+}

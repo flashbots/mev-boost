@@ -234,15 +234,15 @@ func TestRegisterValidator(t *testing.T) {
 	})
 }
 
-func TestGetHeader(t *testing.T) {
-	getPath := func(slot uint64, parentHash types.Hash, pubkey types.PublicKey) string {
-		return fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), pubkey.String())
-	}
+func getHeaderPath(slot uint64, parentHash types.Hash, pubkey types.PublicKey) string {
+	return fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), pubkey.String())
+}
 
+func TestGetHeader(t *testing.T) {
 	hash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
 	pubkey := _HexToPubkey(
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
-	path := getPath(1, hash, pubkey)
+	path := getHeaderPath(1, hash, pubkey)
 	require.Equal(t, "/eth/v1/builder/header/1/0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249", path)
 
 	t.Run("Okay response from relay", func(t *testing.T) {
@@ -256,6 +256,7 @@ func TestGetHeader(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
 		resp := backend.relays[0].MakeGetHeaderResponse(
 			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
@@ -284,6 +285,7 @@ func TestGetHeader(t *testing.T) {
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
 
@@ -291,12 +293,14 @@ func TestGetHeader(t *testing.T) {
 		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
 			12347,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
 
 		// First relay will return signed response with value 12346.
 		backend.relays[2].GetHeaderResponse = backend.relays[2].MakeGetHeaderResponse(
 			12346,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
@@ -325,18 +329,21 @@ func TestGetHeader(t *testing.T) {
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xa38385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
 
 		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
 			12345,
 			"0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
 
 		backend.relays[2].GetHeaderResponse = backend.relays[2].MakeGetHeaderResponse(
 			12345,
 			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
 
@@ -364,6 +371,7 @@ func TestGetHeader(t *testing.T) {
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
 
@@ -383,6 +391,7 @@ func TestGetHeader(t *testing.T) {
 
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
@@ -432,7 +441,7 @@ func TestGetHeader(t *testing.T) {
 	t.Run("Invalid parent hash", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
 
-		invalidParentHashPath := getPath(1, types.Hash{}, pubkey)
+		invalidParentHashPath := getHeaderPath(1, types.Hash{}, pubkey)
 		rr := backend.request(t, http.MethodGet, invalidParentHashPath, nil)
 		require.Equal(t, http.StatusNoContent, rr.Code)
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
@@ -578,4 +587,43 @@ func TestGetPayloadWithTestdata(t *testing.T) {
 			require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
 		})
 	}
+}
+
+func TestGetPayloadToOriginRelayOnly(t *testing.T) {
+	// Load the signed blinded beacon block used for getPayload
+	jsonFile, err := os.Open("../testdata/kiln-signed-blinded-beacon-block-899730.json")
+	require.NoError(t, err)
+	defer jsonFile.Close()
+	signedBlindedBeaconBlock := new(types.SignedBlindedBeaconBlock)
+	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
+
+	// Create a test backend with 2 relays
+	backend := newTestBackend(t, 2, time.Second)
+
+	// call getHeader, highest bid is returned by relay 0
+	getHeaderPath := "/eth/v1/builder/header/899730/0xe8b9bd82aa0e957736c5a029903e53d581edf451e28ab274f4ba314c442e35a4/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"
+	backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+		12345,
+		"0x373fb4e59dcb659b94bd58595c25345333426aa639f821567103e2eccf34d126",
+		"0xe8b9bd82aa0e957736c5a029903e53d581edf451e28ab274f4ba314c442e35a4",
+		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+	)
+	rr := backend.request(t, http.MethodGet, getHeaderPath, nil)
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	require.Equal(t, 1, backend.relays[0].GetRequestCount(getHeaderPath))
+	require.Equal(t, 1, backend.relays[1].GetRequestCount(getHeaderPath))
+
+	// Prepare getPayload response
+	backend.relays[0].GetPayloadResponse = &types.GetPayloadResponse{
+		Data: &types.ExecutionPayload{
+			BlockHash: signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
+		},
+	}
+
+	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
+	getPayloadPath := "/eth/v1/builder/blinded_blocks"
+	rr = backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBeaconBlock)
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
+	require.Equal(t, 0, backend.relays[1].GetRequestCount(getPayloadPath))
 }
