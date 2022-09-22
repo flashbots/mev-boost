@@ -149,12 +149,12 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 
 // MakeGetHeaderResponse is used to create the default or can be used to create a custom response to the getHeader
 // method
-func (m *mockRelay) MakeGetHeaderResponse(value uint64, hash, publicKey string) *types.GetHeaderResponse {
+func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string) *types.GetHeaderResponse {
 	// Fill the payload with custom values.
 	message := &types.BuilderBid{
 		Header: &types.ExecutionPayloadHeader{
-			BlockHash:  _HexToHash(hash),
-			ParentHash: _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+			BlockHash:  _HexToHash(blockHash),
+			ParentHash: _HexToHash(parentHash),
 		},
 		Value:  types.IntToU256(value),
 		Pubkey: _HexToPubkey(publicKey),
@@ -190,6 +190,7 @@ func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	// Build the default response.
 	response := m.MakeGetHeaderResponse(
 		12345,
+		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 	)
