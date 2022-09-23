@@ -59,7 +59,7 @@ var (
 	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
 )
 
-var log = logrus.WithField("module", "cli")
+var log = logrus.NewEntry(logrus.New())
 
 // Main starts the mev-boost cli
 func Main() {
@@ -119,11 +119,17 @@ func Main() {
 		flag.Usage()
 		log.Fatal("no relays specified")
 	}
-	log.WithField("relays", server.RelayEntriesToStrings(relays)).Infof("using %d relays", len(relays))
+	log.Infof("using %d relays", len(relays))
+	for index, relay := range relays {
+		log.Infof("relay #%d: %s", index+1, relay.String())
+	}
 
 	relayMonitors := parseRelayMonitorURLs(*relayMonitorURLs)
 	if len(relayMonitors) > 0 {
-		log.WithField("relay-monitors", relayMonitors).Infof("using %d relay monitors", len(relayMonitors))
+		log.Infof("using %d relay monitors", len(relayMonitors))
+		for index, relayMonitor := range relayMonitors {
+			log.Infof("relay-monitor #%d: %s", index+1, relayMonitor.String())
+		}
 	}
 
 	opts := server.BoostServiceOpts{
