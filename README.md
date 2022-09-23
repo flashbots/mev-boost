@@ -179,7 +179,7 @@ make build-portable
 
 # Usage
 
-A single MEV-Boostinstance can be used by multiple beacon nodes and validators. 
+A single MEV-Boost instance can be used by multiple beacon nodes and validators. 
 
 Aside from running MEV-Boost on your local network, you must configure:
 * individual **beacon nodes** to connect to MEV-Boost. Beacon Node configuration varies by Consensus client. Guides for each client can be found on the [MEV-boost website](https://boost.flashbots.net/#block-356364ebd7cc424fb524428ed0134b21).
