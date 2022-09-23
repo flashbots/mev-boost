@@ -7,7 +7,7 @@ import (
 	"errors"
 )
 
-var ErrDuplicateEntry = errors.New("duplicate entry")
+var errDuplicateEntry = errors.New("duplicate entry")
 
 type relayList []server.RelayEntry
 
