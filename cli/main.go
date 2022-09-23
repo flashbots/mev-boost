@@ -77,7 +77,6 @@ func Main() {
 		log.Logger.SetFormatter(&logrus.TextFormatter{
 			FullTimestamp: true,
 		})
-
 	}
 
 	if *logDebug {
@@ -167,9 +166,33 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func parseRelayURLs(relayURLs string) []server.RelayEntry {
-	ret := []server.RelayEntry{}
-	for _, entry := range strings.Split(relayURLs, ",") {
+// Deletes whitespace from beginning and end, removes empty strings
+func trim(stringSlice []string) []string {
+	filtered := make([]string, 0, len(stringSlice))
+	for _, entry := range stringSlice {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed != "" {
+			filtered = append(filtered, trimmed)
+		}
+	}
+	return filtered
+}
+
+// Returns a slice of unique items
+func unique(stringSlice []string) []string {
+	filtered := make([]string, 0, len(stringSlice))
+	stringMap := make(map[string]bool)
+	for _, entry := range stringSlice {
+		if _, s := stringMap[entry]; !s {
+			filtered = append(filtered, entry)
+			stringMap[entry] = true
+		}
+	}
+	return filtered
+}
+
+func parseRelayURLs(relayURLs string) (ret []server.RelayEntry) {
+	for _, entry := range unique(trim(strings.Split(relayURLs, ","))) {
 		relay, err := server.NewRelayEntry(entry)
 		if err != nil {
 			log.WithError(err).WithField("relayURL", entry).Fatal("Invalid relay URL")
@@ -180,11 +203,7 @@ func parseRelayURLs(relayURLs string) []server.RelayEntry {
 }
 
 func parseRelayMonitorURLs(relayMonitorURLs string) (ret []*url.URL) {
-	for _, entry := range strings.Split(relayMonitorURLs, ",") {
-		if strings.TrimSpace(entry) == "" {
-			continue
-		}
-
+	for _, entry := range unique(trim(strings.Split(relayMonitorURLs, ","))) {
 		relayMonitor, err := url.Parse(entry)
 		if err != nil {
 			log.WithError(err).WithField("relayMonitorURL", entry).Fatal("Invalid relay monitor URL")
