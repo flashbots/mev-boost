@@ -104,9 +104,7 @@ clone the repository and build it:
 ```bash
 git clone https://github.com/flashbots/mev-boost.git
 cd mev-boost
-# Checkout the most updated version based on tags. The example below is for MEV-Boost v1.3.1
-git checkout tags/v1.3.1
-# Build the checked-out version
+# Build the checked-out version from https://github.com/flashbots/mev-boost/releases
 make build
 # Use build-portable if the standard build crashes on startup
 make build-portable
