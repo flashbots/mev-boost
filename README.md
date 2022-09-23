@@ -17,7 +17,7 @@ PoS node operators must run three pieces of software: a validator client, a cons
 
 Relays aggregate blocks from **multiple** builders in order to select the block with the highest fees. One instance of MEV-boost can be configured by a validator to connect to **multiple** relays. The consensus layer client of a validator proposes the most profitable block received from MEV-boost to the Ethereum network for attestation and block inclusion.
 
-A MEV-Boost security assessment was conducted on 2022-06-20 by [lotusbumi](https://github.com/lotusbumi). Additional audits of surrounding infrastructure, such as the Flashbots Relay, are currently underway. Additional information can be found in the [Security section](https://github.com/flashbots/mev-boost#security) of this repository.
+A MEV-Boost security assessment was conducted on 2022-06-20 by [lotusbumi](https://github.com/lotusbumi). Additional audits of surrounding infrastructure, such as the Flashbots Relay, are currently underway. Additional information can be found in the [Security](#security) section of this repository.
 
 
 ![MEV-Boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
@@ -42,8 +42,6 @@ See also:
 - [Installing](#installing)
   - [Binaries](#binaries)
   - [From source](#from-source)
-    - [`go install`](#go-install)
-    - [Clone and Build](#clone-and-build)
   - [From Docker image](#from-docker-image)
   - [Systemd configuration](#systemd-configuration)
   - [Troubleshooting](#troubleshooting)
@@ -86,7 +84,7 @@ https://github.com/flashbots/mev-boost/releases
 
 Requires [Go 1.18+](https://go.dev/doc/install).
 
-### `go install`
+**`go install`**
 
 Install MEV-Boost with `go install`:
 
@@ -95,8 +93,8 @@ go install github.com/flashbots/mev-boost@latest
 mev-boost -help
 ```
 
-### Clone and Build
-
+**Clone and Build
+**
 Ensure you are downloading the most updated MEV-Boost release. Releases are available at https://github.com/flashbots/mev-boost/releases
 
 clone the repository and build it:
