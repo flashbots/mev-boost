@@ -73,6 +73,7 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
+<<<<<<< HEAD
 		_, err := NewBoostService(BoostServiceOpts{
 			Log:                   testLog,
 			ListenAddr:            ":123",
@@ -86,6 +87,9 @@ func TestNewBoostServiceErrors(t *testing.T) {
 			RequestTimeoutRegVal:     time.Second,
 			MetricOpts:               NewMetricOpts(false, nil),
 		})
+=======
+		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, "0x00000000", true, NewMetricOpts(false, nil), time.Second, time.Second, time.Second})
+>>>>>>> 122c3d0 (fix: vararg ordering in test)
 		require.Error(t, err)
 	})
 }
