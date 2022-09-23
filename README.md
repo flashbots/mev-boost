@@ -38,10 +38,6 @@ See also:
   * [Builder API](https://ethereum.github.io/builder-specs)
   * [Flashbots Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
 
-
-# Table of Contents
-
-- [Table of Contents](#table-of-contents)
 - [Background](#background)
 - [Installing](#installing)
   - [Binaries](#binaries)
