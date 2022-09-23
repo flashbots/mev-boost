@@ -86,7 +86,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		listenAddr:    opts.ListenAddr,
 		relays:        opts.Relays,
 		relayMonitors: opts.RelayMonitors,
-		log:           opts.Log.WithField("module", "service"),
+		log:           opts.Log,
 		relayCheck:    opts.RelayCheck,
 		bids:          make(map[bidRespKey]bidResp),
 

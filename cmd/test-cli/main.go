@@ -15,7 +15,7 @@ import (
 	"github.com/flashbots/mev-boost/server"
 )
 
-var log = logrus.WithField("service", "cmd/test-cli")
+var log = logrus.NewEntry(logrus.New())
 
 func doGenerateValidator(filePath string, gasLimit uint64, feeRecipient string) {
 	v := newRandomValidator(gasLimit, feeRecipient)

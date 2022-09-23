@@ -7,7 +7,7 @@ import (
 )
 
 // testLog is used to log information in the test methods
-var testLog = logrus.WithField("testing", true)
+var testLog = logrus.NewEntry(logrus.New())
 
 // _HexToBytes converts a hexadecimal string to a byte array
 func _HexToBytes(hex string) []byte {
