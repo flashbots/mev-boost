@@ -89,30 +89,6 @@ Follow the [Clean Code](https://flashbots.notion.site/Clean-Code-13016c5c7ca649f
 
 We appreciate you, friend <3.
 
-## Deploying an update
+---
 
-The extended deploy steps are necessary for installations with `go install` to include the correct version.
-
-### Before the release
-
-Run these commands:
-
-```bash
-make lint
-make test-race
-
-# Start mev-boost with relay check, and call the mev-boost status endpoint
-go run . -mainnet -relay-check -relays https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com,https://0xb3ee7afcf27f1f1259ac1787876318c6584ee353097a50ed84f51a1f21a323b3736f271a895c7ce918c038e4265918be@relay.edennetwork.io,https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@builder-relay-mainnet.blocknative.com -debug
-curl localhost:18550/eth/v1/builder/status
-```
-
-
-### Releasing a new version
-
-* Update `Version` in `config/vars.go`
-  * it will be next_version-dev (eg. `v0.7.11-dev`)
-  * change it to the next version (eg. `v0.7.11`), and commit
-* Create a git tag
-* Now push to main and push the tag: `git push && git push --tags`
-* Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v0.7.12-dev`), and commit
-* In the meantime, Github CI will have produced a new draft release in https://github.com/flashbots/mev-boost/releases. Open it, generate the description and publish.
+For the checklist and guide to releasing a new version, see [RELEASE.md](RELEASE.md).
