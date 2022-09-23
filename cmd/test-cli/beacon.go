@@ -20,7 +20,7 @@ type beaconBlockData struct {
 	BlockHash common.Hash
 }
 
-func createBeacon(isMergemock bool, beaconEndpoint string, engineEndpoint string) Beacon {
+func createBeacon(isMergemock bool, beaconEndpoint, engineEndpoint string) Beacon {
 	if isMergemock {
 		return &MergemockBeacon{engineEndpoint}
 	}

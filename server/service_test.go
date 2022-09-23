@@ -53,7 +53,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	return &backend
 }
 
-func (be *testBackend) request(t *testing.T, method string, path string, payload any) *httptest.ResponseRecorder {
+func (be *testBackend) request(t *testing.T, method, path string, payload any) *httptest.ResponseRecorder {
 	var req *http.Request
 	var err error
 

@@ -25,7 +25,7 @@ type UserAgent string
 type BlockHashHex string
 
 // SendHTTPRequest - prepare and send HTTP request, marshaling the payload if any, and decoding the response if dst is set
-func SendHTTPRequest(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload any, dst any) (code int, err error) {
+func SendHTTPRequest(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload, dst any) (code int, err error) {
 	var req *http.Request
 
 	if payload == nil {
@@ -81,7 +81,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 }
 
 // ComputeDomain computes the signing domain
-func ComputeDomain(domainType types.DomainType, forkVersionHex string, genesisValidatorsRootHex string) (domain types.Domain, err error) {
+func ComputeDomain(domainType types.DomainType, forkVersionHex, genesisValidatorsRootHex string) (domain types.Domain, err error) {
 	genesisValidatorsRoot := types.Root(common.HexToHash(genesisValidatorsRootHex))
 	forkVersionBytes, err := hexutil.Decode(forkVersionHex)
 	if err != nil || len(forkVersionBytes) > 4 {

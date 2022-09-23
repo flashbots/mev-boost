@@ -77,7 +77,6 @@ func Main() {
 		log.Logger.SetFormatter(&logrus.TextFormatter{
 			FullTimestamp: true,
 		})
-
 	}
 
 	if *logDebug {
@@ -150,7 +149,7 @@ func Main() {
 	log.Fatal(server.StartHTTPServer())
 }
 
-func getEnv(key string, defaultValue string) string {
+func getEnv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
 	}

@@ -21,7 +21,7 @@ type jsonrpcMessage struct {
 	Result json.RawMessage `json:"result,omitempty"`
 }
 
-func sendJSONRequest(endpoint string, payload any, dst any) error {
+func sendJSONRequest(endpoint string, payload, dst any) error {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
