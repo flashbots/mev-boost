@@ -202,7 +202,7 @@ Run MEV-Boost pointed at our [Sepolia Relay](https://builder-relay-sepolia.flash
  ./mev-boost -sepolia -relay-check -relays https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@builder-relay-sepolia.flashbots.net
 ```
 
-#### `test-cli`
+### `test-cli`
 
 `test-cli` is a utility to execute all proposer requests against MEV-Boost + relay. See also the [test-cli readme](cmd/test-cli/README.md).
 
