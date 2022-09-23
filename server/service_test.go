@@ -547,26 +547,35 @@ func TestEmptyTxRoot(t *testing.T) {
 func TestGetPayloadWithTestdata(t *testing.T) {
 	path := "/eth/v1/builder/blinded_blocks"
 
-	jsonFile, err := os.Open("../testdata/kiln-signed-blinded-beacon-block-899730.json")
-	require.NoError(t, err)
-	defer jsonFile.Close()
-	signedBlindedBeaconBlock := new(types.SignedBlindedBeaconBlock)
-	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
-
-	backend := newTestBackend(t, 1, time.Second)
-	mockResp := types.GetPayloadResponse{
-		Data: &types.ExecutionPayload{
-			BlockHash: signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
-		},
+	testPayloadsFiles := []string{
+		"../testdata/kiln-signed-blinded-beacon-block-899730.json",
+		"../testdata/signed-blinded-beacon-block-case0.json",
 	}
-	backend.relays[0].GetPayloadResponse = &mockResp
 
-	rr := backend.request(t, http.MethodPost, path, signedBlindedBeaconBlock)
-	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
-	require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+	for _, fn := range testPayloadsFiles {
+		t.Run(fn, func(t *testing.T) {
+			jsonFile, err := os.Open(fn)
+			require.NoError(t, err)
+			defer jsonFile.Close()
+			signedBlindedBeaconBlock := new(types.SignedBlindedBeaconBlock)
+			require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
 
-	resp := new(types.GetPayloadResponse)
-	err = json.Unmarshal(rr.Body.Bytes(), resp)
-	require.NoError(t, err)
-	require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
+			backend := newTestBackend(t, 1, time.Second)
+			mockResp := types.GetPayloadResponse{
+				Data: &types.ExecutionPayload{
+					BlockHash: signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
+				},
+			}
+			backend.relays[0].GetPayloadResponse = &mockResp
+
+			rr := backend.request(t, http.MethodPost, path, signedBlindedBeaconBlock)
+			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+			require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+			resp := new(types.GetPayloadResponse)
+			err = json.Unmarshal(rr.Body.Bytes(), resp)
+			require.NoError(t, err)
+			require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
+		})
+	}
 }
