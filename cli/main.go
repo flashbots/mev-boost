@@ -41,6 +41,9 @@ var (
 	logLevel     = flag.String("loglevel", defaultLogLevel, "minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic")
 	logDebug     = flag.Bool("debug", false, "shorthand for '-loglevel debug'")
 
+	relays        relayList
+	relayMonitors relayMonitorList
+
 	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs        = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
 	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
@@ -63,6 +66,8 @@ var log = logrus.NewEntry(logrus.New())
 
 // Main starts the mev-boost cli
 func Main() {
+	flag.Var(&relays, "relay", "a single relay, can be specified multiple times")
+	flag.Var(&relayMonitors, "relay-monitor", "a single relay monitor, can be specified multiple times")
 	flag.Parse()
 	logrus.SetOutput(os.Stdout)
 
@@ -114,7 +119,7 @@ func Main() {
 	}
 	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
 
-	relays := parseRelayURLs(*relayURLs)
+	relays = append(relays, parseRelayURLs(*relayURLs)...)
 	if len(relays) == 0 {
 		flag.Usage()
 		log.Fatal("no relays specified")
@@ -124,7 +129,7 @@ func Main() {
 		log.Infof("relay #%d: %s", index+1, relay.String())
 	}
 
-	relayMonitors := parseRelayMonitorURLs(*relayMonitorURLs)
+	relayMonitors = append(relayMonitors, parseRelayMonitorURLs(*relayMonitorURLs)...)
 	if len(relayMonitors) > 0 {
 		log.Infof("using %d relay monitors", len(relayMonitors))
 		for index, relayMonitor := range relayMonitors {
@@ -173,8 +178,8 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func parseRelayURLs(relayURLs string) []server.RelayEntry {
-	ret := []server.RelayEntry{}
+func parseRelayURLs(relayURLs string) relayList {
+	ret := relayList{}
 	for _, entry := range strings.Split(relayURLs, ",") {
 		relay, err := server.NewRelayEntry(entry)
 		if err != nil {
@@ -185,7 +190,7 @@ func parseRelayURLs(relayURLs string) []server.RelayEntry {
 	return ret
 }
 
-func parseRelayMonitorURLs(relayMonitorURLs string) (ret []*url.URL) {
+func parseRelayMonitorURLs(relayMonitorURLs string) (ret relayMonitorList) {
 	for _, entry := range strings.Split(relayMonitorURLs, ",") {
 		if strings.TrimSpace(entry) == "" {
 			continue
