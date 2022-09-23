@@ -112,6 +112,10 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		return nil, err
 	}
 
+	var metricsRegistry = opts.MetricOpts.Registry
+	if opts.MetricOpts.Registry == nil {
+		metricsRegistry = prometheus.NewRegistry()
+	}
 	return &BoostService{
 		listenAddr:    opts.ListenAddr,
 		relays:        opts.Relays,
@@ -120,9 +124,9 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		relayCheck:    opts.RelayCheck,
 		bids:          make(map[bidRespKey]bidResp),
 		Metrics: Metrics{
-			metricsMev:          NewMevMetrics(opts.MetricOpts.Registry),
-			metricsOutboundHTTP: NewOutboundHTTPMetrics(opts.MetricOpts.Registry),
-			metricsInboundHTTP:  NewInboundHTTPMetrics(opts.MetricOpts.Registry),
+			metricsMev:          NewMevMetrics(metricsRegistry),
+			metricsOutboundHTTP: NewOutboundHTTPMetrics(metricsRegistry),
+			metricsInboundHTTP:  NewInboundHTTPMetrics(metricsRegistry),
 		},
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{

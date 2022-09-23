@@ -7,8 +7,6 @@ import (
 
 const (
 	metricNamespace = "mev_boost"
-	labelSlot       = "slot"
-	labelPubkey     = "pubkey"
 )
 
 // MevMetrics stores the pointers to server metricOpts

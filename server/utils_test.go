@@ -60,3 +60,64 @@ func TestSendHTTPRequestUserAgent(t *testing.T) {
 	require.Equal(t, 200, code)
 	<-done
 }
+
+func Test_filterPath(t *testing.T) {
+	type args struct {
+		path string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "metricOpts",
+			args: args{
+				path: pathMetrics,
+			},
+			want: pathMetrics,
+		},
+		{
+			name: "status",
+			args: args{
+				path: pathStatus,
+			},
+			want: pathStatus,
+		},
+		{
+			name: "getPayload",
+			args: args{
+				path: pathGetPayload,
+			},
+			want: pathGetPayload,
+		},
+		{
+			name: "getHeader",
+			args: args{
+				path: pathGetHeader,
+			},
+			want: "/eth/v1/builder/header",
+		},
+		{
+			name: "registerValidator",
+			args: args{
+				path: pathRegisterValidator,
+			},
+			want: pathRegisterValidator,
+		},
+		{
+			name: "registerValidator full path",
+			args: args{
+				path: "https://builder-relay-goerli.flashbots.net/eth/v1/builder/header",
+			},
+			want: "https://builder-relay-goerli.flashbots.net/eth/v1/builder/header",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := filterPath(tt.args.path); got != tt.want {
+				t.Errorf("filterPath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
