@@ -30,7 +30,7 @@ func (r *relayList) Set(value string) error {
 		return err
 	}
 	if r.Contains(relay) {
-		return ErrDuplicateEntry
+		return errDuplicateEntry
 	}
 	*r = append(*r, relay)
 	return nil
@@ -61,7 +61,7 @@ func (rm *relayMonitorList) Set(value string) error {
 		return err
 	}
 	if rm.Contains(relayMonitor) {
-		return ErrDuplicateEntry
+		return errDuplicateEntry
 	}
 	*rm = append(*rm, relayMonitor)
 	return nil
