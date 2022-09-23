@@ -212,6 +212,38 @@ Run mev-boost pointed at our [Sepolia Relay](https://builder-relay-sepolia.flash
 `test-cli` is a utility to execute all proposer requests against mev-boost+relay. See also the [test-cli readme](cmd/test-cli/README.md).
 
 
+# Metrics
+
+Optionally the `-prometheus=true` flag can be passed to the binary to collect various prometheus metrics
+
+## MEV Metrics
+Metrics relating to mev specifics
+
+| **metric**                     | **type** | **labels** | **description**                             |
+|--------------------------------|----------|------------|---------------------------------------------|
+| mev_boost_validator_info       | gauge    | pubkey     | validator identity information              |
+| mev_boost_version              | gauge    | version    | the version of MEV boost that is in use     |
+| mev_boost_genesis_fork_version | gauge    | none       | the genesis fork version block              |
+| mev_boost_bids_total           | gauge    | none       | The total bids currently active             |
+| mev_boost_relays               | gauge    | relay_host | The relays we're connected to               |
+| mev_boost_relays_total         | gauge    | none       | The total number of failed or withheld bids |
+
+## HTTP Metrics
+Metrics relating to http performance
+
+| **metric**                                  | **type** | **labels**                                                                                                                               | **description**                                          |
+|---------------------------------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------|
+| mev_boost_outbound_http_requests_total                | gauge    | path: the requested api path e.g. /eth2<br>method: the http method e.g. GET, POST, PUT, DELETE<br>code: the http response code e.g. 200, 409, 500 | the total http requests sent                             |
+| mev_boost_outbound_http_requests_errors_total         | gauge    | path: the requested api path e.g. /eth2<br>method: the http method e.g. GET, POST, PUT, DELETE<br>code: the http response code e.g. 200, 409, 500 | The total bids currently active                          |
+| mev_boost_outbound_http_bad_requests_total            | gauge    | path: the requested api path e.g. /eth2<br>method: the http method e.g. GET, POST, PUT, DELETE                                           | The total number of failed or withheld bids              |
+| mev_boost_outbound_http_request_duration_milliseconds | gauge    | path: the requested api path e.g. /eth2<br>method: the http method e.g. GET, POST, PUT, DELETE                                           | the total milliseconds taken for a response              |
+| mev_boost_outbound_http_request_bytes                 | gauge    | path: the requested api path e.g. /eth2<br>method: the http method e.g. GET, POST, PUT, DELETE                                           | the total bytes sent as http request body                |
+| mev_boost_outbound_http_response_bytes                | gauge    | path: the requested api path e.g. /eth2<br>method: the http method e.g. GET, POST, PUT, DELETE                                           | the total bytes sent as http response body               |
+| mev_boost_inbound_http_requests_total                 | gauge    | path: the requested api path e.g. /eth2<br>method: the http method e.g. GET, POST, PUT, DELETE<br>code: the http response code e.g. 200, 409, 500 | the total http requests sent to mev-boost                |
+| mev_boost_inbound_http_request_duration_milliseconds  | gauge    | path: the requested api path e.g. /eth2<br>method: the http method e.g. GET, POST, PUT, DELETE                                           | the total milliseconds taken for a response to mev-boost |
+| mev_boost_inbound_http_request_bytes                  | gauge    | path: the requested api path e.g. /eth2<br>method: the http method e.g. GET, POST, PUT, DELETE                                           | the total bytes sent as http request body to mev-boost   |
+| mev_boost_inbound_http_response_bytes                 | gauge    | path: the requested api path e.g. /eth2<br>method: the http method e.g. GET, POST, PUT, DELETE                                           | the total bytes sent as http response body to mev-boost  |
+
 # API
 
 `mev-boost` implements the latest [Builder Specification](https://github.com/ethereum/builder-specs).

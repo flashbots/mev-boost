@@ -36,7 +36,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
 
-	opts := BoostServiceOpts{
+	service, err := NewBoostService(BoostServiceOpts{
 		Log:                      testLog,
 		ListenAddr:               "localhost:12345",
 		Relays:                   relayEntries,
@@ -45,8 +45,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		RequestTimeoutGetHeader:  relayTimeout,
 		RequestTimeoutGetPayload: relayTimeout,
 		RequestTimeoutRegVal:     relayTimeout,
-	}
-	service, err := NewBoostService(opts)
+	})
 	require.NoError(t, err)
 
 	backend.boost = service
@@ -73,23 +72,16 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-<<<<<<< HEAD
 		_, err := NewBoostService(BoostServiceOpts{
-			Log:                   testLog,
-			ListenAddr:            ":123",
-			Relays:                []RelayEntry{},
-			RelayMonitors:         []*url.URL{},
-			GenesisForkVersionHex: "0x00000000",
-			RelayCheck:            true,
-
+			Log:                      testLog,
+			ListenAddr:               "localhost:12345",
+			Relays:                   []RelayEntry{},
+			GenesisForkVersionHex:    "0x00000000",
+			RelayCheck:               true,
 			RequestTimeoutGetHeader:  time.Second,
 			RequestTimeoutGetPayload: time.Second,
 			RequestTimeoutRegVal:     time.Second,
-			MetricOpts:               NewMetricOpts(false, nil),
 		})
-=======
-		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, "0x00000000", true, NewMetricOpts(false, nil), time.Second, time.Second, time.Second})
->>>>>>> 122c3d0 (fix: vararg ordering in test)
 		require.Error(t, err)
 	})
 }

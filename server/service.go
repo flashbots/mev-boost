@@ -73,8 +73,8 @@ type BoostService struct {
 	bidsLock sync.Mutex
 	bids     map[bidRespKey]bidResp // keeping track of bids, to log the originating relay on withholding
 
-	metricOpts MetricOpts
-	Metrics    Metrics
+	Metrics        Metrics
+	metricRegistry *prometheus.Registry
 }
 
 // Metrics contains all metric registries
@@ -84,10 +84,31 @@ type Metrics struct {
 	metricsInboundHTTP  *InboundHTTPMetrics
 }
 
+// NewMetrics constructs a metrics registry configuration and initialises static metrics
+func NewMetrics(metricsRegistry *prometheus.Registry, opts MetricOpts, relays []RelayEntry) Metrics {
+	mevMetrics := NewMevMetrics(metricsRegistry)
+	if GenesisForkVersionDec, err := strconv.ParseInt(opts.GenesisForkVersionHex, 16, 64); err == nil {
+		mevMetrics.genesisForkVersion.Set(float64(GenesisForkVersionDec))
+	}
+	mevMetrics.version.With(prometheus.Labels{labelVersion: opts.ServiceVersion}).Set(1)
+	mevMetrics.relayCount.Set(float64(len(relays)))
+	for _, relay := range relays {
+		mevMetrics.validatorIdentities.With(prometheus.Labels{labelPubkey: relay.PublicKey.String()}).Set(1)
+		mevMetrics.relays.WithLabelValues(relay.URL.Hostname()).Set(1)
+	}
+	return Metrics{
+		metricsMev:          mevMetrics,
+		metricsOutboundHTTP: NewOutboundHTTPMetrics(metricsRegistry),
+		metricsInboundHTTP:  NewInboundHTTPMetrics(metricsRegistry),
+	}
+}
+
 // MetricOpts exposes configuration details for prometheus handler
 type MetricOpts struct {
-	Enabled  bool
-	Registry *prometheus.Registry
+	Enabled               bool
+	Registry              *prometheus.Registry
+	ServiceVersion        string
+	GenesisForkVersionHex string
 }
 
 // NewMetricOpts constructs a MetricOpts with sensible defaults
@@ -104,7 +125,7 @@ func NewMetricOpts(enabled bool, registry *prometheus.Registry) MetricOpts {
 // NewBoostService created a new BoostService
 func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	if len(opts.Relays) == 0 {
-		return nil, errors.New("no relays")
+		return nil, errors.New("no relay_count")
 	}
 
 	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
@@ -117,17 +138,14 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		metricsRegistry = prometheus.NewRegistry()
 	}
 	return &BoostService{
-		listenAddr:    opts.ListenAddr,
-		relays:        opts.Relays,
-		relayMonitors: opts.RelayMonitors,
-		log:           opts.Log.WithField("module", "service"),
-		relayCheck:    opts.RelayCheck,
-		bids:          make(map[bidRespKey]bidResp),
-		Metrics: Metrics{
-			metricsMev:          NewMevMetrics(metricsRegistry),
-			metricsOutboundHTTP: NewOutboundHTTPMetrics(metricsRegistry),
-			metricsInboundHTTP:  NewInboundHTTPMetrics(metricsRegistry),
-		},
+		listenAddr:           opts.ListenAddr,
+		relays:               opts.Relays,
+		relayMonitors:        opts.RelayMonitors,
+		log:                  opts.Log.WithField("module", "service"),
+		relayCheck:           opts.RelayCheck,
+		bids:                 make(map[bidRespKey]bidResp),
+		metricRegistry:       opts.MetricOpts.Registry,
+		Metrics:              NewMetrics(metricsRegistry, opts.MetricOpts, opts.Relays),
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
 			Timeout:       opts.RequestTimeoutGetHeader,
@@ -172,10 +190,11 @@ func (m *BoostService) getRouter() http.Handler {
 	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
-	if m.metricOpts.Enabled {
+	if m.metricRegistry != nil {
+		fmt.Println("enabled")
 		log := m.log.WithField("path", pathMetrics)
-		log.Infof("prometheus metrics exposed")
-		r.Handle(pathMetrics, promhttp.HandlerFor(m.metricOpts.Registry, promhttp.HandlerOpts{
+		log.Infof("prometheus metrics exposed at %s", pathMetrics)
+		r.Handle(pathMetrics, promhttp.HandlerFor(m.metricRegistry, promhttp.HandlerOpts{
 			ErrorLog: m.log,
 		})).Methods(http.MethodGet)
 	}
@@ -216,6 +235,7 @@ func (m *BoostService) StartHTTPServer() error {
 
 func (m *BoostService) startBidCacheCleanupTask() {
 	for {
+		m.Metrics.metricsMev.bids.Set(float64(len(m.bids)))
 		time.Sleep(time.Minute)
 		m.bidsLock.Lock()
 		for k, bidResp := range m.bids {
@@ -224,7 +244,6 @@ func (m *BoostService) startBidCacheCleanupTask() {
 				continue
 			}
 		}
-		m.Metrics.metricsMev.bids.Set(float64(len(m.bids)))
 		m.bidsLock.Unlock()
 	}
 }
@@ -255,7 +274,7 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	if !m.relayCheck || m.CheckRelays() > 0 {
 		m.respondOK(w, nilResponse)
 	} else {
-		m.respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
+		m.respondError(w, http.StatusServiceUnavailable, "all relay_count are unavailable")
 	}
 }
 
@@ -337,9 +356,9 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	result := bidResp{}                           // the final response, containing the highest bid (if any)
-	relays := make(map[BlockHashHex][]RelayEntry) // relays that sent the bid for a specific blockHash
+	relays := make(map[BlockHashHex][]RelayEntry) // relay_count that sent the bid for a specific blockHash
 
-	// Call the relays
+	// Call the relay_count
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, relay := range m.relays {
@@ -412,7 +431,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			mu.Lock()
 			defer mu.Unlock()
 
-			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
+			// Remember which relay_count delivered which bids (multiple relay_count might deliver the top bid)
 			relays[BlockHashHex(blockHash)] = append(relays[BlockHashHex(blockHash)], relay)
 
 			// Compare the bid with already known top bid (if any)
@@ -452,7 +471,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"blockNumber": result.response.Data.Message.Header.BlockNumber,
 		"txRoot":      result.response.Data.Message.Header.TransactionsRoot.String(),
 		"value":       result.response.Data.Message.Value.String(),
-		"relays":      strings.Join(RelayEntriesToStrings(result.relays), ", "),
+		"relay_count": strings.Join(RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
 	// Remember the bid, for future logging in case of withholding
@@ -508,12 +527,12 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	if originalBid.blockHash == "" {
 		log.Error("no bid for this getPayload payload found. was getHeader called before?")
 	} else if len(originalBid.relays) == 0 {
-		log.Warn("bid found but no associated relays")
+		log.Warn("bid found but no associated relay_count")
 	}
 
 	relays := originalBid.relays
 	if len(relays) == 0 {
-		log.Warn("originating relay not found, sending getPayload request to all relays")
+		log.Warn("originating relay not found, sending getPayload request to all relay_count")
 		relays = m.relays
 	}
 
@@ -576,7 +595,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// If no payload has been received from relay, log loudly about withholding!
 	if result.Data == nil || result.Data.BlockHash == nilHash {
 		originRelays := RelayEntriesToStrings(originalBid.relays)
-		log.WithField("relays", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
+		log.WithField("relay_count", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
@@ -584,7 +603,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	m.respondOK(w, result)
 }
 
-// CheckRelays sends a request to each one of the relays previously registered to get their status
+// CheckRelays sends a request to each one of the relay_count previously registered to get their status
 func (m *BoostService) CheckRelays() int {
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
@@ -610,7 +629,7 @@ func (m *BoostService) CheckRelays() int {
 				return
 			}
 
-			// Success: increase counter and cancel all pending requests to other relays
+			// Success: increase counter and cancel all pending requests to other relay_count
 			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
 		}(r)
 	}
