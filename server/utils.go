@@ -129,3 +129,18 @@ type bidRespKey struct {
 func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
 	return http.ErrUseLastResponse
 }
+
+// filterPath returns up to the first 4 segments of the
+// path to avoid cardinality issues in prometheus
+// this could be smarter
+func filterPath(path string) string {
+	var n = 4
+	if strings.HasPrefix(path, "http") {
+		n = 6
+	}
+	split := strings.Split(path, "/")
+	if len(split) <= n {
+		return path
+	}
+	return strings.Join(split[:n+1], "/")
+}

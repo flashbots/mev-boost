@@ -11,6 +11,7 @@ import (
 
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
 
@@ -57,9 +58,13 @@ var (
 	useGenesisForkVersionSepolia = flag.Bool("sepolia", false, "use Sepolia")
 	useGenesisForkVersionGoerli  = flag.Bool("goerli", false, "use Goerli")
 	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
+
+	usePrometheus = flag.Bool("prometheus", false, "use prometheus to export metrics")
 )
 
-var log = logrus.WithField("module", "cli")
+var (
+	log = logrus.WithField("module", "cli")
+)
 
 // Main starts the mev-boost cli
 func Main() {
@@ -136,6 +141,7 @@ func Main() {
 		RequestTimeoutGetHeader:  time.Duration(*relayTimeoutMsGetHeader) * time.Millisecond,
 		RequestTimeoutGetPayload: time.Duration(*relayTimeoutMsGetPayload) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(*relayTimeoutMsRegVal) * time.Millisecond,
+		MetricOpts:               server.NewMetricOpts(*usePrometheus, prometheus.NewRegistry()),
 	}
 	server, err := server.NewBoostService(opts)
 	if err != nil {

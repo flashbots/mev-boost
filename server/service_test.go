@@ -73,7 +73,19 @@ func (be *testBackend) request(t *testing.T, method string, path string, payload
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, []*url.URL{}, "0x00000000", true, time.Second, time.Second, time.Second})
+		_, err := NewBoostService(BoostServiceOpts{
+			Log:                   testLog,
+			ListenAddr:            ":123",
+			Relays:                []RelayEntry{},
+			RelayMonitors:         []*url.URL{},
+			GenesisForkVersionHex: "0x00000000",
+			RelayCheck:            true,
+
+			RequestTimeoutGetHeader:  time.Second,
+			RequestTimeoutGetPayload: time.Second,
+			RequestTimeoutRegVal:     time.Second,
+			MetricOpts:               NewMetricOpts(false, nil),
+		})
 		require.Error(t, err)
 	})
 }

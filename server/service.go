@@ -19,6 +19,8 @@ import (
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -51,6 +53,7 @@ type BoostServiceOpts struct {
 	RequestTimeoutGetHeader  time.Duration
 	RequestTimeoutGetPayload time.Duration
 	RequestTimeoutRegVal     time.Duration
+	MetricOpts               MetricOpts
 }
 
 // BoostService - the mev-boost service
@@ -69,6 +72,33 @@ type BoostService struct {
 
 	bidsLock sync.Mutex
 	bids     map[bidRespKey]bidResp // keeping track of bids, to log the originating relay on withholding
+
+	metricOpts MetricOpts
+	Metrics    Metrics
+}
+
+// Metrics contains all metric registries
+type Metrics struct {
+	metricsMev          *MevMetrics
+	metricsOutboundHTTP *OutboundHTTPMetrics
+	metricsInboundHTTP  *InboundHTTPMetrics
+}
+
+// MetricOpts exposes configuration details for prometheus handler
+type MetricOpts struct {
+	Enabled  bool
+	Registry *prometheus.Registry
+}
+
+// NewMetricOpts constructs a MetricOpts with sensible defaults
+func NewMetricOpts(enabled bool, registry *prometheus.Registry) MetricOpts {
+	if registry == nil {
+		registry = prometheus.NewRegistry()
+	}
+	return MetricOpts{
+		Enabled:  enabled,
+		Registry: registry,
+	}
 }
 
 // NewBoostService created a new BoostService
@@ -89,7 +119,11 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		log:           opts.Log.WithField("module", "service"),
 		relayCheck:    opts.RelayCheck,
 		bids:          make(map[bidRespKey]bidResp),
-
+		Metrics: Metrics{
+			metricsMev:          NewMevMetrics(opts.MetricOpts.Registry),
+			metricsOutboundHTTP: NewOutboundHTTPMetrics(opts.MetricOpts.Registry),
+			metricsInboundHTTP:  NewInboundHTTPMetrics(opts.MetricOpts.Registry),
+		},
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
 			Timeout:       opts.RequestTimeoutGetHeader,
@@ -134,9 +168,19 @@ func (m *BoostService) getRouter() http.Handler {
 	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
-	r.Use(mux.CORSMethodMiddleware(r))
-	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
-	return loggedRouter
+	if m.metricOpts.Enabled {
+		log := m.log.WithField("path", pathMetrics)
+		log.Infof("prometheus metrics exposed")
+		r.Handle(pathMetrics, promhttp.HandlerFor(m.metricOpts.Registry, promhttp.HandlerOpts{
+			ErrorLog: m.log,
+		})).Methods(http.MethodGet)
+	}
+
+	return Chain(
+		httplogger.LoggingMiddlewareLogrus(m.log, r),
+		Middleware(mux.CORSMethodMiddleware(r)),
+		InboundHTTPMetricMiddleware(m.Metrics.metricsInboundHTTP),
+	)
 }
 
 // StartHTTPServer starts the HTTP server for this boost service instance
@@ -168,13 +212,15 @@ func (m *BoostService) StartHTTPServer() error {
 
 func (m *BoostService) startBidCacheCleanupTask() {
 	for {
-		time.Sleep(1 * time.Minute)
+		time.Sleep(time.Minute)
 		m.bidsLock.Lock()
 		for k, bidResp := range m.bids {
 			if time.Since(bidResp.t) > 3*time.Minute {
 				delete(m.bids, k)
+				continue
 			}
 		}
+		m.Metrics.metricsMev.bids.Set(float64(len(m.bids)))
 		m.bidsLock.Unlock()
 	}
 }
