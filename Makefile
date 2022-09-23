@@ -58,20 +58,18 @@ run-mergemock-integration: build
 
 .PHONY: docker-image
 docker-image:
-	DOCKER_BUILDKIT=1 docker build --build-arg CGO_CFLAGS="" --build-arg VERSION=${VERSION} . -t mev-boost
+	DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --build-arg CGO_CFLAGS="" --build-arg VERSION=${VERSION} . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
 	docker tag mev-boost:latest ${DOCKER_REPO}:latest
 
 .PHONY: docker-image-portable
 docker-image-portable:
-	DOCKER_BUILDKIT=1 docker build --build-arg CGO_CFLAGS="-O -D__BLST_PORTABLE__" --build-arg VERSION=${VERSION}  . -t mev-boost
+	DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --build-arg CGO_CFLAGS="-O -D__BLST_PORTABLE__" --build-arg VERSION=${VERSION}  . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
-	docker tag mev-boost:latest ${DOCKER_REPO}:latest
 
-.PHONY: docker-push
-docker-push:
+.PHONY: docker-push-version
+docker-push-version:
 	docker push ${DOCKER_REPO}:${VERSION}
-	docker push ${DOCKER_REPO}:latest
 
 .PHONY: clean
 clean:
