@@ -14,7 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var log = logrus.WithField("service", "cmd/test-cli")
+var log = logrus.NewEntry(logrus.New())
 
 func doGenerateValidator(filePath string, gasLimit uint64, feeRecipient string) {
 	v := newRandomValidator(gasLimit, feeRecipient)
