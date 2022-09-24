@@ -31,8 +31,10 @@ var (
 	errServerAlreadyRunning = errors.New("server already running")
 )
 
-var nilHash = types.Hash{}
-var nilResponse = struct{}{}
+var (
+	nilHash     = types.Hash{}
+	nilResponse = struct{}{}
+)
 
 type httpErrorResp struct {
 	Code    int    `json:"code"`
@@ -486,7 +488,6 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 			responsePayload := new(types.GetPayloadResponse)
 			_, err := SendHTTPRequest(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload)
-
 			if err != nil {
 				log.WithError(err).Error("error making request to relay")
 				return
