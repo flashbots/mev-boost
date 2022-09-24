@@ -67,7 +67,7 @@ Read more in [Why run mev-boost?](https://writings.flashbots.net/writings/why-ru
 
 `mev-boost` can run in any machine, as long as it is reachable by the beacon client. The most common setup is to install it in the same machine as the beacon client. Multiple beacon-clients can use a single mev-boost instance. The default port is 18550.
 
-See also [Remroy's guide](https://github.com/remyroy/ethstaker/blob/main/prepare-for-the-merge.md#installing-mev-boost) for a comprehensive guide on installing, configuring and running mev-boost.
+See also [Rémy Roy's guide](https://github.com/remyroy/ethstaker/blob/main/prepare-for-the-merge.md#installing-mev-boost) for comprehensive instructions on installing, configuring and running mev-boost.
 
 ## Binaries
 
