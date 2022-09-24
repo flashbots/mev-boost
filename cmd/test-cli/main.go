@@ -10,9 +10,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
-	"github.com/sirupsen/logrus"
-
 	"github.com/flashbots/mev-boost/server"
+	"github.com/sirupsen/logrus"
 )
 
 var log = logrus.WithField("service", "cmd/test-cli")
@@ -88,7 +87,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 	return getHeaderResp
 }
 
-func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain boostTypes.Domain, proposerSigningDomain boostTypes.Domain) {
+func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain, proposerSigningDomain boostTypes.Domain) {
 	header := doGetHeader(v, boostEndpoint, beaconNode, engineEndpoint, builderSigningDomain)
 
 	blindedBeaconBlock := boostTypes.BlindedBeaconBlock{
@@ -244,7 +243,7 @@ func main() {
 	}
 }
 
-func getEnv(key string, defaultValue string) string {
+func getEnv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
 	}
