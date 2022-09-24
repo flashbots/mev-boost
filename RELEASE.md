@@ -60,7 +60,7 @@ docker pull flashbots/mev-boost:v2.3.1-rc1
 To create a new version (with tag), follow all these steps! They are necessary to have the correct build version inside, and work with `go install`.
 
 * Update `Version` in `config/vars.go` - change it to the next version (eg. from `v2.3.1-dev` to `v2.3.1`), and commit
-* Create a git tag: `git tag v2.3.1`
+* Create a [signed git tag](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-tags): `git tag -s v2.3.1`
 * Now push to main and push the tag: `git push && git push --tags`
 * Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v2.3.2-dev`), and commit
 
