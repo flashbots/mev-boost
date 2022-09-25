@@ -42,6 +42,7 @@ See also:
 - [Installing](#installing)
   - [Binaries](#binaries)
   - [From source](#from-source)
+    - [`go install`](#go-install)
   - [From Docker image](#from-docker-image)
   - [Systemd configuration](#systemd-configuration)
   - [Troubleshooting](#troubleshooting)
@@ -49,7 +50,7 @@ See also:
     - [Mainnet](#mainnet)
     - [Goerli testnet](#goerli-testnet)
     - [Sepolia testnet](#sepolia-testnet)
-      - [`test-cli`](#test-cli)
+    - [`test-cli`](#test-cli)
 - [API](#api)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
@@ -85,7 +86,7 @@ https://github.com/flashbots/mev-boost/releases
 
 Requires [Go 1.18+](https://go.dev/doc/install).
 
-**`go install`**
+### `go install`
 
 Install MEV-Boost with `go install`:
 
