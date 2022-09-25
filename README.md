@@ -43,6 +43,7 @@ See also:
   - [Binaries](#binaries)
   - [From source](#from-source)
     - [`go install`](#go-install)
+    - [Clone and Build](#clone-and-build)
   - [From Docker image](#from-docker-image)
   - [Systemd configuration](#systemd-configuration)
   - [Troubleshooting](#troubleshooting)
@@ -50,12 +51,12 @@ See also:
     - [Mainnet](#mainnet)
     - [Goerli testnet](#goerli-testnet)
     - [Sepolia testnet](#sepolia-testnet)
-    - [`test-cli`](#test-cli)
+  - [`test-cli`](#test-cli)
 - [API](#api)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
 - [Security](#security)
-  - [Security Audits](#security-audits)
+  - [Audits](#audits)
 - [License](#license)
 
 # Background
@@ -95,8 +96,8 @@ go install github.com/flashbots/mev-boost@latest
 mev-boost -help
 ```
 
-**Clone and Build
-**
+### Clone and Build
+
 Ensure you are downloading the most updated MEV-Boost release. Releases are available at https://github.com/flashbots/mev-boost/releases
 
 clone the repository and build it:
@@ -104,7 +105,7 @@ clone the repository and build it:
 ```bash
 git clone https://github.com/flashbots/mev-boost.git
 cd mev-boost
-# Build the checked-out version from https://github.com/flashbots/mev-boost/releases
+# Build most recent version of MEV-Boost
 make build
 # Use build-portable if the standard build crashes on startup
 make build-portable
@@ -204,7 +205,7 @@ Run MEV-Boost pointed at our [Sepolia Relay](https://builder-relay-sepolia.flash
  ./mev-boost -sepolia -relay-check -relays https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@builder-relay-sepolia.flashbots.net
 ```
 
-### `test-cli`
+## `test-cli`
 
 `test-cli` is a utility to execute all proposer requests against MEV-Boost + relay. See also the [test-cli readme](cmd/test-cli/README.md).
 
@@ -260,7 +261,7 @@ You are welcome here <3.
 
 If you find a security vulnerability on this project or any other initiative related to Flashbots, please let us know sending an email to security@flashbots.net.
 
-## Security Audits
+## Audits
 
 - [20220620](docs/audit-20220620.md), by [lotusbumi](https://github.com/lotusbumi).
 
