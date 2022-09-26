@@ -52,8 +52,6 @@ var (
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet")
-	useGenesisForkVersionKiln    = flag.Bool("kiln", false, "use Kiln")
-	useGenesisForkVersionRopsten = flag.Bool("ropsten", false, "use Ropsten")
 	useGenesisForkVersionSepolia = flag.Bool("sepolia", false, "use Sepolia")
 	useGenesisForkVersionGoerli  = flag.Bool("goerli", false, "use Goerli")
 	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
@@ -99,10 +97,6 @@ func Main() {
 		genesisForkVersionHex = *useCustomGenesisForkVersion
 	} else if *useGenesisForkVersionMainnet {
 		genesisForkVersionHex = genesisForkVersionMainnet
-	} else if *useGenesisForkVersionKiln {
-		genesisForkVersionHex = genesisForkVersionKiln
-	} else if *useGenesisForkVersionRopsten {
-		genesisForkVersionHex = genesisForkVersionRopsten
 	} else if *useGenesisForkVersionSepolia {
 		genesisForkVersionHex = genesisForkVersionSepolia
 	} else if *useGenesisForkVersionGoerli {
