@@ -32,25 +32,27 @@ See also:
 
 * [boost.flashbots.net](https://boost.flashbots.net)
 * [MEV-Boost Docker images](https://hub.docker.com/r/flashbots/mev-boost)
-* [wiki](https://github.com/flashbots/mev-boost/wiki) & [troubleshooting guide](https://github.com/flashbots/mev-boost/wiki/Troubleshooting)
+* [Wiki](https://github.com/flashbots/mev-boost/wiki) & [Troubleshooting guide](https://github.com/flashbots/mev-boost/wiki/Troubleshooting)
 * [MEV-Boost relay source code](https://github.com/flashbots/mev-boost-relay)
 * Specs:
   * [Builder API](https://ethereum.github.io/builder-specs)
   * [Flashbots Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
 
+---
+
+# Table of Contents
+
 - [Background](#background)
 - [Installing](#installing)
   - [Binaries](#binaries)
   - [From source](#from-source)
-    - [`go install`](#go-install)
-    - [Clone and Build](#clone-and-build)
   - [From Docker image](#from-docker-image)
   - [Systemd configuration](#systemd-configuration)
   - [Troubleshooting](#troubleshooting)
 - [Usage](#usage)
-    - [Mainnet](#mainnet)
-    - [Goerli testnet](#goerli-testnet)
-    - [Sepolia testnet](#sepolia-testnet)
+  - [Mainnet](#mainnet)
+  - [Goerli testnet](#goerli-testnet)
+  - [Sepolia testnet](#sepolia-testnet)
   - [`test-cli`](#test-cli)
 - [API](#api)
 - [Maintainers](#maintainers)
@@ -58,6 +60,8 @@ See also:
 - [Security](#security)
   - [Audits](#audits)
 - [License](#license)
+
+---
 
 # Background
 
@@ -73,9 +77,9 @@ Read more in [Why run MEV-Boost?](https://writings.flashbots.net/writings/why-ru
 
 # Installing
 
-`mev-boost` can run in any machine, as long as it is reachable by the beacon client. The most common setup is to install it in the same machine as the beacon client. Multiple beacon-clients can use a single mev-boost instance. The default port is 18550.
+The most common setup is to install MEV-Boost on the same machine as the beacon client. Multiple beacon-clients can use a single MEV-Boost instance. The default port is 18550.
 
-See also [Rémy Roy's guide](https://github.com/remyroy/ethstaker/blob/main/prepare-for-the-merge.md#installing-mev-boost) for comprehensive instructions on installing, configuring and running mev-boost.
+See also [Rémy Roy's guide](https://github.com/remyroy/ethstaker/blob/main/prepare-for-the-merge.md#installing-mev-boost) for comprehensive instructions on installing, configuring and running MEV-Boost.
 
 ## Binaries
 
@@ -105,10 +109,16 @@ clone the repository and build it:
 ```bash
 git clone https://github.com/flashbots/mev-boost.git
 cd mev-boost
+
+# If you want to build a specific release, check out the tag first. https://github.com/flashbots/mev-boost/releases
+git checkout tags/YOUR_VERSION
+
 # Build most recent version of MEV-Boost
 make build
+
 # Use build-portable if the standard build crashes on startup
 make build-portable
+
 # Show help. This confirms MEV-Boost is able to start
 ./mev-boost -help
 ```
@@ -133,8 +143,10 @@ docker run flashbots/mev-boost -help
 
 ## Systemd configuration
 
-You can run MEV-Boost with a systemd config (`/etc/systemd/system/mev-boost.service`) like this:
+You can run MEV-Boost with a systemd config like this:
 
+<details>
+    <summary>`/etc/systemd/system/mev-boost.service`</summary>
 ```ini
 [Unit]
 Description=mev-boost
@@ -156,6 +168,7 @@ ExecStart=/home/mev-boost/bin/mev-boost \
 [Install]
 WantedBy=multi-user.target
 ```
+</details>
 
 ## Troubleshooting
 
@@ -174,14 +187,14 @@ make build-portable
 
 # Usage
 
-A single MEV-Boost instance can be used by multiple beacon nodes and validators. 
+A single MEV-Boost instance can be used by multiple beacon nodes and validators.
 
 Aside from running MEV-Boost on your local network, you must configure:
 * individual **beacon nodes** to connect to MEV-Boost. Beacon Node configuration varies by Consensus client. Guides for each client can be found on the [MEV-boost website](https://boost.flashbots.net/#block-356364ebd7cc424fb524428ed0134b21).
-* individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relays). Lists of available relays are maintained by [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) and [Lido](https://research.lido.fi/t/lido-on-ethereum-call-for-relay-providers/2844). 
+* individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relays). Lists of available relays are maintained by [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) and [Lido](https://research.lido.fi/t/lido-on-ethereum-call-for-relay-providers/2844).
 
 
-### Mainnet
+## Mainnet
 
 Run MEV-Boost pointed at our [Mainnet Relay](https://boost-relay.flashbots.net/):
 
@@ -189,7 +202,7 @@ Run MEV-Boost pointed at our [Mainnet Relay](https://boost-relay.flashbots.net/)
  ./mev-boost -mainnet -relay-check -relays https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net
 ```
 
-### Goerli testnet
+## Goerli testnet
 
 Run MEV-Boost pointed at our [Goerli Relay](https://builder-relay-goerli.flashbots.net/):
 
@@ -197,7 +210,7 @@ Run MEV-Boost pointed at our [Goerli Relay](https://builder-relay-goerli.flashbo
  ./mev-boost -goerli -relay-check -relays https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@builder-relay-goerli.flashbots.net
 ```
 
-### Sepolia testnet
+## Sepolia testnet
 
 Run MEV-Boost pointed at our [Sepolia Relay](https://builder-relay-sepolia.flashbots.net/):
 
@@ -209,6 +222,45 @@ Run MEV-Boost pointed at our [Sepolia Relay](https://builder-relay-sepolia.flash
 
 `test-cli` is a utility to execute all proposer requests against MEV-Boost + relay. See also the [test-cli readme](cmd/test-cli/README.md).
 
+
+## mev-boost cli arguments
+
+```bash
+$ ./mev-boost -help
+Usage of ./mev-boost:
+  -addr string
+        listen-address for mev-boost server (default "localhost:18550")
+  -debug
+        shorthand for '-loglevel debug'
+  -genesis-fork-version string
+        use a custom genesis fork version
+  -goerli
+        use Goerli
+  -json
+        log in JSON format instead of text
+  -loglevel string
+        minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic (default "info")
+  -mainnet
+        use Mainnet
+  -relay-check
+        check relay status on startup and on the status API call
+  -relay-monitors string
+        relay monitor urls - single entry or comma-separated list (scheme://host)
+  -relays string
+        relay urls - single entry or comma-separated list (scheme://pubkey@host)
+  -request-timeout-getheader int
+        timeout for getHeader requests to the relay [ms] (default 950)
+  -request-timeout-getpayload int
+        timeout for getPayload requests to the relay [ms] (default 4000)
+  -request-timeout-regval int
+        timeout for registerValidator requests [ms] (default 3000)
+  -sepolia
+        use Sepolia
+  -version
+        only print version
+```
+
+---
 
 # API
 
