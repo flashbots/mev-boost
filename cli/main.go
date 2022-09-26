@@ -189,7 +189,7 @@ func unique(stringSlice []string) []string {
 	filtered := make([]string, 0, len(stringSlice))
 	stringMap := make(map[string]bool)
 	for _, entry := range stringSlice {
-		if _, s := stringMap[entry]; !s {
+		if !stringMap[entry] {
 			filtered = append(filtered, entry)
 			stringMap[entry] = true
 		}
