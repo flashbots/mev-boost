@@ -31,8 +31,10 @@ var (
 	errServerAlreadyRunning = errors.New("server already running")
 )
 
-var nilHash = types.Hash{}
-var nilResponse = struct{}{}
+var (
+	nilHash     = types.Hash{}
+	nilResponse = struct{}{}
+)
 
 type httpErrorResp struct {
 	Code    int    `json:"code"`
@@ -86,7 +88,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		listenAddr:    opts.ListenAddr,
 		relays:        opts.Relays,
 		relayMonitors: opts.RelayMonitors,
-		log:           opts.Log.WithField("module", "service"),
+		log:           opts.Log,
 		relayCheck:    opts.RelayCheck,
 		bids:          make(map[bidRespKey]bidResp),
 
@@ -486,7 +488,6 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 			responsePayload := new(types.GetPayloadResponse)
 			_, err := SendHTTPRequest(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload)
-
 			if err != nil {
 				log.WithError(err).Error("error making request to relay")
 				return
