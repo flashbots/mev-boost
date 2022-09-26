@@ -489,7 +489,11 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			responsePayload := new(types.GetPayloadResponse)
 			_, err := SendHTTPRequest(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload)
 			if err != nil {
-				log.WithError(err).Error("error making request to relay")
+				if errors.Is(requestCtx.Err(), context.Canceled) {
+					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
+				} else {
+					log.WithError(err).Error("error making request to relay")
+				}
 				return
 			}
 
