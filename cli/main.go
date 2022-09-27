@@ -16,8 +16,6 @@ import (
 
 const (
 	genesisForkVersionMainnet = "0x00000000"
-	genesisForkVersionKiln    = "0x70000069" // https://github.com/eth-clients/merge-testnets/blob/main/kiln/config.yaml#L10
-	genesisForkVersionRopsten = "0x80000069"
 	genesisForkVersionSepolia = "0x90000069"
 	genesisForkVersionGoerli  = "0x00001020"
 )
@@ -136,17 +134,17 @@ func Main() {
 		RequestTimeoutGetPayload: time.Duration(*relayTimeoutMsGetPayload) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(*relayTimeoutMsRegVal) * time.Millisecond,
 	}
-	server, err := server.NewBoostService(opts)
+	service, err := server.NewBoostService(opts)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
 	}
 
-	if *relayCheck && server.CheckRelays() == 0 {
+	if *relayCheck && service.CheckRelays() == 0 {
 		log.Error("no relay passed the health-check!")
 	}
 
 	log.Println("listening on", *listenAddr)
-	log.Fatal(server.StartHTTPServer())
+	log.Fatal(service.StartHTTPServer())
 }
 
 func getEnv(key, defaultValue string) string {
