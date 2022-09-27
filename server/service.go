@@ -187,7 +187,7 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types
 		go func(relayMonitor *url.URL) {
 			url := GetURI(relayMonitor, pathRegisterValidator)
 			log = log.WithField("url", url)
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, UserAgent(""), payload, nil)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, "", payload, nil)
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay monitor")
 				return
