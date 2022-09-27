@@ -146,7 +146,8 @@ docker run flashbots/mev-boost -help
 You can run MEV-Boost with a systemd config like this:
 
 <details>
-    <summary>`/etc/systemd/system/mev-boost.service`</summary>
+<summary><code>/etc/systemd/system/mev-boost.service</code></summary>
+
 ```ini
 [Unit]
 Description=mev-boost
