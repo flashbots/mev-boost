@@ -11,8 +11,6 @@ Install a few dev dependencies for `make lint`:
 ```bash
 go install github.com/mgechev/revive@v1.1.3
 go install mvdan.cc/gofumpt@v0.3.1
-go install honnef.co/go/tools/cmd/staticcheck@v0.3.0
-go install github.com/go-critic/go-critic/cmd/gocritic@0.6.5
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0
 ```
 
