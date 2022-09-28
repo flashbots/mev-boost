@@ -104,7 +104,7 @@ func Main() {
 		genesisForkVersionHex = *useCustomGenesisForkVersion
 	case *useGenesisForkVersionMainnet:
 		genesisForkVersionHex = genesisForkVersionMainnet
-	} else if *useGenesisForkVersionSepolia {
+	case *useGenesisForkVersionSepolia:
 		genesisForkVersionHex = genesisForkVersionSepolia
 	case *useGenesisForkVersionGoerli:
 		genesisForkVersionHex = genesisForkVersionGoerli
