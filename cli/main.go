@@ -3,7 +3,6 @@ package cli
 import (
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -40,6 +39,9 @@ var (
 	logDebug     = flag.Bool("debug", false, "shorthand for '-loglevel debug'")
 	logService   = flag.String("log-service", "", "add a 'service=...' tag to all log messages")
 
+	relays        relayList
+	relayMonitors relayMonitorList
+
 	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs        = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
 	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
@@ -60,6 +62,8 @@ var log = logrus.NewEntry(logrus.New())
 
 // Main starts the mev-boost cli
 func Main() {
+	flag.Var(&relays, "relay", "a single relay, can be specified multiple times")
+	flag.Var(&relayMonitors, "relay-monitor", "a single relay monitor, can be specified multiple times")
 	flag.Parse()
 	logrus.SetOutput(os.Stdout)
 
@@ -109,7 +113,16 @@ func Main() {
 	}
 	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
 
-	relays := parseRelayURLs(*relayURLs)
+	// For backwards compatibility with the -relays flag.
+	if *relayURLs != "" {
+		for _, relayURL := range strings.Split(*relayURLs, ",") {
+			err := relays.Set(strings.TrimSpace(relayURL))
+			if err != nil {
+				log.WithError(err).WithField("relay", relayURL).Fatal("Invalid relay URL")
+			}
+		}
+	}
+
 	if len(relays) == 0 {
 		flag.Usage()
 		log.Fatal("no relays specified")
@@ -119,7 +132,16 @@ func Main() {
 		log.Infof("relay #%d: %s", index+1, relay.String())
 	}
 
-	relayMonitors := parseRelayMonitorURLs(*relayMonitorURLs)
+	// For backwards compatibility with the -relay-monitors flag.
+	if *relayMonitorURLs != "" {
+		for _, relayMonitorURL := range strings.Split(*relayMonitorURLs, ",") {
+			err := relayMonitors.Set(strings.TrimSpace(relayMonitorURL))
+			if err != nil {
+				log.WithError(err).WithField("relayMonitor", relayMonitorURL).Fatal("Invalid relay monitor URL")
+			}
+		}
+	}
+
 	if len(relayMonitors) > 0 {
 		log.Infof("using %d relay monitors", len(relayMonitors))
 		for index, relayMonitor := range relayMonitors {
@@ -166,31 +188,4 @@ func getEnvInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
-}
-
-func parseRelayURLs(relayURLs string) []server.RelayEntry {
-	ret := []server.RelayEntry{}
-	for _, entry := range strings.Split(relayURLs, ",") {
-		relay, err := server.NewRelayEntry(entry)
-		if err != nil {
-			log.WithError(err).WithField("relayURL", entry).Fatal("Invalid relay URL")
-		}
-		ret = append(ret, relay)
-	}
-	return ret
-}
-
-func parseRelayMonitorURLs(relayMonitorURLs string) (ret []*url.URL) {
-	for _, entry := range strings.Split(relayMonitorURLs, ",") {
-		if strings.TrimSpace(entry) == "" {
-			continue
-		}
-
-		relayMonitor, err := url.Parse(entry)
-		if err != nil {
-			log.WithError(err).WithField("relayMonitorURL", entry).Fatal("Invalid relay monitor URL")
-		}
-		ret = append(ret, relayMonitor)
-	}
-	return ret
 }

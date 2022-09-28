@@ -162,9 +162,11 @@ Type=simple
 Restart=always
 RestartSec=5
 ExecStart=/home/mev-boost/bin/mev-boost \
-		-mainnet \
-		-relay-check \
-		-relays YOUR_RELAY_CHOICE
+        -mainnet \
+        -relay-check \
+        -relay YOUR_RELAY_CHOICE_A \
+        -relay YOUR_RELAY_CHOICE_B \
+        -relay YOUR_RELAY_CHOICE_C
 
 [Install]
 WantedBy=multi-user.target
@@ -200,7 +202,7 @@ Aside from running MEV-Boost on your local network, you must configure:
 Run MEV-Boost pointed at our [Mainnet Relay](https://boost-relay.flashbots.net/):
 
 ```
- ./mev-boost -mainnet -relay-check -relays https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net
+ ./mev-boost -mainnet -relay-check -relay https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net
 ```
 
 ## Goerli testnet
@@ -208,7 +210,7 @@ Run MEV-Boost pointed at our [Mainnet Relay](https://boost-relay.flashbots.net/)
 Run MEV-Boost pointed at our [Goerli Relay](https://builder-relay-goerli.flashbots.net/):
 
 ```
- ./mev-boost -goerli -relay-check -relays https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@builder-relay-goerli.flashbots.net
+ ./mev-boost -goerli -relay-check -relay https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@builder-relay-goerli.flashbots.net
 ```
 
 ## Sepolia testnet
@@ -216,7 +218,7 @@ Run MEV-Boost pointed at our [Goerli Relay](https://builder-relay-goerli.flashbo
 Run MEV-Boost pointed at our [Sepolia Relay](https://builder-relay-sepolia.flashbots.net/):
 
 ```
- ./mev-boost -sepolia -relay-check -relays https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@builder-relay-sepolia.flashbots.net
+ ./mev-boost -sepolia -relay-check -relay https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@builder-relay-sepolia.flashbots.net
 ```
 
 ## `test-cli`
@@ -243,8 +245,12 @@ Usage of ./mev-boost:
         minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic (default "info")
   -mainnet
         use Mainnet
+  -relay value
+        a single relay, can be specified multiple times
   -relay-check
         check relay status on startup and on the status API call
+  -relay-monitor value
+        a single relay monitor, can be specified multiple times
   -relay-monitors string
         relay monitor urls - single entry or comma-separated list (scheme://host)
   -relays string
@@ -259,6 +265,27 @@ Usage of ./mev-boost:
         use Sepolia
   -version
         only print version
+```
+
+### `-relays` vs `-relay`
+
+There are two different flags for specifying relays: `-relays` and `-relay`.
+The `-relays` flag is a comma separated string of relays. On the other hand,
+the `-relay` flag is used to specify a single relay, but can be used multiple
+times for multiple relays. Use whichever method suits your preferences.
+
+These two MEV-Boost commands are equivalent:
+
+```
+./mev-boost -mainnet -relay-check \
+    -relays $YOUR_RELAY_CHOICE_A,$YOUR_RELAY_CHOICE_B,$YOUR_RELAY_CHOICE_C
+```
+
+```
+./mev-boost -mainnet -relay-check \
+    -relay $YOUR_RELAY_CHOICE_A   \
+    -relay $YOUR_RELAY_CHOICE_B   \
+    -relay $YOUR_RELAY_CHOICE_C
 ```
 
 ---
