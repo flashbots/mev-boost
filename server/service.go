@@ -268,7 +268,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"slot":       slot,
 		"parentHash": parentHashHex,
 		"pubkey":     pubkey,
-		"version":    config.Version,
 	})
 	log.Debug("getHeader")
 
@@ -418,11 +417,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 }
 
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
-	log := m.log.WithFields(logrus.Fields{
-		"method":  "getPayload",
-		"version": config.Version,
-	})
-
+	log := m.log.WithField("method", "getPayload")
 	log.Debug("getPayload")
 
 	// Read the body first, so we can log it later on error

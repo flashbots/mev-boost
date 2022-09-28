@@ -72,6 +72,10 @@ func Main() {
 		return
 	}
 
+	// Add version to logs
+	log = log.WithField("version", config.Version)
+
+	// Set log format (json or text)
 	if *logJSON {
 		log.Logger.SetFormatter(&logrus.JSONFormatter{})
 	} else {
@@ -80,6 +84,7 @@ func Main() {
 		})
 	}
 
+	// Set loglevel
 	if *logDebug {
 		*logLevel = "debug"
 	}
@@ -89,8 +94,10 @@ func Main() {
 			flag.Usage()
 			log.Fatalf("invalid loglevel: %s", *logLevel)
 		}
-		logrus.SetLevel(lvl)
+		log.Logger.SetLevel(lvl)
 	}
+
+	// Add the service tag to logs, if configured
 	if *logService != "" {
 		log = log.WithField("service", *logService)
 	}
