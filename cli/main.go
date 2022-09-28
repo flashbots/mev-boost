@@ -38,6 +38,7 @@ var (
 	logJSON      = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
 	logLevel     = flag.String("loglevel", defaultLogLevel, "minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic")
 	logDebug     = flag.Bool("debug", false, "shorthand for '-loglevel debug'")
+	logService   = flag.String("log-service", "", "add a 'service=...' tag to all log messages")
 
 	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs        = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
@@ -85,6 +86,9 @@ func Main() {
 			log.Fatalf("invalid loglevel: %s", *logLevel)
 		}
 		logrus.SetLevel(lvl)
+	}
+	if *logService != "" {
+		log = log.WithField("service", *logService)
 	}
 
 	log.Infof("mev-boost %s", config.Version)
