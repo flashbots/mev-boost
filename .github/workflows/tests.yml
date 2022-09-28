@@ -54,6 +54,9 @@ jobs:
       - name: Install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@v0.3.0
 
+      - name: Install gocritic
+        run: go install github.com/go-critic/go-critic/cmd/gocritic@latest
+
       - name: Lint
         run: make lint
 
