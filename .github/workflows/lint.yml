@@ -1,0 +1,44 @@
+name: Linting
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    env:
+      CGO_CFLAGS_ALLOW: "-O -D__BLST_PORTABLE__"
+      CGO_CFLAGS: "-O -D__BLST_PORTABLE__"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Go 1.18
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+          id: go
+
+      - name: Ensure go mod tidy runs without changes
+        run: |
+          go mod tidy
+          git diff-index HEAD
+          git diff-index --quiet HEAD
+
+      - name: Install revive linter
+        run: go install github.com/mgechev/revive@v1.1.3
+
+      - name: Install gofumpt
+        run: go install mvdan.cc/gofumpt@v0.3.1
+
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@v0.3.0
+
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0
+
+      - name: Lint
+        run: make lint

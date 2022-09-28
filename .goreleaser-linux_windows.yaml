@@ -1,0 +1,41 @@
+project_name: mev-boost
+builds:
+  - id: mev-boost-portable
+    ldflags:
+      - -X github.com/flashbots/mev-boost/config.Version={{.Version}}
+    env:
+      - CGO_ENABLED=1
+      - CGO_CFLAGS_ALLOW="-D__BLST_PORTABLE__"
+      - CGO_CFLAGS="-D__BLST_PORTABLE__"
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+    # List of combinations of GOOS + GOARCH + GOARM to ignore.
+    # Default is empty.
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+    # Overrides allows to override some fields for specific targets.
+    # This can be specially useful when using CGO.
+    # Note: it'll only match if the full target matches.
+    overrides:
+      - goos: linux
+        goarch: arm64
+        env:
+          - CGO_ENABLED=1
+          - CGO_CFLAGS_ALLOW="-D__BLST_PORTABLE__"
+          - CGO_CFLAGS="-D__BLST_PORTABLE__"
+          - CC=aarch64-linux-gnu-gcc
+      - goos: windows
+        goarch: amd64
+        goamd64: v1
+        env:
+          - CGO_ENABLED=1
+          - CGO_CFLAGS_ALLOW="-D__BLST_PORTABLE__"
+          - CGO_CFLAGS="-D__BLST_PORTABLE__"
+          - CC=x86_64-w64-mingw32-gcc

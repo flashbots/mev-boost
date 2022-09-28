@@ -1,0 +1,13 @@
+# https://goreleaser.com/customization/release/
+builds:
+  - skip: true
+release:
+  draft: true
+  extra_files:
+    - glob: ./build/**/*
+    - glob: ./build/checksums.txt
+  header: |
+    # 🚀 Features
+    # 🎄 Enhancements
+    # 🐞 Notable bug fixes
+    # 🎠 Community

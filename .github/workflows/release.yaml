@@ -1,0 +1,172 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  docker-image:
+    name: Publish Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Get tag version
+        id: vars
+        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: flashbots/mev-boost
+          tags: |
+            type=raw,value=latest,enable=${{ !contains(steps.vars.outputs.tag, '-') }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          build-args: |
+            VERSION=${{ steps.vars.outputs.tag }}
+            CGO_CFLAGS=
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Build and push portable
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          build-args: |
+            VERSION=${{ steps.vars.outputs.tag }}
+            CGO_CFLAGS=-O -D__BLST_PORTABLE__
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  build-linux-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Fetch all tags
+        run: git fetch --force --tags
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      - name: Install cross-compiler for linux/arm64 and windows
+        run: sudo apt-get -y install gcc-aarch64-linux-gnu gcc-mingw-w64
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v3
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --skip-publish --config .goreleaser-linux_windows.yaml --rm-dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: mev-boost-linux_windows
+          path: |
+            dist/mev-boost*.tar.gz
+            dist/mev-boost*.txt
+
+  build-darwin:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Fetch all tags
+        run: git fetch --force --tags
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v3
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --skip-publish --config .goreleaser-darwin.yaml --rm-dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: mev-boost-darwin
+          path: |
+            dist/mev-boost*.tar.gz
+            dist/mev-boost*.txt
+
+  release:
+    needs: [build-linux-windows, build-darwin]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Fetch all tags
+        run: git fetch --force --tags
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      - name: Make directories
+        run: |
+          mkdir -p ./build/linux_windows
+          mkdir -p ./build/darwin
+      - name: Download Linux and Windows binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: mev-boost-linux_windows
+          path: ./build/linux_windows
+      - name: Download Darwin binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: mev-boost-darwin
+          path: ./build/darwin
+      - name: Merge checksum file
+        run: |
+          cd ./build
+          cat ./darwin/mev-boost*checksums.txt >> checksums.txt
+          cat ./linux_windows/mev-boost*checksums.txt >> checksums.txt
+          rm ./darwin/mev-boost*checksums.txt
+          rm ./linux_windows/mev-boost*checksums.txt
+      - name: Release
+        uses: goreleaser/goreleaser-action@v3
+        with:
+          args: release --config .goreleaser-release.yaml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
