@@ -26,11 +26,15 @@ var (
 	defaultListenAddr         = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
 	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
+	defaultDisableLogVersion  = os.Getenv("DISABLE_LOG_VERSION") == "1" // disables adding the version to every log entry
 
 	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
 	defaultTimeoutMsGetHeader         = getEnvInt("RELAY_TIMEOUT_MS_GETHEADER", 950)   // timeout for getHeader requests
 	defaultTimeoutMsGetPayload        = getEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
 	defaultTimeoutMsRegisterValidator = getEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
+
+	relays        relayList
+	relayMonitors relayMonitorList
 
 	// cli flags
 	printVersion = flag.Bool("version", false, "only print version")
@@ -38,9 +42,7 @@ var (
 	logLevel     = flag.String("loglevel", defaultLogLevel, "minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic")
 	logDebug     = flag.Bool("debug", false, "shorthand for '-loglevel debug'")
 	logService   = flag.String("log-service", "", "add a 'service=...' tag to all log messages")
-
-	relays        relayList
-	relayMonitors relayMonitorList
+	logNoVersion = flag.Bool("log-no-version", defaultDisableLogVersion, "disables adding the version to every log entry")
 
 	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs        = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
@@ -72,9 +74,6 @@ func Main() {
 		return
 	}
 
-	// Add version to logs
-	log = log.WithField("version", config.Version)
-
 	// Set log format (json or text)
 	if *logJSON {
 		log.Logger.SetFormatter(&logrus.JSONFormatter{})
@@ -102,7 +101,14 @@ func Main() {
 		log = log.WithField("service", *logService)
 	}
 
-	log.Infof("mev-boost %s", config.Version)
+	// Add version to logs and say hello
+	addVersionToLogs := !*logNoVersion
+	if addVersionToLogs {
+		log = log.WithField("version", config.Version)
+		log.Infof("starting mev-boost")
+	} else {
+		log.Infof("starting mev-boost %s", config.Version)
+	}
 	log.Debug("debug logging enabled")
 
 	genesisForkVersionHex := ""
