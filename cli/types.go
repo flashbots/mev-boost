@@ -1,10 +1,11 @@
 package cli
 
 import (
-	"github.com/flashbots/mev-boost/server"
-	"strings"
-	"net/url"
 	"errors"
+	"net/url"
+	"strings"
+
+	"github.com/flashbots/mev-boost/server"
 )
 
 var errDuplicateEntry = errors.New("duplicate entry")
