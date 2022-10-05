@@ -107,10 +107,14 @@ Ensure you are downloading the most updated MEV-Boost release. Releases are avai
 clone the repository and build it:
 
 ```bash
+# By default, the main branch includes ongoing merged PRs a future release.
 git clone https://github.com/flashbots/mev-boost.git
 cd mev-boost
 
-# If you want to build a specific release, check out the tag first. https://github.com/flashbots/mev-boost/releases
+# You can use the stable branch, which is always updated with the latest released version
+git checkout stable
+
+# If you want to build a specific release, check out the tag. See also https://github.com/flashbots/mev-boost/releases
 git checkout tags/YOUR_VERSION
 
 # Build most recent version of MEV-Boost
