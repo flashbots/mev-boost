@@ -32,6 +32,7 @@ test-race:
 lint:
 	gofumpt -d -extra .
 	revive -set_exit_status ./...
+	staticcheck ./...
 	golangci-lint run --config=.golangci.yml
 
 .PHONY: test-coverage
