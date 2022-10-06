@@ -23,12 +23,12 @@ import (
 )
 
 var (
+	errNoRelays                  = errors.New("no relays")
 	errInvalidSlot               = errors.New("invalid slot")
 	errInvalidHash               = errors.New("invalid hash")
 	errInvalidPubkey             = errors.New("invalid pubkey")
 	errNoSuccessfulRelayResponse = errors.New("no successful relay response")
-
-	errServerAlreadyRunning = errors.New("server already running")
+	errServerAlreadyRunning      = errors.New("server already running")
 )
 
 var (
@@ -76,7 +76,7 @@ type BoostService struct {
 // NewBoostService created a new BoostService
 func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	if len(opts.Relays) == 0 {
-		return nil, errors.New("no relays")
+		return nil, errNoRelays
 	}
 
 	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
@@ -162,7 +162,7 @@ func (m *BoostService) StartHTTPServer() error {
 	}
 
 	err := m.srv.ListenAndServe()
-	if err == http.ErrServerClosed {
+	if errors.Is(err, http.ErrServerClosed) {
 		return nil
 	}
 	return err

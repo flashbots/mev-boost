@@ -2,7 +2,6 @@ package cli
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -69,11 +68,6 @@ func Main() {
 	flag.Parse()
 	logrus.SetOutput(os.Stdout)
 
-	if *printVersion {
-		fmt.Printf("mev-boost %s\n", config.Version)
-		return
-	}
-
 	// Set log format (json or text)
 	if *logJSON {
 		log.Logger.SetFormatter(&logrus.JSONFormatter{})
@@ -81,6 +75,11 @@ func Main() {
 		log.Logger.SetFormatter(&logrus.TextFormatter{
 			FullTimestamp: true,
 		})
+	}
+
+	if *printVersion {
+		log.Infof("mev-boost %s\n", config.Version)
+		return
 	}
 
 	// Set loglevel

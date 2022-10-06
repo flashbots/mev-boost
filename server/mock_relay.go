@@ -58,6 +58,7 @@ type mockRelay struct {
 // newMockRelay creates a mocked relay which implements the backend.BoostBackend interface
 // A secret key must be provided to sign default and custom response messages
 func newMockRelay(t *testing.T) *mockRelay {
+	t.Helper()
 	relay := &mockRelay{t: t, secretKey: mockRelaySecretKey, publicKey: mockRelayPublicKey, requestCount: make(map[string]int)}
 
 	// Initialize server
