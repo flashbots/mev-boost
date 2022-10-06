@@ -1,11 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,8 +31,10 @@ var (
 	errServerAlreadyRunning = errors.New("server already running")
 )
 
-var nilHash = types.Hash{}
-var nilResponse = struct{}{}
+var (
+	nilHash     = types.Hash{}
+	nilResponse = struct{}{}
+)
 
 type httpErrorResp struct {
 	Code    int    `json:"code"`
@@ -41,21 +46,28 @@ type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
 	Relays                []RelayEntry
+	RelayMonitors         []*url.URL
 	GenesisForkVersionHex string
-	RelayRequestTimeout   time.Duration
 	RelayCheck            bool
+
+	RequestTimeoutGetHeader  time.Duration
+	RequestTimeoutGetPayload time.Duration
+	RequestTimeoutRegVal     time.Duration
 }
 
 // BoostService - the mev-boost service
 type BoostService struct {
-	listenAddr string
-	relays     []RelayEntry
-	log        *logrus.Entry
-	srv        *http.Server
-	relayCheck bool
+	listenAddr    string
+	relays        []RelayEntry
+	relayMonitors []*url.URL
+	log           *logrus.Entry
+	srv           *http.Server
+	relayCheck    bool
 
 	builderSigningDomain types.Domain
-	httpClient           http.Client
+	httpClientGetHeader  http.Client
+	httpClientGetPayload http.Client
+	httpClientRegVal     http.Client
 
 	bidsLock sync.Mutex
 	bids     map[bidRespKey]bidResp // keeping track of bids, to log the originating relay on withholding
@@ -73,18 +85,25 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	}
 
 	return &BoostService{
-		listenAddr: opts.ListenAddr,
-		relays:     opts.Relays,
-		log:        opts.Log.WithField("module", "service"),
-		relayCheck: opts.RelayCheck,
-		bids:       make(map[bidRespKey]bidResp),
+		listenAddr:    opts.ListenAddr,
+		relays:        opts.Relays,
+		relayMonitors: opts.RelayMonitors,
+		log:           opts.Log,
+		relayCheck:    opts.RelayCheck,
+		bids:          make(map[bidRespKey]bidResp),
 
 		builderSigningDomain: builderSigningDomain,
-		httpClient: http.Client{
-			Timeout: opts.RelayRequestTimeout,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
+		httpClientGetHeader: http.Client{
+			Timeout:       opts.RequestTimeoutGetHeader,
+			CheckRedirect: httpClientDisallowRedirects,
+		},
+		httpClientGetPayload: http.Client{
+			Timeout:       opts.RequestTimeoutGetPayload,
+			CheckRedirect: httpClientDisallowRedirects,
+		},
+		httpClientRegVal: http.Client{
+			Timeout:       opts.RequestTimeoutRegVal,
+			CheckRedirect: httpClientDisallowRedirects,
 		},
 	}, nil
 }
@@ -162,6 +181,22 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
+func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types.SignedValidatorRegistration) {
+	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("numRegistrations", len(payload))
+	for _, relayMonitor := range m.relayMonitors {
+		go func(relayMonitor *url.URL) {
+			url := GetURI(relayMonitor, pathRegisterValidator)
+			log = log.WithField("url", url)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, "", payload, nil)
+			if err != nil {
+				log.WithError(err).Warn("error calling registerValidator on relay monitor")
+				return
+			}
+			log.Debug("sent validator registrations to relay monitor")
+		}(relayMonitor)
+	}
+}
+
 func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 	m.respondOK(w, nilResponse)
 }
@@ -169,43 +204,7 @@ func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 // handleStatus sends calls to the status endpoint of every relay.
 // It returns OK if at least one returned OK, and returns error otherwise.
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
-	if !m.relayCheck {
-		m.respondOK(w, nilResponse)
-		return
-	}
-
-	// If relayCheck is enabled, make sure at least 1 relay returns success
-	var wg sync.WaitGroup
-	var numSuccessRequestsToRelay uint32
-	ua := UserAgent(req.Header.Get("User-Agent"))
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	for _, r := range m.relays {
-		wg.Add(1)
-
-		go func(relay RelayEntry) {
-			defer wg.Done()
-			url := relay.GetURI(pathStatus)
-			log := m.log.WithField("url", url)
-			log.Debug("Checking relay status")
-
-			_, err := SendHTTPRequest(ctx, m.httpClient, http.MethodGet, url, ua, nil, nil)
-			if err != nil && ctx.Err() != context.Canceled {
-				log.WithError(err).Error("failed to retrieve relay status")
-				return
-			}
-
-			// Success: increase counter and cancel all pending requests to other relays
-			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
-			cancel()
-		}(r)
-	}
-
-	// At the end, wait for every routine and return status according to relay's ones.
-	wg.Wait()
-
-	if numSuccessRequestsToRelay > 0 {
+	if !m.relayCheck || m.CheckRelays() > 0 {
 		m.respondOK(w, nilResponse)
 	} else {
 		m.respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
@@ -236,7 +235,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			url := relay.GetURI(pathRegisterValidator)
 			log := log.WithField("url", url)
 
-			_, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodPost, url, ua, payload, nil)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, payload, nil)
 			relayRespCh <- err
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
@@ -244,6 +243,8 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			}
 		}(relay)
 	}
+
+	go m.sendValidatorRegistrationsToRelayMonitors(payload)
 
 	for i := 0; i < len(m.relays); i++ {
 		respErr := <-relayRespCh
@@ -286,13 +287,11 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	var mu sync.Mutex
-	relays := make(map[string][]string) // relays per blockHash
-	result := bidResp{}
-
-	ua := UserAgent(req.Header.Get("User-Agent"))
+	result := bidResp{}                           // the final response, containing the highest bid (if any)
+	relays := make(map[BlockHashHex][]RelayEntry) // relays that sent the bid for a specific blockHash
 
 	// Call the relays
+	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, relay := range m.relays {
 		wg.Add(1)
@@ -302,7 +301,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			url := relay.GetURI(path)
 			log := log.WithField("url", url)
 			responsePayload := new(types.GetHeaderResponse)
-			code, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, ua, nil, responsePayload)
+			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, UserAgent(req.Header.Get("User-Agent")), nil, responsePayload)
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
 				return
@@ -359,15 +358,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
+			log.Debug("bid received")
+
 			mu.Lock()
 			defer mu.Unlock()
 
 			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
-			if _, ok := relays[blockHash]; !ok {
-				relays[blockHash] = []string{relay.String()}
-			} else {
-				relays[blockHash] = append(relays[blockHash], relay.String())
-			}
+			relays[BlockHashHex(blockHash)] = append(relays[BlockHashHex(blockHash)], relay)
 
 			// Compare the bid with already known top bid (if any)
 			if result.response.Data != nil {
@@ -383,7 +380,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Use this relay's response as mev-boost response because it's most profitable
-			log.Debug("received a good bid")
+			log.Debug("new best bid")
 			result.response = *responsePayload
 			result.blockHash = blockHash
 			result.t = time.Now()
@@ -400,13 +397,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	// Log result
-	result.relays = relays[result.blockHash]
+	result.relays = relays[BlockHashHex(result.blockHash)]
 	log.WithFields(logrus.Fields{
 		"blockHash":   result.blockHash,
 		"blockNumber": result.response.Data.Message.Header.BlockNumber,
 		"txRoot":      result.response.Data.Message.Header.TransactionsRoot.String(),
 		"value":       result.response.Data.Message.Value.String(),
-		"relays":      strings.Join(result.relays, ", "),
+		"relays":      strings.Join(RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
 	// Remember the bid, for future logging in case of withholding
@@ -423,18 +420,50 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	log := m.log.WithField("method", "getPayload")
 	log.Debug("getPayload")
 
+	// Read the body first, so we can log it later on error
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.WithError(err).Error("could not read body of request from the beacon node")
+		m.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Decode the body now
 	payload := new(types.SignedBlindedBeaconBlock)
-	if err := DecodeJSON(req.Body, &payload); err != nil {
+	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
+		log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
+		log.WithField("body", string(body)).Error("missing parts of the request payload from the beacon-node")
 		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
 		return
 	}
 
-	log = log.WithField("blockHash", payload.Message.Body.ExecutionPayloadHeader.BlockHash.String())
+	log = log.WithFields(logrus.Fields{
+		"slot":       payload.Message.Slot,
+		"blockHash":  payload.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
+		"parentHash": payload.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
+	})
+
+	bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
+	m.bidsLock.Lock()
+	originalBid := m.bids[bidKey]
+	m.bidsLock.Unlock()
+	if originalBid.blockHash == "" {
+		log.Error("no bid for this getPayload payload found. was getHeader called before?")
+	} else if len(originalBid.relays) == 0 {
+		log.Warn("bid found but no associated relays")
+	}
+
+	relays := originalBid.relays
+	if len(relays) == 0 {
+		log.Warn("originating relay not found, sending getPayload request to all relays")
+		relays = m.relays
+	}
+
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	result := new(types.GetPayloadResponse)
@@ -444,7 +473,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
 	defer requestCtxCancel()
 
-	for _, relay := range m.relays {
+	for _, relay := range relays {
 		wg.Add(1)
 		go func(relay RelayEntry) {
 			defer wg.Done()
@@ -453,10 +482,13 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			log.Debug("calling getPayload")
 
 			responsePayload := new(types.GetPayloadResponse)
-			_, err := SendHTTPRequest(requestCtx, m.httpClient, http.MethodPost, url, ua, payload, responsePayload)
-
+			_, err := SendHTTPRequest(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload)
 			if err != nil {
-				log.WithError(err).Error("error making request to relay")
+				if errors.Is(requestCtx.Err(), context.Canceled) {
+					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
+				} else {
+					log.WithError(err).Error("error making request to relay")
+				}
 				return
 			}
 
@@ -493,11 +525,8 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	// If no payload has been received from relay, log loudly about withholding!
 	if result.Data == nil || result.Data.BlockHash == nilHash {
-		bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
-		m.bidsLock.Lock()
-		originalResp := m.bids[bidKey]
-		m.bidsLock.Unlock()
-		log.WithField("relays", strings.Join(originalResp.relays, ", ")).Errorf("no payload received from relay -- withholding or network error --")
+		originRelays := RelayEntriesToStrings(originalBid.relays)
+		log.WithField("relays", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
@@ -506,17 +535,37 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status
-func (m *BoostService) CheckRelays() bool {
-	for _, relay := range m.relays {
-		m.log.WithField("relay", relay.String()).Info("Checking relay")
+func (m *BoostService) CheckRelays() int {
+	var wg sync.WaitGroup
+	var numSuccessRequestsToRelay uint32
 
-		url := relay.GetURI(pathStatus)
-		_, err := SendHTTPRequest(context.Background(), m.httpClient, http.MethodGet, url, "", nil, nil)
-		if err != nil {
-			m.log.WithError(err).WithField("relay", relay.String()).Error("relay check failed")
-			return false
-		}
+	for _, r := range m.relays {
+		wg.Add(1)
+
+		go func(relay RelayEntry) {
+			defer wg.Done()
+			url := relay.GetURI(pathStatus)
+			log := m.log.WithField("url", url)
+			log.Debug("checking relay status")
+
+			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil)
+			if err != nil {
+				log.WithError(err).Error("relay status error - request failed")
+				return
+			}
+			if code == http.StatusOK {
+				log.Debug("relay status OK")
+			} else {
+				log.Errorf("relay status error - unexpected status code %d", code)
+				return
+			}
+
+			// Success: increase counter and cancel all pending requests to other relays
+			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
+		}(r)
 	}
 
-	return true
+	// At the end, wait for every routine and return status according to relay's ones.
+	wg.Wait()
+	return int(numSuccessRequestsToRelay)
 }

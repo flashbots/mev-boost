@@ -15,8 +15,6 @@ import (
 
 const (
 	genesisForkVersionMainnet = "0x00000000"
-	genesisForkVersionKiln    = "0x70000069" // https://github.com/eth-clients/merge-testnets/blob/main/kiln/config.yaml#L10
-	genesisForkVersionRopsten = "0x80000069"
 	genesisForkVersionSepolia = "0x90000069"
 	genesisForkVersionGoerli  = "0x00001020"
 )
@@ -26,33 +24,48 @@ var (
 	defaultLogJSON            = os.Getenv("LOG_JSON") != ""
 	defaultLogLevel           = getEnv("LOG_LEVEL", "info")
 	defaultListenAddr         = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
-	defaultRelayTimeoutMs     = getEnvInt("RELAY_TIMEOUT_MS", 2000) // timeout for all the requests to the relay
 	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
+	defaultDisableLogVersion  = os.Getenv("DISABLE_LOG_VERSION") == "1" // disables adding the version to every log entry
+
+	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
+	defaultTimeoutMsGetHeader         = getEnvInt("RELAY_TIMEOUT_MS_GETHEADER", 950)   // timeout for getHeader requests
+	defaultTimeoutMsGetPayload        = getEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
+	defaultTimeoutMsRegisterValidator = getEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
+
+	relays        relayList
+	relayMonitors relayMonitorList
 
 	// cli flags
 	printVersion = flag.Bool("version", false, "only print version")
 	logJSON      = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
 	logLevel     = flag.String("loglevel", defaultLogLevel, "minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic")
+	logDebug     = flag.Bool("debug", false, "shorthand for '-loglevel debug'")
+	logService   = flag.String("log-service", "", "add a 'service=...' tag to all log messages")
+	logNoVersion = flag.Bool("log-no-version", defaultDisableLogVersion, "disables adding the version to every log entry")
 
-	listenAddr     = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs      = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
-	relayTimeoutMs = flag.Int("request-timeout", defaultRelayTimeoutMs, "timeout for requests to a relay [ms]")
-	relayCheck     = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
+	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
+	relayURLs        = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
+	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
+	relayMonitorURLs = flag.String("relay-monitors", "", "relay monitor urls - single entry or comma-separated list (scheme://host)")
+
+	relayTimeoutMsGetHeader  = flag.Int("request-timeout-getheader", defaultTimeoutMsGetHeader, "timeout for getHeader requests to the relay [ms]")
+	relayTimeoutMsGetPayload = flag.Int("request-timeout-getpayload", defaultTimeoutMsGetPayload, "timeout for getPayload requests to the relay [ms]")
+	relayTimeoutMsRegVal     = flag.Int("request-timeout-regval", defaultTimeoutMsRegisterValidator, "timeout for registerValidator requests [ms]")
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet")
-	useGenesisForkVersionKiln    = flag.Bool("kiln", false, "use Kiln")
-	useGenesisForkVersionRopsten = flag.Bool("ropsten", false, "use Ropsten")
 	useGenesisForkVersionSepolia = flag.Bool("sepolia", false, "use Sepolia")
 	useGenesisForkVersionGoerli  = flag.Bool("goerli", false, "use Goerli")
 	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
 )
 
-var log = logrus.WithField("module", "cli")
+var log = logrus.NewEntry(logrus.New())
 
 // Main starts the mev-boost cli
 func Main() {
+	flag.Var(&relays, "relay", "a single relay, can be specified multiple times")
+	flag.Var(&relayMonitors, "relay-monitor", "a single relay monitor, can be specified multiple times")
 	flag.Parse()
 	logrus.SetOutput(os.Stdout)
 
@@ -61,79 +74,119 @@ func Main() {
 		return
 	}
 
+	// Set log format (json or text)
 	if *logJSON {
 		log.Logger.SetFormatter(&logrus.JSONFormatter{})
 	} else {
 		log.Logger.SetFormatter(&logrus.TextFormatter{
 			FullTimestamp: true,
 		})
-
 	}
 
+	// Set loglevel
+	if *logDebug {
+		*logLevel = "debug"
+	}
 	if *logLevel != "" {
 		lvl, err := logrus.ParseLevel(*logLevel)
 		if err != nil {
 			flag.Usage()
-			log.Fatalf("Invalid loglevel: %s", *logLevel)
+			log.Fatalf("invalid loglevel: %s", *logLevel)
 		}
-		logrus.SetLevel(lvl)
+		log.Logger.SetLevel(lvl)
 	}
 
-	log.Infof("mev-boost %s", config.Version)
+	// Add the service tag to logs, if configured
+	if *logService != "" {
+		log = log.WithField("service", *logService)
+	}
+
+	// Add version to logs and say hello
+	addVersionToLogs := !*logNoVersion
+	if addVersionToLogs {
+		log = log.WithField("version", config.Version)
+		log.Infof("starting mev-boost")
+	} else {
+		log.Infof("starting mev-boost %s", config.Version)
+	}
+	log.Debug("debug logging enabled")
 
 	genesisForkVersionHex := ""
 	if *useCustomGenesisForkVersion != "" {
 		genesisForkVersionHex = *useCustomGenesisForkVersion
 	} else if *useGenesisForkVersionMainnet {
 		genesisForkVersionHex = genesisForkVersionMainnet
-	} else if *useGenesisForkVersionKiln {
-		genesisForkVersionHex = genesisForkVersionKiln
-	} else if *useGenesisForkVersionRopsten {
-		genesisForkVersionHex = genesisForkVersionRopsten
 	} else if *useGenesisForkVersionSepolia {
 		genesisForkVersionHex = genesisForkVersionSepolia
 	} else if *useGenesisForkVersionGoerli {
 		genesisForkVersionHex = genesisForkVersionGoerli
 	} else {
 		flag.Usage()
-		log.Fatal("Please specify a genesis fork version (eg. -mainnet / -kiln / -ropsten / -sepolia / -goerli / -genesis-fork-version flags)")
+		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -genesis-fork-version flags)")
 	}
-	log.Infof("Using genesis fork version: %s", genesisForkVersionHex)
+	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
 
-	relays := parseRelayURLs(*relayURLs)
+	// For backwards compatibility with the -relays flag.
+	if *relayURLs != "" {
+		for _, relayURL := range strings.Split(*relayURLs, ",") {
+			err := relays.Set(strings.TrimSpace(relayURL))
+			if err != nil {
+				log.WithError(err).WithField("relay", relayURL).Fatal("Invalid relay URL")
+			}
+		}
+	}
+
 	if len(relays) == 0 {
 		flag.Usage()
-		log.Fatal("No relays specified")
+		log.Fatal("no relays specified")
 	}
-	log.WithField("relays", relays).Infof("using %d relays", len(relays))
+	log.Infof("using %d relays", len(relays))
+	for index, relay := range relays {
+		log.Infof("relay #%d: %s", index+1, relay.String())
+	}
 
-	relayTimeout := time.Duration(*relayTimeoutMs) * time.Millisecond
-	if relayTimeout <= 0 {
-		log.Fatal("Please specify a relay timeout greater than 0")
+	// For backwards compatibility with the -relay-monitors flag.
+	if *relayMonitorURLs != "" {
+		for _, relayMonitorURL := range strings.Split(*relayMonitorURLs, ",") {
+			err := relayMonitors.Set(strings.TrimSpace(relayMonitorURL))
+			if err != nil {
+				log.WithError(err).WithField("relayMonitor", relayMonitorURL).Fatal("Invalid relay monitor URL")
+			}
+		}
+	}
+
+	if len(relayMonitors) > 0 {
+		log.Infof("using %d relay monitors", len(relayMonitors))
+		for index, relayMonitor := range relayMonitors {
+			log.Infof("relay-monitor #%d: %s", index+1, relayMonitor.String())
+		}
 	}
 
 	opts := server.BoostServiceOpts{
-		Log:                   log,
-		ListenAddr:            *listenAddr,
-		Relays:                relays,
-		GenesisForkVersionHex: genesisForkVersionHex,
-		RelayRequestTimeout:   relayTimeout,
-		RelayCheck:            *relayCheck,
+		Log:                      log,
+		ListenAddr:               *listenAddr,
+		Relays:                   relays,
+		RelayMonitors:            relayMonitors,
+		GenesisForkVersionHex:    genesisForkVersionHex,
+		RelayCheck:               *relayCheck,
+		RequestTimeoutGetHeader:  time.Duration(*relayTimeoutMsGetHeader) * time.Millisecond,
+		RequestTimeoutGetPayload: time.Duration(*relayTimeoutMsGetPayload) * time.Millisecond,
+		RequestTimeoutRegVal:     time.Duration(*relayTimeoutMsRegVal) * time.Millisecond,
 	}
-	server, err := server.NewBoostService(opts)
+	service, err := server.NewBoostService(opts)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
 	}
 
-	if *relayCheck && !server.CheckRelays() {
-		log.Fatal("no relay available")
+	if *relayCheck && service.CheckRelays() == 0 {
+		log.Error("no relay passed the health-check!")
 	}
 
 	log.Println("listening on", *listenAddr)
-	log.Fatal(server.StartHTTPServer())
+	log.Fatal(service.StartHTTPServer())
 }
 
-func getEnv(key string, defaultValue string) string {
+func getEnv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
 	}
@@ -148,16 +201,4 @@ func getEnvInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
-}
-
-func parseRelayURLs(relayURLs string) []server.RelayEntry {
-	ret := []server.RelayEntry{}
-	for _, entry := range strings.Split(relayURLs, ",") {
-		relay, err := server.NewRelayEntry(entry)
-		if err != nil {
-			log.WithError(err).WithField("relayURL", entry).Fatal("Invalid relay URL")
-		}
-		ret = append(ret, relay)
-	}
-	return ret
 }

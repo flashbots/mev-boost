@@ -10,15 +10,15 @@ v:
 
 .PHONY: build
 build:
-	go build -ldflags "-X 'github.com/flashbots/mev-boost/config.Version=${VERSION}' -X 'github.com/flashbots/mev-boost/config.BuildTime=$(shell date)'" -v -o mev-boost .
+	go build -trimpath -ldflags "-s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o mev-boost .
 
 .PHONY: build-portable
 build-portable:
-	CGO_CFLAGS="-O -D__BLST_PORTABLE__" go build -ldflags "-X 'github.com/flashbots/mev-boost/config.Version=${VERSION}' -X 'github.com/flashbots/mev-boost/config.BuildTime=$(shell date)'" -v -o mev-boost .
+	CGO_CFLAGS="-O -D__BLST_PORTABLE__" go build -trimpath -ldflags "-s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o mev-boost .
 
 .PHONY: build-testcli
 build-testcli:
-	go build -ldflags "-X 'github.com/flashbots/mev-boost/config.Version=${VERSION}' -X 'github.com/flashbots/mev-boost/config.BuildTime=$(shell date)'" -v -o test-cli ./cmd/test-cli
+	go build -trimpath -ldflags "-s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o test-cli ./cmd/test-cli
 
 .PHONY: test
 test:
@@ -30,9 +30,11 @@ test-race:
 
 .PHONY: lint
 lint:
+	gofumpt -d -extra .
 	revive -set_exit_status ./...
 	go vet ./...
 	staticcheck ./...
+	golangci-lint run --config=.golangci.yml
 
 .PHONY: test-coverage
 test-coverage:
@@ -57,20 +59,18 @@ run-mergemock-integration: build
 
 .PHONY: docker-image
 docker-image:
-	DOCKER_BUILDKIT=1 docker build --build-arg CGO_CFLAGS="" --build-arg VERSION=${VERSION} . -t mev-boost
+	DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --build-arg CGO_CFLAGS="" --build-arg VERSION=${VERSION} . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
 	docker tag mev-boost:latest ${DOCKER_REPO}:latest
 
 .PHONY: docker-image-portable
 docker-image-portable:
-	DOCKER_BUILDKIT=1 docker build --build-arg CGO_CFLAGS="-O -D__BLST_PORTABLE__" --build-arg VERSION=${VERSION}  . -t mev-boost
+	DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --build-arg CGO_CFLAGS="-O -D__BLST_PORTABLE__" --build-arg VERSION=${VERSION}  . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
-	docker tag mev-boost:latest ${DOCKER_REPO}:latest
 
-.PHONY: docker-push
-docker-push:
+.PHONY: docker-push-version
+docker-push-version:
 	docker push ${DOCKER_REPO}:${VERSION}
-	docker push ${DOCKER_REPO}:latest
 
 .PHONY: clean
 clean:

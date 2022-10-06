@@ -17,12 +17,9 @@ func (r *RelayEntry) String() string {
 	return r.URL.String()
 }
 
-// GetURI returns the full request URI with scheme, host, path and args.
+// GetURI returns the full request URI with scheme, host, path and args for the relay.
 func (r *RelayEntry) GetURI(path string) string {
-	u2 := *r.URL
-	u2.User = nil
-	u2.Path = path
-	return u2.String()
+	return GetURI(r.URL, path)
 }
 
 // NewRelayEntry creates a new instance based on an input string
@@ -46,4 +43,13 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 
 	err = entry.PublicKey.UnmarshalText([]byte(entry.URL.User.Username()))
 	return entry, err
+}
+
+// RelayEntriesToStrings returns the string representation of a list of relay entries
+func RelayEntriesToStrings(relays []RelayEntry) []string {
+	ret := make([]string, len(relays))
+	for i, entry := range relays {
+		ret[i] = entry.String()
+	}
+	return ret
 }

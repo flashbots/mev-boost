@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -20,8 +21,11 @@ import (
 // UserAgent is a custom string type to avoid confusing url + userAgent parameters in SendHTTPRequest
 type UserAgent string
 
+// BlockHashHex is a hex-string representation of a block hash
+type BlockHashHex string
+
 // SendHTTPRequest - prepare and send HTTP request, marshaling the payload if any, and decoding the response if dst is set
-func SendHTTPRequest(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload any, dst any) (code int, err error) {
+func SendHTTPRequest(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload, dst any) (code int, err error) {
 	var req *http.Request
 
 	if payload == nil {
@@ -77,7 +81,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 }
 
 // ComputeDomain computes the signing domain
-func ComputeDomain(domainType types.DomainType, forkVersionHex string, genesisValidatorsRootHex string) (domain types.Domain, err error) {
+func ComputeDomain(domainType types.DomainType, forkVersionHex, genesisValidatorsRootHex string) (domain types.Domain, err error) {
 	genesisValidatorsRoot := types.Root(common.HexToHash(genesisValidatorsRootHex))
 	forkVersionBytes, err := hexutil.Decode(forkVersionHex)
 	if err != nil || len(forkVersionBytes) > 4 {
@@ -100,16 +104,28 @@ func DecodeJSON(r io.Reader, dst any) error {
 	return nil
 }
 
+// GetURI returns the full request URI with scheme, host, path and args.
+func GetURI(url *url.URL, path string) string {
+	u2 := *url
+	u2.User = nil
+	u2.Path = path
+	return u2.String()
+}
+
 // bidResp are entries in the bids cache
 type bidResp struct {
 	t         time.Time
 	response  types.GetHeaderResponse
 	blockHash string
-	relays    []string
+	relays    []RelayEntry
 }
 
 // bidRespKey is used as key for the bids cache
 type bidRespKey struct {
 	slot      uint64
 	blockHash string
+}
+
+func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
+	return http.ErrUseLastResponse
 }

@@ -6,11 +6,13 @@ Please start by reading our [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Set up
 
-Install a few dev dependencies:
+Install a few dev dependencies for `make lint`:
 
 ```bash
-go install github.com/mgechev/revive@latest
-go install honnef.co/go/tools/cmd/staticcheck@master
+go install github.com/mgechev/revive@v1.1.3
+go install mvdan.cc/gofumpt@v0.3.1
+go install honnef.co/go/tools/cmd/staticcheck@v0.3.0
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0
 ```
 
 Look at the [README for instructions to install the dependencies and build `mev-boost`](README.md#installing)
@@ -87,15 +89,6 @@ Follow the [Clean Code](https://flashbots.notion.site/Clean-Code-13016c5c7ca649f
 
 We appreciate you, friend <3.
 
-## Deploying an update
+---
 
-The extended deploy steps are necessary for installations with `go install` to include the correct version.
-
-* Ensure linter and tests are working: `make lint && make test-race`
-* Update `Version` in `config/vars.go`
-  * it will be next_version-dev (eg. `v0.7.11-dev`)
-  * change it to the next version (eg. `v0.7.11`), and commit
-* Create a git tag
-* Now push to main and push the tag: `git push && git push --tags`
-* Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v0.7.12-dev`), and commit
-* In the meantime, Github CI will have produced a new draft release in https://github.com/flashbots/mev-boost/releases. Open it, generate the description and publish.
+For the checklist and guide to releasing a new version, see [RELEASE.md](RELEASE.md).

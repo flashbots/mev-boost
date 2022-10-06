@@ -23,6 +23,8 @@
 /mev-boost
 /test-cli
 /tmp
+/dist
 .vscode/
 /README.internal.md
 /validator_data.json
+/build/

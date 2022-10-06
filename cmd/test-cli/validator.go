@@ -22,7 +22,7 @@ func (v *validatorPrivateData) SaveValidator(filePath string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filePath, validatorData, 0644)
+	return os.WriteFile(filePath, validatorData, 0o644)
 }
 
 func mustLoadValidator(filePath string) validatorPrivateData {
