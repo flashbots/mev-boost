@@ -43,6 +43,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		Relays:                   relayEntries,
 		GenesisForkVersionHex:    "0x00000000",
 		RelayCheck:               true,
+		RelayMinBid:              types.IntToU256(12345),
 		RequestTimeoutGetHeader:  relayTimeout,
 		RequestTimeoutGetPayload: relayTimeout,
 		RequestTimeoutRegVal:     relayTimeout,
@@ -75,7 +76,7 @@ func (be *testBackend) request(t *testing.T, method, path string, payload any) *
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, []*url.URL{}, "0x00000000", true, time.Second, time.Second, time.Second})
+		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, []*url.URL{}, "0x00000000", true, types.IntToU256(0), time.Second, time.Second, time.Second})
 		require.Error(t, err)
 	})
 }
@@ -365,6 +366,53 @@ func TestGetHeader(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, types.IntToU256(12345), resp.Data.Message.Value)
 		require.Equal(t, "0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7", resp.Data.Message.Header.BlockHash.String())
+	})
+
+	t.Run("Respect minimum bid cutoff", func(t *testing.T) {
+		// Create backend and register relay.
+		backend := newTestBackend(t, 1, time.Second)
+
+		// Relay will return signed response with value 12344.
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12344,
+			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+
+		// Run the request.
+		rr := backend.request(t, http.MethodGet, path, nil)
+
+		// Each relay must have received the request.
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+		// Request should have no content (min bid is 12345)
+		require.Equal(t, http.StatusNoContent, rr.Code)
+	})
+
+	t.Run("Allow bids which meet minimum bid cutoff", func(t *testing.T) {
+		// Create backend and register relay.
+		backend := newTestBackend(t, 1, time.Second)
+
+		// First relay will return signed response with value 12345.
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		)
+
+		// Run the request.
+		rr := backend.request(t, http.MethodGet, path, nil)
+
+		// Each relay must have received the request.
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+		// Value should be 12345 (min bid is 12345)
+		resp := new(types.GetHeaderResponse)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		require.Equal(t, types.IntToU256(12345), resp.Data.Message.Value)
 	})
 
 	t.Run("Invalid relay public key", func(t *testing.T) {

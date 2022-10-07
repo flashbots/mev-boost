@@ -2,11 +2,13 @@ package cli
 
 import (
 	"flag"
+	"math/big"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
@@ -25,6 +27,7 @@ var (
 	defaultListenAddr         = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
 	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
+	defaultRelayMinBidEth     = getEnvFloat64("RELAY_MIN_BID", 0.001)
 	defaultDisableLogVersion  = os.Getenv("DISABLE_LOG_VERSION") == "1" // disables adding the version to every log entry
 
 	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
@@ -46,6 +49,7 @@ var (
 	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs        = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
 	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
+	relayMinBidEth   = flag.Float64("min-bid", defaultRelayMinBidEth, "minimum bid to accept from a relay [eth]")
 	relayMonitorURLs = flag.String("relay-monitors", "", "relay monitor urls - single entry or comma-separated list (scheme://host)")
 
 	relayTimeoutMsGetHeader  = flag.Int("request-timeout-getheader", defaultTimeoutMsGetHeader, "timeout for getHeader requests to the relay [ms]")
@@ -161,6 +165,19 @@ func Main() {
 		}
 	}
 
+	if *relayMinBidEth < 0.0 {
+		log.Fatal("Please specify a non-negative minimum bid")
+	}
+
+	if *relayMinBidEth > 1000000.0 {
+		log.Fatal("Minimum bid is too large, please ensure min-bid is denominated in Ethers")
+	}
+
+	relayMinBidWei, err := floatEthTo256Wei(*relayMinBidEth)
+	if err != nil {
+		log.WithError(err).Fatal("failed converting min bid")
+	}
+
 	opts := server.BoostServiceOpts{
 		Log:                      log,
 		ListenAddr:               *listenAddr,
@@ -168,6 +185,7 @@ func Main() {
 		RelayMonitors:            relayMonitors,
 		GenesisForkVersionHex:    genesisForkVersionHex,
 		RelayCheck:               *relayCheck,
+		RelayMinBid:              *relayMinBidWei,
 		RequestTimeoutGetHeader:  time.Duration(*relayTimeoutMsGetHeader) * time.Millisecond,
 		RequestTimeoutGetPayload: time.Duration(*relayTimeoutMsGetPayload) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(*relayTimeoutMsRegVal) * time.Millisecond,
@@ -200,4 +218,32 @@ func getEnvInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+func getEnvFloat64(key string, defaultValue float64) float64 {
+	if value, ok := os.LookupEnv(key); ok {
+		val, err := strconv.ParseFloat(value, 64)
+		if err == nil {
+			return val
+		}
+	}
+	return defaultValue
+}
+
+func floatEthTo256Wei(val float64) (*types.U256Str, error) {
+	bigval := new(big.Float)
+	bigval.SetFloat64(val)
+
+	wad := new(big.Float)
+	wad.SetInt(big.NewInt(1000000000000000000))
+
+	bigval.Mul(bigval, wad)
+
+	result := new(big.Int)
+	bigval.Int(result)
+
+	u256 := new(types.U256Str)
+	err := u256.FromBig(result)
+
+	return u256, err
 }
