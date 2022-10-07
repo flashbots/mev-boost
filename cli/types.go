@@ -2,9 +2,10 @@ package cli
 
 import (
 	"errors"
-	"github.com/flashbots/mev-boost/server"
 	"net/url"
 	"strings"
+
+	"github.com/flashbots/mev-boost/server"
 )
 
 var errDuplicateEntry = errors.New("duplicate entry")
@@ -39,7 +40,7 @@ func (r *relayList) Set(value string) error {
 type relayMonitorList []*url.URL
 
 func (rm *relayMonitorList) String() string {
-	relayMonitors := make([]string, len(*rm))
+	relayMonitors := []string{}
 	for _, relayMonitor := range *rm {
 		relayMonitors = append(relayMonitors, relayMonitor.String())
 	}

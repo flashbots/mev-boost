@@ -28,9 +28,6 @@ jobs:
           git diff-index HEAD
           git diff-index --quiet HEAD
 
-      - name: Install revive linter
-        run: go install github.com/mgechev/revive@v1.1.3
-
       - name: Install gofumpt
         run: go install mvdan.cc/gofumpt@v0.3.1
 

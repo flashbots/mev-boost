@@ -30,10 +30,10 @@ test-race:
 
 .PHONY: lint
 lint:
+	gofmt -d -s .
 	gofumpt -d -extra .
-	revive -set_exit_status ./...
 	staticcheck ./...
-	golangci-lint run --config=.golangci.yml
+	golangci-lint run
 
 .PHONY: test-coverage
 test-coverage:
