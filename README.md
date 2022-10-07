@@ -198,12 +198,16 @@ A single MEV-Boost instance can be used by multiple beacon nodes and validators.
 
 Aside from running MEV-Boost on your local network, you must configure:
 * individual **beacon nodes** to connect to MEV-Boost. Beacon Node configuration varies by Consensus client. Guides for each client can be found on the [MEV-boost website](https://boost.flashbots.net/#block-356364ebd7cc424fb524428ed0134b21).
-* individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relays). Lists of available relays are maintained by [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) and [Lido](https://research.lido.fi/t/lido-on-ethereum-call-for-relay-providers/2844).
+* individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relays). 
+
+Lists of available relays are maintained by 
+* [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) 
+* [Lido](https://research.lido.fi/t/lido-on-ethereum-call-for-relay-providers/2844)
 
 
 ## Mainnet
 
-Run MEV-Boost pointed at a Mainnet Relay:
+Run MEV-Boost pointed at a mainnet relay:
 
 ```
 ./mev-boost -mainnet -relay-check -relay URL-OF-TRUSTED-RELAY
@@ -211,7 +215,7 @@ Run MEV-Boost pointed at a Mainnet Relay:
 
 ## Goerli testnet
 
-Run MEV-Boost pointed at a Goerli Relay:
+Run MEV-Boost pointed at a Goerli relay:
 
 ```
 ./mev-boost -goerli -relay-check -relay URL-OF-TRUSTED-RELAY
@@ -219,7 +223,7 @@ Run MEV-Boost pointed at a Goerli Relay:
 
 ## Sepolia testnet
 
-Run MEV-Boost pointed at a [Sepolia Relay](https://builder-relay-sepolia.flashbots.net/):
+Run MEV-Boost pointed at a Sepolia relay:
 
 ```
 ./mev-boost -sepolia -relay-check -relay URL-OF-TRUSTED-RELAY
