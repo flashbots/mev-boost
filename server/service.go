@@ -361,18 +361,19 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
+			if responsePayload.Data.Message.Value.Cmp(&m.relayMinBid) == -1 {
+				log.Debug("ignoring bid below min-bid value")
+				return
+			}
+
 			log.Debug("bid received")
+			// Skip if value (fee) is lower than the minimum bid
 
 			mu.Lock()
 			defer mu.Unlock()
 
 			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
 			relays[BlockHashHex(blockHash)] = append(relays[BlockHashHex(blockHash)], relay)
-
-			// Skip if value (fee) is lower than the minimum bid
-			if responsePayload.Data.Message.Value.Cmp(&m.relayMinBid) == -1 {
-				return
-			}
 
 			// Compare the bid with already known top bid (if any)
 			if result.response.Data != nil {

@@ -27,7 +27,7 @@ var (
 	defaultListenAddr         = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
 	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
-	defaultRelayMinBidEth     = getEnvFloat64("RELAY_MIN_BID", 0.001)
+	defaultRelayMinBidEth     = getEnvFloat64("MIN_BID_ETH", 0.001)
 	defaultDisableLogVersion  = os.Getenv("DISABLE_LOG_VERSION") == "1" // disables adding the version to every log entry
 
 	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
