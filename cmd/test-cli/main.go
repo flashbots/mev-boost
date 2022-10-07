@@ -238,7 +238,7 @@ func main() {
 		}
 		doGetPayload(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, builderSigningDomain, proposerSigningDomain)
 	default:
-		fmt.Println("Expected generate|register|getHeader|getPayload subcommand")
+		log.Info("Expected generate|register|getHeader|getPayload subcommand")
 		os.Exit(1)
 	}
 }

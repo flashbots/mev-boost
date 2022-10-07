@@ -18,6 +18,11 @@ import (
 	"github.com/flashbots/mev-boost/config"
 )
 
+var (
+	errHTTPErrorResponse  = errors.New("HTTP error response")
+	errInvalidForkVersion = errors.New("invalid fork version")
+)
+
 // UserAgent is a custom string type to avoid confusing url + userAgent parameters in SendHTTPRequest
 type UserAgent string
 
@@ -63,7 +68,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 		if err != nil {
 			return resp.StatusCode, fmt.Errorf("could not read error response body for status code %d: %w", resp.StatusCode, err)
 		}
-		return resp.StatusCode, fmt.Errorf("HTTP error response: %d / %s", resp.StatusCode, string(bodyBytes))
+		return resp.StatusCode, fmt.Errorf("%w: %d / %s", errHTTPErrorResponse, resp.StatusCode, string(bodyBytes))
 	}
 
 	if dst != nil {
@@ -85,8 +90,7 @@ func ComputeDomain(domainType types.DomainType, forkVersionHex, genesisValidator
 	genesisValidatorsRoot := types.Root(common.HexToHash(genesisValidatorsRootHex))
 	forkVersionBytes, err := hexutil.Decode(forkVersionHex)
 	if err != nil || len(forkVersionBytes) > 4 {
-		err = errors.New("invalid fork version passed")
-		return domain, err
+		return domain, errInvalidForkVersion
 	}
 	var forkVersion [4]byte
 	copy(forkVersion[:], forkVersionBytes[:4])
