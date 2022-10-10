@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/flashbots/go-boost-utils/types"
@@ -8,9 +9,28 @@ import (
 )
 
 func TestFloatEthTo256Wei(t *testing.T) {
-	// test with valid input
+	// test with small input
 	i := 0.000000000000012345
-	u256, err := floatEthTo256Wei(i)
-	require.Equal(t, types.IntToU256(12345), *u256)
+	weiU256, err := floatEthTo256Wei(i)
 	require.NoError(t, err)
+	require.Equal(t, types.IntToU256(12345), *weiU256)
+
+	// test with zero
+	i = 0
+	weiU256, err = floatEthTo256Wei(i)
+	require.NoError(t, err)
+	require.Equal(t, types.IntToU256(0), *weiU256)
+
+	// test with large input
+	i = 987654.3
+	weiU256, err = floatEthTo256Wei(i)
+	require.NoError(t, err)
+
+	r := big.NewInt(9876543)
+	r.Mul(r, big.NewInt(100000000000000000)) // 10^17
+	refernceWeiU256 := new(types.U256Str)
+	err = refernceWeiU256.FromBig(r)
+	require.NoError(t, err)
+
+	require.Equal(t, *refernceWeiU256, *weiU256)
 }

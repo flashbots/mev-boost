@@ -360,14 +360,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				log.Warn("ignoring bid with 0 value")
 				return
 			}
+			log.Debug("bid received")
 
+			// Skip if value (fee) is lower than the minimum bid
 			if responsePayload.Data.Message.Value.Cmp(&m.relayMinBid) == -1 {
 				log.Debug("ignoring bid below min-bid value")
 				return
 			}
-
-			log.Debug("bid received")
-			// Skip if value (fee) is lower than the minimum bid
 
 			mu.Lock()
 			defer mu.Unlock()
