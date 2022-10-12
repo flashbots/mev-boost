@@ -2,6 +2,7 @@ package cli
 
 import (
 	"flag"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -26,6 +27,8 @@ var (
 	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
 	defaultDisableLogVersion  = os.Getenv("DISABLE_LOG_VERSION") == "1" // disables adding the version to every log entry
+	defaultLogFile            = getEnv("LOG_FILE", "")
+	defaultLogFilePerms       = getEnvInt("LOG_FILE_PERMS", 0755)
 
 	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
 	defaultTimeoutMsGetHeader         = getEnvInt("RELAY_TIMEOUT_MS_GETHEADER", 950)   // timeout for getHeader requests
@@ -42,6 +45,8 @@ var (
 	logDebug     = flag.Bool("debug", false, "shorthand for '-loglevel debug'")
 	logService   = flag.String("log-service", "", "add a 'service=...' tag to all log messages")
 	logNoVersion = flag.Bool("log-no-version", defaultDisableLogVersion, "disables adding the version to every log entry")
+	logFile      = flag.String("log-file", defaultLogFile, "the file to log to, if this is not set, only log to stdout")
+	logFilePerms = flag.Int("log-file-perms", defaultLogFilePerms, "the octal linux file permissions for the logFile")
 
 	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 	relayURLs        = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
@@ -59,56 +64,13 @@ var (
 	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
 )
 
-var log = logrus.NewEntry(logrus.New())
+var log = newLogger()
 
 // Main starts the mev-boost cli
 func Main() {
 	flag.Var(&relays, "relay", "a single relay, can be specified multiple times")
 	flag.Var(&relayMonitors, "relay-monitor", "a single relay monitor, can be specified multiple times")
 	flag.Parse()
-	logrus.SetOutput(os.Stdout)
-
-	// Set log format (json or text)
-	if *logJSON {
-		log.Logger.SetFormatter(&logrus.JSONFormatter{})
-	} else {
-		log.Logger.SetFormatter(&logrus.TextFormatter{
-			FullTimestamp: true,
-		})
-	}
-
-	if *printVersion {
-		log.Infof("mev-boost %s\n", config.Version)
-		return
-	}
-
-	// Set loglevel
-	if *logDebug {
-		*logLevel = "debug"
-	}
-	if *logLevel != "" {
-		lvl, err := logrus.ParseLevel(*logLevel)
-		if err != nil {
-			flag.Usage()
-			log.Fatalf("invalid loglevel: %s", *logLevel)
-		}
-		log.Logger.SetLevel(lvl)
-	}
-
-	// Add the service tag to logs, if configured
-	if *logService != "" {
-		log = log.WithField("service", *logService)
-	}
-
-	// Add version to logs and say hello
-	addVersionToLogs := !*logNoVersion
-	if addVersionToLogs {
-		log = log.WithField("version", config.Version)
-		log.Infof("starting mev-boost")
-	} else {
-		log.Infof("starting mev-boost %s", config.Version)
-	}
-	log.Debug("debug logging enabled")
 
 	genesisForkVersionHex := ""
 	if *useCustomGenesisForkVersion != "" {
@@ -200,4 +162,66 @@ func getEnvInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+func newLogger() *logrus.Entry {
+	var logger = logrus.New()
+
+	// Set logger format (json or text)
+	if *logJSON {
+		logger.SetFormatter(&logrus.JSONFormatter{})
+	} else {
+		logger.SetFormatter(&logrus.TextFormatter{
+			FullTimestamp: true,
+		})
+	}
+
+	if *logFile != "" {
+		f, err := os.OpenFile(*logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, os.FileMode(*logFilePerms))
+		if err != nil {
+			logger.Fatalf("failed to open logFile %s with error %v", *logFile, err)
+		}
+		logger.Infof("writing to log file %s", *logFile)
+		logrus.SetOutput(io.MultiWriter(f, os.Stdout))
+	} else {
+		logrus.SetOutput(os.Stdout)
+	}
+
+	if *printVersion {
+		logger.Infof("mev-boost %s\n", config.Version)
+		return nil
+	}
+
+	// Set loglevel
+	if *logDebug {
+		*logLevel = "debug"
+	}
+
+	if *logLevel != "" {
+		lvl, err := logrus.ParseLevel(*logLevel)
+		if err != nil {
+			logger.WithError(err).Fatal("failed to write to logger file")
+			logger.Fatalf("invalid loglevel: %s", *logLevel)
+		}
+		logger.SetLevel(lvl)
+	}
+
+	logEntry := logrus.NewEntry(logger)
+
+	// Add the service tag to logs, if configured
+	if *logService != "" {
+		logEntry = logEntry.WithField("service", *logService)
+	}
+
+	// Add version to logs and say hello
+	addVersionToLogs := !*logNoVersion
+	if addVersionToLogs {
+		logEntry = logEntry.WithField("version", config.Version)
+		logEntry.Infof("starting mev-boost")
+	} else {
+		logEntry.Infof("starting mev-boost %s", config.Version)
+	}
+	logEntry.Debug("debug logging enabled")
+
+	return logEntry
 }
