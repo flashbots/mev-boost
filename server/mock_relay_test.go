@@ -12,7 +12,7 @@ import (
 func Test_mockRelay(t *testing.T) {
 	t.Run("bad payload", func(t *testing.T) {
 		relay := newMockRelay(t)
-		req, err := http.NewRequest("POST", pathRegisterValidator, bytes.NewReader([]byte("123")))
+		req, err := http.NewRequest(http.MethodPost, pathRegisterValidator, bytes.NewReader([]byte("123")))
 		require.NoError(t, err)
 		rr := httptest.NewRecorder()
 		relay.getRouter().ServeHTTP(rr, req)

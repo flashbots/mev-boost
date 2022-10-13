@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,6 +17,11 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
+)
+
+var (
+	errHTTPErrorResponse  = errors.New("HTTP error response")
+	errInvalidForkVersion = errors.New("invalid fork version")
 )
 
 // UserAgent is a custom string type to avoid confusing url + userAgent parameters in SendHTTPRequest
@@ -64,7 +70,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 		if err != nil {
 			return resp.StatusCode, fmt.Errorf("could not read error response body for status code %d: %w", resp.StatusCode, err)
 		}
-		return resp.StatusCode, fmt.Errorf("HTTP error response: %d / %s", resp.StatusCode, string(bodyBytes))
+		return resp.StatusCode, fmt.Errorf("%w: %d / %s", errHTTPErrorResponse, resp.StatusCode, string(bodyBytes))
 	}
 
 	if dst != nil {
@@ -86,8 +92,7 @@ func ComputeDomain(domainType types.DomainType, forkVersionHex, genesisValidator
 	genesisValidatorsRoot := types.Root(common.HexToHash(genesisValidatorsRootHex))
 	forkVersionBytes, err := hexutil.Decode(forkVersionHex)
 	if err != nil || len(forkVersionBytes) > 4 {
-		err = errors.New("invalid fork version passed")
-		return domain, err
+		return domain, errInvalidForkVersion
 	}
 	var forkVersion [4]byte
 	copy(forkVersion[:], forkVersionBytes[:4])
@@ -129,4 +134,12 @@ type bidRespKey struct {
 
 func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
 	return http.ErrUseLastResponse
+}
+
+func weiBigIntToEthBigFloat(wei *big.Int) (ethValue *big.Float) {
+	// wei / 10^18
+	fbalance := new(big.Float)
+	fbalance.SetString(wei.String())
+	ethValue = new(big.Float).Quo(fbalance, big.NewFloat(1e18))
+	return
 }

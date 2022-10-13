@@ -23,12 +23,12 @@ import (
 )
 
 var (
+	errNoRelays                  = errors.New("no relays")
 	errInvalidSlot               = errors.New("invalid slot")
 	errInvalidHash               = errors.New("invalid hash")
 	errInvalidPubkey             = errors.New("invalid pubkey")
 	errNoSuccessfulRelayResponse = errors.New("no successful relay response")
-
-	errServerAlreadyRunning = errors.New("server already running")
+	errServerAlreadyRunning      = errors.New("server already running")
 )
 
 var (
@@ -76,7 +76,7 @@ type BoostService struct {
 // NewBoostService created a new BoostService
 func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	if len(opts.Relays) == 0 {
-		return nil, errors.New("no relays")
+		return nil, errNoRelays
 	}
 
 	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
@@ -162,7 +162,7 @@ func (m *BoostService) StartHTTPServer() error {
 	}
 
 	err := m.srv.ListenAndServe()
-	if err == http.ErrServerClosed {
+	if errors.Is(err, http.ErrServerClosed) {
 		return nil
 	}
 	return err
@@ -318,11 +318,12 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			blockHash := responsePayload.Data.Message.Header.BlockHash.String()
+			valueEth := weiBigIntToEthBigFloat(responsePayload.Data.Message.Value.BigInt())
 			log = log.WithFields(logrus.Fields{
 				"blockNumber": responsePayload.Data.Message.Header.BlockNumber,
 				"blockHash":   blockHash,
 				"txRoot":      responsePayload.Data.Message.Header.TransactionsRoot.String(),
-				"value":       responsePayload.Data.Message.Value.String(),
+				"value":       valueEth.Text('f', 18),
 			})
 
 			if relay.PublicKey != responsePayload.Data.Message.Pubkey {
@@ -397,12 +398,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	// Log result
+	valueEth := weiBigIntToEthBigFloat(result.response.Data.Message.Value.BigInt())
 	result.relays = relays[BlockHashHex(result.blockHash)]
 	log.WithFields(logrus.Fields{
 		"blockHash":   result.blockHash,
 		"blockNumber": result.response.Data.Message.Header.BlockNumber,
 		"txRoot":      result.response.Data.Message.Header.TransactionsRoot.String(),
-		"value":       result.response.Data.Message.Value.String(),
+		"value":       valueEth.Text('f', 18),
 		"relays":      strings.Join(RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 

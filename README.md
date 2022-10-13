@@ -107,10 +107,14 @@ Ensure you are downloading the most updated MEV-Boost release. Releases are avai
 clone the repository and build it:
 
 ```bash
+# By default, the main branch includes ongoing merged PRs a future release.
 git clone https://github.com/flashbots/mev-boost.git
 cd mev-boost
 
-# If you want to build a specific release, check out the tag first. https://github.com/flashbots/mev-boost/releases
+# You can use the stable branch, which is always updated with the latest released version
+git checkout stable
+
+# If you want to build a specific release, check out the tag. See also https://github.com/flashbots/mev-boost/releases
 git checkout tags/YOUR_VERSION
 
 # Build most recent version of MEV-Boost
@@ -194,31 +198,35 @@ A single MEV-Boost instance can be used by multiple beacon nodes and validators.
 
 Aside from running MEV-Boost on your local network, you must configure:
 * individual **beacon nodes** to connect to MEV-Boost. Beacon Node configuration varies by Consensus client. Guides for each client can be found on the [MEV-boost website](https://boost.flashbots.net/#block-356364ebd7cc424fb524428ed0134b21).
-* individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relays). Lists of available relays are maintained by [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) and [Lido](https://research.lido.fi/t/lido-on-ethereum-call-for-relay-providers/2844).
+* individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relays). 
+
+Lists of available relays are maintained by 
+* [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) 
+* [Lido](https://research.lido.fi/t/lido-on-ethereum-call-for-relay-providers/2844)
 
 
 ## Mainnet
 
-Run MEV-Boost pointed at our [Mainnet Relay](https://boost-relay.flashbots.net/):
+Run MEV-Boost pointed at a mainnet relay:
 
 ```
- ./mev-boost -mainnet -relay-check -relay https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net
+./mev-boost -mainnet -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
 ## Goerli testnet
 
-Run MEV-Boost pointed at our [Goerli Relay](https://builder-relay-goerli.flashbots.net/):
+Run MEV-Boost pointed at a Goerli relay:
 
 ```
- ./mev-boost -goerli -relay-check -relay https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@builder-relay-goerli.flashbots.net
+./mev-boost -goerli -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
 ## Sepolia testnet
 
-Run MEV-Boost pointed at our [Sepolia Relay](https://builder-relay-sepolia.flashbots.net/):
+Run MEV-Boost pointed at a Sepolia relay:
 
 ```
- ./mev-boost -sepolia -relay-check -relay https://0x845bd072b7cd566f02faeb0a4033ce9399e42839ced64e8b2adcfc859ed1e8e1a5a293336a49feac6d9a5edb779be53a@builder-relay-sepolia.flashbots.net
+./mev-boost -sepolia -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
 ## `test-cli`
