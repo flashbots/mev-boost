@@ -71,5 +71,4 @@ func TestWeiBigIntToEthBigFloat(t *testing.T) {
 	// test with nil, which results on invalid big.Int input
 	f = weiBigIntToEthBigFloat(nil)
 	require.Equal(t, "0.000000000000000000", f.Text('f', 18))
-
 }
