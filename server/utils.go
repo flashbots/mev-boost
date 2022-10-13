@@ -39,7 +39,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 
 		// Set headers
 		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("accept-encoding", "gzip, deflate")
+		req.Header.Add("Accept-Encoding", "gzip")
 	}
 	if err != nil {
 		return 0, fmt.Errorf("could not prepare request: %w", err)
