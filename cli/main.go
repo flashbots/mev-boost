@@ -233,32 +233,16 @@ func getEnvFloat64(key string, defaultValue float64) float64 {
 // floatEthTo256Wei converts a float (precision 10) denominated in eth to a U256Str denominated in wei
 func floatEthTo256Wei(val float64) (*types.U256Str, error) {
 	weiU256 := new(types.U256Str)
-
-	ethString := strconv.FormatFloat(val, 'g', 10, 64)
-	ethSplit := strings.Split(ethString, "e")
-
+	ethFloat := new(big.Float)
 	weiFloat := new(big.Float)
-
-	if len(ethSplit) > 1 {
-		exp, err := strconv.Atoi(ethSplit[1])
-		if err != nil {
-			return weiU256, err
-		}
-		_, _, err = weiFloat.Parse(ethSplit[0]+"e"+strconv.Itoa(exp+18), 10)
-		if err != nil {
-			return weiU256, err
-		}
-	} else {
-		_, _, err := weiFloat.Parse(ethSplit[0]+"e18", 10)
-		if err != nil {
-			return weiU256, err
-		}
-	}
-
+	weiFloatLessPrecise := new(big.Float)
 	weiInt := new(big.Int)
-	weiFloat.Int(weiInt)
+
+	ethFloat.SetFloat64(val)
+	weiFloat.Mul(ethFloat, big.NewFloat(1e18))
+	weiFloatLessPrecise.SetString(weiFloat.String())
+	weiFloatLessPrecise.Int(weiInt)
 
 	err := weiU256.FromBig(weiInt)
-
 	return weiU256, err
 }

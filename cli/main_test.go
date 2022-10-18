@@ -27,9 +27,9 @@ func TestFloatEthTo256Wei(t *testing.T) {
 	require.NoError(t, err)
 
 	r := big.NewInt(9876543)
-	r.Mul(r, big.NewInt(100000000000000000)) // 10^17
-	refernceWeiU256 := new(types.U256Str)
-	err = refernceWeiU256.FromBig(r)
+	r.Mul(r, big.NewInt(1e17))
+	referenceWeiU256 := new(types.U256Str)
+	err = referenceWeiU256.FromBig(r)
 	require.NoError(t, err)
 
 	require.Equal(t, *refernceWeiU256, *weiU256)
