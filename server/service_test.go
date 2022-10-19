@@ -525,23 +525,6 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
-
-	// t.Run("Response block hash not equal to hash calculated from the block", func(t *testing.T) {
-	// 	backend := newTestBackend(t, 1, time.Second)
-	// 	resp := new(types.GetPayloadResponse)
-	// 	resp.Data = &types.ExecutionPayload{
-	// 		ParentHash:   payload.Message.Body.ExecutionPayloadHeader.ParentHash,
-	// 		BlockHash:    payload.Message.Body.ExecutionPayloadHeader.BlockHash,
-	// 		BlockNumber:  12346,
-	// 		FeeRecipient: payload.Message.Body.ExecutionPayloadHeader.FeeRecipient,
-	// 	}
-
-	// 	backend.relays[0].GetPayloadResponse = resp
-	// 	rr := backend.request(t, http.MethodPost, path, payload)
-	// 	require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
-	// 	require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-	// 	require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
-	// })
 }
 
 func TestCheckRelays(t *testing.T) {
