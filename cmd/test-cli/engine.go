@@ -39,7 +39,7 @@ func sendForkchoiceUpdate(engineEndpoint string, block engineBlockData) error {
 	log.WithField("hash", block.Hash).Info("sending FCU")
 	params := []any{
 		forkchoiceState{block.Hash, block.Hash, block.Hash},
-		payloadAttributes{hexutil.Uint64(block.Timestamp + 1), common.Hash{0x01}, common.Address{0x02}},
+		payloadAttributes{block.Timestamp + 1, common.Hash{0x01}, common.Address{0x02}},
 	}
 	payload := map[string]any{"id": 67, "jsonrpc": "2.0", "method": "engine_forkchoiceUpdatedV1", "params": params}
 	return sendJSONRequest(engineEndpoint, payload, nil)

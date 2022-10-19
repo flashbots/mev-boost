@@ -25,6 +25,7 @@ type testBackend struct {
 
 // newTestBackend creates a new backend, initializes mock relays, registers them and return the instance
 func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *testBackend {
+	t.Helper()
 	backend := testBackend{
 		relays: make([]*mockRelay, numRelays),
 	}
@@ -53,7 +54,8 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	return &backend
 }
 
-func (be *testBackend) request(t *testing.T, method string, path string, payload any) *httptest.ResponseRecorder {
+func (be *testBackend) request(t *testing.T, method, path string, payload any) *httptest.ResponseRecorder {
+	t.Helper()
 	var req *http.Request
 	var err error
 
@@ -127,7 +129,7 @@ func TestWebserverRootHandler(t *testing.T) {
 	backend := newTestBackend(t, 1, time.Second)
 
 	// Check root handler
-	req, _ := http.NewRequest("GET", "/", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 	backend.boost.getRouter().ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)

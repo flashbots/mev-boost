@@ -23,16 +23,18 @@ import (
 )
 
 var (
+	errNoRelays                  = errors.New("no relays")
 	errInvalidSlot               = errors.New("invalid slot")
 	errInvalidHash               = errors.New("invalid hash")
 	errInvalidPubkey             = errors.New("invalid pubkey")
 	errNoSuccessfulRelayResponse = errors.New("no successful relay response")
-
-	errServerAlreadyRunning = errors.New("server already running")
+	errServerAlreadyRunning      = errors.New("server already running")
 )
 
-var nilHash = types.Hash{}
-var nilResponse = struct{}{}
+var (
+	nilHash     = types.Hash{}
+	nilResponse = struct{}{}
+)
 
 type httpErrorResp struct {
 	Code    int    `json:"code"`
@@ -74,7 +76,7 @@ type BoostService struct {
 // NewBoostService created a new BoostService
 func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	if len(opts.Relays) == 0 {
-		return nil, errors.New("no relays")
+		return nil, errNoRelays
 	}
 
 	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
@@ -86,7 +88,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		listenAddr:    opts.ListenAddr,
 		relays:        opts.Relays,
 		relayMonitors: opts.RelayMonitors,
-		log:           opts.Log.WithField("module", "service"),
+		log:           opts.Log,
 		relayCheck:    opts.RelayCheck,
 		bids:          make(map[bidRespKey]bidResp),
 
@@ -160,7 +162,7 @@ func (m *BoostService) StartHTTPServer() error {
 	}
 
 	err := m.srv.ListenAndServe()
-	if err == http.ErrServerClosed {
+	if errors.Is(err, http.ErrServerClosed) {
 		return nil
 	}
 	return err
@@ -185,7 +187,7 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types
 		go func(relayMonitor *url.URL) {
 			url := GetURI(relayMonitor, pathRegisterValidator)
 			log = log.WithField("url", url)
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, UserAgent(""), payload, nil)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, "", payload, nil)
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay monitor")
 				return
@@ -266,7 +268,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"slot":       slot,
 		"parentHash": parentHashHex,
 		"pubkey":     pubkey,
-		"version":    config.Version,
 	})
 	log.Debug("getHeader")
 
@@ -317,11 +318,12 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			blockHash := responsePayload.Data.Message.Header.BlockHash.String()
+			valueEth := weiBigIntToEthBigFloat(responsePayload.Data.Message.Value.BigInt())
 			log = log.WithFields(logrus.Fields{
 				"blockNumber": responsePayload.Data.Message.Header.BlockNumber,
 				"blockHash":   blockHash,
 				"txRoot":      responsePayload.Data.Message.Header.TransactionsRoot.String(),
-				"value":       responsePayload.Data.Message.Value.String(),
+				"value":       valueEth.Text('f', 18),
 			})
 
 			if relay.PublicKey != responsePayload.Data.Message.Pubkey {
@@ -396,12 +398,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	// Log result
+	valueEth := weiBigIntToEthBigFloat(result.response.Data.Message.Value.BigInt())
 	result.relays = relays[BlockHashHex(result.blockHash)]
 	log.WithFields(logrus.Fields{
 		"blockHash":   result.blockHash,
 		"blockNumber": result.response.Data.Message.Header.BlockNumber,
 		"txRoot":      result.response.Data.Message.Header.TransactionsRoot.String(),
-		"value":       result.response.Data.Message.Value.String(),
+		"value":       valueEth.Text('f', 18),
 		"relays":      strings.Join(RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
@@ -416,11 +419,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 }
 
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
-	log := m.log.WithFields(logrus.Fields{
-		"method":  "getPayload",
-		"version": config.Version,
-	})
-
+	log := m.log.WithField("method", "getPayload")
 	log.Debug("getPayload")
 
 	// Read the body first, so we can log it later on error
@@ -486,9 +485,12 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 			responsePayload := new(types.GetPayloadResponse)
 			_, err := SendHTTPRequest(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload)
-
 			if err != nil {
-				log.WithError(err).Error("error making request to relay")
+				if errors.Is(requestCtx.Err(), context.Canceled) {
+					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
+				} else {
+					log.WithError(err).Error("error making request to relay")
+				}
 				return
 			}
 

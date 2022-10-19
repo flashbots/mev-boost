@@ -10,12 +10,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
-	"github.com/sirupsen/logrus"
-
 	"github.com/flashbots/mev-boost/server"
+	"github.com/sirupsen/logrus"
 )
 
-var log = logrus.WithField("service", "cmd/test-cli")
+var log = logrus.NewEntry(logrus.New())
 
 func doGenerateValidator(filePath string, gasLimit uint64, feeRecipient string) {
 	v := newRandomValidator(gasLimit, feeRecipient)
@@ -88,7 +87,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 	return getHeaderResp
 }
 
-func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain boostTypes.Domain, proposerSigningDomain boostTypes.Domain) {
+func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain, proposerSigningDomain boostTypes.Domain) {
 	header := doGetHeader(v, boostEndpoint, beaconNode, engineEndpoint, builderSigningDomain)
 
 	blindedBeaconBlock := boostTypes.BlindedBeaconBlock{
@@ -239,12 +238,12 @@ func main() {
 		}
 		doGetPayload(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, builderSigningDomain, proposerSigningDomain)
 	default:
-		fmt.Println("Expected generate|register|getHeader|getPayload subcommand")
+		log.Info("Expected generate|register|getHeader|getPayload subcommand")
 		os.Exit(1)
 	}
 }
 
-func getEnv(key string, defaultValue string) string {
+func getEnv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
 	}

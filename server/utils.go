@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strings"
@@ -18,6 +19,11 @@ import (
 	"github.com/flashbots/mev-boost/config"
 )
 
+var (
+	errHTTPErrorResponse  = errors.New("HTTP error response")
+	errInvalidForkVersion = errors.New("invalid fork version")
+)
+
 // UserAgent is a custom string type to avoid confusing url + userAgent parameters in SendHTTPRequest
 type UserAgent string
 
@@ -25,7 +31,7 @@ type UserAgent string
 type BlockHashHex string
 
 // SendHTTPRequest - prepare and send HTTP request, marshaling the payload if any, and decoding the response if dst is set
-func SendHTTPRequest(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload any, dst any) (code int, err error) {
+func SendHTTPRequest(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload, dst any) (code int, err error) {
 	var req *http.Request
 
 	if payload == nil {
@@ -63,7 +69,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 		if err != nil {
 			return resp.StatusCode, fmt.Errorf("could not read error response body for status code %d: %w", resp.StatusCode, err)
 		}
-		return resp.StatusCode, fmt.Errorf("HTTP error response: %d / %s", resp.StatusCode, string(bodyBytes))
+		return resp.StatusCode, fmt.Errorf("%w: %d / %s", errHTTPErrorResponse, resp.StatusCode, string(bodyBytes))
 	}
 
 	if dst != nil {
@@ -81,12 +87,11 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 }
 
 // ComputeDomain computes the signing domain
-func ComputeDomain(domainType types.DomainType, forkVersionHex string, genesisValidatorsRootHex string) (domain types.Domain, err error) {
+func ComputeDomain(domainType types.DomainType, forkVersionHex, genesisValidatorsRootHex string) (domain types.Domain, err error) {
 	genesisValidatorsRoot := types.Root(common.HexToHash(genesisValidatorsRootHex))
 	forkVersionBytes, err := hexutil.Decode(forkVersionHex)
 	if err != nil || len(forkVersionBytes) > 4 {
-		err = errors.New("invalid fork version passed")
-		return domain, err
+		return domain, errInvalidForkVersion
 	}
 	var forkVersion [4]byte
 	copy(forkVersion[:], forkVersionBytes[:4])
@@ -128,4 +133,12 @@ type bidRespKey struct {
 
 func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
 	return http.ErrUseLastResponse
+}
+
+func weiBigIntToEthBigFloat(wei *big.Int) (ethValue *big.Float) {
+	// wei / 10^18
+	fbalance := new(big.Float)
+	fbalance.SetString(wei.String())
+	ethValue = new(big.Float).Quo(fbalance, big.NewFloat(1e18))
+	return
 }

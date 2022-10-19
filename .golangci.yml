@@ -1,18 +1,59 @@
-run:
-  timeout: 10m
-  go: 1.18
-
 linters:
-  disable-all: true
-  enable:
-    # Enabled by default
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - typecheck
-    - unused
+  enable-all: true
+  disable:
+    - exhaustruct
+    - funlen
+    - gochecknoglobals
+    - gochecknoinits
+    - gocritic
+    - godot
+    - godox
+    - gomnd
+    - lll
+    - nlreturn
+    - nonamedreturns
+    - nosnakecase
+    - paralleltest
+    - testpackage
+    - varnamelen
+    - wrapcheck
+    - wsl
+
+    #
+    # Maybe fix later:
+    #
+    - cyclop
+    - gocognit
+    - goconst
+    - gosec
+    - ireturn
+    - noctx
+    - tagliatelle
+
+    #
+    # Disabled because of generics:
+    #
+    - contextcheck
+    - rowserrcheck
+    - sqlclosecheck
+    - structcheck
+    - wastedassign
+
+    #
+    # Disabled because deprecated:
+    #
+    - deadcode
+    - exhaustivestruct
+    - golint
+    - ifshort
+    - interfacer
+    - maligned
+    - scopelint
+    - varcheck
+
+linters-settings:
+  gofumpt:
+    extra-rules: true
 
 output:
   print-issued-lines: true

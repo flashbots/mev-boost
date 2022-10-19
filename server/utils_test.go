@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,4 +60,15 @@ func TestSendHTTPRequestUserAgent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
 	<-done
+}
+
+func TestWeiBigIntToEthBigFloat(t *testing.T) {
+	// test with valid input
+	i := big.NewInt(1)
+	f := weiBigIntToEthBigFloat(i)
+	require.Equal(t, "0.000000000000000001", f.Text('f', 18))
+
+	// test with nil, which results on invalid big.Int input
+	f = weiBigIntToEthBigFloat(nil)
+	require.Equal(t, "0.000000000000000000", f.Text('f', 18))
 }
