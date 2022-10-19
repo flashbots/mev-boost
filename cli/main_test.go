@@ -32,5 +32,5 @@ func TestFloatEthTo256Wei(t *testing.T) {
 	err = referenceWeiU256.FromBig(r)
 	require.NoError(t, err)
 
-	require.Equal(t, *refernceWeiU256, *weiU256)
+	require.Equal(t, *referenceWeiU256, *weiU256)
 }
