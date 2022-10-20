@@ -73,6 +73,25 @@ func (be *testBackend) request(t *testing.T, method, path string, payload any) *
 	return rr
 }
 
+func blindedBlockToExecutionPayload(signedBlindedBeaconBlock *types.SignedBlindedBeaconBlock) *types.ExecutionPayload {
+	header := signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader
+	return &types.ExecutionPayload{
+		ParentHash:    header.ParentHash,
+		FeeRecipient:  header.FeeRecipient,
+		StateRoot:     header.StateRoot,
+		ReceiptsRoot:  header.ReceiptsRoot,
+		LogsBloom:     header.LogsBloom,
+		Random:        header.Random,
+		BlockNumber:   header.BlockNumber,
+		GasLimit:      header.GasLimit,
+		GasUsed:       header.GasUsed,
+		Timestamp:     header.Timestamp,
+		ExtraData:     header.ExtraData,
+		BaseFeePerGas: header.BaseFeePerGas,
+		BlockHash:     header.BlockHash,
+	}
+}
+
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
 		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, []*url.URL{}, "0x00000000", true, time.Second, time.Second, time.Second})
@@ -468,7 +487,7 @@ func TestGetPayload(t *testing.T) {
 				SyncAggregate: &types.SyncAggregate{},
 				ExecutionPayloadHeader: &types.ExecutionPayloadHeader{
 					ParentHash:   _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
-					BlockHash:    _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab1"),
+					BlockHash:    _HexToHash("0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46"),
 					BlockNumber:  12345,
 					FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
 				},
@@ -617,9 +636,7 @@ func TestGetPayloadToOriginRelayOnly(t *testing.T) {
 
 	// Prepare getPayload response
 	backend.relays[0].GetPayloadResponse = &types.GetPayloadResponse{
-		Data: &types.ExecutionPayload{
-			BlockHash: signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
-		},
+		Data: blindedBlockToExecutionPayload(signedBlindedBeaconBlock),
 	}
 
 	// call getPayload, ensure it's only called on relay 0 (origin of the bid)

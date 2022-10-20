@@ -236,7 +236,7 @@ func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	// Build the default response.
 	response := m.MakeGetPayloadResponse(
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab1",
+		"0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46",
 		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
 		12345,
 	)
