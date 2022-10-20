@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strings"
@@ -42,8 +43,9 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 		}
 		req, err = http.NewRequestWithContext(ctx, method, url, bytes.NewReader(payloadBytes))
 
-		// Set content-type
+		// Set headers
 		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Accept-Encoding", "gzip")
 	}
 	if err != nil {
 		return 0, fmt.Errorf("could not prepare request: %w", err)
@@ -132,4 +134,12 @@ type bidRespKey struct {
 
 func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
 	return http.ErrUseLastResponse
+}
+
+func weiBigIntToEthBigFloat(wei *big.Int) (ethValue *big.Float) {
+	// wei / 10^18
+	fbalance := new(big.Float)
+	fbalance.SetString(wei.String())
+	ethValue = new(big.Float).Quo(fbalance, big.NewFloat(1e18))
+	return
 }

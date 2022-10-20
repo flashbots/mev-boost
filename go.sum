@@ -42,8 +42,8 @@ github.com/ethereum/go-ethereum v1.10.25 h1:5dFrKJDnYf8L6/5o42abCE6a9yJm9cs4EJVR
 github.com/ethereum/go-ethereum v1.10.25/go.mod h1:EYFyF19u3ezGLD4RqOkLq+ZCXzYbLoNDdZlMt7kyKFg=
 github.com/ferranbt/fastssz v0.1.2-0.20220723134332-b3d3034a4575 h1:56lKKtcqQZ5sGjeuyBAeFwzcYuk32d8oqDvxQ9FUERA=
 github.com/ferranbt/fastssz v0.1.2-0.20220723134332-b3d3034a4575/go.mod h1:U2ZsxlYyvGeQGmadhz8PlEqwkBzDIhHwd3xuKrg2JIs=
-github.com/flashbots/go-boost-utils v1.2.0 h1:sd++5dckD6WKKCsPTp/ixLZninQ6gZbfYqMdTJC/Z20=
-github.com/flashbots/go-boost-utils v1.2.0/go.mod h1:n1l19EIadU8mNshTdz75qfa2Ld613b/FdzTHorkIqbM=
+github.com/flashbots/go-boost-utils v1.2.1 h1:zyYl6DklIaD2zwzkFA4oyfr5v6O+4WY7FOeH2QpZYh0=
+github.com/flashbots/go-boost-utils v1.2.1/go.mod h1:n1l19EIadU8mNshTdz75qfa2Ld613b/FdzTHorkIqbM=
 github.com/flashbots/go-utils v0.4.8 h1:WDJXryrqShGq4HFe+p1kGjObXSqzT7Sy/+9YvFpr5tM=
 github.com/flashbots/go-utils v0.4.8/go.mod h1:dBmSv4Cpqij4xKP50bdisAvFIo4/EgsY97BMpVjPzr0=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=

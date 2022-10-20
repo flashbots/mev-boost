@@ -2,8 +2,10 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -42,8 +44,8 @@ func TestSendHTTPRequestUserAgent(t *testing.T) {
 		require.Equal(t, expectedUA, r.Header.Get("User-Agent"))
 		done <- true
 	}))
-	defer ts.Close()
 	code, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, ts.URL, UserAgent(customUA), nil, nil)
+	ts.Close()
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
 	<-done
@@ -54,9 +56,39 @@ func TestSendHTTPRequestUserAgent(t *testing.T) {
 		require.Equal(t, expectedUA, r.Header.Get("User-Agent"))
 		done <- true
 	}))
-	defer ts.Close()
 	code, err = SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, nil)
+	ts.Close()
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
 	<-done
+
+	// Test with gzip response
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	_, err = zw.Write([]byte(`{ "msg": "test-message" }`))
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+
+	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "gzip", r.Header.Get("Accept-Encoding"))
+		w.Header().Set("Content-Encoding", "gzip")
+		_, _ = w.Write(buf.Bytes())
+	}))
+	resp := struct{ Msg string }{}
+	code, err = SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, &resp)
+	ts.Close()
+	require.NoError(t, err)
+	require.Equal(t, 200, code)
+	require.Equal(t, "test-message", resp.Msg)
+}
+
+func TestWeiBigIntToEthBigFloat(t *testing.T) {
+	// test with valid input
+	i := big.NewInt(1)
+	f := weiBigIntToEthBigFloat(i)
+	require.Equal(t, "0.000000000000000001", f.Text('f', 18))
+
+	// test with nil, which results on invalid big.Int input
+	f = weiBigIntToEthBigFloat(nil)
+	require.Equal(t, "0.000000000000000000", f.Text('f', 18))
 }

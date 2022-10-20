@@ -49,6 +49,7 @@ type BoostServiceOpts struct {
 	RelayMonitors         []*url.URL
 	GenesisForkVersionHex string
 	RelayCheck            bool
+	RelayMinBid           types.U256Str
 
 	RequestTimeoutGetHeader  time.Duration
 	RequestTimeoutGetPayload time.Duration
@@ -63,6 +64,7 @@ type BoostService struct {
 	log           *logrus.Entry
 	srv           *http.Server
 	relayCheck    bool
+	relayMinBid   types.U256Str
 
 	builderSigningDomain types.Domain
 	httpClientGetHeader  http.Client
@@ -90,6 +92,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		relayMonitors: opts.RelayMonitors,
 		log:           opts.Log,
 		relayCheck:    opts.RelayCheck,
+		relayMinBid:   opts.RelayMinBid,
 		bids:          make(map[bidRespKey]bidResp),
 
 		builderSigningDomain: builderSigningDomain,
@@ -318,11 +321,12 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			blockHash := responsePayload.Data.Message.Header.BlockHash.String()
+			valueEth := weiBigIntToEthBigFloat(responsePayload.Data.Message.Value.BigInt())
 			log = log.WithFields(logrus.Fields{
 				"blockNumber": responsePayload.Data.Message.Header.BlockNumber,
 				"blockHash":   blockHash,
 				"txRoot":      responsePayload.Data.Message.Header.TransactionsRoot.String(),
-				"value":       responsePayload.Data.Message.Value.String(),
+				"value":       valueEth.Text('f', 18),
 			})
 
 			if relay.PublicKey != responsePayload.Data.Message.Pubkey {
@@ -357,8 +361,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				log.Warn("ignoring bid with 0 value")
 				return
 			}
-
 			log.Debug("bid received")
+
+			// Skip if value (fee) is lower than the minimum bid
+			if responsePayload.Data.Message.Value.Cmp(&m.relayMinBid) == -1 {
+				log.Debug("ignoring bid below min-bid value")
+				return
+			}
 
 			mu.Lock()
 			defer mu.Unlock()
@@ -397,12 +406,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	// Log result
+	valueEth := weiBigIntToEthBigFloat(result.response.Data.Message.Value.BigInt())
 	result.relays = relays[BlockHashHex(result.blockHash)]
 	log.WithFields(logrus.Fields{
 		"blockHash":   result.blockHash,
 		"blockNumber": result.response.Data.Message.Header.BlockNumber,
 		"txRoot":      result.response.Data.Message.Header.TransactionsRoot.String(),
-		"value":       result.response.Data.Message.Value.String(),
+		"value":       valueEth.Text('f', 18),
 		"relays":      strings.Join(RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
@@ -503,6 +513,17 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 					"responseBlockHash": responsePayload.Data.BlockHash.String(),
 				}).Error("requestBlockHash does not equal responseBlockHash")
 				return
+			}
+
+			// Ensure the response blockhash matches the response block
+			calculatedBlockHash, err := types.CalculateHash(responsePayload.Data)
+			if err != nil {
+				log.WithError(err).Error("could not calculate block hash")
+			} else if responsePayload.Data.BlockHash != calculatedBlockHash {
+				log.WithFields(logrus.Fields{
+					"calculatedBlockHash": calculatedBlockHash.String(),
+					"responseBlockHash":   responsePayload.Data.BlockHash.String(),
+				}).Error("responseBlockHash does not equal hash calculated from response block")
 			}
 
 			// Lock before accessing the shared payload
