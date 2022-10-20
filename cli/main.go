@@ -2,6 +2,7 @@ package cli
 
 import (
 	"flag"
+	"fmt"
 	"math/big"
 	"os"
 	"strconv"
@@ -82,7 +83,7 @@ func Main() {
 	}
 
 	if *printVersion {
-		log.Infof("mev-boost %s\n", config.Version)
+		fmt.Printf("mev-boost %s\n", config.Version) //nolint
 		return
 	}
 

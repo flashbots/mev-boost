@@ -49,7 +49,10 @@ vim config/vars.go
 git commit -am "v2.3.1-rc1"
 git tag v2.3.1-rc1  # without a tag, building/creating the docker image would include the wrong version number
 
-# create and push the Docker image manually (or push the tag to let CI do that)
+# now push to Github (CI will build the Docker image)
+git push origin v2.3.1-rc1 --tags
+
+# you can also manually create and push the Docker image
 make docker-image-portable
 make docker-push-version
 
