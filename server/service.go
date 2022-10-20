@@ -49,6 +49,7 @@ type BoostServiceOpts struct {
 	RelayMonitors         []*url.URL
 	GenesisForkVersionHex string
 	RelayCheck            bool
+	RelayMinBid           types.U256Str
 
 	RequestTimeoutGetHeader  time.Duration
 	RequestTimeoutGetPayload time.Duration
@@ -63,6 +64,7 @@ type BoostService struct {
 	log           *logrus.Entry
 	srv           *http.Server
 	relayCheck    bool
+	relayMinBid   types.U256Str
 
 	builderSigningDomain types.Domain
 	httpClientGetHeader  http.Client
@@ -90,6 +92,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		relayMonitors: opts.RelayMonitors,
 		log:           opts.Log,
 		relayCheck:    opts.RelayCheck,
+		relayMinBid:   opts.RelayMinBid,
 		bids:          make(map[bidRespKey]bidResp),
 
 		builderSigningDomain: builderSigningDomain,
@@ -358,8 +361,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				log.Warn("ignoring bid with 0 value")
 				return
 			}
-
 			log.Debug("bid received")
+
+			// Skip if value (fee) is lower than the minimum bid
+			if responsePayload.Data.Message.Value.Cmp(&m.relayMinBid) == -1 {
+				log.Debug("ignoring bid below min-bid value")
+				return
+			}
 
 			mu.Lock()
 			defer mu.Unlock()
