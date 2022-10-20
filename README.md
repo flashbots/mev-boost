@@ -198,12 +198,17 @@ A single MEV-Boost instance can be used by multiple beacon nodes and validators.
 
 Aside from running MEV-Boost on your local network, you must configure:
 * individual **beacon nodes** to connect to MEV-Boost. Beacon Node configuration varies by Consensus client. Guides for each client can be found on the [MEV-boost website](https://boost.flashbots.net/#block-356364ebd7cc424fb524428ed0134b21).
-* individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relays). 
+* individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relays).
 
-Lists of available relays are maintained by 
-* [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) 
+Lists of available relays are maintained by
+* [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) [[2]](https://ethstaker.cc/mev-relay-list/)
 * [Lido](https://research.lido.fi/t/lido-on-ethereum-call-for-relay-providers/2844)
 
+## Note on usage documentation
+
+The documentation in this README reflects the latest state of the `main` branch, which may have cli flags or functionality not present in the latest release.
+
+Please take a look at the specific release documentation about the available command line flags: https://github.com/flashbots/mev-boost/releases
 
 ## Mainnet
 
