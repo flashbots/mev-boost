@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -45,13 +46,13 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 
 		// Set headers
 		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Accept-Encoding", "gzip")
 	}
 	if err != nil {
 		return 0, fmt.Errorf("could not prepare request: %w", err)
 	}
 
-	// Set user agent
+	// Set headers
+	req.Header.Add("Accept-Encoding", "gzip")
 	req.Header.Set("User-Agent", strings.TrimSpace(fmt.Sprintf("mev-boost/%s %s", config.Version, userAgent)))
 
 	// Execute request
@@ -65,8 +66,16 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 		return resp.StatusCode, nil
 	}
 
+	var r io.Reader = resp.Body
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		r, err = gzip.NewReader(resp.Body)
+		if err != nil {
+			return 0, err
+		}
+	}
+
 	if resp.StatusCode > 299 {
-		bodyBytes, err := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(r)
 		if err != nil {
 			return resp.StatusCode, fmt.Errorf("could not read error response body for status code %d: %w", resp.StatusCode, err)
 		}
@@ -74,7 +83,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 	}
 
 	if dst != nil {
-		bodyBytes, err := io.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(r)
 		if err != nil {
 			return resp.StatusCode, fmt.Errorf("could not read response body: %w", err)
 		}
