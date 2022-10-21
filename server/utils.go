@@ -70,7 +70,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 		if err != nil {
 			return resp.StatusCode, fmt.Errorf("could not read error response body for status code %d: %w", resp.StatusCode, err)
 		}
-		return resp.StatusCode, fmt.Errorf("%w: %d / %s", errHTTPErrorResponse, resp.StatusCode, string(bodyBytes))
+		return resp.StatusCode, fmt.Errorf("%w: %d / enc: %s / %s", errHTTPErrorResponse, resp.StatusCode, resp.Header.Get("Content-Encoding"), hexutil.Encode(bodyBytes))
 	}
 
 	if dst != nil {
@@ -80,7 +80,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 		}
 
 		if err := json.Unmarshal(bodyBytes, dst); err != nil {
-			return resp.StatusCode, fmt.Errorf("could not unmarshal response %s: %w", string(bodyBytes), err)
+			return resp.StatusCode, fmt.Errorf("could not unmarshal response %s (enc: %s): %w", hexutil.Encode(bodyBytes), resp.Header.Get("Content-Encoding"), err)
 		}
 	}
 
