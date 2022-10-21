@@ -27,11 +27,11 @@ jobs:
         with:
           images: flashbots/mev-boost
           tags: |
-            type=raw,value=latest,enable=${{ !contains(steps.vars.outputs.tag, '-') }}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
             type=sha
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ !contains(steps.vars.outputs.tag, '-') }}
+            type=semver,pattern={{major}},enable=${{ !contains(steps.vars.outputs.tag, '-') }}
+            type=raw,value=latest,enable=${{ !contains(steps.vars.outputs.tag, '-') }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
