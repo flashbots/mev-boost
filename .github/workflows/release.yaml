@@ -21,7 +21,7 @@ jobs:
         id: vars
         run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Extract metadata (tags, labels) for Docker images
         id: meta
         uses: docker/metadata-action@v4
         with:
@@ -32,6 +32,15 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},enable=${{ !contains(steps.vars.outputs.tag, '-') }}
             type=semver,pattern={{major}},enable=${{ !contains(steps.vars.outputs.tag, '-') }}
             type=raw,value=latest,enable=${{ !contains(steps.vars.outputs.tag, '-') }}
+
+      - name: Extract metadata (tags, labels) for portable Docker images
+        id: meta-portable
+        uses: docker/metadata-action@v4
+        with:
+          images: flashbots/mev-boost
+          tags: |
+            type=sha
+            type=semver,pattern={{version}}-portable
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -66,8 +75,8 @@ jobs:
             VERSION=${{ steps.vars.outputs.tag }}
             CGO_CFLAGS=-O -D__BLST_PORTABLE__
           platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-portable.outputs.tags }}
+          labels: ${{ steps.meta-portable.outputs.labels }}
 
   build-linux-windows:
     runs-on: ubuntu-latest

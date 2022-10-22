@@ -42,15 +42,15 @@ For example, creating a new release `v2.3.1-rc1`:
 
 ```bash
 # create a new branch
-git checkout -b v2.3.1-rc1
+git checkout -b release/v2.3.1-rc1
 
-# set and commit the correct version as described below
+# set and commit the correct version as described below, and create a signed tag
 vim config/vars.go
 git commit -am "v2.3.1-rc1"
-git tag v2.3.1-rc1  # without a tag, building/creating the docker image would include the wrong version number
+git tag -s v2.3.1-rc1  # without a tag, the Docker image would include the wrong version number
 
-# now push to Github (CI will build the Docker image)
-git push origin v2.3.1-rc1 --tags
+# now push to Github (CI will build the Docker image: https://github.com/flashbots/mev-boost/actions)
+git push origin --tags
 
 # you can also manually create and push the Docker image
 make docker-image-portable

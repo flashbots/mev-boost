@@ -241,6 +241,8 @@ Run MEV-Boost pointed at a Sepolia relay:
 
 ## mev-boost cli arguments
 
+These are the CLI arguments for the main branch. For arguments available in a specific release, check the [release page](https://github.com/flashbots/mev-boost/releases).
+
 ```bash
 $ ./mev-boost -help
 Usage of ./mev-boost:
@@ -254,10 +256,16 @@ Usage of ./mev-boost:
         use Goerli
   -json
         log in JSON format instead of text
+  -log-no-version
+        disables adding the version to every log entry
+  -log-service string
+        add a 'service=...' tag to all log messages
   -loglevel string
         minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic (default "info")
   -mainnet
         use Mainnet
+  -min-bid float
+        minimum bid to accept from a relay [eth]
   -relay value
         a single relay, can be specified multiple times
   -relay-check
