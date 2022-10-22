@@ -61,21 +61,23 @@ func TestSendHTTPRequestUserAgent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
 	<-done
+}
 
+func TestSendHTTPRequestGzip(t *testing.T) {
 	// Test with gzip response
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
-	_, err = zw.Write([]byte(`{ "msg": "test-message" }`))
+	_, err := zw.Write([]byte(`{ "msg": "test-message" }`))
 	require.NoError(t, err)
 	require.NoError(t, zw.Close())
 
-	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "gzip", r.Header.Get("Accept-Encoding"))
 		w.Header().Set("Content-Encoding", "gzip")
 		_, _ = w.Write(buf.Bytes())
 	}))
 	resp := struct{ Msg string }{}
-	code, err = SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, &resp)
+	code, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, &resp)
 	ts.Close()
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
