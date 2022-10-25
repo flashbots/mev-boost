@@ -40,7 +40,7 @@ jobs:
           images: flashbots/mev-boost
           tags: |
             type=sha
-            type=semver,pattern={{version}}-portable
+            type=semver,pattern={{version}},suffix=-portable
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
