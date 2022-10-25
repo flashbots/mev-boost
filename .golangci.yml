@@ -54,6 +54,11 @@ linters:
 linters-settings:
   gofumpt:
     extra-rules: true
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+      - shadow
 
 output:
   print-issued-lines: true

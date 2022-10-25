@@ -116,15 +116,16 @@ func Main() {
 	log.Debug("debug logging enabled")
 
 	genesisForkVersionHex := ""
-	if *useCustomGenesisForkVersion != "" {
+	switch {
+	case *useCustomGenesisForkVersion != "":
 		genesisForkVersionHex = *useCustomGenesisForkVersion
-	} else if *useGenesisForkVersionMainnet {
+	case *useGenesisForkVersionMainnet:
 		genesisForkVersionHex = genesisForkVersionMainnet
-	} else if *useGenesisForkVersionSepolia {
+	case *useGenesisForkVersionSepolia:
 		genesisForkVersionHex = genesisForkVersionSepolia
-	} else if *useGenesisForkVersionGoerli {
+	case *useGenesisForkVersionGoerli:
 		genesisForkVersionHex = genesisForkVersionGoerli
-	} else {
+	default:
 		flag.Usage()
 		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -genesis-fork-version flags)")
 	}

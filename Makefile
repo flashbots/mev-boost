@@ -32,7 +32,6 @@ test-race:
 lint:
 	gofmt -d -s .
 	gofumpt -d -extra .
-	go vet ./...
 	staticcheck ./...
 	golangci-lint run
 
