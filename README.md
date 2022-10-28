@@ -243,7 +243,7 @@ Run MEV-Boost pointed at a Sepolia relay:
 
 These are the CLI arguments for the main branch. For arguments available in a specific release, check the [release page](https://github.com/flashbots/mev-boost/releases).
 
-```bash
+```
 $ ./mev-boost -help
 Usage of ./mev-boost:
   -addr string
