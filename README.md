@@ -58,6 +58,7 @@ See also:
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
 - [Security](#security)
+  - [Bug Bounty](#bug-bounty)
   - [Audits](#audits)
 - [License](#license)
 
@@ -360,7 +361,18 @@ You are welcome here <3.
 
 # Security
 
-If you find a security vulnerability on this project or any other initiative related to Flashbots, please let us know sending an email to security@flashbots.net.
+If you find a security vulnerability in this project or any other initiative
+related to Flashbots, please let us know sending an email to
+security@flashbots.net. Refer to the [SECURITY file](SECURITY.md) for details.
+
+## Bug Bounty
+
+The bug bounty program will be a shared bounty pool of up to 50k USD
+between `mev-boost`, `mev-boost-relay`.
+
+We would like to welcome node operators, builders, searchers, and other
+participants in the ecosystem to contribute to this bounty pool to help make the
+ecosystem more secure.
 
 ## Audits
 

@@ -23,9 +23,3 @@ Please include the steps to reproduce it using as much detail as possible with t
 
 Once we have received your bug report, we will try to reproduce it and provide a more detailed response.
 Once the reported bug has been successfully reproduced, the team will work on a fix.
-
-## Bounty Program
-
-The bug bounty program will be a shared bounty pool of up to 50k USD between `mev-boost`, `mev-boost-relay`.
-
-We would like to welcome node operators, builders, searchers and other participants in the ecosystem to contribute to this bounty pool to help make the ecosystem more secure.
