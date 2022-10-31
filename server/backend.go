@@ -8,5 +8,5 @@ var (
 	pathGetPayload        = "/eth/v1/builder/blinded_blocks"
 
 	// Relay Monitor paths
-	pathAuctionTranscript = "/eth/v1/relay-monitor/transcript"
+	pathAuctionTranscript = "/monitor/v1/transcript"
 )
