@@ -206,13 +206,13 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types
 	}
 }
 
-func (m *BoostService) sendAuctionTranscriptToRelayMonitors(transcript AuctionTranscript) {
+func (m *BoostService) sendAuctionTranscriptToRelayMonitors(transcript *AuctionTranscript) {
 	log := m.log.WithField("method", "sendAuctionTranscriptToRelayMonitors")
 	for _, relayMonitor := range m.relayMonitors {
 		go func(relayMonitor *url.URL) {
 			url := GetURI(relayMonitor, pathAuctionTranscript)
 			log := log.WithField("url", url)
-			_, err := SendHTTPRequest(context.Background(), m.httpClientGetPayload, http.MethodPost, url, UserAgent(""), transcript, nil)
+			_, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodPost, url, UserAgent(""), transcript, nil)
 			if err != nil {
 				log.WithError(err).Warn("error sending auction transcript to relay monitor")
 				return
@@ -490,6 +490,9 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		log.Warn("bid found but no associated relays")
 	}
 
+	// send bid and signed block to relay monitor
+	go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
+
 	relays := originalBid.relays
 	if len(relays) == 0 {
 		log.Warn("originating relay not found, sending getPayload request to all relays")
@@ -566,8 +569,6 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// Wait for all requests to complete...
 	wg.Wait()
 
-	// send bid and signed block to relay monitor
-	m.sendAuctionTranscriptToRelayMonitors(AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
 	// If no payload has been received from relay, log loudly about withholding!
 	if result.Data == nil || result.Data.BlockHash == nilHash {
 		originRelays := RelayEntriesToStrings(originalBid.relays)
