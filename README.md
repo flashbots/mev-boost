@@ -367,8 +367,9 @@ security@flashbots.net. Refer to the [SECURITY file](SECURITY.md) for details.
 
 ## Bug Bounty
 
-The bug bounty program will be a shared bounty pool of up to 50k USD
-between `mev-boost`, `mev-boost-relay`.
+The bug bounty program will be a shared bounty pool of up to $50k USD
+between `mev-boost` and `mev-boost-relay`.
+See [Bug Bounty Program](SECURITY.md#bug-bounty-program) for details.
 
 We would like to welcome node operators, builders, searchers, and other
 participants in the ecosystem to contribute to this bounty pool to help make the
