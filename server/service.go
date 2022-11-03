@@ -41,6 +41,12 @@ type httpErrorResp struct {
 	Message string `json:"message"`
 }
 
+// AuctionTranscript is the bid and blinded block received from the relay send to the relay monitor
+type AuctionTranscript struct {
+	Bid        *types.SignedBuilderBid         `json:"bid"`
+	Acceptance *types.SignedBlindedBeaconBlock `json:"acceptance"`
+}
+
 // BoostServiceOpts provides all available options for use with NewBoostService
 type BoostServiceOpts struct {
 	Log                   *logrus.Entry
@@ -196,6 +202,22 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types
 				return
 			}
 			log.Debug("sent validator registrations to relay monitor")
+		}(relayMonitor)
+	}
+}
+
+func (m *BoostService) sendAuctionTranscriptToRelayMonitors(transcript *AuctionTranscript) {
+	log := m.log.WithField("method", "sendAuctionTranscriptToRelayMonitors")
+	for _, relayMonitor := range m.relayMonitors {
+		go func(relayMonitor *url.URL) {
+			url := GetURI(relayMonitor, pathAuctionTranscript)
+			log := log.WithField("url", url)
+			_, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodPost, url, UserAgent(""), transcript, nil)
+			if err != nil {
+				log.WithError(err).Warn("error sending auction transcript to relay monitor")
+				return
+			}
+			log.Debug("sent auction transcript to relay monitor")
 		}(relayMonitor)
 	}
 }
@@ -467,6 +489,9 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	} else if len(originalBid.relays) == 0 {
 		log.Warn("bid found but no associated relays")
 	}
+
+	// send bid and signed block to relay monitor
+	go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
 
 	relays := originalBid.relays
 	if len(relays) == 0 {
