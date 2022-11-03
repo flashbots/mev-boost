@@ -58,7 +58,7 @@ var (
 	relayTimeoutMsRegVal     = flag.Int("request-timeout-regval", defaultTimeoutMsRegisterValidator, "timeout for registerValidator requests [ms]")
 
 	// helpers
-	useGenesisForkVersionMainnet = flag.Bool("mainnet", false, "use Mainnet")
+	useGenesisForkVersionMainnet = flag.Bool("mainnet", true, "use Mainnet")
 	useGenesisForkVersionSepolia = flag.Bool("sepolia", false, "use Sepolia")
 	useGenesisForkVersionGoerli  = flag.Bool("goerli", false, "use Goerli")
 	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
@@ -119,12 +119,12 @@ func Main() {
 	switch {
 	case *useCustomGenesisForkVersion != "":
 		genesisForkVersionHex = *useCustomGenesisForkVersion
-	case *useGenesisForkVersionMainnet:
-		genesisForkVersionHex = genesisForkVersionMainnet
 	case *useGenesisForkVersionSepolia:
 		genesisForkVersionHex = genesisForkVersionSepolia
 	case *useGenesisForkVersionGoerli:
 		genesisForkVersionHex = genesisForkVersionGoerli
+	case *useGenesisForkVersionMainnet:
+		genesisForkVersionHex = genesisForkVersionMainnet
 	default:
 		flag.Usage()
 		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -genesis-fork-version flags)")
