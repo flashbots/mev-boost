@@ -8,6 +8,9 @@ import (
 var (
 	// Version is the version of the software, set at build time
 	Version = "v1.3.3-dev"
+
+	// ForkVersion is the latest supported fork version at build time
+	ForkVersion = "bellatrix"
 )
 
 // Other settings
