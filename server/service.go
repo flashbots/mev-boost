@@ -242,7 +242,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log.Debug("registerValidator")
 
 	payload := []types.SignedValidatorRegistration{}
-	if err := DecodeJSON(req.Body, &payload); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -462,7 +462,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	// Decode the body now
 	payload := new(types.SignedBlindedBeaconBlock)
-	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(body)).Decode(payload); err != nil { // must allow unknown fields to ensure backwards compatibility of future payload changes (i.e. Capella, EIP-4844, etc)
 		log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return

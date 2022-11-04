@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,15 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
 )
+
+// _decodeJSON reads JSON from io.Reader and decodes it into a struct
+func _decodeJSON(r io.Reader, dst any) error {
+	decoder := json.NewDecoder(r)
+	if err := decoder.Decode(dst); err != nil {
+		return err
+	}
+	return nil
+}
 
 type testBackend struct {
 	boost  *BoostService
@@ -636,7 +646,7 @@ func TestGetPayloadWithTestdata(t *testing.T) {
 			require.NoError(t, err)
 			defer jsonFile.Close()
 			signedBlindedBeaconBlock := new(types.SignedBlindedBeaconBlock)
-			require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
+			require.NoError(t, _decodeJSON(jsonFile, &signedBlindedBeaconBlock))
 
 			backend := newTestBackend(t, 1, time.Second)
 			mockResp := types.GetPayloadResponse{
@@ -664,7 +674,7 @@ func TestGetPayloadToOriginRelayOnly(t *testing.T) {
 	require.NoError(t, err)
 	defer jsonFile.Close()
 	signedBlindedBeaconBlock := new(types.SignedBlindedBeaconBlock)
-	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
+	require.NoError(t, _decodeJSON(jsonFile, &signedBlindedBeaconBlock))
 
 	// Create a test backend with 2 relays
 	backend := newTestBackend(t, 2, time.Second)
