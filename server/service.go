@@ -22,6 +22,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	bellatrix = "bellatrix"
+)
+
 var (
 	errNoRelays                  = errors.New("no relays")
 	errInvalidSlot               = errors.New("invalid slot")
@@ -543,14 +547,19 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			}
 
 			// Ensure the response blockhash matches the response block
-			calculatedBlockHash, err := types.CalculateHash(responsePayload.Data)
-			if err != nil {
-				log.WithError(err).Error("could not calculate block hash")
-			} else if responsePayload.Data.BlockHash != calculatedBlockHash {
-				log.WithFields(logrus.Fields{
-					"calculatedBlockHash": calculatedBlockHash.String(),
-					"responseBlockHash":   responsePayload.Data.BlockHash.String(),
-				}).Error("responseBlockHash does not equal hash calculated from response block")
+			if responsePayload.Version == bellatrix {
+				calculatedBlockHash, err := types.CalculateHash(responsePayload.Data)
+				if err != nil {
+					log.WithError(err).Error("could not calculate block hash")
+				} else if responsePayload.Data.BlockHash != calculatedBlockHash {
+					log.WithFields(logrus.Fields{
+						"calculatedBlockHash": calculatedBlockHash.String(),
+						"responseBlockHash":   responsePayload.Data.BlockHash.String(),
+					}).Error("responseBlockHash does not equal hash calculated from response block")
+				}
+			} else {
+				log.Warn("payload response is not bellatrix, mev-boost version may be outdated. " +
+					"Please see https://github.com/flashbots/mev-boost/releases for updates")
 			}
 
 			// Lock before accessing the shared payload
