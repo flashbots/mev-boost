@@ -230,6 +230,7 @@ func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 // It returns OK if at least one returned OK, and returns error otherwise.
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("X-MEVBoost-Version", config.Version)
+	w.Header().Set("X-MEVBoost-ForkVersion", config.ForkVersion)
 	if !m.relayCheck || m.CheckRelays() > 0 {
 		m.respondOK(w, nilResponse)
 	} else {
