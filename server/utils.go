@@ -90,7 +90,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 func ComputeDomain(domainType types.DomainType, forkVersionHex, genesisValidatorsRootHex string) (domain types.Domain, err error) {
 	genesisValidatorsRoot := types.Root(common.HexToHash(genesisValidatorsRootHex))
 	forkVersionBytes, err := hexutil.Decode(forkVersionHex)
-	if err != nil || len(forkVersionBytes) > 4 {
+	if err != nil || len(forkVersionBytes) != 4 {
 		return domain, errInvalidForkVersion
 	}
 	var forkVersion [4]byte
