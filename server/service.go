@@ -314,8 +314,8 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	result := bidResp{}                           // the final response, containing the highest bid (if any)
-	relays := make(map[BlockHashHex][]RelayEntry) // relays that sent the bid for a specific blockHash
+	result := bidResp{}                                          // the final response, containing the highest bid (if any)
+	relays := make(map[BlockHashHex][]RelayEntry, len(m.relays)) // relays that sent the bid for a specific blockHash
 
 	// Call the relays
 	var mu sync.Mutex
