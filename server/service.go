@@ -22,10 +22,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	bellatrix = "bellatrix"
-)
-
 var (
 	errNoRelays                  = errors.New("no relays")
 	errInvalidSlot               = errors.New("invalid slot")
@@ -547,7 +543,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			}
 
 			// Ensure the response blockhash matches the response block
-			if responsePayload.Version == bellatrix {
+			if responsePayload.Version == types.VersionString(config.ForkVersion) {
 				calculatedBlockHash, err := types.CalculateHash(responsePayload.Data)
 				if err != nil {
 					log.WithError(err).Error("could not calculate block hash")
