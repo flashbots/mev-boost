@@ -23,13 +23,20 @@ const (
 
 var (
 	// defaults
-	defaultLogJSON            = os.Getenv("LOG_JSON") != ""
-	defaultLogLevel           = getEnv("LOG_LEVEL", "info")
-	defaultListenAddr         = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
-	defaultRelayCheck         = os.Getenv("RELAY_STARTUP_CHECK") != ""
+	defaultLogJSON           = os.Getenv("LOG_JSON") != ""
+	defaultLogLevel          = getEnv("LOG_LEVEL", "info")
+	defaultListenAddr        = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
+	defaultRelayCheck        = os.Getenv("RELAY_STARTUP_CHECK") != ""
+	defaultRelayMinBidEth    = getEnvFloat64("MIN_BID_ETH", 0)
+	defaultDisableLogVersion = os.Getenv("DISABLE_LOG_VERSION") == "1" // disables adding the version to every log entry
+	defaultDebug             = os.Getenv("DEBUG") != ""
+	defaultLogServiceTag     = os.Getenv("LOG_SERVICE_TAG")
+	defaultRelays            = os.Getenv("RELAYS")
+	defaultRelayMonitors     = os.Getenv("RELAY_MONITORS")
+
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
-	defaultRelayMinBidEth     = getEnvFloat64("MIN_BID_ETH", 0)
-	defaultDisableLogVersion  = os.Getenv("DISABLE_LOG_VERSION") == "1" // disables adding the version to every log entry
+	defaultUseSepolia         = os.Getenv("SEPOLIA") != ""
+	defaultUseGoerli          = os.Getenv("GOERLI") != ""
 
 	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
 	defaultTimeoutMsGetHeader         = getEnvInt("RELAY_TIMEOUT_MS_GETHEADER", 950)   // timeout for getHeader requests
@@ -43,15 +50,15 @@ var (
 	printVersion = flag.Bool("version", false, "only print version")
 	logJSON      = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
 	logLevel     = flag.String("loglevel", defaultLogLevel, "minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic")
-	logDebug     = flag.Bool("debug", false, "shorthand for '-loglevel debug'")
-	logService   = flag.String("log-service", "", "add a 'service=...' tag to all log messages")
+	logDebug     = flag.Bool("debug", defaultDebug, "shorthand for '-loglevel debug'")
+	logService   = flag.String("log-service", defaultLogServiceTag, "add a 'service=...' tag to all log messages")
 	logNoVersion = flag.Bool("log-no-version", defaultDisableLogVersion, "disables adding the version to every log entry")
 
 	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs        = flag.String("relays", "", "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
+	relayURLs        = flag.String("relays", defaultRelays, "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
 	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
 	relayMinBidEth   = flag.Float64("min-bid", defaultRelayMinBidEth, "minimum bid to accept from a relay [eth]")
-	relayMonitorURLs = flag.String("relay-monitors", "", "relay monitor urls - single entry or comma-separated list (scheme://host)")
+	relayMonitorURLs = flag.String("relay-monitors", defaultRelayMonitors, "relay monitor urls - single entry or comma-separated list (scheme://host)")
 
 	relayTimeoutMsGetHeader  = flag.Int("request-timeout-getheader", defaultTimeoutMsGetHeader, "timeout for getHeader requests to the relay [ms]")
 	relayTimeoutMsGetPayload = flag.Int("request-timeout-getpayload", defaultTimeoutMsGetPayload, "timeout for getPayload requests to the relay [ms]")
@@ -59,8 +66,8 @@ var (
 
 	// helpers
 	useGenesisForkVersionMainnet = flag.Bool("mainnet", true, "use Mainnet")
-	useGenesisForkVersionSepolia = flag.Bool("sepolia", false, "use Sepolia")
-	useGenesisForkVersionGoerli  = flag.Bool("goerli", false, "use Goerli")
+	useGenesisForkVersionSepolia = flag.Bool("sepolia", defaultUseSepolia, "use Sepolia")
+	useGenesisForkVersionGoerli  = flag.Bool("goerli", defaultUseGoerli, "use Goerli")
 	useCustomGenesisForkVersion  = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
 )
 
@@ -68,12 +75,21 @@ var log = logrus.NewEntry(logrus.New())
 
 // Main starts the mev-boost cli
 func Main() {
+	// process repeatable flags
 	flag.Var(&relays, "relay", "a single relay, can be specified multiple times")
 	flag.Var(&relayMonitors, "relay-monitor", "a single relay monitor, can be specified multiple times")
-	flag.Parse()
-	logrus.SetOutput(os.Stdout)
 
-	// Set log format (json or text)
+	// parse flags and get started
+	flag.Parse()
+
+	// perhaps only print the version
+	if *printVersion {
+		fmt.Printf("mev-boost %s\n", config.Version) //nolint
+		return
+	}
+
+	// setup logging
+	log.Logger.SetOutput(os.Stdout)
 	if *logJSON {
 		log.Logger.SetFormatter(&logrus.JSONFormatter{})
 	} else {
@@ -81,13 +97,6 @@ func Main() {
 			FullTimestamp: true,
 		})
 	}
-
-	if *printVersion {
-		fmt.Printf("mev-boost %s\n", config.Version) //nolint
-		return
-	}
-
-	// Set loglevel
 	if *logDebug {
 		*logLevel = "debug"
 	}
@@ -99,8 +108,6 @@ func Main() {
 		}
 		log.Logger.SetLevel(lvl)
 	}
-
-	// Add the service tag to logs, if configured
 	if *logService != "" {
 		log = log.WithField("service", *logService)
 	}
