@@ -1,7 +1,7 @@
 # Security Policy
 
-The Flashbots team would appreciate any contributions, responsible disclosures
-and will make every effort to acknowledge your contributions.
+We appreciate any contributions, responsible disclosures and will make every
+effort to acknowledge your contributions.
 
 ## Supported Versions
 

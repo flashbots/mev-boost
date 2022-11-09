@@ -7,7 +7,7 @@
 
 ## What is MEV-Boost?
 
-`mev-boost` is open source middleware run by validators to access a competitive block-building market. MEV-Boost was built by Flashbots as an implementation of [proposer-builder separation (PBS)](https://ethresear.ch/t/proposer-block-builder-separation-friendly-fee-market-designs/9725) for proof-of-stake (PoS) Ethereum.
+`mev-boost` is open source middleware run by validators to access a competitive block-building market. MEV-Boost is an initial implementation of [proposer-builder separation (PBS)](https://ethresear.ch/t/proposer-block-builder-separation-friendly-fee-market-designs/9725) for proof-of-stake (PoS) Ethereum.
 
 With MEV-Boost, validators can access blocks from a marketplace of builders. Builders produce blocks containing transaction orderflow and a fee for the block proposing validator. Separating the role of proposers from block builders promotes greater competition, decentralization, and censorship-resistance for Ethereum.
 
@@ -36,7 +36,7 @@ See also:
 * [MEV-Boost relay source code](https://github.com/flashbots/mev-boost-relay)
 * Specs:
   * [Builder API](https://ethereum.github.io/builder-specs)
-  * [Flashbots Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
+  * [MEV-Boost Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
 
 ---
 
@@ -70,7 +70,6 @@ MEV is a centralizing force on Ethereum. Unattended, the competition for MEV opp
 
 Proposer/block-builder separation (PBS) was initially proposed by Ethereum researchers as a response to the risk that MEV poses to decentralization of consensus networks. They have suggested that uncontrolled MEV extraction promotes economies of scale which are centralizing in nature, and complicate decentralized pooling.
 
-Flashbots is a research and development organization working on mitigating the negative externalities of MEV. Flashbots started as a builder specializing in MEV extraction in proof-of-work Ethereum to democratize access to MEV and make the most profitable blocks available to all miners. >90% of miners are outsourcing some of their block construction to Flashbots today.
 
 In the future, [proposer/builder separation](https://ethresear.ch/t/two-slot-proposer-builder-separation/10980) will be enshrined in the Ethereum protocol itself to further harden its trust model.
 
@@ -351,8 +350,6 @@ sequenceDiagram
 
 # Contributing
 
-[Flashbots](https://flashbots.net) is a research and development collective working on mitigating the negative externalities of decentralized economies. We contribute with the larger free software community to illuminate the dark forest.
-
 You are welcome here <3.
 
 - If you have a question, feedback or a bug report for this project, please [open a new Issue](https://github.com/flashbots/mev-boost/issues).
@@ -362,8 +359,9 @@ You are welcome here <3.
 # Security
 
 If you find a security vulnerability in this project or any other initiative
-related to Flashbots, please let us know sending an email to
-security@flashbots.net. Refer to the [SECURITY file](SECURITY.md) for details.
+related to proposer/builder separation in ethereum, please let us know sending
+an email to security@flashbots.net. Refer to the [SECURITY file](SECURITY.md)
+for details.
 
 ## Bug Bounty
 
@@ -385,4 +383,4 @@ Logo by [@lekevicius](https://twitter.com/lekevicius) on CC0 license.
 
 ---
 
-Made with ☀️ by the ⚡🤖 collective.
+Made with ☀️ by the 💎 reserchers and developers.
