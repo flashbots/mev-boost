@@ -32,7 +32,7 @@ go run . -mainnet -relay-check -debug -min-bid 0.12345 \
     -relay https://0xb3ee7afcf27f1f1259ac1787876318c6584ee353097a50ed84f51a1f21a323b3736f271a895c7ce918c038e4265918be@relay.edennetwork.io \
     -relay https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@builder-relay-mainnet.blocknative.com \
     -relay-monitor https://relay-monitor1.example.com \
-    -relay-monitor https://relay-monitor2.example.com \
+    -relay-monitor https://relay-monitor2.example.com
 
 # Call the status endpoint
 curl localhost:18550/eth/v1/builder/status
