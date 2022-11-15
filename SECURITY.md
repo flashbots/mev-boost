@@ -36,9 +36,9 @@ a lower severity than a bug with a high impact and high likelihood.
 
 | Severity |     Maximum | Example                                                                |
 |----------|------------:|------------------------------------------------------------------------|
-| Low      |    $200 USD | A bug that causes mev-boost to skip a bid.                             |
-| Medium   |  $1,000 USD | From a builder message, can cause mev-boost to go offline.             |
-| High     |  $5,000 USD | From a builder message, can cause a connected validator to go offline. |
+| Low      |  $1,000 USD | A bug that causes mev-boost to skip a bid.                             |
+| Medium   |  $5,000 USD | From a builder message, can cause mev-boost to go offline.             |
+| High     | $12,500 USD | From a builder message, can cause a connected validator to go offline. |
 | Critical | $25,000 USD | From a builder message, can remotely access arbitrary files on host.   |
 
 ### Scope
