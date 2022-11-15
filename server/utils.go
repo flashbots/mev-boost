@@ -123,6 +123,7 @@ type bidResp struct {
 	response  types.GetHeaderResponse
 	blockHash string
 	relays    []RelayEntry
+	weighted  float64
 }
 
 // bidRespKey is used as key for the bids cache

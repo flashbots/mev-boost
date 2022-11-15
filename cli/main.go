@@ -76,7 +76,7 @@ var log = logrus.NewEntry(logrus.New())
 // Main starts the mev-boost cli
 func Main() {
 	// process repeatable flags
-	flag.Var(&relays, "relay", "a single relay, can be specified multiple times")
+	flag.Var(&relays, "relay", "a single relay (optional weight can be defined using weight#relayURL), can be specified multiple times")
 	flag.Var(&relayMonitors, "relay-monitor", "a single relay monitor, can be specified multiple times")
 
 	// parse flags and get started
@@ -154,7 +154,7 @@ func Main() {
 	}
 	log.Infof("using %d relays", len(relays))
 	for index, relay := range relays {
-		log.Infof("relay #%d: %s", index+1, relay.String())
+		log.Infof("relay #%d: %s - weight: %f", index+1, relay.String(), relay.Weight)
 	}
 
 	// For backwards compatibility with the -relay-monitors flag.

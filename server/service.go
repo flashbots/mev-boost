@@ -399,12 +399,15 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
 			relays[BlockHashHex(blockHash)] = append(relays[BlockHashHex(blockHash)], relay)
 
+			// Weight current bid
+			currentWeight := float64(responsePayload.Data.Message.Value.BigInt().Uint64()) * relay.Weight
+			log.WithField("currentWeight", currentWeight).Debug("weighted bid")
+
 			// Compare the bid with already known top bid (if any)
 			if result.response.Data != nil {
-				valueDiff := responsePayload.Data.Message.Value.Cmp(&result.response.Data.Message.Value)
-				if valueDiff == -1 { // current bid is less profitable than already known one
+				if currentWeight < result.weighted { // current bid is less profitable than already known one
 					return
-				} else if valueDiff == 0 { // current bid is equally profitable as already known one. Use hash as tiebreaker
+				} else if currentWeight == result.weighted { // current bid is equally profitable as already known one. Use hash as tiebreaker
 					previousBidBlockHash := result.response.Data.Message.Header.BlockHash.String()
 					if blockHash >= previousBidBlockHash {
 						return
@@ -417,6 +420,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			result.response = *responsePayload
 			result.blockHash = blockHash
 			result.t = time.Now()
+			result.weighted = currentWeight
 		}(relay)
 	}
 

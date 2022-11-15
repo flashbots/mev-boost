@@ -1,7 +1,9 @@
 package server
 
 import (
+	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/flashbots/go-boost-utils/types"
@@ -11,6 +13,7 @@ import (
 type RelayEntry struct {
 	PublicKey types.PublicKey
 	URL       *url.URL
+	Weight    float64
 }
 
 func (r *RelayEntry) String() string {
@@ -22,9 +25,30 @@ func (r *RelayEntry) GetURI(path string) string {
 	return GetURI(r.URL, path)
 }
 
-// NewRelayEntry creates a new instance based on an input string
-// relayURL can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
+// NewRelayEntry creates a new instance based on an input string, an optional weight prefix is supported.
+// relayURL can be WEIGHT#IP@PORT, IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
 func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
+	// Entry weight is 1 by default.
+	weight := 1.0
+
+	if strings.Contains(relayURL, "#") {
+		parts := strings.Split(relayURL, "#")
+		if len(parts) != 2 {
+			return entry, fmt.Errorf("invalid weighted relay entry format: %s", relayURL)
+		}
+
+		// Parse the weight as a float
+		weight, err = strconv.ParseFloat(parts[0], 64)
+		if err != nil {
+			return entry, err
+		}
+
+		// Parse the relay entry
+		relayURL = parts[1]
+	}
+
+	entry.Weight = weight
+
 	// Add protocol scheme prefix if it does not exist.
 	if !strings.HasPrefix(relayURL, "http") {
 		relayURL = "http://" + relayURL
