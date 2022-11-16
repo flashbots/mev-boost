@@ -34,10 +34,15 @@ func TestRelayConfigurationManager(t *testing.T) {
 
 type RelayConfigProviderMock struct {
 	RelaysByValidatorPublicKeyFn func(publicKey string) ([]rcp.RelayEntry, error)
+	RelaysByValidatorIndexFn     func(validatorIndex uint64) ([]rcp.RelayEntry, error)
 }
 
 func (m *RelayConfigProviderMock) RelaysByValidatorPublicKey(publicKey string) ([]rcp.RelayEntry, error) {
 	return m.RelaysByValidatorPublicKeyFn(publicKey)
+}
+
+func (m *RelayConfigProviderMock) RelaysByValidatorIndex(validatorIndex uint64) ([]rcp.RelayEntry, error) {
+	return m.RelaysByValidatorIndexFn(validatorIndex)
 }
 
 func stubRelays(relays []rcp.RelayEntry) func(publicKey string) ([]rcp.RelayEntry, error) {

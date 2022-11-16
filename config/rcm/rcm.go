@@ -15,3 +15,7 @@ func New(configProvider rcp.RelayConfigProvider) *RelayConfigManager {
 func (m *RelayConfigManager) RelaysByValidatorPublicKey(publicKey rcp.ValidatorPublicKey) ([]rcp.RelayEntry, error) {
 	return m.configProvider.RelaysByValidatorPublicKey(publicKey)
 }
+
+func (m *RelayConfigManager) RelaysByValidatorIndex(validatorIndex uint64) ([]rcp.RelayEntry, error) {
+	return m.configProvider.RelaysByValidatorIndex(validatorIndex)
+}

@@ -53,6 +53,7 @@ type AuctionTranscript struct {
 // RelayConfigManager provides relays for a given validator.
 type RelayConfigManager interface {
 	RelaysByValidatorPublicKey(publicKey string) ([]rcp.RelayEntry, error)
+	RelaysByValidatorIndex(index uint64) ([]rcp.RelayEntry, error)
 }
 
 // BoostServiceOpts provides all available options for use with NewBoostService
@@ -339,21 +340,26 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	validatorRelays, err := m.relayConfigManager.RelaysByValidatorPublicKey(pubkey)
+	if err != nil {
+		log.WithError(err).Errorf("cannot get relays for the given validator: %s", pubkey)
+	}
+
 	result := bidResp{}                           // the final response, containing the highest bid (if any)
 	relays := make(map[BlockHashHex][]RelayEntry) // relays that sent the bid for a specific blockHash
 
 	// Call the relays
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	for _, relay := range m.relays {
+	for _, relay := range validatorRelays {
 		wg.Add(1)
-		go func(relay RelayEntry) {
+		go func(relay rcp.RelayEntry) {
 			defer wg.Done()
 			path := fmt.Sprintf("/eth/v1/builder/header/%s/%s/%s", slot, parentHashHex, pubkey)
 			url := relay.GetURI(path)
 			log := log.WithField("url", url)
 			responsePayload := new(types.GetHeaderResponse)
-			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, UserAgent(req.Header.Get("User-Agent")), nil, responsePayload)
+			code, err := SendHTTPRequest(req.Context(), m.httpClientGetHeader, http.MethodGet, url, UserAgent(req.Header.Get("User-Agent")), nil, responsePayload)
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
 				return
@@ -378,13 +384,14 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				"value":       valueEth.Text('f', 18),
 			})
 
-			if relay.PublicKey != responsePayload.Data.Message.Pubkey {
-				log.Errorf("bid pubkey mismatch. expected: %s - got: %s", relay.PublicKey.String(), responsePayload.Data.Message.Pubkey.String())
+			if relay.PubKey() != responsePayload.Data.Message.Pubkey {
+				log.Errorf("bid pubkey mismatch. expected: %s - got: %s", relay.PubKey(), responsePayload.Data.Message.Pubkey.String())
 				return
 			}
 
 			// Verify the relay signature in the relay response
-			ok, err := types.VerifySignature(responsePayload.Data.Message, m.builderSigningDomain, relay.PublicKey[:], responsePayload.Data.Signature[:])
+			relayPublicKey := relay.PubKey()
+			ok, err := types.VerifySignature(responsePayload.Data.Message, m.builderSigningDomain, relayPublicKey[:], responsePayload.Data.Signature[:])
 			if err != nil {
 				log.WithError(err).Error("error verifying relay signature")
 				return
@@ -422,7 +429,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			defer mu.Unlock()
 
 			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
-			relays[BlockHashHex(blockHash)] = append(relays[BlockHashHex(blockHash)], relay)
+			relays[BlockHashHex(blockHash)] = append(relays[BlockHashHex(blockHash)], RCPRelayEntryToRelayEntry(relay))
 
 			// Compare the bid with already known top bid (if any)
 			if result.response.Data != nil {
@@ -501,10 +508,17 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 	// send bid and signed block to relay monitor
 	go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
 
-	relays := originalBid.relays
+	relays := RelayEntriesToRCPRelayEntries(originalBid.relays)
 	if len(relays) == 0 {
 		log.Warn("originating relay not found, sending getPayload request to all relays")
-		relays = m.relays
+
+		validatorIndex := payload.Message.ProposerIndex
+		validatorRelays, err := m.relayConfigManager.RelaysByValidatorIndex(validatorIndex)
+		if err != nil {
+			log.WithError(err).Errorf("cannot get relays for the given validator index: %d", validatorIndex)
+		}
+
+		relays = validatorRelays
 	}
 
 	var wg sync.WaitGroup
@@ -518,7 +532,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 
 	for _, relay := range relays {
 		wg.Add(1)
-		go func(relay RelayEntry) {
+		go func(relay rcp.RelayEntry) {
 			defer wg.Done()
 			url := relay.GetURI(pathGetPayload)
 			log := log.WithField("url", url)

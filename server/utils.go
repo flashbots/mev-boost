@@ -203,3 +203,10 @@ func RelayEntriesToRCPRelayEntries(relays []RelayEntry) []rcp.RelayEntry {
 
 	return relayEntries
 }
+
+func RCPRelayEntryToRelayEntry(relay rcp.RelayEntry) RelayEntry {
+	return RelayEntry{
+		PublicKey: relay.PubKey(),
+		URL:       relay.RelayURL(),
+	}
+}

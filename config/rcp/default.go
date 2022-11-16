@@ -11,3 +11,7 @@ func NewDefaultConfigProvider(relays []RelayEntry) *DefaultConfigProvider {
 func (p *DefaultConfigProvider) RelaysByValidatorPublicKey(_ ValidatorPublicKey) ([]RelayEntry, error) {
 	return p.relays, nil
 }
+
+func (p *DefaultConfigProvider) RelaysByValidatorIndex(_ uint64) ([]RelayEntry, error) {
+	return p.relays, nil
+}
