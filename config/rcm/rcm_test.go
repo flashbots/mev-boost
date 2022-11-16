@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/flashbots/mev-boost/config/rcm"
-	"github.com/flashbots/mev-boost/server"
+	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,10 +18,10 @@ func TestRelayConfigurationManager(t *testing.T) {
 
 		// arrange
 		validatorPublicKey := testutil.RandomBLSPublicKey(t)
-		want := testutil.RandomRelayEntries(t, 3)
+		want := testutil.RandomRCPRelayEntries(t, 3)
 
-		rcp := &RelayConfigProviderMock{RelaysByValidatorPublicKeyFn: stubRelays(want)}
-		sut := rcm.New(rcp)
+		rcpMock := &RelayConfigProviderMock{RelaysByValidatorPublicKeyFn: stubRelays(want)}
+		sut := rcm.New(rcpMock)
 
 		// act
 		got, err := sut.RelaysByValidatorPublicKey(validatorPublicKey.String())
@@ -33,15 +33,15 @@ func TestRelayConfigurationManager(t *testing.T) {
 }
 
 type RelayConfigProviderMock struct {
-	RelaysByValidatorPublicKeyFn func(publicKey string) ([]server.RelayEntry, error)
+	RelaysByValidatorPublicKeyFn func(publicKey string) ([]rcp.RelayEntry, error)
 }
 
-func (m *RelayConfigProviderMock) RelaysByValidatorPublicKey(publicKey string) ([]server.RelayEntry, error) {
+func (m *RelayConfigProviderMock) RelaysByValidatorPublicKey(publicKey string) ([]rcp.RelayEntry, error) {
 	return m.RelaysByValidatorPublicKeyFn(publicKey)
 }
 
-func stubRelays(relays []server.RelayEntry) func(publicKey string) ([]server.RelayEntry, error) {
-	return func(publicKey string) ([]server.RelayEntry, error) {
+func stubRelays(relays []rcp.RelayEntry) func(publicKey string) ([]rcp.RelayEntry, error) {
+	return func(publicKey string) ([]rcp.RelayEntry, error) {
 		return relays, nil
 	}
 }

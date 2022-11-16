@@ -6,9 +6,16 @@ import (
 
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/stretchr/testify/require"
 )
+
+func RandomRCPRelayEntries(t *testing.T, num int) []rcp.RelayEntry {
+	t.Helper()
+
+	return server.RelayEntriesToRCPRelayEntries(RandomRelayEntries(t, num))
+}
 
 func RandomRelayEntries(t *testing.T, num int) []server.RelayEntry {
 	t.Helper()

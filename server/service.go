@@ -20,6 +20,7 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -49,12 +50,18 @@ type AuctionTranscript struct {
 	Acceptance *types.SignedBlindedBeaconBlock `json:"acceptance"`
 }
 
+// RelayConfigManager provides relays for a given validator.
+type RelayConfigManager interface {
+	RelaysByValidatorPublicKey(publicKey string) ([]rcp.RelayEntry, error)
+}
+
 // BoostServiceOpts provides all available options for use with NewBoostService
 type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
 	Relays                []RelayEntry
 	RelayMonitors         []*url.URL
+	RelayConfigManager    RelayConfigManager
 	GenesisForkVersionHex string
 	RelayCheck            bool
 	RelayMinBid           types.U256Str
@@ -66,13 +73,14 @@ type BoostServiceOpts struct {
 
 // BoostService - the mev-boost service
 type BoostService struct {
-	listenAddr    string
-	relays        []RelayEntry
-	relayMonitors []*url.URL
-	log           *logrus.Entry
-	srv           *http.Server
-	relayCheck    bool
-	relayMinBid   types.U256Str
+	listenAddr         string
+	relays             []RelayEntry
+	relayMonitors      []*url.URL
+	relayConfigManager RelayConfigManager
+	log                *logrus.Entry
+	srv                *http.Server
+	relayCheck         bool
+	relayMinBid        types.U256Str
 
 	builderSigningDomain types.Domain
 	httpClientGetHeader  http.Client
@@ -95,13 +103,14 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	}
 
 	return &BoostService{
-		listenAddr:    opts.ListenAddr,
-		relays:        opts.Relays,
-		relayMonitors: opts.RelayMonitors,
-		log:           opts.Log,
-		relayCheck:    opts.RelayCheck,
-		relayMinBid:   opts.RelayMinBid,
-		bids:          make(map[bidRespKey]bidResp),
+		listenAddr:         opts.ListenAddr,
+		relays:             opts.Relays,
+		relayMonitors:      opts.RelayMonitors,
+		relayConfigManager: opts.RelayConfigManager,
+		log:                opts.Log,
+		relayCheck:         opts.RelayCheck,
+		relayMinBid:        opts.RelayMinBid,
+		bids:               make(map[bidRespKey]bidResp),
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
@@ -245,7 +254,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log := m.log.WithField("method", "registerValidator")
 	log.Debug("registerValidator")
 
-	payload := []types.SignedValidatorRegistration{}
+	var payload []types.SignedValidatorRegistration
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -257,20 +266,34 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		"ua":               ua,
 	})
 
+	payloadsByValidator := make(map[string][]types.SignedValidatorRegistration, len(payload))
+	for _, p := range payload {
+		pubKey := fmt.Sprintf("0x%x", p.Message.Pubkey)
+		payloadsByValidator[pubKey] = append(payloadsByValidator[pubKey], p)
+	}
+
 	relayRespCh := make(chan error, len(m.relays))
 
-	for _, relay := range m.relays {
-		go func(relay RelayEntry) {
-			url := relay.GetURI(pathRegisterValidator)
-			log := log.WithField("url", url)
+	for pubKey, payloads := range payloadsByValidator {
+		relays, err := m.relayConfigManager.RelaysByValidatorPublicKey(pubKey)
+		if err != nil {
+			log.WithError(err).Errorf("cannot get relays for the given validator: %s", pubKey)
+			continue
+		}
 
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, payload, nil)
-			relayRespCh <- err
-			if err != nil {
-				log.WithError(err).Warn("error calling registerValidator on relay")
-				return
-			}
-		}(relay)
+		for _, relay := range relays {
+			go func(relay rcp.RelayEntry) {
+				url := relay.GetURI(pathRegisterValidator)
+				log := log.WithField("url", url)
+
+				_, err := SendHTTPRequest(req.Context(), m.httpClientRegVal, http.MethodPost, url, ua, payloads, nil)
+				relayRespCh <- err
+				if err != nil {
+					log.WithError(err).Warn("error calling registerValidator on relay")
+					return
+				}
+			}(relay)
+		}
 	}
 
 	go m.sendValidatorRegistrationsToRelayMonitors(payload)

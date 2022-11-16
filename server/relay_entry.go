@@ -13,12 +13,16 @@ type RelayEntry struct {
 	URL       *url.URL
 }
 
-func (r *RelayEntry) String() string {
+func (r RelayEntry) String() string {
 	return r.URL.String()
 }
 
+func (r RelayEntry) PubKey() types.PublicKey {
+	return r.PublicKey
+}
+
 // GetURI returns the full request URI with scheme, host, path and args for the relay.
-func (r *RelayEntry) GetURI(path string) string {
+func (r RelayEntry) GetURI(path string) string {
 	return GetURI(r.URL, path)
 }
 

@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var _ rcp.RelayConfigProvider = (*rcp.DefaultConfigProvider)(nil)
+
 func TestDefaultConfigProvider(t *testing.T) {
 	t.Parallel()
 
@@ -17,7 +19,7 @@ func TestDefaultConfigProvider(t *testing.T) {
 
 		// arrange
 		validatorPublicKey := testutil.RandomBLSPublicKey(t)
-		want := testutil.RandomRelayEntries(t, 3)
+		want := testutil.RandomRCPRelayEntries(t, 3)
 		sut := rcp.NewDefaultConfigProvider(want)
 
 		// act

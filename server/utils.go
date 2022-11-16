@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/flashbots/mev-boost/config/rcp"
 )
 
 var (
@@ -192,4 +193,13 @@ func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.He
 		MixDigest:   common.Hash(payload.PrevRandao),
 		BaseFee:     baseFeePerGas,
 	}, nil
+}
+
+func RelayEntriesToRCPRelayEntries(relays []RelayEntry) []rcp.RelayEntry {
+	relayEntries := make([]rcp.RelayEntry, len(relays))
+	for i, relay := range relays {
+		relayEntries[i] = relay
+	}
+
+	return relayEntries
 }

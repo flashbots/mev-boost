@@ -11,6 +11,8 @@ import (
 
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
 )
@@ -191,11 +193,15 @@ func Main() {
 		log.WithError(err).Fatal("failed converting min bid")
 	}
 
+	relayConfigProvider := rcp.NewDefaultConfigProvider(server.RelayEntriesToRCPRelayEntries(relays))
+	relayConfigManager := rcm.New(relayConfigProvider)
+
 	opts := server.BoostServiceOpts{
 		Log:                      log,
 		ListenAddr:               *listenAddr,
 		Relays:                   relays,
 		RelayMonitors:            relayMonitors,
+		RelayConfigManager:       relayConfigManager,
 		GenesisForkVersionHex:    genesisForkVersionHex,
 		RelayCheck:               *relayCheck,
 		RelayMinBid:              *relayMinBidWei,

@@ -20,6 +20,8 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,6 +48,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		Log:                      testLog,
 		ListenAddr:               "localhost:12345",
 		Relays:                   relayEntries,
+		RelayConfigManager:       rcm.New(rcp.NewDefaultConfigProvider(RelayEntriesToRCPRelayEntries(relayEntries))),
 		GenesisForkVersionHex:    "0x00000000",
 		RelayCheck:               true,
 		RelayMinBid:              types.IntToU256(12345),
@@ -121,7 +124,18 @@ func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *apiv1capell
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, []*url.URL{}, "0x00000000", true, types.IntToU256(0), time.Second, time.Second, time.Second})
+		_, err := NewBoostService(BoostServiceOpts{
+			Log:                      testLog,
+			ListenAddr:               ":123",
+			Relays:                   []RelayEntry{},
+			RelayMonitors:            []*url.URL{},
+			GenesisForkVersionHex:    "0x00000000",
+			RelayCheck:               true,
+			RelayMinBid:              types.IntToU256(0),
+			RequestTimeoutGetHeader:  time.Second,
+			RequestTimeoutGetPayload: time.Second,
+			RequestTimeoutRegVal:     time.Second,
+		})
 		require.Error(t, err)
 	})
 }
