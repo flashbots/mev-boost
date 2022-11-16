@@ -21,7 +21,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config/rcm"
-	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,11 +43,13 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
 
+	relayConfigManager, err := rcm.NewDefault(RelayEntriesToRCPRelayEntries(relayEntries))
+	require.NoError(t, err)
+
 	opts := BoostServiceOpts{
 		Log:                      testLog,
 		ListenAddr:               "localhost:12345",
-		Relays:                   relayEntries,
-		RelayConfigManager:       rcm.New(rcp.NewDefaultConfigProvider(RelayEntriesToRCPRelayEntries(relayEntries))),
+		RelayConfigManager:       relayConfigManager,
 		GenesisForkVersionHex:    "0x00000000",
 		RelayCheck:               true,
 		RelayMinBid:              types.IntToU256(12345),
@@ -80,6 +81,50 @@ func (be *testBackend) request(t *testing.T, method, path string, payload any) *
 	rr := httptest.NewRecorder()
 	be.boost.getRouter().ServeHTTP(rr, req)
 	return rr
+}
+
+func newTestBackendWithInvalidRelayPublicKey(t *testing.T) *testBackend {
+	t.Helper()
+
+	backend := newTestBackend(t, 1, time.Second)
+
+	backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+		12345,
+		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+	)
+
+	// Simulate a different public key registered to mev-boost
+	pk := types.PublicKey{}
+	relayEntry := backend.relays[0].RelayEntry
+	relayEntry.PublicKey = pk
+	relayEntries := []RelayEntry{relayEntry}
+
+	replaceConfigManagerRelays(t, backend, relayEntries)
+
+	return backend
+}
+
+func newTestBackendWithARedirectingRelay(t *testing.T) *testBackend {
+	t.Helper()
+
+	backend := newTestBackend(t, 1, time.Second)
+	redirectAddress := backend.relays[0].Server.URL
+	backend.relays[0].Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, redirectAddress, http.StatusTemporaryRedirect)
+	}))
+
+	url, err := url.ParseRequestURI(backend.relays[0].Server.URL)
+	require.NoError(t, err)
+
+	relayEntry := backend.relays[0].RelayEntry
+	relayEntry.URL = url
+	relayEntries := []RelayEntry{relayEntry}
+
+	replaceConfigManagerRelays(t, backend, relayEntries)
+
+	return backend
 }
 
 func blindedBlockToExecutionPayloadBellatrix(signedBlindedBeaconBlock *types.SignedBlindedBeaconBlock) *types.ExecutionPayload {
@@ -122,22 +167,12 @@ func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *apiv1capell
 	}
 }
 
-func TestNewBoostServiceErrors(t *testing.T) {
-	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(BoostServiceOpts{
-			Log:                      testLog,
-			ListenAddr:               ":123",
-			Relays:                   []RelayEntry{},
-			RelayMonitors:            []*url.URL{},
-			GenesisForkVersionHex:    "0x00000000",
-			RelayCheck:               true,
-			RelayMinBid:              types.IntToU256(0),
-			RequestTimeoutGetHeader:  time.Second,
-			RequestTimeoutGetPayload: time.Second,
-			RequestTimeoutRegVal:     time.Second,
-		})
-		require.Error(t, err)
-	})
+func replaceConfigManagerRelays(t *testing.T, backend *testBackend, relayEntries []RelayEntry) {
+	t.Helper()
+	relayConfigManager, err := rcm.NewDefault(RelayEntriesToRCPRelayEntries(relayEntries))
+	require.NoError(t, err)
+
+	backend.boost.relayConfigManager = relayConfigManager
 }
 
 func TestWebserver(t *testing.T) {
@@ -478,21 +513,8 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, types.IntToU256(12345), resp.Data.Message.Value)
 	})
 
-	// TODO(screwyprof): fix me
 	t.Run("Invalid relay public key", func(t *testing.T) {
-		t.Skip("FIX ME")
-		backend := newTestBackend(t, 1, time.Second)
-
-		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
-			12345,
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-		)
-
-		// Simulate a different public key registered to mev-boost
-		pk := types.PublicKey{}
-		backend.boost.relays[0].PublicKey = pk
+		backend := newTestBackendWithInvalidRelayPublicKey(t)
 
 		rr := backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -647,15 +669,8 @@ func TestCheckRelays(t *testing.T) {
 	})
 
 	t.Run("Should not follow redirects", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
-		redirectAddress := backend.relays[0].Server.URL
-		backend.relays[0].Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, redirectAddress, http.StatusTemporaryRedirect)
-		}))
+		backend := newTestBackendWithARedirectingRelay(t)
 
-		url, err := url.ParseRequestURI(backend.relays[0].Server.URL)
-		require.NoError(t, err)
-		backend.boost.relays[0].URL = url
 		numHealthyRelays := backend.boost.CheckRelays()
 		require.Equal(t, 0, numHealthyRelays)
 	})

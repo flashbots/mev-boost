@@ -20,13 +20,12 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
-	"github.com/flashbots/mev-boost/config/rcp"
+	"github.com/flashbots/mev-boost/config/rcm"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	errNoRelays                  = errors.New("no relays")
 	errInvalidSlot               = errors.New("invalid slot")
 	errInvalidHash               = errors.New("invalid hash")
 	errInvalidPubkey             = errors.New("invalid pubkey")
@@ -52,15 +51,15 @@ type AuctionTranscript struct {
 
 // RelayConfigManager provides relays for a given validator.
 type RelayConfigManager interface {
-	RelaysByValidatorPublicKey(publicKey string) ([]rcp.RelayEntry, error)
-	RelaysByValidatorIndex(index uint64) ([]rcp.RelayEntry, error)
+	RelaysByValidatorPublicKey(publicKey string) ([]rcm.RelayEntry, error)
+	RelaysByValidatorIndex(validatorIndex rcm.ValidatorIndex) ([]rcm.RelayEntry, error)
+	AllRegisteredRelays() []rcm.RelayEntry
 }
 
 // BoostServiceOpts provides all available options for use with NewBoostService
 type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
-	Relays                []RelayEntry
 	RelayMonitors         []*url.URL
 	RelayConfigManager    RelayConfigManager
 	GenesisForkVersionHex string
@@ -75,7 +74,6 @@ type BoostServiceOpts struct {
 // BoostService - the mev-boost service
 type BoostService struct {
 	listenAddr         string
-	relays             []RelayEntry
 	relayMonitors      []*url.URL
 	relayConfigManager RelayConfigManager
 	log                *logrus.Entry
@@ -94,10 +92,6 @@ type BoostService struct {
 
 // NewBoostService created a new BoostService
 func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
-	if len(opts.Relays) == 0 {
-		return nil, errNoRelays
-	}
-
 	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
 	if err != nil {
 		return nil, err
@@ -105,7 +99,6 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 
 	return &BoostService{
 		listenAddr:         opts.ListenAddr,
-		relays:             opts.Relays,
 		relayMonitors:      opts.RelayMonitors,
 		relayConfigManager: opts.RelayConfigManager,
 		log:                opts.Log,
@@ -273,7 +266,8 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		payloadsByValidator[pubKey] = append(payloadsByValidator[pubKey], p)
 	}
 
-	relayRespCh := make(chan error, len(m.relays))
+	var wg sync.WaitGroup
+	relayErrCh := make(chan error)
 
 	for pubKey, payloads := range payloadsByValidator {
 		relays, err := m.relayConfigManager.RelaysByValidatorPublicKey(pubKey)
@@ -283,12 +277,16 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		}
 
 		for _, relay := range relays {
-			go func(relay rcp.RelayEntry) {
+			wg.Add(1)
+
+			go func(relay rcm.RelayEntry) {
+				defer wg.Done()
+
 				url := relay.GetURI(pathRegisterValidator)
 				log := log.WithField("url", url)
 
 				_, err := SendHTTPRequest(req.Context(), m.httpClientRegVal, http.MethodPost, url, ua, payloads, nil)
-				relayRespCh <- err
+				relayErrCh <- err
 				if err != nil {
 					log.WithError(err).Warn("error calling registerValidator on relay")
 					return
@@ -299,9 +297,13 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 
 	go m.sendValidatorRegistrationsToRelayMonitors(payload)
 
-	for i := 0; i < len(m.relays); i++ {
-		respErr := <-relayRespCh
-		if respErr == nil {
+	go func() {
+		wg.Wait()
+		close(relayErrCh)
+	}()
+
+	for err := range relayErrCh {
+		if err == nil {
 			m.respondOK(w, nilResponse)
 			return
 		}
@@ -353,7 +355,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	var wg sync.WaitGroup
 	for _, relay := range validatorRelays {
 		wg.Add(1)
-		go func(relay rcp.RelayEntry) {
+		go func(relay rcm.RelayEntry) {
 			defer wg.Done()
 			path := fmt.Sprintf("/eth/v1/builder/header/%s/%s/%s", slot, parentHashHex, pubkey)
 			url := relay.GetURI(path)
@@ -532,7 +534,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 
 	for _, relay := range relays {
 		wg.Add(1)
-		go func(relay rcp.RelayEntry) {
+		go func(relay rcm.RelayEntry) {
 			defer wg.Done()
 			url := relay.GetURI(pathGetPayload)
 			log := log.WithField("url", url)
@@ -631,7 +633,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	relays := originalBid.relays
 	if len(relays) == 0 {
 		log.Warn("originating relay not found, sending getPayload request to all relays")
-		relays = m.relays
+		relays = RCPRelayEntriesToRelayEntries(m.relayConfigManager.AllRegisteredRelays())
 	}
 
 	var wg sync.WaitGroup
@@ -749,7 +751,7 @@ func (m *BoostService) CheckRelays() int {
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
 
-	for _, r := range m.relays {
+	for _, r := range m.relayConfigManager.AllRegisteredRelays() {
 		wg.Add(1)
 
 		go func(relay RelayEntry) {
@@ -772,7 +774,7 @@ func (m *BoostService) CheckRelays() int {
 
 			// Success: increase counter and cancel all pending requests to other relays
 			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
-		}(r)
+		}(RCPRelayEntryToRelayEntry(r))
 	}
 
 	// At the end, wait for every routine and return status according to relay's ones.

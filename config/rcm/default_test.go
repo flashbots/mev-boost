@@ -1,15 +1,16 @@
-package rcp_test
+package rcm_test
 
 import (
 	"testing"
 
-	"github.com/flashbots/mev-boost/config/rcp"
+	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/server"
 	"github.com/flashbots/mev-boost/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var _ rcp.RelayConfigProvider = (*rcp.DefaultConfigProvider)(nil)
+var _ server.RelayConfigManager = (*rcm.DefaultConfigManager)(nil)
 
 func TestDefaultConfigProvider(t *testing.T) {
 	t.Parallel()
@@ -20,7 +21,9 @@ func TestDefaultConfigProvider(t *testing.T) {
 		// arrange
 		validatorPublicKey := testutil.RandomBLSPublicKey(t)
 		want := testutil.RandomRCPRelayEntries(t, 3)
-		sut := rcp.NewDefaultConfigProvider(want)
+
+		sut, err := rcm.NewDefault(want)
+		require.NoError(t, err)
 
 		// act
 		got, err := sut.RelaysByValidatorPublicKey(validatorPublicKey.String())
@@ -28,5 +31,12 @@ func TestDefaultConfigProvider(t *testing.T) {
 		// assert
 		require.NoError(t, err)
 		assert.Equal(t, want, got)
+	})
+
+	t.Run("it returns an error if relays are empty", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := rcm.NewDefault(nil)
+		assert.ErrorIs(t, err, rcm.ErrNoRelays)
 	})
 }
