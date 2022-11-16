@@ -21,6 +21,7 @@ func TestParseRelaysURLs(t *testing.T) {
 		expectedURI       string // full URI with scheme, host, path and args
 		expectedPublicKey string
 		expectedURL       string
+		expectedWeight    float64
 	}{
 		{
 			name:     "Relay URL with protocol scheme",
@@ -29,6 +30,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedURI:       "http://foo.com",
 			expectedPublicKey: publicKey.String(),
 			expectedURL:       fmt.Sprintf("http://%s@foo.com", publicKey.String()),
+			expectedWeight:    1.0,
 		},
 		{
 			name:     "Relay URL without protocol scheme, without public key",
@@ -43,6 +45,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedURI:       "http://foo.com",
 			expectedPublicKey: publicKey.String(),
 			expectedURL:       "http://" + publicKey.String() + "@foo.com",
+			expectedWeight:    1.0,
 		},
 		{
 			name:     "Relay URL with public key host and port",
@@ -51,6 +54,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedURI:       "http://foo.com:9999",
 			expectedPublicKey: publicKey.String(),
 			expectedURL:       "http://" + publicKey.String() + "@foo.com:9999",
+			expectedWeight:    1.0,
 		},
 		{
 			name:     "Relay URL with IP and port",
@@ -59,6 +63,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedURI:       "http://12.345.678:9999",
 			expectedPublicKey: publicKey.String(),
 			expectedURL:       "http://" + publicKey.String() + "@12.345.678:9999",
+			expectedWeight:    1.0,
 		},
 		{
 			name:     "Relay URL with https IP and port",
@@ -67,6 +72,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedURI:       "https://12.345.678:9999",
 			expectedPublicKey: publicKey.String(),
 			expectedURL:       "https://" + publicKey.String() + "@12.345.678:9999",
+			expectedWeight:    1.0,
 		},
 		{
 			name:     "Invalid relay public key",
@@ -81,6 +87,31 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedURI:       "http://foo.com?id=foo&bar=1",
 			expectedPublicKey: publicKey.String(),
 			expectedURL:       fmt.Sprintf("http://%s@foo.com?id=foo&bar=1", publicKey.String()),
+			expectedWeight:    1.0,
+		},
+		{
+			name:     "Weighted relay with https, IP and port",
+			relayURL: fmt.Sprintf("123#https://%s@foo.com", publicKey.String()),
+
+			expectedURI:       "https://foo.com",
+			expectedPublicKey: publicKey.String(),
+			expectedURL:       fmt.Sprintf("https://%s@foo.com", publicKey.String()),
+			expectedWeight:    123.0,
+		},
+		{
+			name:     "Weighted relay URL without protocol scheme and with public key",
+			relayURL: fmt.Sprintf("0.11#%s@foo.com", publicKey.String()),
+
+			expectedURI:       "http://foo.com",
+			expectedPublicKey: publicKey.String(),
+			expectedURL:       "http://" + publicKey.String() + "@foo.com",
+			expectedWeight:    0.11,
+		},
+		{
+			name:     "Double weighted relay URL",
+			relayURL: fmt.Sprintf("10#0.9#%s@foo.com", publicKey.String()),
+
+			expectedErr: fmt.Errorf("invalid weighted relay entry format: %s", fmt.Sprintf("10#0.9#%s@foo.com", publicKey.String())),
 		},
 	}
 
@@ -96,6 +127,7 @@ func TestParseRelaysURLs(t *testing.T) {
 				require.Equal(t, tt.expectedURI, relayEntry.GetURI(tt.path))
 				require.Equal(t, tt.expectedPublicKey, relayEntry.PublicKey.String())
 				require.Equal(t, tt.expectedURL, relayEntry.String())
+				require.Equal(t, tt.expectedWeight, relayEntry.Weight)
 			}
 		})
 	}
