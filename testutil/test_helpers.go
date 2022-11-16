@@ -14,7 +14,7 @@ import (
 func RandomRCPRelayEntries(t *testing.T, num int) []rcm.RelayEntry {
 	t.Helper()
 
-	return server.RelayEntriesToRCPRelayEntries(RandomRelayEntries(t, num))
+	return server.RelayEntriesToRCMRelayEntries(RandomRelayEntries(t, num))
 }
 
 func RandomRelayEntries(t *testing.T, num int) []server.RelayEntry {

@@ -195,7 +195,7 @@ func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.He
 	}, nil
 }
 
-func RelayEntriesToRCPRelayEntries(relays []RelayEntry) []rcm.RelayEntry {
+func RelayEntriesToRCMRelayEntries(relays []RelayEntry) []rcm.RelayEntry {
 	relayEntries := make([]rcm.RelayEntry, len(relays))
 	for i, relay := range relays {
 		relayEntries[i] = relay
@@ -204,7 +204,7 @@ func RelayEntriesToRCPRelayEntries(relays []RelayEntry) []rcm.RelayEntry {
 	return relayEntries
 }
 
-func RCPRelayEntriesToRelayEntries(relays []rcm.RelayEntry) []RelayEntry {
+func RCMRelayEntriesToRelayEntries(relays []rcm.RelayEntry) []RelayEntry {
 	relayEntries := make([]RelayEntry, len(relays))
 	for i, relay := range relays {
 		relayEntries[i] = RelayEntry{
@@ -216,7 +216,7 @@ func RCPRelayEntriesToRelayEntries(relays []rcm.RelayEntry) []RelayEntry {
 	return relayEntries
 }
 
-func RCPRelayEntryToRelayEntry(relay rcm.RelayEntry) RelayEntry {
+func RCMRelayEntryToRelayEntry(relay rcm.RelayEntry) RelayEntry {
 	return RelayEntry{
 		PublicKey: relay.PubKey(),
 		URL:       relay.RelayURL(),

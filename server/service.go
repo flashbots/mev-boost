@@ -431,7 +431,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			defer mu.Unlock()
 
 			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
-			relays[BlockHashHex(blockHash)] = append(relays[BlockHashHex(blockHash)], RCPRelayEntryToRelayEntry(relay))
+			relays[BlockHashHex(blockHash)] = append(relays[BlockHashHex(blockHash)], RCMRelayEntryToRelayEntry(relay))
 
 			// Compare the bid with already known top bid (if any)
 			if result.response.Data != nil {
@@ -510,7 +510,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 	// send bid and signed block to relay monitor
 	go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
 
-	relays := RelayEntriesToRCPRelayEntries(originalBid.relays)
+	relays := RelayEntriesToRCMRelayEntries(originalBid.relays)
 	if len(relays) == 0 {
 		log.Warn("originating relay not found, sending getPayload request to all relays")
 
@@ -633,7 +633,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	relays := originalBid.relays
 	if len(relays) == 0 {
 		log.Warn("originating relay not found, sending getPayload request to all relays")
-		relays = RCPRelayEntriesToRelayEntries(m.relayConfigManager.AllRegisteredRelays())
+		relays = RCMRelayEntriesToRelayEntries(m.relayConfigManager.AllRegisteredRelays())
 	}
 
 	var wg sync.WaitGroup
@@ -774,7 +774,7 @@ func (m *BoostService) CheckRelays() int {
 
 			// Success: increase counter and cancel all pending requests to other relays
 			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
-		}(RCPRelayEntryToRelayEntry(r))
+		}(RCMRelayEntryToRelayEntry(r))
 	}
 
 	// At the end, wait for every routine and return status according to relay's ones.

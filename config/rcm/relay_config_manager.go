@@ -12,7 +12,6 @@ type (
 )
 
 type RelayEntry interface {
-	String() string
 	PubKey() types.PublicKey
 	RelayURL() *url.URL
 	GetURI(path string) string

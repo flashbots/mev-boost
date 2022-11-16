@@ -43,7 +43,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
 
-	relayConfigManager, err := rcm.NewDefault(RelayEntriesToRCPRelayEntries(relayEntries))
+	relayConfigManager, err := rcm.NewDefault(RelayEntriesToRCMRelayEntries(relayEntries))
 	require.NoError(t, err)
 
 	opts := BoostServiceOpts{
@@ -169,7 +169,7 @@ func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *apiv1capell
 
 func replaceConfigManagerRelays(t *testing.T, backend *testBackend, relayEntries []RelayEntry) {
 	t.Helper()
-	relayConfigManager, err := rcm.NewDefault(RelayEntriesToRCPRelayEntries(relayEntries))
+	relayConfigManager, err := rcm.NewDefault(RelayEntriesToRCMRelayEntries(relayEntries))
 	require.NoError(t, err)
 
 	backend.boost.relayConfigManager = relayConfigManager
