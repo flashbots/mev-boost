@@ -20,7 +20,7 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
-	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -51,9 +51,9 @@ type AuctionTranscript struct {
 
 // RelayConfigManager provides relays for a given validator.
 type RelayConfigManager interface {
-	RelaysByValidatorPublicKey(publicKey string) ([]rcm.RelayEntry, error)
-	RelaysByValidatorIndex(validatorIndex rcm.ValidatorIndex) ([]rcm.RelayEntry, error)
-	AllRegisteredRelays() []rcm.RelayEntry
+	RelaysByValidatorPublicKey(publicKey string) ([]rcp.RelayEntry, error)
+	RelaysByValidatorIndex(validatorIndex rcp.ValidatorIndex) ([]rcp.RelayEntry, error)
+	AllRegisteredRelays() []rcp.RelayEntry
 }
 
 // BoostServiceOpts provides all available options for use with NewBoostService
@@ -279,7 +279,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		for _, relay := range relays {
 			wg.Add(1)
 
-			go func(relay rcm.RelayEntry) {
+			go func(relay rcp.RelayEntry) {
 				defer wg.Done()
 
 				url := relay.GetURI(pathRegisterValidator)
@@ -355,7 +355,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	var wg sync.WaitGroup
 	for _, relay := range validatorRelays {
 		wg.Add(1)
-		go func(relay rcm.RelayEntry) {
+		go func(relay rcp.RelayEntry) {
 			defer wg.Done()
 			path := fmt.Sprintf("/eth/v1/builder/header/%s/%s/%s", slot, parentHashHex, pubkey)
 			url := relay.GetURI(path)
@@ -534,7 +534,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 
 	for _, relay := range relays {
 		wg.Add(1)
-		go func(relay rcm.RelayEntry) {
+		go func(relay rcp.RelayEntry) {
 			defer wg.Done()
 			url := relay.GetURI(pathGetPayload)
 			log := log.WithField("url", url)

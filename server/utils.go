@@ -21,7 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
-	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/rcp"
 )
 
 var (
@@ -195,8 +195,8 @@ func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.He
 	}, nil
 }
 
-func RelayEntriesToRCMRelayEntries(relays []RelayEntry) []rcm.RelayEntry {
-	relayEntries := make([]rcm.RelayEntry, len(relays))
+func RelayEntriesToRCMRelayEntries(relays []RelayEntry) []rcp.RelayEntry {
+	relayEntries := make([]rcp.RelayEntry, len(relays))
 	for i, relay := range relays {
 		relayEntries[i] = relay
 	}
@@ -204,7 +204,7 @@ func RelayEntriesToRCMRelayEntries(relays []RelayEntry) []rcm.RelayEntry {
 	return relayEntries
 }
 
-func RCMRelayEntriesToRelayEntries(relays []rcm.RelayEntry) []RelayEntry {
+func RCMRelayEntriesToRelayEntries(relays []rcp.RelayEntry) []RelayEntry {
 	relayEntries := make([]RelayEntry, len(relays))
 	for i, relay := range relays {
 		relayEntries[i] = RelayEntry{
@@ -216,7 +216,7 @@ func RCMRelayEntriesToRelayEntries(relays []rcm.RelayEntry) []RelayEntry {
 	return relayEntries
 }
 
-func RCMRelayEntryToRelayEntry(relay rcm.RelayEntry) RelayEntry {
+func RCMRelayEntryToRelayEntry(relay rcp.RelayEntry) RelayEntry {
 	return RelayEntry{
 		PublicKey: relay.PubKey(),
 		URL:       relay.RelayURL(),

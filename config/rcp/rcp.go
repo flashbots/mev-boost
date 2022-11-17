@@ -1,4 +1,4 @@
-package rcm
+package rcp
 
 import (
 	"net/url"

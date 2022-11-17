@@ -1,14 +1,18 @@
 package rcm
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/flashbots/mev-boost/config/rcp"
+)
 
 var ErrNoRelays = errors.New("no relays")
 
 type DefaultConfigManager struct {
-	relays []RelayEntry
+	relays []rcp.RelayEntry
 }
 
-func NewDefault(relays []RelayEntry) (*DefaultConfigManager, error) {
+func NewDefault(relays []rcp.RelayEntry) (*DefaultConfigManager, error) {
 	if len(relays) == 0 {
 		return nil, ErrNoRelays
 	}
@@ -16,14 +20,14 @@ func NewDefault(relays []RelayEntry) (*DefaultConfigManager, error) {
 	return &DefaultConfigManager{relays: relays}, nil
 }
 
-func (m *DefaultConfigManager) RelaysByValidatorPublicKey(_ ValidatorPublicKey) ([]RelayEntry, error) {
+func (m *DefaultConfigManager) RelaysByValidatorPublicKey(_ rcp.ValidatorPublicKey) ([]rcp.RelayEntry, error) {
 	return m.relays, nil
 }
 
-func (m *DefaultConfigManager) RelaysByValidatorIndex(_ ValidatorIndex) ([]RelayEntry, error) {
+func (m *DefaultConfigManager) RelaysByValidatorIndex(_ rcp.ValidatorIndex) ([]rcp.RelayEntry, error) {
 	return m.relays, nil
 }
 
-func (m *DefaultConfigManager) AllRegisteredRelays() []RelayEntry {
+func (m *DefaultConfigManager) AllRegisteredRelays() []rcp.RelayEntry {
 	return m.relays
 }
