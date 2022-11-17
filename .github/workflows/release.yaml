@@ -33,9 +33,7 @@ jobs:
           tags: |
             type=sha
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}},enable=${{ !contains(env.RELEASE_VERSION, '-') }}
-            type=semver,pattern={{major}},enable=${{ !contains(env.RELEASE_VERSION, '-') }}
-            type=raw,value=latest,enable=${{ !contains(env.RELEASE_VERSION, '-') }}
+            type=raw,value=latest,enable=false
 
       - name: Extract metadata (tags, labels) for portable Docker images
         id: meta-portable
@@ -45,6 +43,7 @@ jobs:
           tags: |
             type=sha
             type=semver,pattern={{version}},suffix=-portable
+            type=raw,value=latest,enable=${{ !contains(env.RELEASE_VERSION, '-') }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
