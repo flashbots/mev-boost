@@ -1,22 +1,20 @@
-package cli
+package relay
 
 import (
 	"errors"
 	"net/url"
 	"strings"
-
-	"github.com/flashbots/mev-boost/config/relay"
 )
 
-var errDuplicateEntry = errors.New("duplicate entry")
+var ErrDuplicateEntry = errors.New("duplicate entry")
 
-type relayList []relay.Entry
+type List []Entry
 
-func (r *relayList) String() string {
-	return strings.Join(relay.EntriesToStrings(*r), ",")
+func (r *List) String() string {
+	return strings.Join(EntriesToStrings(*r), ",")
 }
 
-func (r *relayList) Contains(relay relay.Entry) bool {
+func (r *List) Contains(relay Entry) bool {
 	for _, entry := range *r {
 		if relay.String() == entry.String() {
 			return true
@@ -25,21 +23,21 @@ func (r *relayList) Contains(relay relay.Entry) bool {
 	return false
 }
 
-func (r *relayList) Set(value string) error {
-	relay, err := relay.NewRelayEntry(value)
+func (r *List) Set(value string) error {
+	relay, err := NewRelayEntry(value)
 	if err != nil {
 		return err
 	}
 	if r.Contains(relay) {
-		return errDuplicateEntry
+		return ErrDuplicateEntry
 	}
 	*r = append(*r, relay)
 	return nil
 }
 
-type relayMonitorList []*url.URL
+type MonitorList []*url.URL
 
-func (rm *relayMonitorList) String() string {
+func (rm *MonitorList) String() string {
 	relayMonitors := []string{}
 	for _, relayMonitor := range *rm {
 		relayMonitors = append(relayMonitors, relayMonitor.String())
@@ -47,7 +45,7 @@ func (rm *relayMonitorList) String() string {
 	return strings.Join(relayMonitors, ",")
 }
 
-func (rm *relayMonitorList) Contains(relayMonitor *url.URL) bool {
+func (rm *MonitorList) Contains(relayMonitor *url.URL) bool {
 	for _, entry := range *rm {
 		if relayMonitor.String() == entry.String() {
 			return true
@@ -56,13 +54,13 @@ func (rm *relayMonitorList) Contains(relayMonitor *url.URL) bool {
 	return false
 }
 
-func (rm *relayMonitorList) Set(value string) error {
+func (rm *MonitorList) Set(value string) error {
 	relayMonitor, err := url.Parse(value)
 	if err != nil {
 		return err
 	}
 	if rm.Contains(relayMonitor) {
-		return errDuplicateEntry
+		return ErrDuplicateEntry
 	}
 	*rm = append(*rm, relayMonitor)
 	return nil

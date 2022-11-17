@@ -12,6 +12,7 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
 )
@@ -44,8 +45,8 @@ var (
 	defaultTimeoutMsGetPayload        = getEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
 	defaultTimeoutMsRegisterValidator = getEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
 
-	relays        relayList
-	relayMonitors relayMonitorList
+	relays        relay.List
+	relayMonitors relay.MonitorList
 
 	// cli flags
 	printVersion = flag.Bool("version", false, "only print version")
