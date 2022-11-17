@@ -21,6 +21,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,14 +37,14 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relays: make([]*mockRelay, numRelays),
 	}
 
-	relayEntries := make([]RelayEntry, numRelays)
+	relayEntries := make([]relay.Entry, numRelays)
 	for i := 0; i < numRelays; i++ {
 		// Create a mock relay
 		backend.relays[i] = newMockRelay(t)
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
 
-	relayConfigManager, err := rcm.NewDefault(RelayEntriesToRCMRelayEntries(relayEntries))
+	relayConfigManager, err := rcm.NewDefault(relayEntries)
 	require.NoError(t, err)
 
 	opts := BoostServiceOpts{
@@ -99,7 +100,7 @@ func newTestBackendWithInvalidRelayPublicKey(t *testing.T) *testBackend {
 	pk := types.PublicKey{}
 	relayEntry := backend.relays[0].RelayEntry
 	relayEntry.PublicKey = pk
-	relayEntries := []RelayEntry{relayEntry}
+	relayEntries := []relay.Entry{relayEntry}
 
 	replaceConfigManagerRelays(t, backend, relayEntries)
 
@@ -120,7 +121,7 @@ func newTestBackendWithARedirectingRelay(t *testing.T) *testBackend {
 
 	relayEntry := backend.relays[0].RelayEntry
 	relayEntry.URL = url
-	relayEntries := []RelayEntry{relayEntry}
+	relayEntries := []relay.Entry{relayEntry}
 
 	replaceConfigManagerRelays(t, backend, relayEntries)
 
@@ -167,9 +168,10 @@ func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *apiv1capell
 	}
 }
 
-func replaceConfigManagerRelays(t *testing.T, backend *testBackend, relayEntries []RelayEntry) {
+func replaceConfigManagerRelays(t *testing.T, backend *testBackend, relayEntries []relay.Entry) {
 	t.Helper()
-	relayConfigManager, err := rcm.NewDefault(RelayEntriesToRCMRelayEntries(relayEntries))
+
+	relayConfigManager, err := rcm.NewDefault(relayEntries)
 	require.NoError(t, err)
 
 	backend.boost.relayConfigManager = relayConfigManager

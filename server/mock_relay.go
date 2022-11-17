@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +39,7 @@ type mockRelay struct {
 	// KeyPair used to sign messages
 	secretKey  *bls.SecretKey
 	publicKey  *bls.PublicKey
-	RelayEntry RelayEntry
+	RelayEntry relay.Entry
 
 	// Used to count each Request made to the relay, either if it fails or not, for each method
 	mu           sync.Mutex
@@ -63,18 +64,26 @@ type mockRelay struct {
 // A secret key must be provided to sign default and custom response messages
 func newMockRelay(t *testing.T) *mockRelay {
 	t.Helper()
-	relay := &mockRelay{t: t, secretKey: mockRelaySecretKey, publicKey: mockRelayPublicKey, requestCount: make(map[string]int)}
+
+	mockRelay := &mockRelay{
+		t:            t,
+		secretKey:    mockRelaySecretKey,
+		publicKey:    mockRelayPublicKey,
+		requestCount: make(map[string]int),
+	}
 
 	// Initialize server
-	relay.Server = httptest.NewServer(relay.getRouter())
+	mockRelay.Server = httptest.NewServer(mockRelay.getRouter())
 
-	// Create the RelayEntry with correct pubkey
-	url, err := url.Parse(relay.Server.URL)
+	// Create the Entry with correct pubkey
+	url, err := url.Parse(mockRelay.Server.URL)
 	require.NoError(t, err)
+
 	urlWithKey := fmt.Sprintf("%s://%s@%s", url.Scheme, hexutil.Encode(mockRelayPublicKey.Compress()), url.Host)
-	relay.RelayEntry, err = NewRelayEntry(urlWithKey)
+	mockRelay.RelayEntry, err = relay.NewRelayEntry(urlWithKey)
 	require.NoError(t, err)
-	return relay
+
+	return mockRelay
 }
 
 // newTestMiddleware creates a middleware which increases the Request counter and creates a fake delay for the response

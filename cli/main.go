@@ -192,7 +192,7 @@ func Main() {
 		log.WithError(err).Fatal("failed converting min bid")
 	}
 
-	relayConfigManager, err := rcm.NewDefault(server.RelayEntriesToRCMRelayEntries(relays))
+	relayConfigManager, err := rcm.NewDefault(relays)
 	if err != nil {
 		log.WithError(err).Fatal("no relays specified")
 	}

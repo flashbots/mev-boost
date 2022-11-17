@@ -1,10 +1,11 @@
-package server
+package relay_test
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +35,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			name:     "Relay URL without protocol scheme, without public key",
 			relayURL: "foo.com",
 
-			expectedErr: ErrMissingRelayPubkey,
+			expectedErr: relay.ErrMissingRelayPubKey,
 		},
 		{
 			name:     "Relay URL without protocol scheme and with public key",
@@ -86,7 +87,7 @@ func TestParseRelaysURLs(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			relayEntry, err := NewRelayEntry(tt.relayURL)
+			relayEntry, err := relay.NewRelayEntry(tt.relayURL)
 
 			// Check errors.
 			require.Equal(t, tt.expectedErr, err)

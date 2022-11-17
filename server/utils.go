@@ -9,7 +9,6 @@ import (
 	"io"
 	"math/big"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -21,7 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
-	"github.com/flashbots/mev-boost/config/rcp"
+	"github.com/flashbots/mev-boost/config/relay"
 )
 
 var (
@@ -115,20 +114,12 @@ func DecodeJSON(r io.Reader, dst any) error {
 	return nil
 }
 
-// GetURI returns the full request URI with scheme, host, path and args.
-func GetURI(url *url.URL, path string) string {
-	u2 := *url
-	u2.User = nil
-	u2.Path = path
-	return u2.String()
-}
-
 // bidResp are entries in the bids cache
 type bidResp struct {
 	t         time.Time
 	response  boostTypes.GetHeaderResponse
 	blockHash string
-	relays    []RelayEntry
+	relays    []relay.Entry
 }
 
 // bidRespKey is used as key for the bids cache
@@ -193,32 +184,4 @@ func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.He
 		MixDigest:   common.Hash(payload.PrevRandao),
 		BaseFee:     baseFeePerGas,
 	}, nil
-}
-
-func RelayEntriesToRCMRelayEntries(relays []RelayEntry) []rcp.RelayEntry {
-	relayEntries := make([]rcp.RelayEntry, len(relays))
-	for i, relay := range relays {
-		relayEntries[i] = relay
-	}
-
-	return relayEntries
-}
-
-func RCMRelayEntriesToRelayEntries(relays []rcp.RelayEntry) []RelayEntry {
-	relayEntries := make([]RelayEntry, len(relays))
-	for i, relay := range relays {
-		relayEntries[i] = RelayEntry{
-			PublicKey: relay.PubKey(),
-			URL:       relay.RelayURL(),
-		}
-	}
-
-	return relayEntries
-}
-
-func RCMRelayEntryToRelayEntry(relay rcp.RelayEntry) RelayEntry {
-	return RelayEntry{
-		PublicKey: relay.PubKey(),
-		URL:       relay.RelayURL(),
-	}
 }

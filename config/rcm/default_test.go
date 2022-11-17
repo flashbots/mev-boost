@@ -20,7 +20,7 @@ func TestDefaultConfigProvider(t *testing.T) {
 
 		// arrange
 		validatorPublicKey := testutil.RandomBLSPublicKey(t)
-		want := testutil.RandomRCPRelayEntries(t, 3)
+		want := testutil.RandomRelayEntries(t, 3)
 
 		sut, err := rcm.NewDefault(want)
 		require.NoError(t, err)

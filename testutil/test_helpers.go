@@ -6,21 +6,14 @@ import (
 
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
-	"github.com/flashbots/mev-boost/config/rcp"
-	"github.com/flashbots/mev-boost/server"
+	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/stretchr/testify/require"
 )
 
-func RandomRCPRelayEntries(t *testing.T, num int) []rcp.RelayEntry {
+func RandomRelayEntries(t *testing.T, num int) []relay.Entry {
 	t.Helper()
 
-	return server.RelayEntriesToRCMRelayEntries(RandomRelayEntries(t, num))
-}
-
-func RandomRelayEntries(t *testing.T, num int) []server.RelayEntry {
-	t.Helper()
-
-	relays := make([]server.RelayEntry, num)
+	relays := make([]relay.Entry, num)
 
 	for i := 0; i < num; i++ {
 		relays[i] = RandomRelayEntry(t)
@@ -29,7 +22,7 @@ func RandomRelayEntries(t *testing.T, num int) []server.RelayEntry {
 	return relays
 }
 
-func RandomRelayEntry(t *testing.T) server.RelayEntry {
+func RandomRelayEntry(t *testing.T) relay.Entry {
 	t.Helper()
 
 	blsPublicKey := RandomBLSPublicKey(t)
@@ -40,7 +33,7 @@ func RandomRelayEntry(t *testing.T) server.RelayEntry {
 		Host:   "relay.test.net",
 	}
 
-	relayEntry, err := server.NewRelayEntry(relayURL.String())
+	relayEntry, err := relay.NewRelayEntry(relayURL.String())
 	require.NoError(t, err)
 
 	return relayEntry
