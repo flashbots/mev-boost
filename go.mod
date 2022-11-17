@@ -3,17 +3,29 @@ module github.com/flashbots/mev-boost
 go 1.19
 
 require (
+	github.com/attestantio/go-eth2-client v0.13.1
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/flashbots/go-boost-utils v1.2.2
 	github.com/flashbots/go-utils v0.4.8
 	github.com/gorilla/mux v1.8.0
+	github.com/holiman/uint256 v1.2.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.1
 )
 
 require (
+	github.com/fatih/color v1.13.0 // indirect
+	github.com/goccy/go-yaml v1.9.5 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7 // indirect
+	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
+)
+
+require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
+	github.com/attestantio/go-builder-client v0.1.9
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect

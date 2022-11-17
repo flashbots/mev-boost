@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server"
+	"github.com/holiman/uint256"
 	"github.com/sirupsen/logrus"
 )
 
@@ -186,9 +186,9 @@ func Main() {
 		log.Infof("minimum bid: %v eth", *relayMinBidEth)
 	}
 
-	relayMinBidWei, err := floatEthTo256Wei(*relayMinBidEth)
-	if err != nil {
-		log.WithError(err).Fatal("failed converting min bid")
+	relayMinBidWei, overflow := floatEthTo256Wei(*relayMinBidEth)
+	if overflow {
+		log.Fatal("failed converting min bid, bid overflowed")
 	}
 
 	opts := server.BoostServiceOpts{
@@ -198,7 +198,7 @@ func Main() {
 		RelayMonitors:            relayMonitors,
 		GenesisForkVersionHex:    genesisForkVersionHex,
 		RelayCheck:               *relayCheck,
-		RelayMinBid:              *relayMinBidWei,
+		RelayMinBid:              relayMinBidWei,
 		RequestTimeoutGetHeader:  time.Duration(*relayTimeoutMsGetHeader) * time.Millisecond,
 		RequestTimeoutGetPayload: time.Duration(*relayTimeoutMsGetPayload) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(*relayTimeoutMsRegVal) * time.Millisecond,
@@ -243,9 +243,9 @@ func getEnvFloat64(key string, defaultValue float64) float64 {
 	return defaultValue
 }
 
-// floatEthTo256Wei converts a float (precision 10) denominated in eth to a U256Str denominated in wei
-func floatEthTo256Wei(val float64) (*types.U256Str, error) {
-	weiU256 := new(types.U256Str)
+// floatEthTo256Wei converts a float (precision 10) denominated in eth to a uint256 denominated in wei
+func floatEthTo256Wei(val float64) (*uint256.Int, bool) {
+	weiU256 := new(uint256.Int)
 	ethFloat := new(big.Float)
 	weiFloat := new(big.Float)
 	weiFloatLessPrecise := new(big.Float)
@@ -256,6 +256,6 @@ func floatEthTo256Wei(val float64) (*types.U256Str, error) {
 	weiFloatLessPrecise.SetString(weiFloat.String())
 	weiFloatLessPrecise.Int(weiInt)
 
-	err := weiU256.FromBig(weiInt)
-	return weiU256, err
+	overflow := weiU256.SetFromBig(weiInt)
+	return weiU256, overflow
 }

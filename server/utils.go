@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/attestantio/go-builder-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/types"
@@ -120,14 +123,14 @@ func GetURI(url *url.URL, path string) string {
 // bidResp are entries in the bids cache
 type bidResp struct {
 	t         time.Time
-	response  types.GetHeaderResponse
+	response  spec.VersionedSignedBuilderBid
 	blockHash string
 	relays    []RelayEntry
 }
 
 // bidRespKey is used as key for the bids cache
 type bidRespKey struct {
-	slot      uint64
+	slot      phase0.Slot
 	blockHash string
 }
 
@@ -141,4 +144,32 @@ func weiBigIntToEthBigFloat(wei *big.Int) (ethValue *big.Float) {
 	fbalance.SetString(wei.String())
 	ethValue = new(big.Float).Quo(fbalance, big.NewFloat(1e18))
 	return
+}
+
+func toHex(data []byte) string {
+	return hexutil.Bytes(data).String()
+}
+
+func toBoostExecutionPayload(payload *bellatrix.ExecutionPayload) *types.ExecutionPayload {
+	transactions := make([]hexutil.Bytes, len(payload.Transactions))
+	for i := range payload.Transactions {
+		transactions[i] = hexutil.Bytes(payload.Transactions[i])
+	}
+
+	return &types.ExecutionPayload{
+		ParentHash:    types.Hash(payload.ParentHash),
+		FeeRecipient:  types.Address(payload.FeeRecipient),
+		StateRoot:     types.Root(payload.StateRoot),
+		ReceiptsRoot:  types.Root(payload.ReceiptsRoot),
+		LogsBloom:     types.Bloom(payload.LogsBloom),
+		Random:        types.Hash(payload.PrevRandao),
+		BlockNumber:   payload.BlockNumber,
+		GasLimit:      payload.GasLimit,
+		GasUsed:       payload.GasUsed,
+		Timestamp:     payload.Timestamp,
+		ExtraData:     payload.ExtraData,
+		BaseFeePerGas: payload.BaseFeePerGas,
+		BlockHash:     types.Hash(payload.BlockHash),
+		Transactions:  transactions,
+	}
 }

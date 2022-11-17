@@ -14,7 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,7 +45,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		Relays:                   relayEntries,
 		GenesisForkVersionHex:    "0x00000000",
 		RelayCheck:               true,
-		RelayMinBid:              types.IntToU256(12345),
+		RelayMinBid:              uint256.NewInt(12345),
 		RequestTimeoutGetHeader:  relayTimeout,
 		RequestTimeoutGetPayload: relayTimeout,
 		RequestTimeoutRegVal:     relayTimeout,
@@ -90,12 +92,13 @@ func blindedBlockToExecutionPayload(signedBlindedBeaconBlock *types.SignedBlinde
 		ExtraData:     header.ExtraData,
 		BaseFeePerGas: header.BaseFeePerGas,
 		BlockHash:     header.BlockHash,
+		Transactions:  []hexutil.Bytes{},
 	}
 }
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, []*url.URL{}, "0x00000000", true, types.IntToU256(0), time.Second, time.Second, time.Second})
+		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, []*url.URL{}, "0x00000000", true, uint256.NewInt(0), time.Second, time.Second, time.Second})
 		require.Error(t, err)
 	})
 }
@@ -286,7 +289,7 @@ func TestGetHeader(t *testing.T) {
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 		)
-		resp.Data.Message.Header.BlockHash = nilHash
+		resp.Data.Message.Header.BlockHash = types.Hash(nilHash)
 
 		// 1/2 failing responses are okay
 		backend.relays[0].GetHeaderResponse = resp
@@ -533,10 +536,15 @@ func TestGetPayload(t *testing.T) {
 			ParentRoot:    types.Root{0x01},
 			StateRoot:     types.Root{0x02},
 			Body: &types.BlindedBeaconBlockBody{
-				RandaoReveal:  types.Signature{0xa1},
-				Eth1Data:      &types.Eth1Data{},
-				Graffiti:      types.Hash{0xa2},
-				SyncAggregate: &types.SyncAggregate{},
+				RandaoReveal:      types.Signature{0xa1},
+				Eth1Data:          &types.Eth1Data{},
+				Graffiti:          types.Hash{0xa2},
+				ProposerSlashings: []*types.ProposerSlashing{},
+				AttesterSlashings: []*types.AttesterSlashing{},
+				Attestations:      []*types.Attestation{},
+				Deposits:          []*types.Deposit{},
+				VoluntaryExits:    []*types.SignedVoluntaryExit{},
+				SyncAggregate:     &types.SyncAggregate{},
 				ExecutionPayloadHeader: &types.ExecutionPayloadHeader{
 					ParentHash:   _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
 					BlockHash:    _HexToHash("0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46"),
@@ -644,10 +652,10 @@ func TestGetPayloadWithTestdata(t *testing.T) {
 
 			backend := newTestBackend(t, 1, time.Second)
 			mockResp := types.GetPayloadResponse{
-				Data: &types.ExecutionPayload{
-					BlockHash: signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
-				},
+				Version: "bellatrix",
+				Data:    blindedBlockToExecutionPayload(signedBlindedBeaconBlock),
 			}
+
 			backend.relays[0].GetPayloadResponse = &mockResp
 
 			rr := backend.request(t, http.MethodPost, path, signedBlindedBeaconBlock)
@@ -688,7 +696,8 @@ func TestGetPayloadToOriginRelayOnly(t *testing.T) {
 
 	// Prepare getPayload response
 	backend.relays[0].GetPayloadResponse = &types.GetPayloadResponse{
-		Data: blindedBlockToExecutionPayload(signedBlindedBeaconBlock),
+		Version: "bellatrix",
+		Data:    blindedBlockToExecutionPayload(signedBlindedBeaconBlock),
 	}
 
 	// call getPayload, ensure it's only called on relay 0 (origin of the bid)

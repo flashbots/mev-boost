@@ -12,6 +12,8 @@
                 "block_hash": "0x0000000000000000000000000000000000000000000000000000000000000000"
             },
             "graffiti": "0x22707279736d2d6b387322000000000000000000000000000000000000000000",
+            "proposer_slashings": [],
+            "attester_slashings": [],
             "attestations": [
                 {
                     "aggregation_bits": "0xafff7ffdfff6eeffbdfbeffdfdf77fff01",
@@ -677,6 +679,8 @@
                     "signature": "0x879ef71dba50884a615d588dc93510f01723489e1cb0d6af2fb517e571c71cad9b5e2c1a292c1ef5c75b4c77a8f8ace0111719d206df6ce4e00a370004dcba1eef8b2d61ede1da704456b687b2b0a93bfda0d72831c0b894ace6a187324e321e"
                 }
             ],
+            "deposits": [],
+            "voluntary_exits": [],
             "sync_aggregate": {
                 "sync_committee_bits": "0xfdff7f77ffb71fffdfff7efbbdfffffffb7ffdfecbef6fefbff3bfffbffb7ffcffb7bdfefe79ff9f7be7fffffffffffa67fffdeffafff3b8ddffff3fefff95df",
                 "sync_committee_signature": "0x8da4e48a14a384072a17255d3c71f7f475f1255cbd6ca6af52f5c43b0310a685f54439d55e2acbea8e0fdd59e08058110b024dc148818a27a3d4434813fb619ae71f2aad80844167cc733c98432c0d7cf90edac7a5847b01eb81a92f439aa375"
