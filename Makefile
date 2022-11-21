@@ -28,6 +28,13 @@ test:
 test-race:
 	go test -race ./...
 
+.PHONY: fmt
+fmt:
+	gofmt -s -w .
+	gofumpt -extra -w .
+	gci write . -s standard,default
+	go mod tidy
+
 .PHONY: lint
 lint:
 	gofmt -d -s .

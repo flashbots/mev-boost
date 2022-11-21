@@ -21,7 +21,9 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/config/relay"
+	"github.com/flashbots/mev-boost/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,14 +39,14 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relays: make([]*mockRelay, numRelays),
 	}
 
-	relayEntries := make([]relay.Entry, numRelays)
+	relays := relay.NewRelaySet()
 	for i := 0; i < numRelays; i++ {
 		// Create a mock relay
 		backend.relays[i] = newMockRelay(t)
-		relayEntries[i] = backend.relays[i].RelayEntry
+		relays.Add(backend.relays[i].RelayEntry)
 	}
 
-	relayConfigManager, err := rcm.NewDefault(relayEntries)
+	relayConfigManager, err := rcm.NewDefault(rcp.NewDefault(relays).FetchConfig)
 	require.NoError(t, err)
 
 	opts := BoostServiceOpts{
@@ -97,14 +99,30 @@ func newTestBackendWithInvalidRelayPublicKey(t *testing.T) *testBackend {
 	)
 
 	// Simulate a different public key registered to mev-boost
-	pk := types.PublicKey{}
-	relayEntry := backend.relays[0].RelayEntry
-	relayEntry.PublicKey = pk
-	relayEntries := []relay.Entry{relayEntry}
-
+	relayEntries := []relay.Entry{forgeRelayEntryWithARandomPublicKey(t, backend)}
 	replaceConfigManagerRelays(t, backend, relayEntries)
 
 	return backend
+}
+
+func forgeRelayEntryWithARandomPublicKey(t *testing.T, backend *testBackend) relay.Entry {
+	t.Helper()
+
+	serverURL, err := url.ParseRequestURI(backend.relays[0].Server.URL)
+	require.NoError(t, err)
+
+	forgedURL := &url.URL{
+		Host:   serverURL.Host,
+		Scheme: serverURL.Scheme,
+		User:   url.User(testutil.RandomBLSPublicKey(t).String()),
+	}
+
+	relayEntry, err := relay.NewRelayEntry(forgedURL.String())
+	require.NoError(t, err)
+
+	backend.relays[0].RelayEntry = relayEntry
+
+	return relayEntry
 }
 
 func newTestBackendWithARedirectingRelay(t *testing.T) *testBackend {
@@ -116,16 +134,31 @@ func newTestBackendWithARedirectingRelay(t *testing.T) *testBackend {
 		http.Redirect(w, r, redirectAddress, http.StatusTemporaryRedirect)
 	}))
 
-	url, err := url.ParseRequestURI(backend.relays[0].Server.URL)
-	require.NoError(t, err)
-
-	relayEntry := backend.relays[0].RelayEntry
-	relayEntry.URL = url
-	relayEntries := []relay.Entry{relayEntry}
+	relayEntries := []relay.Entry{forgeRelayEntryWithNewURL(t, backend)}
 
 	replaceConfigManagerRelays(t, backend, relayEntries)
 
 	return backend
+}
+
+func forgeRelayEntryWithNewURL(t *testing.T, backend *testBackend) relay.Entry {
+	t.Helper()
+
+	serverURL, err := url.ParseRequestURI(backend.relays[0].Server.URL)
+	require.NoError(t, err)
+
+	forgedURL := &url.URL{
+		Host:   serverURL.Host,
+		Scheme: serverURL.Scheme,
+		User:   url.User(backend.relays[0].RelayEntry.RelayURL().User.Username()),
+	}
+
+	relayEntry, err := relay.NewRelayEntry(forgedURL.String())
+	require.NoError(t, err)
+
+	backend.relays[0].RelayEntry = relayEntry
+
+	return relayEntry
 }
 
 func blindedBlockToExecutionPayloadBellatrix(signedBlindedBeaconBlock *types.SignedBlindedBeaconBlock) *types.ExecutionPayload {
@@ -171,7 +204,12 @@ func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *apiv1capell
 func replaceConfigManagerRelays(t *testing.T, backend *testBackend, relayEntries []relay.Entry) {
 	t.Helper()
 
-	relayConfigManager, err := rcm.NewDefault(relayEntries)
+	relays := relay.NewRelaySet()
+	for _, entry := range relayEntries {
+		relays.Add(entry)
+	}
+
+	relayConfigManager, err := rcm.NewDefault(rcp.NewDefault(relays).FetchConfig)
 	require.NoError(t, err)
 
 	backend.boost.relayConfigManager = relayConfigManager

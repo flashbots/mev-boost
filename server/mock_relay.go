@@ -75,7 +75,7 @@ func newMockRelay(t *testing.T) *mockRelay {
 	// Initialize server
 	mockRelay.Server = httptest.NewServer(mockRelay.getRouter())
 
-	// Create the Entry with correct pubkey
+	// Create the RelayEntry with correct pubkey
 	url, err := url.Parse(mockRelay.Server.URL)
 	require.NoError(t, err)
 

@@ -1,9 +1,11 @@
-package dto
+package relay
 
-type ProposerConfig struct {
-	ProposerConfig map[string]Relay `json:"proposer_config"`
-	DefaultConfig  Relay            `json:"default_config"`
+type Config struct {
+	ProposerConfig ProposerConfig `json:"proposer_config"`
+	DefaultConfig  Relay          `json:"default_config"`
 }
+
+type ProposerConfig map[string]Relay
 
 type Relay struct {
 	FeeRecipient string  `json:"fee_recipient"`

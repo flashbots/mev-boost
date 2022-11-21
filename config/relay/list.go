@@ -1,67 +1,27 @@
 package relay
 
-import (
-	"errors"
-	"net/url"
-	"strings"
-)
+import "strings"
 
-var ErrDuplicateEntry = errors.New("duplicate entry")
-
+// List is a read only list of relay entities.
+//
+// It is utilised by the other components, e.g. relay.Set.
+// It must not be modified once created.
+// It must not be instantiated directly, except for testing purposes.
 type List []Entry
 
-func (r *List) String() string {
-	return strings.Join(EntriesToStrings(*r), ",")
+// String returns a comma separated string of relay urls.
+//
+// Implements fmt.Stringer interface
+func (l List) String() string {
+	return strings.Join(l.ToStringSlice(), ",")
 }
 
-func (r *List) Contains(relay Entry) bool {
-	for _, entry := range *r {
-		if relay.String() == entry.String() {
-			return true
-		}
+// ToStringSlice returns a string slice of relay urls.
+func (l List) ToStringSlice() []string {
+	relays := make([]string, len(l))
+	for i, entry := range l {
+		relays[i] = entry.String()
 	}
-	return false
-}
 
-func (r *List) Set(value string) error {
-	relay, err := NewRelayEntry(value)
-	if err != nil {
-		return err
-	}
-	if r.Contains(relay) {
-		return ErrDuplicateEntry
-	}
-	*r = append(*r, relay)
-	return nil
-}
-
-type MonitorList []*url.URL
-
-func (rm *MonitorList) String() string {
-	relayMonitors := []string{}
-	for _, relayMonitor := range *rm {
-		relayMonitors = append(relayMonitors, relayMonitor.String())
-	}
-	return strings.Join(relayMonitors, ",")
-}
-
-func (rm *MonitorList) Contains(relayMonitor *url.URL) bool {
-	for _, entry := range *rm {
-		if relayMonitor.String() == entry.String() {
-			return true
-		}
-	}
-	return false
-}
-
-func (rm *MonitorList) Set(value string) error {
-	relayMonitor, err := url.Parse(value)
-	if err != nil {
-		return err
-	}
-	if rm.Contains(relayMonitor) {
-		return ErrDuplicateEntry
-	}
-	*rm = append(*rm, relayMonitor)
-	return nil
+	return relays
 }

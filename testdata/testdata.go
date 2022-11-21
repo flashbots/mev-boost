@@ -2,5 +2,5 @@ package testdata
 
 import _ "embed"
 
-//go:embed config.json
+//go:embed valid-proposer-config.json
 var CorrectRelayConfig []byte

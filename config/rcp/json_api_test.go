@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/flashbots/mev-boost/config/rcp"
-	"github.com/flashbots/mev-boost/config/rcp/dto"
-	"github.com/flashbots/mev-boost/config/rcp/testdata"
+	"github.com/flashbots/mev-boost/config/relay"
+	"github.com/flashbots/mev-boost/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,21 +27,21 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		sut := rcp.NewJSONAPI(http.DefaultClient, srv.URL)
 
 		// act
-		got, err := sut.FetchProposerConfigs()
+		got, err := sut.FetchConfig()
 
 		// assert
 		require.NoError(t, err)
 		assert.Equal(t, want, got)
 	})
 
-	t.Run("it returns an error if provider URL is malformed", func(t *testing.T) {
+	t.Run("it returns an error if provider relayURL is malformed", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
 		sut := rcp.NewJSONAPI(http.DefaultClient, "http://a b.com/")
 
 		// act
-		_, err := sut.FetchProposerConfigs()
+		_, err := sut.FetchConfig()
 
 		// assert
 		var rcpError rcp.Error
@@ -56,7 +56,7 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		sut := rcp.NewJSONAPI(http.DefaultClient, "http://invalid-url")
 
 		// act
-		_, err := sut.FetchProposerConfigs()
+		_, err := sut.FetchConfig()
 
 		// assert
 		var rcpError rcp.Error
@@ -74,7 +74,7 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		sut := rcp.NewJSONAPI(http.DefaultClient, srv.URL)
 
 		// act
-		_, err := sut.FetchProposerConfigs()
+		_, err := sut.FetchConfig()
 
 		// assert
 		var rcpError rcp.Error
@@ -92,7 +92,7 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		sut := rcp.NewJSONAPI(http.DefaultClient, srv.URL)
 
 		// act
-		_, err := sut.FetchProposerConfigs()
+		_, err := sut.FetchConfig()
 
 		// assert
 		var rcpError rcp.Error
@@ -110,7 +110,7 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		sut := rcp.NewJSONAPI(http.DefaultClient, srv.URL)
 
 		// act
-		_, err := sut.FetchProposerConfigs()
+		_, err := sut.FetchConfig()
 
 		// assert
 		var apiErr *rcp.APIError
@@ -119,10 +119,10 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 	})
 }
 
-func successfulResponse(t *testing.T) *dto.ProposerConfig {
+func successfulResponse(t *testing.T) *relay.Config {
 	t.Helper()
 
-	var want *dto.ProposerConfig
+	var want *relay.Config
 	require.NoError(t, json.Unmarshal(testdata.CorrectRelayConfig, &want))
 
 	return want

@@ -76,6 +76,11 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedErr: types.ErrLength,
 		},
 		{
+			name:        "Invalid relay url",
+			relayURL:    "http://a b.com/",
+			expectedErr: relay.ErrInvalidRelayURL,
+		},
+		{
 			name:     "Relay URL with query arg",
 			relayURL: fmt.Sprintf("http://%s@foo.com?id=foo&bar=1", publicKey.String()),
 
@@ -90,13 +95,14 @@ func TestParseRelaysURLs(t *testing.T) {
 			relayEntry, err := relay.NewRelayEntry(tt.relayURL)
 
 			// Check errors.
-			require.Equal(t, tt.expectedErr, err)
+			require.ErrorIs(t, err, tt.expectedErr)
 
 			// Now perform content assertions.
 			if tt.expectedErr == nil {
 				require.Equal(t, tt.expectedURI, relayEntry.GetURI(tt.path))
-				require.Equal(t, tt.expectedPublicKey, relayEntry.PublicKey.String())
+				require.Equal(t, tt.expectedPublicKey, relayEntry.PublicKey().String())
 				require.Equal(t, tt.expectedURL, relayEntry.String())
+				require.Equal(t, tt.expectedURL, relayEntry.RelayURL().String())
 			}
 		})
 	}

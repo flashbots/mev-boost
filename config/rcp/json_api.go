@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/flashbots/mev-boost/config/rcp/dto"
+	"github.com/flashbots/mev-boost/config/relay"
 )
 
 const (
@@ -26,7 +26,7 @@ func NewJSONAPI(client HTTPClient, providerURL string) *JSONAPI {
 	return &JSONAPI{providerURL: providerURL, client: client}
 }
 
-func (p *JSONAPI) FetchProposerConfigs() (*dto.ProposerConfig, error) {
+func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
 	endpoint := p.providerURL + relaysByValidatorPublicKey
 
 	resp, err := p.doRequest(endpoint)
@@ -45,7 +45,7 @@ func (p *JSONAPI) FetchProposerConfigs() (*dto.ProposerConfig, error) {
 		return nil, apiErr
 	}
 
-	var payload *dto.ProposerConfig
+	var payload *relay.Config
 	if err := decodeResponseBody(resp.Body, &payload); err != nil {
 		return nil, p.wrapConfigProviderErr(err)
 	}

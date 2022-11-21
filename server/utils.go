@@ -119,7 +119,7 @@ type bidResp struct {
 	t         time.Time
 	response  boostTypes.GetHeaderResponse
 	blockHash string
-	relays    []relay.Entry
+	relays    relay.List
 }
 
 // bidRespKey is used as key for the bids cache

@@ -12,6 +12,7 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
@@ -45,7 +46,7 @@ var (
 	defaultTimeoutMsGetPayload        = getEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
 	defaultTimeoutMsRegisterValidator = getEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
 
-	relays        relay.List
+	relays        = relay.NewRelaySet()
 	relayMonitors relay.MonitorList
 
 	// cli flags
@@ -143,7 +144,7 @@ func Main() {
 	// For backwards compatibility with the -relays flag.
 	if *relayURLs != "" {
 		for _, relayURL := range strings.Split(*relayURLs, ",") {
-			err := relays.Set(strings.TrimSpace(relayURL))
+			err := relays.AddURL(relayURL)
 			if err != nil {
 				log.WithError(err).WithField("relay", relayURL).Fatal("Invalid relay URL")
 			}
@@ -155,8 +156,8 @@ func Main() {
 		log.Fatal("no relays specified")
 	}
 	log.Infof("using %d relays", len(relays))
-	for index, relay := range relays {
-		log.Infof("relay #%d: %s", index+1, relay.String())
+	for index, entry := range relays.ToStringSlice() {
+		log.Infof("relay #%d: %s", index+1, entry)
 	}
 
 	// For backwards compatibility with the -relay-monitors flag.
@@ -193,9 +194,9 @@ func Main() {
 		log.WithError(err).Fatal("failed converting min bid")
 	}
 
-	relayConfigManager, err := rcm.NewDefault(relays)
+	relayConfigManager, err := rcm.NewDefault(rcp.NewDefault(relays).FetchConfig)
 	if err != nil {
-		log.WithError(err).Fatal("no relays specified")
+		log.WithError(err).Fatal("cannot init relay config manager")
 	}
 
 	opts := server.BoostServiceOpts{

@@ -10,33 +10,57 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func RandomRelayEntries(t *testing.T, num int) []relay.Entry {
+func RandomRelaySet(t *testing.T, num int) relay.Set {
 	t.Helper()
 
-	relays := make([]relay.Entry, num)
-
+	s := relay.NewRelaySet()
 	for i := 0; i < num; i++ {
-		relays[i] = RandomRelayEntry(t)
+		s.Add(RandomRelayEntry(t))
 	}
 
-	return relays
+	return s
+}
+
+func RelaySetWithRelayHavingTheSameURL(t *testing.T, num int) relay.Set {
+	t.Helper()
+
+	relayURL := RandomRelayURL(t)
+
+	s := relay.NewRelaySet()
+	for i := 0; i < num; i++ {
+		s.Add(RelayEntryFromURL(t, relayURL))
+	}
+
+	return s
 }
 
 func RandomRelayEntry(t *testing.T) relay.Entry {
 	t.Helper()
 
-	blsPublicKey := RandomBLSPublicKey(t)
+	return RelayEntryFromURL(t, RandomRelayURL(t))
+}
 
-	relayURL := url.URL{
-		Scheme: "https",
-		User:   url.User(blsPublicKey.String()),
-		Host:   "relay.test.net",
-	}
+func RelayEntryFromURL(t *testing.T, relayURL *url.URL) relay.Entry {
+	t.Helper()
 
 	relayEntry, err := relay.NewRelayEntry(relayURL.String())
 	require.NoError(t, err)
 
 	return relayEntry
+}
+
+func RandomRelayURL(t *testing.T) *url.URL {
+	t.Helper()
+
+	blsPublicKey := RandomBLSPublicKey(t)
+
+	relayURL := &url.URL{
+		Scheme: "https",
+		User:   url.User(blsPublicKey.String()),
+		Host:   "relay.test.net",
+	}
+
+	return relayURL
 }
 
 func RandomBLSPublicKey(t *testing.T) types.PublicKey {

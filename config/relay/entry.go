@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -8,62 +9,72 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 )
 
-// ErrMissingRelayPubKey is returned if a new Entry URL has no public key
+// ErrMissingRelayPubKey is returned if a new Entry relayURL has no public key
 var ErrMissingRelayPubKey = fmt.Errorf("missing relay public key")
+
+// ErrInvalidRelayURL is returned if a new Entry has malformed relayURL.
+var ErrInvalidRelayURL = errors.New("invalid relay url")
+
+type (
+	ValidatorPublicKey = string
+	ValidatorIndex     = uint64
+)
 
 // Entry represents a relay that mev-boost connects to.
 type Entry struct {
-	PublicKey types.PublicKey
-	URL       *url.URL
+	publicKey types.PublicKey
+	relayURL  *url.URL
 }
 
 func (r Entry) String() string {
-	return r.URL.String()
+	return r.relayURL.String()
 }
 
-func (r Entry) PubKey() types.PublicKey {
-	return r.PublicKey
+func (r Entry) PublicKey() types.PublicKey {
+	return r.publicKey
 }
 
 func (r Entry) RelayURL() *url.URL {
-	return r.URL
+	return r.relayURL
 }
 
 // GetURI returns the full request URI with scheme, host, path and args for the relay.
 func (r Entry) GetURI(path string) string {
-	return GetURI(r.URL, path)
+	return GetURI(r.relayURL, path)
 }
 
 // NewRelayEntry creates a new instance based on an input string
 // relayURL can be IP@PORT, PUBKEY@IP:PORT, https://IP, etc.
-func NewRelayEntry(relayURL string) (entry Entry, err error) {
+func NewRelayEntry(relayURL string) (Entry, error) {
+	relayURL = strings.TrimSpace(relayURL)
+
 	// Add protocol scheme prefix if it does not exist.
 	if !strings.HasPrefix(relayURL, "http") {
 		relayURL = "http://" + relayURL
 	}
 
-	// Parse the provided relay's URL and save the parsed URL in the Entry.
-	entry.URL, err = url.ParseRequestURI(relayURL)
+	// Parse the provided relay's relayURL and save the parsed relayURL in the Entry.
+	parsedURL, err := url.ParseRequestURI(relayURL)
 	if err != nil {
-		return entry, err
+		return Entry{}, fmt.Errorf("%w: %v: %s", ErrInvalidRelayURL, err, relayURL)
 	}
 
-	// Extract the relay's public key from the parsed URL.
-	if entry.URL.User.Username() == "" {
-		return entry, ErrMissingRelayPubKey
+	pubKeyHex := parsedURL.User.Username()
+
+	// Extract the relay's public key from the parsed relayURL.
+	if pubKeyHex == "" {
+		return Entry{}, ErrMissingRelayPubKey
 	}
 
-	err = entry.PublicKey.UnmarshalText([]byte(entry.URL.User.Username()))
-	return entry, err
-}
-
-// EntriesToStrings returns the string representation of a list of relay entries
-func EntriesToStrings(relays []Entry) []string {
-	ret := make([]string, len(relays))
-	for i, entry := range relays {
-		ret[i] = entry.String()
+	var pubKey types.PublicKey
+	if err := pubKey.UnmarshalText([]byte(pubKeyHex)); err != nil {
+		return Entry{}, err
 	}
-	return ret
+
+	return Entry{
+		relayURL:  parsedURL,
+		publicKey: pubKey,
+	}, nil
 }
 
 // GetURI returns the full request URI with scheme, host, path and args.
