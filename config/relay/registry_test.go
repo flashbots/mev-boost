@@ -107,7 +107,7 @@ func TestProposerRegistry(t *testing.T) {
 		pubKey := testutil.RandomBLSPublicKey(t).String()
 		proposerRelays := testutil.RelaySetWithRelayHavingTheSameURL(t, 3)
 		defaultRelays := testutil.RelaySetWithRelayHavingTheSameURL(t, 2)
-		want := joinSets(proposerRelays, defaultRelays)
+		want := testutil.JoinSets(proposerRelays, defaultRelays)
 
 		sut := relay.NewProposerRegistry()
 		addRelaysForValidator(sut, pubKey, proposerRelays.ToList()...)
@@ -120,17 +120,6 @@ func TestProposerRegistry(t *testing.T) {
 		assert.Equal(t, want, got)
 		assert.Len(t, want, 2)
 	})
-}
-
-func joinSets(sets ...relay.Set) relay.Set {
-	want := relay.NewRelaySet()
-	for _, set := range sets {
-		for _, entry := range set {
-			want.Add(entry)
-		}
-	}
-
-	return want
 }
 
 func addRelaysForValidator(r *relay.Registry, pubKey relay.ValidatorPublicKey, entry ...relay.Entry) {

@@ -6,14 +6,24 @@ import (
 	"github.com/flashbots/mev-boost/config/relay"
 )
 
+// ConfigProvider provider relay configuration.
 type ConfigProvider func() (*relay.Config, error)
 
+// Default is a general implementation for an RCM.
+//
+// It holds a thread-safe Relay Registry under the hood,
+// which holds both proposer and default relays.
 type Default struct {
 	relayRegistry   atomic.Value
 	registryCreator *relay.RegistryCreator
 	configProvider  ConfigProvider
 }
 
+// NewDefault creates a new instance of Default.
+//
+// It creates a new instances and immediately synchronises the config with an RCP.
+// It returns a newly created instance on success.
+// It returns an error if config synchronisation fails.
 func NewDefault(configProvider ConfigProvider) (*Default, error) {
 	cm := &Default{
 		configProvider:  configProvider,
@@ -27,13 +37,19 @@ func NewDefault(configProvider ConfigProvider) (*Default, error) {
 	return cm, nil
 }
 
+// SyncConfig synchronises the Relay Registry with an RCP.
+//
+// It returns an error if it cannot fetch a config from an RCP.
+// It returns an error if it cannot populate the new Relay Registry based on the config.
+// If the config is valid and the new Relay Registry is populated,
+// It atomically replaces the content of currently used Relay Registry with the new one.
 func (m *Default) SyncConfig() error {
 	cfg, err := m.configProvider()
 	if err != nil {
 		return err
 	}
 
-	r, err := m.populateRegistry(cfg)
+	r, err := m.registryCreator.Create(cfg)
 	if err != nil {
 		return err
 	}
@@ -44,19 +60,12 @@ func (m *Default) SyncConfig() error {
 	return nil
 }
 
-func (m *Default) populateRegistry(cfg *relay.Config) (*relay.Registry, error) {
-	r, err := m.registryCreator.Create(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, nil
-}
-
+// RelaysForValidator looks up the Relay Registry to get a list of relay for the given public key.
 func (m *Default) RelaysForValidator(publicKey relay.ValidatorPublicKey) relay.List {
 	return m.loadRegistry().RelaysForValidator(publicKey).ToList()
 }
 
+// AllRelays retrieves a list of all unique relays from the Relay Registry.
 func (m *Default) AllRelays() relay.List {
 	return m.loadRegistry().AllRelays().ToList()
 }
