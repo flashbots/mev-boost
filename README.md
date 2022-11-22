@@ -166,7 +166,6 @@ Type=simple
 Restart=always
 RestartSec=5
 ExecStart=/home/mev-boost/bin/mev-boost \
-        -mainnet \
         -relay-check \
         -relay YOUR_RELAY_CHOICE_A \
         -relay YOUR_RELAY_CHOICE_B \
@@ -215,7 +214,7 @@ Please take a look at the specific release documentation about the available com
 Run MEV-Boost pointed at a mainnet relay:
 
 ```
-./mev-boost -mainnet -relay-check -relay URL-OF-TRUSTED-RELAY
+./mev-boost -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
 ## Goerli testnet
@@ -243,9 +242,9 @@ Run MEV-Boost pointed at a Sepolia relay:
 
 These are the CLI arguments for the main branch. For arguments available in a specific release, check the [release page](https://github.com/flashbots/mev-boost/releases).
 
-```
-$ ./mev-boost -help
-Usage of ./mev-boost:
+```bash
+$ mev-boost -help
+Usage of mev-boost:
   -addr string
         listen-address for mev-boost server (default "localhost:18550")
   -debug
@@ -263,7 +262,7 @@ Usage of ./mev-boost:
   -loglevel string
         minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic (default "info")
   -mainnet
-        use Mainnet
+        use Mainnet (default true)
   -min-bid float
         minimum bid to accept from a relay [eth]
   -relay value
@@ -297,17 +296,34 @@ times for multiple relays. Use whichever method suits your preferences.
 
 These two MEV-Boost commands are equivalent:
 
-```
-./mev-boost -mainnet -relay-check \
+```bash
+./mev-boost -relay-check \
     -relays $YOUR_RELAY_CHOICE_A,$YOUR_RELAY_CHOICE_B,$YOUR_RELAY_CHOICE_C
 ```
 
-```
-./mev-boost -mainnet -relay-check \
-    -relay $YOUR_RELAY_CHOICE_A   \
-    -relay $YOUR_RELAY_CHOICE_B   \
+```bash
+./mev-boost -relay-check \
+    -relay $YOUR_RELAY_CHOICE_A \
+    -relay $YOUR_RELAY_CHOICE_B \
     -relay $YOUR_RELAY_CHOICE_C
 ```
+
+
+### Setting a minimum bid value with `-min-bid`
+
+The `-min-bid` flag allows setting a minimum bid value. If no bid from the builder network delivers at least this value, mev-boost will not return a bid
+to the beacon node, making it fall back to local block production.
+
+Example for setting a minimum bid value of 0.06 ETH:
+
+```bash
+mev-boost \
+    -min-bid 0.06 \
+    -relay $YOUR_RELAY_CHOICE_A \
+    -relay $YOUR_RELAY_CHOICE_B \
+    -relay $YOUR_RELAY_CHOICE_C
+```
+
 
 ---
 
