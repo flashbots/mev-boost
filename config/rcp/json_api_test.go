@@ -115,7 +115,7 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		// assert
 		var apiErr *rcp.APIError
 		assert.ErrorAs(t, err, &apiErr)
-		assert.ErrorIs(t, err, rcp.ErrCannotFetchRelays)
+		assert.ErrorIs(t, err, rcp.ErrCannotFetchConfig)
 	})
 
 	t.Run("it uses a default http.Client if no configured client is passed", func(t *testing.T) {
@@ -134,6 +134,45 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		// assert
 		require.NoError(t, err)
 		assert.Equal(t, want, got)
+	})
+}
+
+func TestError(t *testing.T) {
+	t.Parallel()
+
+	t.Run("test rcp error", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		want := "cannot fetch relay config: malformed response body"
+
+		// act
+		err := rcp.WrapErr(rcp.ErrMalformedResponseBody)
+
+		// assert
+		var got rcp.Error
+		require.ErrorAs(t, err, &got)
+		assert.ErrorIs(t, err, rcp.ErrMalformedResponseBody)
+		assert.Equal(t, err.Error(), want)
+	})
+
+	t.Run("test json api error", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		want := "api error: 500: Internal Server Error: cannot fetch relay config"
+
+		// act
+		err := rcp.APIError{
+			Code:    http.StatusInternalServerError,
+			Message: http.StatusText(http.StatusInternalServerError),
+		}
+
+		// assert
+		assert.ErrorIs(t, err, rcp.ErrCannotFetchConfig)
+		assert.Equal(t, http.StatusInternalServerError, err.Code)
+		assert.Equal(t, http.StatusText(http.StatusInternalServerError), err.Message)
+		assert.Equal(t, want, err.Error())
 	})
 }
 

@@ -13,15 +13,22 @@ const (
 	relaysByValidatorPublicKey = "/proposer-configs"
 )
 
+// HTTPClient is an HTTP client interface.
+// Used to abstract HTTP communication.
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+// JSONAPI fetches the config using JSON API RCP.
 type JSONAPI struct {
 	providerURL string
 	client      HTTPClient
 }
 
+// NewJSONAPI creates a new instance of JSONAPI.
+//
+// It takes an HTTP Client and the configuration endpoint URL.
+// If the client is not specified, http.DefaultClient will be used.
 func NewJSONAPI(client HTTPClient, providerURL string) *JSONAPI {
 	if client == nil {
 		client = http.DefaultClient
@@ -30,12 +37,20 @@ func NewJSONAPI(client HTTPClient, providerURL string) *JSONAPI {
 	return &JSONAPI{providerURL: providerURL, client: client}
 }
 
+// FetchConfig fetches the relay configuration from JSON API RCP.
+//
+// It returns *relay.Config on success.
+//
+// It returns an error if the RCP providerURL is malformed.
+// It returns an error if it cannot execute HTTP request.
+// It returns an error if it cannot unmarshal response body.
+// It returns an error if RCP returned status code different from http.StatusOK (200).
 func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
 	endpoint := p.providerURL + relaysByValidatorPublicKey
 
 	resp, err := p.doRequest(endpoint)
 	if err != nil {
-		return nil, p.wrapConfigProviderErr(err)
+		return nil, p.wrapErr(err)
 	}
 
 	defer resp.Body.Close()
@@ -43,7 +58,7 @@ func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
 	if resp.StatusCode != http.StatusOK {
 		var apiErr *APIError
 		if err := decodeResponseBody(resp.Body, &apiErr); err != nil {
-			return nil, p.wrapConfigProviderErr(err)
+			return nil, p.wrapErr(err)
 		}
 
 		return nil, apiErr
@@ -51,7 +66,7 @@ func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
 
 	var payload *relay.Config
 	if err := decodeResponseBody(resp.Body, &payload); err != nil {
-		return nil, p.wrapConfigProviderErr(err)
+		return nil, p.wrapErr(err)
 	}
 
 	return payload, nil
@@ -60,7 +75,7 @@ func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
 func (p *JSONAPI) doRequest(endpoint string) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrMalformedProviderURL, err)
+		return nil, fmt.Errorf("%w: %s", ErrMalformedProviderURL, err)
 	}
 
 	req.Header.Set("Accept", "*/*")
@@ -82,9 +97,9 @@ func decodeResponseBody(body io.Reader, target any) error {
 	return nil
 }
 
-func (p *JSONAPI) wrapConfigProviderErr(err error) Error {
+func (p *JSONAPI) wrapErr(err error) Error {
 	return Error{
 		Cause:   err,
-		Message: fmt.Sprintf("%v", ErrCannotFetchRelays),
+		Message: fmt.Sprintf("%v", ErrCannotFetchConfig),
 	}
 }
