@@ -23,6 +23,10 @@ type JSONAPI struct {
 }
 
 func NewJSONAPI(client HTTPClient, providerURL string) *JSONAPI {
+	if client == nil {
+		client = http.DefaultClient
+	}
+
 	return &JSONAPI{providerURL: providerURL, client: client}
 }
 

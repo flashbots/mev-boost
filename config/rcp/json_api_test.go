@@ -117,6 +117,24 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		assert.ErrorAs(t, err, &apiErr)
 		assert.ErrorIs(t, err, rcp.ErrCannotFetchRelays)
 	})
+
+	t.Run("it uses a default http.Client if no configured client is passed", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		srv := httptest.NewServer(successfulHandler(testdata.CorrectRelayConfig))
+		defer srv.Close()
+
+		want := successfulResponse(t)
+		sut := rcp.NewJSONAPI(nil, srv.URL)
+
+		// act
+		got, err := sut.FetchConfig()
+
+		// assert
+		require.NoError(t, err)
+		assert.Equal(t, want, got)
+	})
 }
 
 func successfulResponse(t *testing.T) *relay.Config {
