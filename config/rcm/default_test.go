@@ -1,10 +1,15 @@
 package rcm_test
 
 import (
+	"math/rand"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/flashbots/mev-boost/testutil"
@@ -138,6 +143,64 @@ func TestDefaultConfigManager(t *testing.T) {
 			_, _ = rcm.NewDefault(nil)
 		})
 	})
+
+	t.Run("it is thread-safe", func(t *testing.T) {
+		t.Parallel()
+
+		relays := testutil.RandomRelaySet(t, 5)
+
+		sut, err := rcm.NewDefault(rcp.NewDefault(relays).FetchConfig)
+		require.NoError(t, err)
+
+		const iterations = 10000
+		numOfWorkers := int64(runtime.GOMAXPROCS(0))
+
+		count := runConcurrentlyAndCountFnCalls(numOfWorkers, iterations, func(r *rand.Rand, num int64) {
+			randomlyCallRCMMethods(t, sut)(r, num)
+		})
+
+		assert.Equal(t, uint64(iterations*numOfWorkers), count)
+	})
+}
+
+func runConcurrentlyAndCountFnCalls(numOfWorkers, num int64, fn func(*rand.Rand, int64)) uint64 {
+	var (
+		count uint64
+		wg    sync.WaitGroup
+	)
+
+	for g := numOfWorkers; g > 0; g-- {
+		r := rand.New(rand.NewSource(g))
+		wg.Add(1)
+
+		go func(r *rand.Rand) {
+			defer wg.Done()
+
+			for n := int64(1); n <= num; n++ {
+				fn(r, n)
+				atomic.AddUint64(&count, 1)
+			}
+		}(r)
+	}
+
+	wg.Wait()
+
+	return count
+}
+
+func randomlyCallRCMMethods(t *testing.T, sut *rcm.Default) func(*rand.Rand, int64) {
+	t.Helper()
+
+	return func(r *rand.Rand, num int64) {
+		switch {
+		case r.Int63n(num)%2 == 0:
+			require.NoError(t, sut.SyncConfig())
+		case r.Int63n(num)%3 == 0:
+			sut.RelaysForValidator(testutil.RandomBLSPublicKey(t).String())
+		default:
+			sut.AllRelays()
+		}
+	}
 }
 
 func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Default) func(types.PublicKey, relay.Set) {

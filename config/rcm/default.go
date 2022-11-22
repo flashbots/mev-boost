@@ -1,6 +1,7 @@
 package rcm
 
 import (
+	"sync"
 	"sync/atomic"
 
 	"github.com/flashbots/mev-boost/config/relay"
@@ -14,9 +15,10 @@ type ConfigProvider func() (*relay.Config, error)
 // It holds a thread-safe Relay Registry under the hood,
 // which holds both proposer and default relays.
 type Default struct {
-	relayRegistry   atomic.Value
-	registryCreator *relay.RegistryCreator
 	configProvider  ConfigProvider
+	registryCreator *relay.RegistryCreator
+	relayRegistry   atomic.Value
+	relayRegistryMu sync.RWMutex
 }
 
 // NewDefault creates a new instance of Default.
@@ -49,6 +51,9 @@ func (m *Default) SyncConfig() error {
 		return err
 	}
 
+	m.relayRegistryMu.Lock()
+	defer m.relayRegistryMu.Unlock()
+
 	r, err := m.registryCreator.Create(cfg)
 	if err != nil {
 		return err
@@ -62,11 +67,17 @@ func (m *Default) SyncConfig() error {
 
 // RelaysForValidator looks up the Relay Registry to get a list of relay for the given public key.
 func (m *Default) RelaysForValidator(publicKey relay.ValidatorPublicKey) relay.List {
+	m.relayRegistryMu.RLock()
+	defer m.relayRegistryMu.RUnlock()
+
 	return m.loadRegistry().RelaysForValidator(publicKey).ToList()
 }
 
 // AllRelays retrieves a list of all unique relays from the Relay Registry.
 func (m *Default) AllRelays() relay.List {
+	m.relayRegistryMu.RLock()
+	defer m.relayRegistryMu.RUnlock()
+
 	return m.loadRegistry().AllRelays().ToList()
 }
 
