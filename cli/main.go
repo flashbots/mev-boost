@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -57,11 +58,13 @@ var (
 	logService   = flag.String("log-service", defaultLogServiceTag, "add a 'service=...' tag to all log messages")
 	logNoVersion = flag.Bool("log-no-version", defaultDisableLogVersion, "disables adding the version to every log entry")
 
-	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs        = flag.String("relays", defaultRelays, "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
-	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
-	relayMinBidEth   = flag.Float64("min-bid", defaultRelayMinBidEth, "minimum bid to accept from a relay [eth]")
-	relayMonitorURLs = flag.String("relay-monitors", defaultRelayMonitors, "relay monitor urls - single entry or comma-separated list (scheme://host)")
+	listenAddr         = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
+	relayURLs          = flag.String("relays", defaultRelays, "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
+	relayCheck         = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
+	proposerConfigURL  = flag.String("proposer-config-url", "", "proposer config endpoint url")
+	proposerConfigFile = flag.String("proposer-config-file", "", "proposer config file path")
+	relayMinBidEth     = flag.Float64("min-bid", defaultRelayMinBidEth, "minimum bid to accept from a relay [eth]")
+	relayMonitorURLs   = flag.String("relay-monitors", defaultRelayMonitors, "relay monitor urls - single entry or comma-separated list (scheme://host)")
 
 	relayTimeoutMsGetHeader  = flag.Int("request-timeout-getheader", defaultTimeoutMsGetHeader, "timeout for getHeader requests to the relay [ms]")
 	relayTimeoutMsGetPayload = flag.Int("request-timeout-getpayload", defaultTimeoutMsGetPayload, "timeout for getPayload requests to the relay [ms]")
@@ -141,6 +144,8 @@ func Main() {
 	}
 	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
 
+	checkProposerConfigOptions()
+
 	// For backwards compatibility with the -relays flag.
 	if *relayURLs != "" {
 		for _, relayURL := range strings.Split(*relayURLs, ",") {
@@ -149,14 +154,20 @@ func Main() {
 				log.WithError(err).WithField("relay", relayURL).Fatal("Invalid relay URL")
 			}
 		}
+
+		if len(relays) == 0 {
+			flag.Usage()
+			log.Fatal("no relays specified")
+		}
 	}
 
-	if len(relays) == 0 {
-		flag.Usage()
-		log.Fatal("no relays specified")
+	relayConfigManager, err := createConfigManager()
+	if err != nil {
+		log.WithError(err).Fatal("cannot init relay config manager")
 	}
+
 	log.Infof("using %d relays", len(relays))
-	for index, entry := range relays.ToStringSlice() {
+	for index, entry := range relayConfigManager.AllRelays().ToStringSlice() {
 		log.Infof("relay #%d: %s", index+1, entry)
 	}
 
@@ -194,11 +205,6 @@ func Main() {
 		log.WithError(err).Fatal("failed converting min bid")
 	}
 
-	relayConfigManager, err := rcm.NewDefault(rcp.NewDefault(relays).FetchConfig)
-	if err != nil {
-		log.WithError(err).Fatal("cannot init relay config manager")
-	}
-
 	opts := server.BoostServiceOpts{
 		Log:                      log,
 		ListenAddr:               *listenAddr,
@@ -222,6 +228,71 @@ func Main() {
 
 	log.Println("listening on", *listenAddr)
 	log.Fatal(service.StartHTTPServer())
+}
+
+func checkProposerConfigOptions() {
+	const (
+		flagRelayURLs          = "relays"
+		flagProposerConfigURL  = "proposer-config-url"
+		flagProposerConfigFile = "proposer-config-file"
+	)
+
+	allowedOptions := map[string]struct{}{
+		flagRelayURLs:          {},
+		flagProposerConfigURL:  {},
+		flagProposerConfigFile: {},
+	}
+
+	providedOptions := make(map[string]string, 3)
+
+	addOptionIfNotEmpty := func(opt string, val *string) {
+		if _, ok := allowedOptions[opt]; ok && *val != "" {
+			providedOptions[opt] = *val
+		}
+	}
+
+	toString := func(m map[string]string) string {
+		res := make([]string, 0, len(m))
+		for opt := range m {
+			res = append(res, opt)
+		}
+
+		return strings.Join(res, " or -")
+	}
+
+	addOptionIfNotEmpty(flagRelayURLs, relayURLs)
+	addOptionIfNotEmpty(flagProposerConfigURL, proposerConfigURL)
+	addOptionIfNotEmpty(flagProposerConfigFile, proposerConfigFile)
+
+	if len(providedOptions) < 1 {
+		log.Fatalf("required options are not provided: please specify -%s", toString(providedOptions))
+	}
+
+	if len(providedOptions) > 1 {
+		log.Fatalf("mutially excluside options provided: please specify -%s", toString(providedOptions))
+	}
+}
+
+func createConfigManager() (server.RelayConfigManager, error) {
+	var (
+		err                error
+		relayConfigManager server.RelayConfigManager
+	)
+
+	switch {
+	case len(relays) > 0:
+		relayConfigManager, err = rcm.NewDefault(rcp.NewDefault(relays).FetchConfig)
+	case *proposerConfigFile != "":
+		relayConfigManager, err = rcm.NewDefault(rcp.NewFile(*proposerConfigFile).FetchConfig)
+	case *proposerConfigURL != "":
+		relayConfigManager, err = rcm.NewDefault(rcp.NewJSONAPI(http.DefaultClient, *proposerConfigURL).FetchConfig)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot create config manager: %w", err)
+	}
+
+	return relayConfigManager, nil
 }
 
 func getEnv(key, defaultValue string) string {

@@ -9,10 +9,6 @@ import (
 	"github.com/flashbots/mev-boost/config/relay"
 )
 
-const (
-	relaysByValidatorPublicKey = "/proposer-configs"
-)
-
 // HTTPClient is an HTTP client interface.
 // Used to abstract HTTP communication.
 type HTTPClient interface {
@@ -46,9 +42,7 @@ func NewJSONAPI(client HTTPClient, providerURL string) *JSONAPI {
 // It returns an error if it cannot unmarshal response body.
 // It returns an error if RCP returned status code different from http.StatusOK (200).
 func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
-	endpoint := p.providerURL + relaysByValidatorPublicKey
-
-	resp, err := p.doRequest(endpoint)
+	resp, err := p.doRequest(p.providerURL)
 	if err != nil {
 		return nil, p.wrapErr(err)
 	}
