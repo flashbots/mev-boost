@@ -54,6 +54,7 @@ See also:
   - [Goerli testnet](#goerli-testnet)
   - [Sepolia testnet](#sepolia-testnet)
   - [`test-cli`](#test-cli)
+  - [mev-boost cli arguments](#mev-boost-cli-arguments)
 - [API](#api)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
@@ -242,8 +243,8 @@ Run MEV-Boost pointed at a Sepolia relay:
 
 These are the CLI arguments for the main branch. For arguments available in a specific release, check the [release page](https://github.com/flashbots/mev-boost/releases).
 
-```bash
-$ mev-boost -help
+```
+$ ./mev-boost -help
 Usage of mev-boost:
   -addr string
         listen-address for mev-boost server (default "localhost:18550")
@@ -296,12 +297,12 @@ times for multiple relays. Use whichever method suits your preferences.
 
 These two MEV-Boost commands are equivalent:
 
-```bash
+```
 ./mev-boost -relay-check \
     -relays $YOUR_RELAY_CHOICE_A,$YOUR_RELAY_CHOICE_B,$YOUR_RELAY_CHOICE_C
 ```
 
-```bash
+```
 ./mev-boost -relay-check \
     -relay $YOUR_RELAY_CHOICE_A \
     -relay $YOUR_RELAY_CHOICE_B \
@@ -311,13 +312,13 @@ These two MEV-Boost commands are equivalent:
 
 ### Setting a minimum bid value with `-min-bid`
 
-The `-min-bid` flag allows setting a minimum bid value. If no bid from the builder network delivers at least this value, mev-boost will not return a bid
+The `-min-bid` flag allows setting a minimum bid value. If no bid from the builder network delivers at least this value, MEV-Boost will not return a bid
 to the beacon node, making it fall back to local block production.
 
 Example for setting a minimum bid value of 0.06 ETH:
 
-```bash
-mev-boost \
+```
+./mev-boost \
     -min-bid 0.06 \
     -relay $YOUR_RELAY_CHOICE_A \
     -relay $YOUR_RELAY_CHOICE_B \
