@@ -274,20 +274,18 @@ func checkProposerConfigOptions() {
 }
 
 func createConfigManager() (server.RelayConfigManager, error) {
-	var (
-		err                error
-		relayConfigManager server.RelayConfigManager
-	)
+	var registryCreator *rcm.RegistryCreator
 
 	switch {
 	case len(relays) > 0:
-		relayConfigManager, err = rcm.NewDefault(rcp.NewDefault(relays).FetchConfig)
+		registryCreator = rcm.NewRegistryCreator(rcp.NewDefault(relays).FetchConfig)
 	case *proposerConfigFile != "":
-		relayConfigManager, err = rcm.NewDefault(rcp.NewFile(*proposerConfigFile).FetchConfig)
+		registryCreator = rcm.NewRegistryCreator(rcp.NewFile(*proposerConfigFile).FetchConfig)
 	case *proposerConfigURL != "":
-		relayConfigManager, err = rcm.NewDefault(rcp.NewJSONAPI(http.DefaultClient, *proposerConfigURL).FetchConfig)
+		registryCreator = rcm.NewRegistryCreator(rcp.NewJSONAPI(http.DefaultClient, *proposerConfigURL).FetchConfig)
 	}
 
+	relayConfigManager, err := rcm.NewDefault(registryCreator)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create config manager: %w", err)
 	}

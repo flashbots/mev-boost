@@ -8,20 +8,28 @@ import (
 )
 
 var (
+	ErrCannotFetchRelayConfig      = errors.New("cannot fetch relay config")
 	ErrCannotPopulateProposeRelays = errors.New("cannot populate proposer relays")
 	ErrCannotPopulateDefaultRelays = errors.New("cannot populate default relays")
 )
 
+// ConfigProvider provider relay configuration.
+type ConfigProvider func() (*relay.Config, error)
+
 type RegistryCreator struct {
-	relayRegistry *relay.Registry
+	configProvider ConfigProvider
+	relayRegistry  *relay.Registry
 }
 
-func NewRegistryCreator() *RegistryCreator {
-	return &RegistryCreator{relayRegistry: relay.NewProposerRegistry()}
+func NewRegistryCreator(configProvider ConfigProvider) *RegistryCreator {
+	return &RegistryCreator{
+		configProvider: configProvider,
+		relayRegistry:  relay.NewProposerRegistry(),
+	}
 }
 
-func (r *RegistryCreator) Create(cfg *relay.Config) (*relay.Registry, error) {
-	// TODO(screwyprof): should we allow creating registries with no relays in proposer_config section?
+func (r *RegistryCreator) Create() (*relay.Registry, error) {
+	// TODO:(screwyprof): should we allow creating registries with no relays in proposer_config section?
 	// What about relay configs which have no proposer_config?
 	//  1) Allow it, don't populate the registry and let the caller fallback to default relays
 	//  2) Don't allow it, in which case, we will have to implement either
@@ -30,6 +38,11 @@ func (r *RegistryCreator) Create(cfg *relay.Config) (*relay.Registry, error) {
 	//     c) custom registry creator for default config provider which doesn't have proposer_config
 	//
 	// m.validateConfig(cfg)
+
+	cfg, err := r.configProvider()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrCannotFetchRelayConfig, err)
+	}
 
 	if err := r.populateProposerRelays(cfg.ProposerConfig); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrCannotPopulateProposeRelays, err)

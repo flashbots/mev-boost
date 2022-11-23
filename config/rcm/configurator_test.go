@@ -1,6 +1,7 @@
 package rcm_test
 
 import (
+	"io"
 	"math/rand"
 	"runtime"
 	"sync"
@@ -17,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var _ server.RelayConfigManager = (*rcm.Default)(nil)
+var _ server.RelayConfigManager = (*rcm.Configurator)(nil)
 
 func TestDefaultConfigManager(t *testing.T) {
 	t.Parallel()
@@ -30,7 +31,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		want := testutil.RandomRelaySet(t, 3)
 		configProvider := configProviderWithProposerRelays(validatorPublicKey, want)
 
-		sut, err := rcm.NewDefault(configProvider.FetchConfig)
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
 		require.NoError(t, err)
 
 		// act
@@ -48,7 +49,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		want := testutil.RandomRelaySet(t, 3)
 		configProvider := configProviderWithDefaultRelays(want)
 
-		sut, err := rcm.NewDefault(configProvider.FetchConfig)
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
 		require.NoError(t, err)
 
 		// act
@@ -58,17 +59,17 @@ func TestDefaultConfigManager(t *testing.T) {
 		assert.ElementsMatch(t, want.ToList(), got)
 	})
 
-	t.Run("it returns an error if config provider fails to retrieve configuration", func(t *testing.T) {
+	t.Run("it returns an error if it cannot create the registry", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		configProvider := faultyConfigProvider(relay.ErrMissingRelayPubKey)
+		configProvider := faultyConfigProvider()
 
 		// act
-		_, err := rcm.NewDefault(configProvider.FetchConfig)
+		_, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
 
 		// assert
-		assert.ErrorIs(t, err, relay.ErrMissingRelayPubKey)
+		assert.ErrorIs(t, err, rcm.ErrCannotFetchRelayConfig)
 	})
 
 	t.Run("it returns proposer and default relays", func(t *testing.T) {
@@ -82,7 +83,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
 		configProvider := integralConfigProvider(validatorPublicKey, proposerRelays, defaultRelays)
 
-		sut, err := rcm.NewDefault(configProvider.FetchConfig)
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
 		require.NoError(t, err)
 
 		// act
@@ -103,7 +104,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
 		configProvider := integralConfigProvider(validatorPublicKey, proposerRelays, defaultRelays)
 
-		sut, err := rcm.NewDefault(configProvider.FetchConfig)
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
 		require.NoError(t, err)
 
 		// act
@@ -124,7 +125,7 @@ func TestDefaultConfigManager(t *testing.T) {
 
 		configProvider := onceOnlySuccessfulProvider(validatorPublicKey, proposerRelays, defaultRelays)
 
-		sut, err := rcm.NewDefault(configProvider.FetchConfig)
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
 		require.NoError(t, err)
 
 		// act
@@ -149,7 +150,7 @@ func TestDefaultConfigManager(t *testing.T) {
 
 		relays := testutil.RandomRelaySet(t, 5)
 
-		sut, err := rcm.NewDefault(rcp.NewDefault(relays).FetchConfig)
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(rcp.NewDefault(relays).FetchConfig))
 		require.NoError(t, err)
 
 		const iterations = 10000
@@ -188,7 +189,7 @@ func runConcurrentlyAndCountFnCalls(numOfWorkers, num int64, fn func(*rand.Rand,
 	return count
 }
 
-func randomlyCallRCMMethods(t *testing.T, sut *rcm.Default) func(*rand.Rand, int64) {
+func randomlyCallRCMMethods(t *testing.T, sut *rcm.Configurator) func(*rand.Rand, int64) {
 	t.Helper()
 
 	return func(r *rand.Rand, num int64) {
@@ -203,7 +204,7 @@ func randomlyCallRCMMethods(t *testing.T, sut *rcm.Default) func(*rand.Rand, int
 	}
 }
 
-func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Default) func(types.PublicKey, relay.Set) {
+func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Configurator) func(types.PublicKey, relay.Set) {
 	t.Helper()
 
 	return func(pk types.PublicKey, defaultRelays relay.Set) {
@@ -237,10 +238,10 @@ func integralConfigProvider(pk types.PublicKey, proposerRelays, defaultRelays re
 	}
 }
 
-func faultyConfigProvider(err error) mockConfigProvider {
+func faultyConfigProvider() mockConfigProvider {
 	return mockConfigProvider{
 		FetchConfigFn: func() (*relay.Config, error) {
-			return nil, err
+			return nil, io.ErrUnexpectedEOF
 		},
 	}
 }
