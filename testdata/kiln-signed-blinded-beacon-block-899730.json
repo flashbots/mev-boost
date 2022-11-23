@@ -694,6 +694,7 @@
                 "prev_randao": "0xcd4770c9aaffa84d5d4d2c10aabdb2474eecf62b27d2789dcafc3d078deccd58",
                 "block_number": "829552",
                 "gas_limit": "30000000",
+                "gas_used": "30000000",
                 "timestamp": "1657804260",
                 "extra_data": "0x466c617368626f747320666c617368626c6f636b",
                 "base_fee_per_gas": "7",

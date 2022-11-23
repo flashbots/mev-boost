@@ -549,12 +549,12 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			}
 
 			// Ensure the response blockhash matches the response block
-			calculatedBlockHash, err := types.CalculateHash(toBoostExecutionPayload(responsePayload.Bellatrix))
+			calculatedBlockHash, err := ComputeBlockHash(responsePayload.Bellatrix)
 			if err != nil {
 				log.WithError(err).Error("could not calculate block hash")
-			} else if responsePayload.Bellatrix.BlockHash != phase0.Hash32(calculatedBlockHash) {
+			} else if responsePayload.Bellatrix.BlockHash != calculatedBlockHash {
 				log.WithFields(logrus.Fields{
-					"calculatedBlockHash": calculatedBlockHash.String(),
+					"calculatedBlockHash": toHex(calculatedBlockHash[:]),
 					"responseBlockHash":   toHex(responsePayload.Bellatrix.BlockHash[:]),
 				}).Error("responseBlockHash does not equal hash calculated from response block")
 			}

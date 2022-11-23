@@ -10,10 +10,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/attestantio/go-builder-client/api"
+	"github.com/attestantio/go-builder-client/api/bellatrix"
+	"github.com/attestantio/go-builder-client/spec"
+	consensusapi "github.com/attestantio/go-eth2-client/api/v1"
+	consensusspec "github.com/attestantio/go-eth2-client/spec"
+	consensusbellatrix "github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/gorilla/mux"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,8 +54,8 @@ type mockRelay struct {
 	handlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
 
 	// Default responses placeholders, used if overrider does not exist
-	GetHeaderResponse  *types.GetHeaderResponse
-	GetPayloadResponse *types.GetPayloadResponse
+	GetHeaderResponse  *spec.VersionedSignedBuilderBid
+	GetPayloadResponse *api.VersionedExecutionPayload
 
 	// Server section
 	Server        *httptest.Server
@@ -138,7 +145,7 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	payload := []types.SignedValidatorRegistration{}
+	payload := []consensusapi.SignedValidatorRegistration{}
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -150,14 +157,14 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 
 // MakeGetHeaderResponse is used to create the default or can be used to create a custom response to the getHeader
 // method
-func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string) *types.GetHeaderResponse {
+func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string) *spec.VersionedSignedBuilderBid {
 	// Fill the payload with custom values.
-	message := &types.BuilderBid{
-		Header: &types.ExecutionPayloadHeader{
+	message := &bellatrix.BuilderBid{
+		Header: &consensusbellatrix.ExecutionPayloadHeader{
 			BlockHash:  _HexToHash(blockHash),
 			ParentHash: _HexToHash(parentHash),
 		},
-		Value:  types.IntToU256(value),
+		Value:  uint256.NewInt(value),
 		Pubkey: _HexToPubkey(publicKey),
 	}
 
@@ -165,11 +172,11 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 	signature, err := types.SignMessage(message, types.DomainBuilder, m.secretKey)
 	require.NoError(m.t, err)
 
-	return &types.GetHeaderResponse{
-		Version: "bellatrix",
-		Data: &types.SignedBuilderBid{
+	return &spec.VersionedSignedBuilderBid{
+		Version: consensusspec.DataVersionBellatrix,
+		Data: &bellatrix.SignedBuilderBid{
 			Message:   message,
-			Signature: signature,
+			Signature: _HexToSignature(signature.String()),
 		},
 	}
 }
@@ -207,15 +214,15 @@ func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 
 // MakeGetPayloadResponse is used to create the default or can be used to create a custom response to the getPayload
 // method
-func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *types.GetPayloadResponse {
-	return &types.GetPayloadResponse{
-		Version: "bellatrix",
-		Data: &types.ExecutionPayload{
+func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *api.VersionedExecutionPayload {
+	return &api.VersionedExecutionPayload{
+		Version: consensusspec.DataVersionBellatrix,
+		Bellatrix: &consensusbellatrix.ExecutionPayload{
 			ParentHash:   _HexToHash(parentHash),
 			BlockHash:    _HexToHash(blockHash),
 			BlockNumber:  blockNumber,
 			FeeRecipient: _HexToAddress(feeRecipient),
-			Transactions: []hexutil.Bytes{},
+			Transactions: []consensusbellatrix.Transaction{},
 		},
 	}
 }

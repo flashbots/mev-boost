@@ -3,10 +3,13 @@ package server
 import (
 	"testing"
 
+	"github.com/attestantio/go-builder-client/api/bellatrix"
+	consensusbellatrix "github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
-	"github.com/flashbots/go-boost-utils/types"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,7 +58,7 @@ func TestHexToHash(t *testing.T) {
 		hex  string
 
 		expectedPanic bool
-		expectedHash  *types.Hash
+		expectedHash  *phase0.Hash32
 	}{
 		{
 			name:          "Should panic because of empty hexadecimal input",
@@ -75,7 +78,7 @@ func TestHexToHash(t *testing.T) {
 			name:          "Should not panic and convert hexadecimal input to hash",
 			hex:           common.Hash{0x01}.String(),
 			expectedPanic: false,
-			expectedHash:  &types.Hash{0x01},
+			expectedHash:  &phase0.Hash32{0x01},
 		},
 	}
 
@@ -102,7 +105,7 @@ func TestHexToAddress(t *testing.T) {
 		hex  string
 
 		expectedPanic   bool
-		expectedAddress *types.Address
+		expectedAddress *consensusbellatrix.ExecutionAddress
 	}{
 		{
 			name:            "Should panic because of empty hexadecimal input",
@@ -122,7 +125,7 @@ func TestHexToAddress(t *testing.T) {
 			name:            "Should not panic and convert hexadecimal input to address",
 			hex:             common.Address{0x01}.String(),
 			expectedPanic:   false,
-			expectedAddress: &types.Address{0x01},
+			expectedAddress: &consensusbellatrix.ExecutionAddress{0x01},
 		},
 	}
 
@@ -149,7 +152,7 @@ func TestHexToPublicKey(t *testing.T) {
 		hex  string
 
 		expectedPanic     bool
-		expectedPublicKey *types.PublicKey
+		expectedPublicKey *phase0.BLSPubKey
 	}{
 		{
 			name:              "Should panic because of empty hexadecimal input",
@@ -167,9 +170,9 @@ func TestHexToPublicKey(t *testing.T) {
 		*/
 		{
 			name:              "Should not panic and convert hexadecimal input to public key",
-			hex:               types.PublicKey{0x01}.String(),
+			hex:               toHex((&phase0.BLSPubKey{0x01})[:]),
 			expectedPanic:     false,
-			expectedPublicKey: &types.PublicKey{0x01},
+			expectedPublicKey: &phase0.BLSPubKey{0x01},
 		},
 	}
 
@@ -197,11 +200,11 @@ func TestHexToSignature(t *testing.T) {
 
 	publicKey := hexutil.Encode(blsPublicKey.Compress())
 
-	message := &types.BuilderBid{
-		Header: &types.ExecutionPayloadHeader{
+	message := &bellatrix.BuilderBid{
+		Header: &consensusbellatrix.ExecutionPayloadHeader{
 			BlockHash: _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
 		},
-		Value:  types.IntToU256(12345),
+		Value:  uint256.NewInt(12345),
 		Pubkey: _HexToPubkey(publicKey),
 	}
 	ssz, err := message.MarshalSSZ()
@@ -210,17 +213,16 @@ func TestHexToSignature(t *testing.T) {
 	sig := bls.Sign(privateKey, ssz)
 	sigBytes := sig.Compress()
 
-	// Convert bls.Signature bytes to types.Signature
-	signature := &types.Signature{}
-	err = signature.FromSlice(sigBytes)
-	require.NoError(t, err)
+	// Convert bls.Signature bytes to phase0.BLSSignature.
+	signature := &phase0.BLSSignature{}
+	copy(signature[:], sigBytes)
 
 	testCases := []struct {
 		name string
 		hex  string
 
 		expectedPanic     bool
-		expectedSignature *types.Signature
+		expectedSignature *phase0.BLSSignature
 	}{
 		{
 			name:              "Should panic because of empty hexadecimal input",

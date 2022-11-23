@@ -18,13 +18,16 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/flashbots/go-boost-utils/types"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
+	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
 )
 
 var (
 	errHTTPErrorResponse  = errors.New("HTTP error response")
 	errInvalidForkVersion = errors.New("invalid fork version")
+	errInvalidTransaction = errors.New("invalid transaction")
 )
 
 // UserAgent is a custom string type to avoid confusing url + userAgent parameters in SendHTTPRequest
@@ -90,15 +93,15 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 }
 
 // ComputeDomain computes the signing domain
-func ComputeDomain(domainType types.DomainType, forkVersionHex, genesisValidatorsRootHex string) (domain types.Domain, err error) {
-	genesisValidatorsRoot := types.Root(common.HexToHash(genesisValidatorsRootHex))
+func ComputeDomain(domainType boostTypes.DomainType, forkVersionHex, genesisValidatorsRootHex string) (domain boostTypes.Domain, err error) {
+	genesisValidatorsRoot := boostTypes.Root(common.HexToHash(genesisValidatorsRootHex))
 	forkVersionBytes, err := hexutil.Decode(forkVersionHex)
 	if err != nil || len(forkVersionBytes) != 4 {
 		return domain, errInvalidForkVersion
 	}
 	var forkVersion [4]byte
 	copy(forkVersion[:], forkVersionBytes[:4])
-	return types.ComputeDomain(domainType, forkVersion, genesisValidatorsRoot), nil
+	return boostTypes.ComputeDomain(domainType, forkVersion, genesisValidatorsRoot), nil
 }
 
 // DecodeJSON reads JSON from io.Reader and decodes it into a struct
@@ -150,26 +153,48 @@ func toHex(data []byte) string {
 	return hexutil.Bytes(data).String()
 }
 
-func toBoostExecutionPayload(payload *bellatrix.ExecutionPayload) *types.ExecutionPayload {
-	transactions := make([]hexutil.Bytes, len(payload.Transactions))
-	for i := range payload.Transactions {
-		transactions[i] = hexutil.Bytes(payload.Transactions[i])
+func ComputeBlockHash(payload *bellatrix.ExecutionPayload) (phase0.Hash32, error) {
+	header, err := executionPayloadToBlockHeader(payload)
+	if err != nil {
+		return phase0.Hash32{}, err
+	}
+	return phase0.Hash32(header.Hash()), nil
+}
+
+func executionPayloadToBlockHeader(payload *bellatrix.ExecutionPayload) (*types.Header, error) {
+	transactionData := make([]*types.Transaction, len(payload.Transactions))
+	for i, encTx := range payload.Transactions {
+		var tx types.Transaction
+		err := tx.UnmarshalBinary(encTx)
+		if err != nil {
+			return nil, errInvalidTransaction
+		}
+		transactionData[i] = &tx
 	}
 
-	return &types.ExecutionPayload{
-		ParentHash:    types.Hash(payload.ParentHash),
-		FeeRecipient:  types.Address(payload.FeeRecipient),
-		StateRoot:     types.Root(payload.StateRoot),
-		ReceiptsRoot:  types.Root(payload.ReceiptsRoot),
-		LogsBloom:     types.Bloom(payload.LogsBloom),
-		Random:        types.Hash(payload.PrevRandao),
-		BlockNumber:   payload.BlockNumber,
-		GasLimit:      payload.GasLimit,
-		GasUsed:       payload.GasUsed,
-		Timestamp:     payload.Timestamp,
-		ExtraData:     payload.ExtraData,
-		BaseFeePerGas: payload.BaseFeePerGas,
-		BlockHash:     types.Hash(payload.BlockHash),
-		Transactions:  transactions,
+	// base fee per gas is stored little-endian but we need it
+	// big-endian for big.Int.
+	var baseFeePerGasBytes [32]byte
+	for i := 0; i < 32; i++ {
+		baseFeePerGasBytes[i] = payload.BaseFeePerGas[32-1-i]
 	}
+	baseFeePerGas := new(big.Int).SetBytes(baseFeePerGasBytes[:])
+
+	return &types.Header{
+		ParentHash:  common.Hash(payload.ParentHash),
+		UncleHash:   types.EmptyUncleHash,
+		Coinbase:    common.Address(payload.FeeRecipient),
+		Root:        common.Hash(payload.StateRoot),
+		TxHash:      types.DeriveSha(types.Transactions(transactionData), trie.NewStackTrie(nil)),
+		ReceiptHash: common.Hash(payload.ReceiptsRoot),
+		Bloom:       types.Bloom(payload.LogsBloom),
+		Difficulty:  common.Big0,
+		Number:      new(big.Int).SetUint64(payload.BlockNumber),
+		GasLimit:    payload.GasLimit,
+		GasUsed:     payload.GasUsed,
+		Time:        payload.Timestamp,
+		Extra:       payload.ExtraData,
+		MixDigest:   common.Hash(payload.PrevRandao),
+		BaseFee:     baseFeePerGas,
+	}, nil
 }
