@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math/big"
@@ -58,13 +59,16 @@ var (
 	logService   = flag.String("log-service", defaultLogServiceTag, "add a 'service=...' tag to all log messages")
 	logNoVersion = flag.Bool("log-no-version", defaultDisableLogVersion, "disables adding the version to every log entry")
 
-	listenAddr         = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs          = flag.String("relays", defaultRelays, "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
-	relayCheck         = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
-	proposerConfigURL  = flag.String("proposer-config-url", "", "proposer config endpoint url")
-	proposerConfigFile = flag.String("proposer-config-file", "", "proposer config file path")
-	relayMinBidEth     = flag.Float64("min-bid", defaultRelayMinBidEth, "minimum bid to accept from a relay [eth]")
-	relayMonitorURLs   = flag.String("relay-monitors", defaultRelayMonitors, "relay monitor urls - single entry or comma-separated list (scheme://host)")
+	listenAddr = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
+
+	proposerConfigURL     = flag.String("proposer-config-url", "", "proposer config endpoint url")
+	proposerConfigFile    = flag.String("proposer-config-file", "", "proposer config file path")
+	proposerConfigRefresh = flag.Bool("proposer-config-refresh-enabled", false, "periodically reload proposer config")
+
+	relayURLs        = flag.String("relays", defaultRelays, "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
+	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
+	relayMinBidEth   = flag.Float64("min-bid", defaultRelayMinBidEth, "minimum bid to accept from a relay [eth]")
+	relayMonitorURLs = flag.String("relay-monitors", defaultRelayMonitors, "relay monitor urls - single entry or comma-separated list (scheme://host)")
 
 	relayTimeoutMsGetHeader  = flag.Int("request-timeout-getheader", defaultTimeoutMsGetHeader, "timeout for getHeader requests to the relay [ms]")
 	relayTimeoutMsGetPayload = flag.Int("request-timeout-getpayload", defaultTimeoutMsGetPayload, "timeout for getPayload requests to the relay [ms]")
@@ -165,6 +169,10 @@ func Main() {
 	if err != nil {
 		log.WithError(err).Fatal("cannot init relay config manager")
 	}
+
+	runConfigSyncerIfEnabled(relayConfigManager)
+
+	log.Infof("default proposer config sync interval is %.2f min", rcm.DefaultSyncTime.Minutes())
 
 	log.Infof("using %d relays", len(relays))
 	for index, entry := range relayConfigManager.AllRelays().ToStringSlice() {
@@ -273,7 +281,7 @@ func checkProposerConfigOptions() {
 	}
 }
 
-func createConfigManager() (server.RelayConfigManager, error) {
+func createConfigManager() (*rcm.Configurator, error) {
 	var registryCreator *rcm.RegistryCreator
 
 	switch {
@@ -291,6 +299,34 @@ func createConfigManager() (server.RelayConfigManager, error) {
 	}
 
 	return relayConfigManager, nil
+}
+
+func runConfigSyncerIfEnabled(relayConfigManager *rcm.Configurator) {
+	if *proposerConfigRefresh {
+		log.Infof("default proposer config sync interval is %.2f min", rcm.DefaultSyncTime.Minutes())
+
+		// At the moment the sync job will run perpetually unless the program is killed.
+		// Even thought the Syncer supports graceful shutdown via context cancellation,
+		// we cannot utilise it here, because it will just stop the synchronisation,
+		// yet won't stop the other running go-routines...
+		syncer := rcm.NewSyncer(relayConfigManager, rcm.SyncerWithOnSyncHandler(onSyncHandler))
+
+		// Given that the context is never cancelled, we need to run syncer.SyncConfig()
+		// in a separate go-routine, otherwise this call will block waiting for context to be done.
+		go syncer.SyncConfig(context.Background())
+	}
+}
+
+// onSyncHandler runs every time when configuration is synced.
+//
+// We ignore the first time parameter, as the logger already has the time field.
+func onSyncHandler(_ time.Time, err error) {
+	if err != nil {
+		log.WithError(err).Error("cannot sync configuration")
+		return
+	}
+
+	log.Infof("successfully synced relay configuration")
 }
 
 func getEnv(key, defaultValue string) string {
