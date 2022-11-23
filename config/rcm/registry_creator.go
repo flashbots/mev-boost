@@ -1,8 +1,10 @@
-package relay
+package rcm
 
 import (
 	"errors"
 	"fmt"
+
+	"github.com/flashbots/mev-boost/config/relay"
 )
 
 var (
@@ -11,14 +13,14 @@ var (
 )
 
 type RegistryCreator struct {
-	relayRegistry *Registry
+	relayRegistry *relay.Registry
 }
 
 func NewRegistryCreator() *RegistryCreator {
-	return &RegistryCreator{relayRegistry: NewProposerRegistry()}
+	return &RegistryCreator{relayRegistry: relay.NewProposerRegistry()}
 }
 
-func (r *RegistryCreator) Create(cfg *Config) (*Registry, error) {
+func (r *RegistryCreator) Create(cfg *relay.Config) (*relay.Registry, error) {
 	// TODO(screwyprof): should we allow creating registries with no relays in proposer_config section?
 	// What about relay configs which have no proposer_config?
 	//  1) Allow it, don't populate the registry and let the caller fallback to default relays
@@ -40,9 +42,9 @@ func (r *RegistryCreator) Create(cfg *Config) (*Registry, error) {
 	return r.relayRegistry, nil
 }
 
-func (r *RegistryCreator) populateProposerRelays(proposerCfg ProposerConfig) error {
+func (r *RegistryCreator) populateProposerRelays(proposerCfg relay.ProposerConfig) error {
 	for validatorPubKey, cfg := range proposerCfg {
-		err := r.populateRelays(cfg, func(relay Entry) {
+		err := r.populateRelays(cfg, func(relay relay.Entry) {
 			r.relayRegistry.AddRelayForValidator(validatorPubKey, relay)
 		})
 		if err != nil {
@@ -53,8 +55,8 @@ func (r *RegistryCreator) populateProposerRelays(proposerCfg ProposerConfig) err
 	return nil
 }
 
-func (r *RegistryCreator) populateDefaultRelays(relayCfg Relay) error {
-	err := r.populateRelays(relayCfg, func(relay Entry) {
+func (r *RegistryCreator) populateDefaultRelays(relayCfg relay.Relay) error {
+	err := r.populateRelays(relayCfg, func(relay relay.Entry) {
 		r.relayRegistry.AddDefaultRelay(relay)
 	})
 	if err != nil {
@@ -64,13 +66,13 @@ func (r *RegistryCreator) populateDefaultRelays(relayCfg Relay) error {
 	return nil
 }
 
-func (r *RegistryCreator) populateRelays(cfg Relay, fn func(entry Entry)) error {
+func (r *RegistryCreator) populateRelays(cfg relay.Relay, fn func(entry relay.Entry)) error {
 	if !cfg.Builder.Enabled {
 		return nil
 	}
 
 	for _, relayURL := range cfg.Builder.Relays {
-		relayEntry, err := NewRelayEntry(relayURL)
+		relayEntry, err := relay.NewRelayEntry(relayURL)
 		if err != nil {
 			return err
 		}

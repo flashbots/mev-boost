@@ -10,13 +10,18 @@ import (
 // ConfigProvider provider relay configuration.
 type ConfigProvider func() (*relay.Config, error)
 
+type RelayRegistry interface {
+	RelaysForValidator(key relay.ValidatorPublicKey) relay.Set
+	AllRelays() relay.Set
+}
+
 // Default is a general implementation for an RCM.
 //
 // It holds a thread-safe Relay Registry under the hood,
 // which holds both proposer and default relays.
 type Default struct {
 	configProvider  ConfigProvider
-	registryCreator *relay.RegistryCreator
+	registryCreator *RegistryCreator
 	relayRegistry   atomic.Value
 	relayRegistryMu sync.RWMutex
 }
@@ -29,7 +34,7 @@ type Default struct {
 func NewDefault(configProvider ConfigProvider) (*Default, error) {
 	cm := &Default{
 		configProvider:  configProvider,
-		registryCreator: relay.NewRegistryCreator(),
+		registryCreator: NewRegistryCreator(),
 	}
 
 	if err := cm.SyncConfig(); err != nil {
@@ -81,8 +86,8 @@ func (m *Default) AllRelays() relay.List {
 	return m.loadRegistry().AllRelays().ToList()
 }
 
-func (m *Default) loadRegistry() *relay.Registry {
-	r, ok := m.relayRegistry.Load().(*relay.Registry)
+func (m *Default) loadRegistry() RelayRegistry {
+	r, ok := m.relayRegistry.Load().(RelayRegistry)
 	if !ok {
 		panic("unexpected relay registry type") // this must never happen
 	}
