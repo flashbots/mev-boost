@@ -3,13 +3,12 @@ package rcm_test
 import (
 	"math/rand"
 	"runtime"
-	"sync"
-	"sync/atomic"
 	"testing"
 
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config/rcm"
 	"github.com/flashbots/mev-boost/config/rcp"
+	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/flashbots/mev-boost/testutil"
@@ -31,7 +30,8 @@ func TestDefaultConfigManager(t *testing.T) {
 		// arrange
 		validatorPublicKey := testutil.RandomBLSPublicKey(t)
 		want := testutil.RandomRelaySet(t, 3)
-		configProvider := createMockRelayConfigProvider(withProposerRelays(validatorPublicKey.String(), want.ToStringSlice()))
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerRelays(validatorPublicKey.String(), want.ToStringSlice()))
 
 		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		// arrange
 		validatorPublicKey := testutil.RandomBLSPublicKey(t)
 		want := testutil.RandomRelaySet(t, 3)
-		configProvider := createMockRelayConfigProvider(withDefaultRelays(want.ToStringSlice()))
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithDefaultRelays(want.ToStringSlice()))
 
 		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
@@ -65,7 +65,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		configProvider := createMockRelayConfigProvider(withErr())
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithErr())
 
 		// act
 		_, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
@@ -83,9 +83,9 @@ func TestDefaultConfigManager(t *testing.T) {
 		defaultRelays := testutil.RandomRelaySet(t, 2)
 
 		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
-		configProvider := createMockRelayConfigProvider(
-			withProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
-			withDefaultRelays(defaultRelays.ToStringSlice()))
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
+			rcptest.WithDefaultRelays(defaultRelays.ToStringSlice()))
 
 		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
@@ -106,9 +106,9 @@ func TestDefaultConfigManager(t *testing.T) {
 		defaultRelays := testutil.RelaySetWithRelayHavingTheSameURL(t, 2)
 
 		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
-		configProvider := createMockRelayConfigProvider(
-			withProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
-			withDefaultRelays(defaultRelays.ToStringSlice()))
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
+			rcptest.WithDefaultRelays(defaultRelays.ToStringSlice()))
 
 		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
@@ -162,7 +162,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		const iterations = 10000
 		numOfWorkers := int64(runtime.GOMAXPROCS(0))
 
-		count := runConcurrentlyAndCountFnCalls(numOfWorkers, iterations, func(r *rand.Rand, num int64) {
+		count := testutil.RunConcurrentlyAndCountFnCalls(numOfWorkers, iterations, func(r *rand.Rand, num int64) {
 			randomlyCallRCMMethods(t, sut)(r, num)
 		})
 
@@ -177,31 +177,6 @@ func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Configurator) func(types.
 		got := sut.RelaysForValidator(pk.String())
 		assert.ElementsMatch(t, defaultRelays.ToList(), got)
 	}
-}
-
-func runConcurrentlyAndCountFnCalls(numOfWorkers, num int64, fn func(*rand.Rand, int64)) uint64 {
-	var (
-		count uint64
-		wg    sync.WaitGroup
-	)
-
-	for g := numOfWorkers; g > 0; g-- {
-		r := rand.New(rand.NewSource(g))
-		wg.Add(1)
-
-		go func(r *rand.Rand) {
-			defer wg.Done()
-
-			for n := int64(1); n <= num; n++ {
-				fn(r, n)
-				atomic.AddUint64(&count, 1)
-			}
-		}(r)
-	}
-
-	wg.Wait()
-
-	return count
 }
 
 func randomlyCallRCMMethods(t *testing.T, sut *rcm.Configurator) func(*rand.Rand, int64) {

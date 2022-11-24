@@ -1,7 +1,10 @@
 package testutil
 
 import (
+	"math/rand"
 	"net/url"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/flashbots/go-boost-utils/bls"
@@ -84,4 +87,29 @@ func JoinSets(sets ...relay.Set) relay.Set {
 	}
 
 	return want
+}
+
+func RunConcurrentlyAndCountFnCalls(numOfWorkers, num int64, fn func(*rand.Rand, int64)) uint64 {
+	var (
+		count uint64
+		wg    sync.WaitGroup
+	)
+
+	for g := numOfWorkers; g > 0; g-- {
+		r := rand.New(rand.NewSource(g))
+		wg.Add(1)
+
+		go func(r *rand.Rand) {
+			defer wg.Done()
+
+			for n := int64(1); n <= num; n++ {
+				fn(r, n)
+				atomic.AddUint64(&count, 1)
+			}
+		}(r)
+	}
+
+	wg.Wait()
+
+	return count
 }

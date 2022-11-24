@@ -1,11 +1,11 @@
 package rcm_test
 
 import (
-	"io"
 	"testing"
 
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/testutil"
 	"github.com/stretchr/testify/assert"
@@ -24,9 +24,9 @@ func TestRegistryCreator(t *testing.T) {
 		defaultRelays := testutil.RandomRelaySet(t, 2)
 		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
 
-		configProvider := createMockRelayConfigProvider(
-			withProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
-			withDefaultRelays(defaultRelays.ToStringSlice()))
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
+			rcptest.WithDefaultRelays(defaultRelays.ToStringSlice()))
 
 		sut := rcm.NewRegistryCreator(configProvider)
 
@@ -46,7 +46,7 @@ func TestRegistryCreator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		configProvider := createMockRelayConfigProvider(withSomeDisabledProposerBuilders(t))
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithSomeDisabledProposerBuilders(t))
 		sut := rcm.NewRegistryCreator(configProvider)
 
 		// act
@@ -61,7 +61,7 @@ func TestRegistryCreator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		sut := rcm.NewRegistryCreator(createMockRelayConfigProvider(withErr()))
+		sut := rcm.NewRegistryCreator(rcptest.MockRelayConfigProvider(rcptest.WithErr()))
 
 		// act
 		_, err := sut.Create()
@@ -74,7 +74,7 @@ func TestRegistryCreator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		configProvider := createMockRelayConfigProvider(withProposerEnabledBuilderAndNoRelays(t))
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithProposerEnabledBuilderAndNoRelays(t))
 		sut := rcm.NewRegistryCreator(configProvider)
 
 		// act
@@ -88,7 +88,7 @@ func TestRegistryCreator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		configProvider := createMockRelayConfigProvider(withDefaultEnabledBuilderAndNoRelays())
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithDefaultEnabledBuilderAndNoRelays())
 		sut := rcm.NewRegistryCreator(configProvider)
 
 		// act
@@ -102,7 +102,7 @@ func TestRegistryCreator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		configProvider := createMockRelayConfigProvider(withInvalidProposerRelays(t))
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithInvalidProposerRelays(t))
 		sut := rcm.NewRegistryCreator(configProvider)
 
 		// act
@@ -116,7 +116,7 @@ func TestRegistryCreator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		configProvider := createMockRelayConfigProvider(withInvalidDefaultRelays())
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithInvalidDefaultRelays())
 		sut := rcm.NewRegistryCreator(configProvider)
 
 		// act
@@ -139,146 +139,15 @@ func onceOnlySuccessfulProvider(
 	pubKey types.PublicKey, proposerRelays, defaultRelays relay.Set,
 ) rcm.ConfigProvider {
 	calls := []rcm.ConfigProvider{
-		createMockRelayConfigProvider(
-			withProposerRelays(
+		rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerRelays(
 				pubKey.String(),
 				proposerRelays.ToStringSlice(),
 			),
-			withDefaultRelays(defaultRelays.ToStringSlice()),
+			rcptest.WithDefaultRelays(defaultRelays.ToStringSlice()),
 		), // first call is successful
-		createMockRelayConfigProvider(withErr()), // second call is an error
+		rcptest.MockRelayConfigProvider(rcptest.WithErr()), // second call is an error
 	}
 
-	return createMockRelayConfigProvider(withCalls(calls))
-}
-
-func withErr() option {
-	return func(cfg *mockRelayConfigProviderOptions) {
-		cfg.err = io.ErrUnexpectedEOF
-	}
-}
-
-func withProposerRelays(pubKey relay.ValidatorPublicKey, relays []string) option {
-	return func(cfg *mockRelayConfigProviderOptions) {
-		cfg.relayCfg.ProposerConfig = map[string]relay.Relay{
-			pubKey: {
-				Builder: relay.Builder{
-					Enabled: true,
-					Relays:  relays,
-				},
-			},
-		}
-	}
-}
-
-func withInvalidProposerRelays(t *testing.T) option {
-	t.Helper()
-
-	return func(cfg *mockRelayConfigProviderOptions) {
-		pubKey := testutil.RandomBLSPublicKey(t).String()
-		cfg.relayCfg.ProposerConfig = map[relay.ValidatorPublicKey]relay.Relay{
-			pubKey: {
-				Builder: relay.Builder{
-					Enabled: true,
-					Relays:  []string{"invalid-relay-url"},
-				},
-			},
-		}
-	}
-}
-
-func withDefaultRelays(relays []string) option {
-	return func(cfg *mockRelayConfigProviderOptions) {
-		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
-			Enabled: true,
-			Relays:  relays,
-		}
-	}
-}
-
-func withInvalidDefaultRelays() option {
-	return func(cfg *mockRelayConfigProviderOptions) {
-		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
-			Enabled: true,
-			Relays:  []string{"htt://fef/"},
-		}
-	}
-}
-
-func withProposerEnabledBuilderAndNoRelays(t *testing.T) option {
-	t.Helper()
-
-	return func(cfg *mockRelayConfigProviderOptions) {
-		pubKey := testutil.RandomBLSPublicKey(t).String()
-		cfg.relayCfg.ProposerConfig = map[relay.ValidatorPublicKey]relay.Relay{
-			pubKey: {
-				Builder: relay.Builder{
-					Enabled: true,
-				},
-			},
-		}
-	}
-}
-
-func withSomeDisabledProposerBuilders(t *testing.T) option {
-	t.Helper()
-
-	return func(cfg *mockRelayConfigProviderOptions) {
-		pubKey := testutil.RandomBLSPublicKey(t).String()
-		cfg.relayCfg.ProposerConfig = map[relay.ValidatorPublicKey]relay.Relay{
-			pubKey: {
-				Builder: relay.Builder{
-					Enabled: false,
-					Relays:  testutil.RandomRelaySet(t, 3).ToStringSlice(),
-				},
-			},
-		}
-	}
-}
-
-func withDefaultEnabledBuilderAndNoRelays() option {
-	return func(cfg *mockRelayConfigProviderOptions) {
-		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
-			Enabled: true,
-		}
-	}
-}
-
-func withCalls(calls []rcm.ConfigProvider) option {
-	return func(cfg *mockRelayConfigProviderOptions) {
-		cfg.calls = calls
-	}
-}
-
-type option func(cfg *mockRelayConfigProviderOptions)
-
-type mockRelayConfigProviderOptions struct {
-	relayCfg *relay.Config
-	err      error
-
-	calls []rcm.ConfigProvider
-}
-
-func stubRelayConfigProvider(cfg *relay.Config, err error) (*relay.Config, error) {
-	return cfg, err
-}
-
-func createMockRelayConfigProvider(opt ...option) func() (*relay.Config, error) {
-	cfg := &mockRelayConfigProviderOptions{relayCfg: &relay.Config{}}
-	for _, o := range opt {
-		o(cfg)
-	}
-
-	curCall := 0
-
-	return func() (*relay.Config, error) {
-		if len(cfg.calls) > curCall {
-			nextCall := cfg.calls[curCall]
-			curCall++
-
-			return nextCall()
-		}
-
-		return stubRelayConfigProvider(cfg.relayCfg, cfg.err)
-	}
+	return rcptest.MockRelayConfigProvider(rcptest.WithCalls(calls))
 }
