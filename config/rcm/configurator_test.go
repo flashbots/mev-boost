@@ -1,7 +1,6 @@
 package rcm_test
 
 import (
-	"io"
 	"math/rand"
 	"runtime"
 	"sync"
@@ -18,7 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var _ server.RelayConfigManager = (*rcm.Configurator)(nil)
+var (
+	_ server.RelayConfigManager = (*rcm.Configurator)(nil)
+	_ rcm.RelayRegistry         = (*relay.Registry)(nil)
+)
 
 func TestDefaultConfigManager(t *testing.T) {
 	t.Parallel()
@@ -29,9 +31,9 @@ func TestDefaultConfigManager(t *testing.T) {
 		// arrange
 		validatorPublicKey := testutil.RandomBLSPublicKey(t)
 		want := testutil.RandomRelaySet(t, 3)
-		configProvider := configProviderWithProposerRelays(validatorPublicKey, want)
+		configProvider := createMockRelayConfigProvider(withProposerRelays(validatorPublicKey.String(), want.ToStringSlice()))
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
 
 		// act
@@ -47,9 +49,9 @@ func TestDefaultConfigManager(t *testing.T) {
 		// arrange
 		validatorPublicKey := testutil.RandomBLSPublicKey(t)
 		want := testutil.RandomRelaySet(t, 3)
-		configProvider := configProviderWithDefaultRelays(want)
+		configProvider := createMockRelayConfigProvider(withDefaultRelays(want.ToStringSlice()))
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
 
 		// act
@@ -63,10 +65,10 @@ func TestDefaultConfigManager(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		configProvider := faultyConfigProvider()
+		configProvider := createMockRelayConfigProvider(withErr())
 
 		// act
-		_, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
+		_, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 
 		// assert
 		assert.ErrorIs(t, err, rcm.ErrCannotFetchRelayConfig)
@@ -81,9 +83,11 @@ func TestDefaultConfigManager(t *testing.T) {
 		defaultRelays := testutil.RandomRelaySet(t, 2)
 
 		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
-		configProvider := integralConfigProvider(validatorPublicKey, proposerRelays, defaultRelays)
+		configProvider := createMockRelayConfigProvider(
+			withProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
+			withDefaultRelays(defaultRelays.ToStringSlice()))
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
 
 		// act
@@ -102,9 +106,11 @@ func TestDefaultConfigManager(t *testing.T) {
 		defaultRelays := testutil.RelaySetWithRelayHavingTheSameURL(t, 2)
 
 		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
-		configProvider := integralConfigProvider(validatorPublicKey, proposerRelays, defaultRelays)
+		configProvider := createMockRelayConfigProvider(
+			withProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
+			withDefaultRelays(defaultRelays.ToStringSlice()))
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
 
 		// act
@@ -125,7 +131,7 @@ func TestDefaultConfigManager(t *testing.T) {
 
 		configProvider := onceOnlySuccessfulProvider(validatorPublicKey, proposerRelays, defaultRelays)
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider.FetchConfig))
+		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
 
 		// act
@@ -162,6 +168,15 @@ func TestDefaultConfigManager(t *testing.T) {
 
 		assert.Equal(t, uint64(iterations*numOfWorkers), count)
 	})
+}
+
+func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Configurator) func(types.PublicKey, relay.Set) {
+	t.Helper()
+
+	return func(pk types.PublicKey, defaultRelays relay.Set) {
+		got := sut.RelaysForValidator(pk.String())
+		assert.ElementsMatch(t, defaultRelays.ToList(), got)
+	}
 }
 
 func runConcurrentlyAndCountFnCalls(numOfWorkers, num int64, fn func(*rand.Rand, int64)) uint64 {
@@ -202,104 +217,4 @@ func randomlyCallRCMMethods(t *testing.T, sut *rcm.Configurator) func(*rand.Rand
 			sut.AllRelays()
 		}
 	}
-}
-
-func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Configurator) func(types.PublicKey, relay.Set) {
-	t.Helper()
-
-	return func(pk types.PublicKey, defaultRelays relay.Set) {
-		got := sut.RelaysForValidator(pk.String())
-		assert.ElementsMatch(t, defaultRelays.ToList(), got)
-	}
-}
-
-func onceOnlySuccessfulProvider(
-	pubKey types.PublicKey, proposerRelays, defaultRelays relay.Set,
-) *mockConfigProvider {
-	configProvider := &mockConfigProvider{}
-	configProvider.FetchConfigFn = func() (*relay.Config, error) {
-		if configProvider.WasCalledTimes > 1 {
-			return nil, relay.ErrMissingRelayPubKey
-		}
-
-		return createTestConfig(
-			withProposerRelays(pubKey.String(), proposerRelays.ToStringSlice()),
-			withDefaultRelays(defaultRelays.ToStringSlice()))()
-	}
-
-	return configProvider
-}
-
-func integralConfigProvider(pk types.PublicKey, proposerRelays, defaultRelays relay.Set) mockConfigProvider {
-	return mockConfigProvider{
-		FetchConfigFn: createTestConfig(
-			withProposerRelays(pk.String(), proposerRelays.ToStringSlice()),
-			withDefaultRelays(defaultRelays.ToStringSlice())),
-	}
-}
-
-func faultyConfigProvider() mockConfigProvider {
-	return mockConfigProvider{
-		FetchConfigFn: func() (*relay.Config, error) {
-			return nil, io.ErrUnexpectedEOF
-		},
-	}
-}
-
-func configProviderWithDefaultRelays(defaultRelays relay.Set) mockConfigProvider {
-	return mockConfigProvider{
-		FetchConfigFn: createTestConfig(withDefaultRelays(defaultRelays.ToStringSlice())),
-	}
-}
-
-func configProviderWithProposerRelays(validatorPublicKey types.PublicKey, proposerRelays relay.Set) mockConfigProvider {
-	return mockConfigProvider{
-		FetchConfigFn: createTestConfig(withProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice())),
-	}
-}
-
-type option func(cfg *relay.Config)
-
-func withProposerRelays(pubKey relay.ValidatorPublicKey, relays []string) option {
-	return func(cfg *relay.Config) {
-		cfg.ProposerConfig = map[string]relay.Relay{
-			pubKey: {
-				Builder: relay.Builder{
-					Enabled: true,
-					Relays:  relays,
-				},
-			},
-		}
-	}
-}
-
-func withDefaultRelays(relays []string) option {
-	return func(cfg *relay.Config) {
-		cfg.DefaultConfig.Builder = relay.Builder{
-			Enabled: true,
-			Relays:  relays,
-		}
-	}
-}
-
-func createTestConfig(opt ...option) func() (*relay.Config, error) {
-	cfg := &relay.Config{}
-	for _, o := range opt {
-		o(cfg)
-	}
-
-	return func() (*relay.Config, error) {
-		return cfg, nil
-	}
-}
-
-type mockConfigProvider struct {
-	WasCalledTimes uint64
-	FetchConfigFn  func() (*relay.Config, error)
-}
-
-func (m *mockConfigProvider) FetchConfig() (*relay.Config, error) {
-	m.WasCalledTimes++
-
-	return m.FetchConfigFn()
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/flashbots/mev-boost/config/relay"
 )
 
+// RelayRegistry provides read-only registry methods.
 type RelayRegistry interface {
 	RelaysForValidator(key relay.ValidatorPublicKey) relay.Set
 	AllRelays() relay.Set
