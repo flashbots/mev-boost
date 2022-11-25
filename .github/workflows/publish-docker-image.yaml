@@ -24,9 +24,8 @@ jobs:
 
       - name: Print version
         run: |
-          echo $RELEASE_VERSION
           echo ${{ env.RELEASE_VERSION }}
-          echo $SHORT_COMMIT
+          echo ${{ env.SHORT_COMMIT }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -46,7 +45,10 @@ jobs:
           context: .
           push: true
           build-args: |
-            VERSION=${{ env.RELEASE_VERSION }}
+            VERSION=${{ env.RELEASE_VERSION }}-${{ env.SHORT_COMMIT  }}
             CGO_CFLAGS=-O -D__BLST_PORTABLE__
           platforms: linux/amd64,linux/arm64
           tags: happygopher/mev-boost-dev:${{ env.SHORT_COMMIT}},happygopher/mev-boost-dev:latest
+
+      - name: Print MEV-Boost version
+        run: docker run --rm happygopher/mev-boost-dev:latest --version
