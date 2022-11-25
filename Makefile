@@ -1,5 +1,5 @@
 VERSION ?= $(shell git describe --tags --always --dirty="-dev")
-DOCKER_REPO := flashbots/mev-boost
+DOCKER_REPO := happygopher/mev-boost-dev
 
 .PHONY: all
 all: build
@@ -65,13 +65,13 @@ run-mergemock-integration: build
 
 .PHONY: docker-image
 docker-image:
-	DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --build-arg CGO_CFLAGS="" --build-arg VERSION=${VERSION} . -t mev-boost
+	DOCKER_BUILDKIT=1 docker build --platform linux/arm64  --platform linux/amd64 --build-arg CGO_CFLAGS="" --build-arg VERSION=${VERSION} . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
 	docker tag mev-boost:latest ${DOCKER_REPO}:latest
 
 .PHONY: docker-image-portable
 docker-image-portable:
-	DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --build-arg CGO_CFLAGS="-O -D__BLST_PORTABLE__" --build-arg VERSION=${VERSION}  . -t mev-boost
+	DOCKER_BUILDKIT=1 docker build --platform linux/arm64 --platform linux/amd64 --build-arg CGO_CFLAGS="-O -D__BLST_PORTABLE__" --build-arg VERSION=${VERSION}  . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
 
 .PHONY: docker-push-version
