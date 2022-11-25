@@ -172,8 +172,6 @@ func Main() {
 
 	runConfigSyncerIfEnabled(relayConfigManager)
 
-	log.Infof("default proposer config sync interval is %.2f min", rcm.DefaultSyncTime.Minutes())
-
 	log.Infof("using %d relays", len(relays))
 	for index, entry := range relayConfigManager.AllRelays().ToStringSlice() {
 		log.Infof("relay #%d: %s", index+1, entry)
