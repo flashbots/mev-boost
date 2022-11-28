@@ -37,6 +37,17 @@ func RelaySetWithRelayHavingTheSameURL(t *testing.T, num int) relay.Set {
 	return s
 }
 
+func RandomRelayList(t *testing.T, num int) relay.List {
+	t.Helper()
+
+	list := make(relay.List, num)
+	for i := 0; i < num; i++ {
+		list[i] = RandomRelayEntry(t)
+	}
+
+	return list
+}
+
 func RandomRelayEntry(t *testing.T) relay.Entry {
 	t.Helper()
 

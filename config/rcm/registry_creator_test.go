@@ -35,10 +35,10 @@ func TestRegistryCreator(t *testing.T) {
 
 		// assert
 		require.NoError(t, err)
-		assert.ElementsMatch(t, got.AllRelays().ToList(), want)
-		assert.ElementsMatch(t, got.RelaysForValidator(validatorPublicKey.String()).ToList(), proposerRelays.ToList())
+		assert.ElementsMatch(t, got.AllRelays(), want)
+		assert.ElementsMatch(t, got.RelaysForValidator(validatorPublicKey.String()), proposerRelays.ToList())
 		assert.ElementsMatch(t, got.RelaysForValidator(
-			testutil.RandomBLSPublicKey(t).String()).ToList(),
+			testutil.RandomBLSPublicKey(t).String()),
 			defaultRelays.ToList())
 	})
 

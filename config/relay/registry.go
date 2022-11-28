@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"strings"
 	"sync"
 )
 
@@ -41,7 +42,7 @@ func (r *Registry) AddDefaultRelay(entry Entry) {
 // RelaysForValidator returns all the relays for this given validator.
 //
 // If there are no relays for the provided key, then the default relays are returned.
-func (r *Registry) RelaysForValidator(key ValidatorPublicKey) Set {
+func (r *Registry) RelaysForValidator(key ValidatorPublicKey) List {
 	r.relaysMu.RLock()
 	defer r.relaysMu.RUnlock()
 
@@ -51,7 +52,7 @@ func (r *Registry) RelaysForValidator(key ValidatorPublicKey) Set {
 // AllRelays returns all known relays.
 //
 // It returns a unique set of validator relays and default relays.
-func (r *Registry) AllRelays() Set {
+func (r *Registry) AllRelays() List {
 	r.relaysMu.RLock()
 	defer r.relaysMu.RUnlock()
 
@@ -67,7 +68,7 @@ func (r *Registry) AllRelays() Set {
 		relayList[entry.RelayURL().String()] = entry
 	}
 
-	return relayList
+	return relayList.ToList()
 }
 
 type relaysByValidatorPubKey map[ValidatorPublicKey]Set
@@ -77,6 +78,7 @@ func newRelaysByValidatorPubKey() relaysByValidatorPubKey {
 }
 
 func (r relaysByValidatorPubKey) Add(key ValidatorPublicKey, entry Entry) {
+	key = strings.ToLower(key)
 	if _, ok := r[key]; !ok {
 		r[key] = make(Set)
 	}
@@ -84,10 +86,11 @@ func (r relaysByValidatorPubKey) Add(key ValidatorPublicKey, entry Entry) {
 	r[key].Add(entry)
 }
 
-func (r relaysByValidatorPubKey) GetOrDefault(key ValidatorPublicKey, def Set) Set {
+func (r relaysByValidatorPubKey) GetOrDefault(key ValidatorPublicKey, def Set) List {
+	key = strings.ToLower(key)
 	if s, ok := r[key]; ok {
-		return s
+		return s.ToList()
 	}
 
-	return def
+	return def.ToList()
 }

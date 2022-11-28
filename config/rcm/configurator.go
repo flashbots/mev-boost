@@ -9,8 +9,8 @@ import (
 
 // RelayRegistry provides read-only registry methods.
 type RelayRegistry interface {
-	RelaysForValidator(key relay.ValidatorPublicKey) relay.Set
-	AllRelays() relay.Set
+	RelaysForValidator(key relay.ValidatorPublicKey) relay.List
+	AllRelays() relay.List
 }
 
 // Configurator is a general implementation for an RCM.
@@ -68,7 +68,7 @@ func (m *Configurator) RelaysForValidator(publicKey relay.ValidatorPublicKey) re
 	m.relayRegistryMu.RLock()
 	defer m.relayRegistryMu.RUnlock()
 
-	return m.loadRegistry().RelaysForValidator(publicKey).ToList()
+	return m.loadRegistry().RelaysForValidator(publicKey)
 }
 
 // AllRelays retrieves a list of all unique relays from the Relay Registry.
@@ -76,7 +76,7 @@ func (m *Configurator) AllRelays() relay.List {
 	m.relayRegistryMu.RLock()
 	defer m.relayRegistryMu.RUnlock()
 
-	return m.loadRegistry().AllRelays().ToList()
+	return m.loadRegistry().AllRelays()
 }
 
 func (m *Configurator) loadRegistry() RelayRegistry {

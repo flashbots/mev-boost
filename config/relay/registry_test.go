@@ -15,34 +15,34 @@ func TestProposerRegistry(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		want := testutil.RandomRelaySet(t, 3)
+		want := testutil.RandomRelaySet(t, 3).ToList()
 		pubKey := testutil.RandomBLSPublicKey(t).String()
 
 		sut := relay.NewProposerRegistry()
-		addRelaysForValidator(sut, pubKey, want.ToList()...)
+		addRelaysForValidator(sut, pubKey, want...)
 
 		// act
 		got := sut.RelaysForValidator(pubKey)
 
 		// assert
-		assert.Equal(t, got, want)
+		assert.ElementsMatch(t, got, want)
 	})
 
 	t.Run("it returns default relays if validator is unknown", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		want := testutil.RandomRelaySet(t, 3)
+		want := testutil.RandomRelaySet(t, 3).ToList()
 		pubKey := testutil.RandomBLSPublicKey(t).String()
 
 		sut := relay.NewProposerRegistry()
-		addDefaultRelays(sut, want.ToList()...)
+		addDefaultRelays(sut, want...)
 
 		// act
 		got := sut.RelaysForValidator(pubKey)
 
 		// assert
-		assert.Equal(t, got, want)
+		assert.ElementsMatch(t, got, want)
 	})
 
 	t.Run("it only adds the last proposer relay if a few relays with the same url are added", func(t *testing.T) {
@@ -50,16 +50,16 @@ func TestProposerRegistry(t *testing.T) {
 
 		// arrange
 		pubKey := testutil.RandomBLSPublicKey(t).String()
-		want := testutil.RelaySetWithRelayHavingTheSameURL(t, 3)
+		want := testutil.RelaySetWithRelayHavingTheSameURL(t, 3).ToList()
 
 		sut := relay.NewProposerRegistry()
-		addRelaysForValidator(sut, pubKey, want.ToList()...)
+		addRelaysForValidator(sut, pubKey, want...)
 
 		// act
 		got := sut.RelaysForValidator(pubKey)
 
 		// assert
-		assert.Equal(t, got, want)
+		assert.ElementsMatch(t, got, want)
 		assert.Len(t, want, 1)
 	})
 
@@ -68,16 +68,16 @@ func TestProposerRegistry(t *testing.T) {
 
 		// arrange
 		pubKey := testutil.RandomBLSPublicKey(t).String()
-		want := testutil.RelaySetWithRelayHavingTheSameURL(t, 3)
+		want := testutil.RelaySetWithRelayHavingTheSameURL(t, 3).ToList()
 
 		sut := relay.NewProposerRegistry()
-		addDefaultRelays(sut, want.ToList()...)
+		addDefaultRelays(sut, want...)
 
 		// act
 		got := sut.RelaysForValidator(pubKey)
 
 		// assert
-		assert.Equal(t, got, want)
+		assert.ElementsMatch(t, got, want)
 		assert.Len(t, want, 1)
 	})
 
@@ -96,7 +96,7 @@ func TestProposerRegistry(t *testing.T) {
 		got := sut.AllRelays()
 
 		// assert
-		assert.ElementsMatch(t, want, got.ToList())
+		assert.ElementsMatch(t, want, got)
 		assert.Len(t, want, 3)
 	})
 
@@ -107,7 +107,7 @@ func TestProposerRegistry(t *testing.T) {
 		pubKey := testutil.RandomBLSPublicKey(t).String()
 		proposerRelays := testutil.RelaySetWithRelayHavingTheSameURL(t, 3)
 		defaultRelays := testutil.RelaySetWithRelayHavingTheSameURL(t, 2)
-		want := testutil.JoinSets(proposerRelays, defaultRelays)
+		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
 
 		sut := relay.NewProposerRegistry()
 		addRelaysForValidator(sut, pubKey, proposerRelays.ToList()...)
@@ -117,7 +117,7 @@ func TestProposerRegistry(t *testing.T) {
 		got := sut.AllRelays()
 
 		// assert
-		assert.Equal(t, want, got)
+		assert.ElementsMatch(t, want, got)
 		assert.Len(t, want, 2)
 	})
 }
