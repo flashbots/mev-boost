@@ -71,7 +71,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		_, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 
 		// assert
-		assert.ErrorIs(t, err, rcm.ErrCannotFetchRelayConfig)
+		assert.ErrorIs(t, err, rcm.ErrConfigProviderFailure)
 	})
 
 	t.Run("it returns proposer and default relays", func(t *testing.T) {

@@ -54,7 +54,7 @@ func TestSyncer(t *testing.T) {
 		sut.SyncConfig(ctx)
 
 		// assert
-		assert.ErrorIs(t, <-errCh, rcm.ErrCannotFetchRelayConfig)
+		assert.ErrorIs(t, <-errCh, rcm.ErrConfigProviderFailure)
 	})
 
 	t.Run("it uses a nop onSyncHandler if none specified", func(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	ErrCannotFetchRelayConfig       = errors.New("cannot fetch relay config")
+	ErrConfigProviderFailure        = errors.New("config provider failure")
 	ErrInvalidProposerConfig        = errors.New("invalid proposer config")
 	ErrEmptyBuilderRelays           = errors.New("builder is enabled but has no relays")
 	ErrCannotPopulateProposerRelays = errors.New("cannot populate proposer relays")
@@ -23,9 +23,8 @@ type proposerWalkerFn func(publicKey relay.ValidatorPublicKey, cfg relay.Relay) 
 //
 // The default and/or proposer relays may be empty.
 // It ignores the disabled builders and their relays.
-// If a config provider returns a proposer config in which
-//
-//	a builder is enabled and has no relays, the registry won't be created.
+// If the config provider fetches a proposer config with a builder enabled
+// and with no relays, the registry won't be created.
 type RegistryCreator struct {
 	configProvider ConfigProvider
 	relayRegistry  *relay.Registry
@@ -51,7 +50,7 @@ func NewRegistryCreator(configProvider ConfigProvider) *RegistryCreator {
 func (r *RegistryCreator) Create() (*relay.Registry, error) {
 	cfg, err := r.configProvider()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrCannotFetchRelayConfig, err)
+		return nil, fmt.Errorf("%w: %v", ErrConfigProviderFailure, err)
 	}
 
 	if err := r.validateConfig(cfg); err != nil {

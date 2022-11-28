@@ -67,7 +67,7 @@ func TestRegistryCreator(t *testing.T) {
 		_, err := sut.Create()
 
 		// assert
-		assert.ErrorIs(t, err, rcm.ErrCannotFetchRelayConfig)
+		assert.ErrorIs(t, err, rcm.ErrConfigProviderFailure)
 	})
 
 	t.Run("it returns an error if a proposer builder is enabled but has not relays", func(t *testing.T) {

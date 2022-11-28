@@ -2,10 +2,10 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"math/big"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -83,6 +83,12 @@ var (
 
 var log = logrus.NewEntry(logrus.New())
 
+var (
+	ErrRequiredOptionsAreNotProvided = errors.New("required options are not provided")
+	ErrMutuallyExclusiveOptions      = errors.New("mutually exclusive options provided")
+	ErrNoRelaysProvided              = errors.New("no relays provided")
+)
+
 // Main starts the mev-boost cli
 func Main() {
 	// process repeatable flags
@@ -148,20 +154,18 @@ func Main() {
 	}
 	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
 
-	checkProposerConfigOptions()
+	if err := checkProposerConfigOptions(); err != nil {
+		flag.Usage()
+		log.WithError(err).Fatal("invalid proposer options")
+	}
 
 	// For backwards compatibility with the -relays flag.
 	if *relayURLs != "" {
 		for _, relayURL := range strings.Split(*relayURLs, ",") {
 			err := relays.AddURL(relayURL)
 			if err != nil {
-				log.WithError(err).WithField("relay", relayURL).Fatal("Invalid relay URL")
+				log.WithError(err).WithField("relay", relayURL).Fatal("invalid relay URL")
 			}
-		}
-
-		if len(relays) == 0 {
-			flag.Usage()
-			log.Fatal("no relays specified")
 		}
 	}
 
@@ -236,47 +240,51 @@ func Main() {
 	log.Fatal(service.StartHTTPServer())
 }
 
-func checkProposerConfigOptions() {
+func checkProposerConfigOptions() error {
 	const (
 		flagRelayURLs          = "relays"
 		flagProposerConfigURL  = "proposer-config-url"
 		flagProposerConfigFile = "proposer-config-file"
 	)
 
-	allowedOptions := map[string]struct{}{
-		flagRelayURLs:          {},
-		flagProposerConfigURL:  {},
-		flagProposerConfigFile: {},
+	allowedOptions := map[string]string{
+		flagRelayURLs:          *relayURLs,
+		flagProposerConfigURL:  *proposerConfigURL,
+		flagProposerConfigFile: *proposerConfigFile,
 	}
 
-	providedOptions := make(map[string]string, 3)
+	providedOptions := make(map[string]string, len(allowedOptions))
 
-	addOptionIfNotEmpty := func(opt string, val *string) {
-		if _, ok := allowedOptions[opt]; ok && *val != "" {
-			providedOptions[opt] = *val
+	addOptionIfNotEmpty := func(opt, val string) {
+		if _, ok := allowedOptions[opt]; ok && val != "" {
+			providedOptions[opt] = val
 		}
 	}
 
-	toString := func(m map[string]string) string {
-		res := make([]string, 0, len(m))
-		for opt := range m {
-			res = append(res, opt)
-		}
-
-		return strings.Join(res, " or -")
+	for opt, value := range allowedOptions {
+		addOptionIfNotEmpty(opt, value)
 	}
-
-	addOptionIfNotEmpty(flagRelayURLs, relayURLs)
-	addOptionIfNotEmpty(flagProposerConfigURL, proposerConfigURL)
-	addOptionIfNotEmpty(flagProposerConfigFile, proposerConfigFile)
 
 	if len(providedOptions) < 1 {
-		log.Fatalf("required options are not provided: please specify -%s", toString(providedOptions))
+		return fmt.Errorf("%w: please specify %s",
+			ErrRequiredOptionsAreNotProvided, mapKeysToString(allowedOptions))
 	}
 
 	if len(providedOptions) > 1 {
-		log.Fatalf("mutially excluside options provided: please specify -%s", toString(providedOptions))
+		return fmt.Errorf("%w: please specify %s",
+			ErrMutuallyExclusiveOptions, mapKeysToString(providedOptions))
 	}
+
+	return nil
+}
+
+func mapKeysToString(m map[string]string) string {
+	res := make([]string, 0, len(m))
+	for opt := range m {
+		res = append(res, opt)
+	}
+
+	return "-" + strings.Join(res, " or -")
 }
 
 func createConfigManager() (*rcm.Configurator, error) {
@@ -288,12 +296,16 @@ func createConfigManager() (*rcm.Configurator, error) {
 	case *proposerConfigFile != "":
 		registryCreator = rcm.NewRegistryCreator(rcp.NewFile(*proposerConfigFile).FetchConfig)
 	case *proposerConfigURL != "":
-		registryCreator = rcm.NewRegistryCreator(rcp.NewJSONAPI(http.DefaultClient, *proposerConfigURL).FetchConfig)
+		registryCreator = rcm.NewRegistryCreator(rcp.NewJSONAPI(nil, *proposerConfigURL).FetchConfig)
 	}
 
 	relayConfigManager, err := rcm.NewDefault(registryCreator)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create config manager: %w", err)
+	}
+
+	if len(relayConfigManager.AllRelays()) == 0 {
+		return nil, ErrNoRelaysProvided
 	}
 
 	return relayConfigManager, nil
