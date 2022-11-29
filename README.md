@@ -167,6 +167,7 @@ Type=simple
 Restart=always
 RestartSec=5
 ExecStart=/home/mev-boost/bin/mev-boost \
+        -min-bid 0.05 \
         -relay-check \
         -relay YOUR_RELAY_CHOICE_A \
         -relay YOUR_RELAY_CHOICE_B \
@@ -215,7 +216,7 @@ Please take a look at the specific release documentation about the available com
 Run MEV-Boost pointed at a mainnet relay:
 
 ```
-./mev-boost -relay-check -relay URL-OF-TRUSTED-RELAY
+./mev-boost -min-bid 0.05 -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
 ## Goerli testnet
