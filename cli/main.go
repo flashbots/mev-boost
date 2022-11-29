@@ -162,9 +162,9 @@ func Main() {
 	// For backwards compatibility with the -relays flag.
 	if *relayURLs != "" {
 		for _, relayURL := range strings.Split(*relayURLs, ",") {
-			err := relays.AddURL(relayURL)
+			err := relays.Set(relayURL)
 			if err != nil {
-				log.WithError(err).WithField("relay", relayURL).Fatal("invalid relay URL")
+				log.WithError(err).WithField("relay", relayURL).Fatal("Invalid relay URL")
 			}
 		}
 	}
@@ -244,12 +244,14 @@ func Main() {
 
 func checkProposerConfigOptions() error {
 	const (
+		flagRelay              = "relay"
 		flagRelayURLs          = "relays"
 		flagProposerConfigURL  = "proposer-config-url"
 		flagProposerConfigFile = "proposer-config-file"
 	)
 
 	allowedOptions := map[string]string{
+		flagRelay:              relays.String(),
 		flagRelayURLs:          *relayURLs,
 		flagProposerConfigURL:  *proposerConfigURL,
 		flagProposerConfigFile: *proposerConfigFile,
