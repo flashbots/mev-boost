@@ -5,10 +5,10 @@ import (
 	"time"
 )
 
-// DefaultSyncTime is the default config sync time.
+// DefaultSyncInterval is the default config synchronisation interval.
 // It equals to half an epoch.
 // Every epoch has 32 slots each of which lasts 12 seconds.
-const DefaultSyncTime = 32 * 12 / 2 * time.Second
+const DefaultSyncInterval = 32 * 12 / 2 * time.Second
 
 // OnSyncHandler an even handler which is invoked on every synchronisation call.
 type OnSyncHandler = func(t time.Time, err error)
@@ -52,7 +52,7 @@ type Syncer struct {
 // It may take numerous optional params.
 //
 // It panics if no configManager is passed.
-// If no interval option is passed, then the DefaultSyncTime will be used.
+// If no interval option is passed, then the DefaultSyncInterval will be used.
 func NewSyncer(configManager *Configurator, opt ...SyncOption) *Syncer {
 	if configManager == nil {
 		panic("configManager is require and cannot be nil")
@@ -64,7 +64,7 @@ func NewSyncer(configManager *Configurator, opt ...SyncOption) *Syncer {
 	}
 
 	if cfg.interval < 1 {
-		cfg.interval = DefaultSyncTime
+		cfg.interval = DefaultSyncInterval
 	}
 
 	if cfg.onSyncHandler == nil {
@@ -80,21 +80,25 @@ func NewSyncer(configManager *Configurator, opt ...SyncOption) *Syncer {
 
 // SyncConfig runs a background job which synchronises the configuration.
 //
+// It runs a synchronisation job every given interval of time.
 // The job will finish once the context is done.
-// It the job runs a synchronisation task every given interval of time.
-// A custom interval maybe specified via constructor option.
+// A custom interval maybe specified via a constructor option.
+// If OnSyncHandler is passed, it will run every time the config is synced.
+//
+// This function will block, until the context is done.
+// A good usage example may look as follows:
+//
+//	ctx, cancel := context.WithCancel(context.Background())
+//	defer cancel()
+//
+//	go rcm.SyncConfig(ctx)
 func (s *Syncer) SyncConfig(ctx context.Context) {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case t := <-ticker.C:
-				s.onSyncHandler(t, s.configManager.SyncConfig())
-			}
+		for t := range ticker.C {
+			s.onSyncHandler(t, s.configManager.SyncConfig())
 		}
 	}()
 

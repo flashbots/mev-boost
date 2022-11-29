@@ -74,6 +74,26 @@ func TestSyncer(t *testing.T) {
 		})
 	})
 
+	t.Run("it uses a default time interval if none specified", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		errCh := make(chan error, 1)
+
+		sut := rcm.NewSyncer(
+			createConfigManagerWithRandomRelays(t),
+			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(errCh)))
+
+		// act
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		sut.SyncConfig(ctx)
+
+		// assert
+		assertDefaultIntervalIsUsed(t)(ctx, errCh)
+	})
+
 	t.Run("it panics if config manager is not provided", func(t *testing.T) {
 		t.Parallel()
 
@@ -81,6 +101,23 @@ func TestSyncer(t *testing.T) {
 			_ = rcm.NewSyncer(nil)
 		})
 	})
+}
+
+func assertDefaultIntervalIsUsed(t *testing.T) func(context.Context, chan error) {
+	t.Helper()
+
+	// We don't want to wait more than 3 minutes to check the rcm.DefaultSyncInterval value.
+	// if context is timed-out earlier that then onSyncHandler was executed,
+	// it means the interval is bigger than the context timeout,
+	// so we may deduce that the rcm.DefaultSyncInterval is used.
+	return func(ctx context.Context, errCh chan error) {
+		select {
+		case <-errCh:
+			assert.Fail(t, "sync interval is less than rcm.DefaultSyncInterval")
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func createConfigManagerWithRandomRelays(t *testing.T) *rcm.Configurator {

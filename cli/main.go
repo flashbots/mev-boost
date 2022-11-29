@@ -176,8 +176,10 @@ func Main() {
 
 	runConfigSyncerIfEnabled(relayConfigManager)
 
-	log.Infof("using %d relays", len(relays))
-	for index, entry := range relayConfigManager.AllRelays().ToStringSlice() {
+	relaysList := relayConfigManager.AllRelays().ToStringSlice()
+
+	log.Infof("using %d relays", len(relaysList))
+	for index, entry := range relaysList {
 		log.Infof("relay #%d: %s", index+1, entry)
 	}
 
@@ -313,16 +315,14 @@ func createConfigManager() (*rcm.Configurator, error) {
 
 func runConfigSyncerIfEnabled(relayConfigManager *rcm.Configurator) {
 	if *proposerConfigRefresh {
-		log.Infof("default proposer config sync interval is %.2f min", rcm.DefaultSyncTime.Minutes())
+		log.Infof("default proposer config sync interval is %.2f min", rcm.DefaultSyncInterval.Minutes())
 
-		// At the moment the sync job will run perpetually unless the program is killed.
+		// At the moment the sync job will run perpetually until the program is killed.
 		// Even thought the Syncer supports graceful shutdown via context cancellation,
-		// we cannot utilise it here, because it will just stop the synchronisation,
-		// yet won't stop the other running go-routines...
+		// we cannot utilise it here as we don't have a cancellable context at the moment.
+		// If we use a cancellable context  here instead of context.Background(),
+		// it will just stop the synchronisation, yet won't stop the other running go-routines.
 		syncer := rcm.NewSyncer(relayConfigManager, rcm.SyncerWithOnSyncHandler(onSyncHandler))
-
-		// Given that the context is never cancelled, we need to run syncer.SyncConfig()
-		// in a separate go-routine, otherwise this call will block waiting for context to be done.
 		go syncer.SyncConfig(context.Background())
 	}
 }
