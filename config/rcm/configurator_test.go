@@ -31,7 +31,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		validatorPublicKey := testutil.RandomBLSPublicKey(t)
 		want := testutil.RandomRelaySet(t, 3)
 		configProvider := rcptest.MockRelayConfigProvider(
-			rcptest.WithProposerRelays(validatorPublicKey.String(), want.ToStringSlice()))
+			rcptest.WithProposerRelays(validatorPublicKey.String(), want))
 
 		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		// arrange
 		validatorPublicKey := testutil.RandomBLSPublicKey(t)
 		want := testutil.RandomRelaySet(t, 3)
-		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithDefaultRelays(want.ToStringSlice()))
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithDefaultRelays(want))
 
 		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
@@ -84,8 +84,8 @@ func TestDefaultConfigManager(t *testing.T) {
 
 		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
 		configProvider := rcptest.MockRelayConfigProvider(
-			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
-			rcptest.WithDefaultRelays(defaultRelays.ToStringSlice()))
+			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays),
+			rcptest.WithDefaultRelays(defaultRelays))
 
 		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
@@ -107,8 +107,8 @@ func TestDefaultConfigManager(t *testing.T) {
 
 		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
 		configProvider := rcptest.MockRelayConfigProvider(
-			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
-			rcptest.WithDefaultRelays(defaultRelays.ToStringSlice()))
+			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays),
+			rcptest.WithDefaultRelays(defaultRelays))
 
 		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
@@ -173,9 +173,8 @@ func TestDefaultConfigManager(t *testing.T) {
 func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Configurator) func(types.PublicKey, relay.Set) {
 	t.Helper()
 
-	return func(pk types.PublicKey, defaultRelays relay.Set) {
-		got := sut.RelaysForValidator(pk.String())
-		assert.ElementsMatch(t, defaultRelays.ToList(), got)
+	return func(pk types.PublicKey, want relay.Set) {
+		assert.ElementsMatch(t, want.ToStringSlice(), sut.RelaysForValidator(pk.String()).ToStringSlice())
 	}
 }
 

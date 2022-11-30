@@ -25,8 +25,8 @@ func TestRegistryCreator(t *testing.T) {
 		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
 
 		configProvider := rcptest.MockRelayConfigProvider(
-			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays.ToStringSlice()),
-			rcptest.WithDefaultRelays(defaultRelays.ToStringSlice()))
+			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays),
+			rcptest.WithDefaultRelays(defaultRelays))
 
 		sut := rcm.NewRegistryCreator(configProvider)
 
@@ -40,6 +40,34 @@ func TestRegistryCreator(t *testing.T) {
 		assert.ElementsMatch(t, got.RelaysForValidator(
 			testutil.RandomBLSPublicKey(t).String()),
 			defaultRelays.ToList())
+	})
+
+	t.Run("it creates a valid registry with two different proposers and no default relays", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		proposer1 := testutil.RandomBLSPublicKey(t)
+		proposer2 := testutil.RandomBLSPublicKey(t)
+
+		proposer1Relays := testutil.RandomRelaySet(t, 3)
+		proposer2Relays := testutil.RandomRelaySet(t, 2)
+
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerRelays(proposer1.String(), proposer1Relays),
+			rcptest.WithProposerRelays(proposer2.String(), proposer2Relays),
+		)
+
+		sut := rcm.NewRegistryCreator(configProvider)
+
+		// act
+		got, err := sut.Create()
+
+		// assert
+		require.NoError(t, err)
+
+		assertRegistryHasProposerRelays(t, got)(proposer1.String(), proposer1Relays)
+		assertRegistryHasProposerRelays(t, got)(proposer2.String(), proposer2Relays)
+		assertRegistryHasAllRelays(t, got)(proposer1Relays, proposer2Relays)
 	})
 
 	t.Run("it skips disabled builders", func(t *testing.T) {
@@ -135,6 +163,22 @@ func TestRegistryCreator(t *testing.T) {
 	})
 }
 
+func assertRegistryHasAllRelays(t *testing.T, got rcm.RelayRegistry) func(...relay.Set) {
+	t.Helper()
+
+	return func(relays ...relay.Set) {
+		assert.ElementsMatch(t, testutil.JoinSets(relays...).ToStringSlice(), got.AllRelays().ToStringSlice())
+	}
+}
+
+func assertRegistryHasProposerRelays(t *testing.T, sut rcm.RelayRegistry) func(relay.ValidatorPublicKey, relay.Set) {
+	t.Helper()
+
+	return func(pk relay.ValidatorPublicKey, want relay.Set) {
+		assert.ElementsMatch(t, want.ToStringSlice(), sut.RelaysForValidator(pk).ToStringSlice())
+	}
+}
+
 func onceOnlySuccessfulProvider(
 	pubKey types.PublicKey, proposerRelays, defaultRelays relay.Set,
 ) rcm.ConfigProvider {
@@ -142,9 +186,9 @@ func onceOnlySuccessfulProvider(
 		rcptest.MockRelayConfigProvider(
 			rcptest.WithProposerRelays(
 				pubKey.String(),
-				proposerRelays.ToStringSlice(),
+				proposerRelays,
 			),
-			rcptest.WithDefaultRelays(defaultRelays.ToStringSlice()),
+			rcptest.WithDefaultRelays(defaultRelays),
 		), // first call is successful
 		rcptest.MockRelayConfigProvider(rcptest.WithErr()), // second call is an error
 	}

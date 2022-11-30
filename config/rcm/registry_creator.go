@@ -103,18 +103,22 @@ func (r *RegistryCreator) checkIfBuilderHasRelays(builder relay.Builder) error {
 
 func (r *RegistryCreator) walkProposerCfg(proposerCfg relay.ProposerConfig, walker proposerWalkerFn) error {
 	for validatorPubKey, cfg := range proposerCfg {
-		return walker(validatorPubKey, cfg)
+		if err := walker(validatorPubKey, cfg); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func (r *RegistryCreator) populateProposerRelays(proposerCfg relay.ProposerConfig) error {
-	return r.walkProposerCfg(proposerCfg, func(publicKey relay.ValidatorPublicKey, cfg relay.Relay) error {
+	walker := func(publicKey relay.ValidatorPublicKey, cfg relay.Relay) error {
 		return r.populateRelays(cfg, func(relay relay.Entry) {
 			r.relayRegistry.AddRelayForValidator(publicKey, relay)
 		})
-	})
+	}
+
+	return r.walkProposerCfg(proposerCfg, walker)
 }
 
 func (r *RegistryCreator) populateDefaultRelays(relayCfg relay.Relay) error {

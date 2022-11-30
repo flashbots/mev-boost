@@ -124,3 +124,16 @@ func RunConcurrentlyAndCountFnCalls(numOfWorkers, num int64, fn func(*rand.Rand,
 
 	return count
 }
+
+func PopulateSetFromList(s relay.Set, relays relay.List) {
+	for _, entry := range relays {
+		s.Add(entry)
+	}
+}
+
+func RelaySetFromList(relays relay.List) relay.Set {
+	s := relay.NewRelaySet()
+	PopulateSetFromList(s, relays)
+
+	return s
+}

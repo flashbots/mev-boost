@@ -67,7 +67,7 @@ func TestRelaySet(t *testing.T) {
 		want := []string{relays[0].String(), relays[1].String()}
 
 		sut := relay.NewRelaySet()
-		populateSetFromList(sut, relays)
+		testutil.PopulateSetFromList(sut, relays)
 
 		// act
 		got := sut.ToStringSlice()
@@ -84,7 +84,7 @@ func TestRelaySet(t *testing.T) {
 		want := fmt.Sprintf("%s,%s", relays[0].String(), relays[1].String())
 
 		sut := relay.NewRelaySet()
-		populateSetFromList(sut, relays)
+		testutil.PopulateSetFromList(sut, relays)
 
 		// act
 		got := sut.String()
@@ -101,10 +101,4 @@ func assertContainsTheSameRelays(t *testing.T, want, got string) {
 	gotRelays := strings.Split(got, ",")
 
 	assert.ElementsMatch(t, wantRelays, gotRelays)
-}
-
-func populateSetFromList(s relay.Set, relays relay.List) {
-	for _, entry := range relays {
-		s.Add(entry)
-	}
 }
