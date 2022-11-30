@@ -8,6 +8,11 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/attestantio/go-builder-client/api"
+	"github.com/attestantio/go-builder-client/spec"
+	consensusapi "github.com/attestantio/go-eth2-client/api/v1"
+	"github.com/attestantio/go-eth2-client/spec/altair"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/server"
@@ -39,7 +44,7 @@ func doRegisterValidator(v validatorPrivateData, boostEndpoint string, builderSi
 	log.WithError(err).Info("Registered validator")
 }
 
-func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain boostTypes.Domain) boostTypes.GetHeaderResponse {
+func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain boostTypes.Domain) spec.VersionedSignedBuilderBid {
 	// Mergemock needs to call forkchoice update before getHeader, for non-mergemock beacon node this is a no-op
 	err := beaconNode.onGetHeader()
 	if err != nil {
@@ -66,7 +71,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 
 	uri := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s", boostEndpoint, currentBlock.Slot+1, currentBlockHash, v.Pk.String())
 
-	var getHeaderResp boostTypes.GetHeaderResponse
+	var getHeaderResp spec.VersionedSignedBuilderBid
 	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, uri, "test-cli", nil, &getHeaderResp); err != nil {
 		log.WithError(err).WithField("currentBlockHash", currentBlockHash).Fatal("Could not get header")
 	}
@@ -90,21 +95,21 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain, proposerSigningDomain boostTypes.Domain) {
 	header := doGetHeader(v, boostEndpoint, beaconNode, engineEndpoint, builderSigningDomain)
 
-	blindedBeaconBlock := boostTypes.BlindedBeaconBlock{
+	blindedBeaconBlock := consensusapi.BlindedBeaconBlock{
 		Slot:          0,
 		ProposerIndex: 0,
-		ParentRoot:    boostTypes.Root{},
-		StateRoot:     boostTypes.Root{},
-		Body: &boostTypes.BlindedBeaconBlockBody{
-			RandaoReveal:           boostTypes.Signature{},
-			Eth1Data:               &boostTypes.Eth1Data{},
-			Graffiti:               boostTypes.Hash{},
-			ProposerSlashings:      []*boostTypes.ProposerSlashing{},
-			AttesterSlashings:      []*boostTypes.AttesterSlashing{},
-			Attestations:           []*boostTypes.Attestation{},
-			Deposits:               []*boostTypes.Deposit{},
-			VoluntaryExits:         []*boostTypes.SignedVoluntaryExit{},
-			SyncAggregate:          &boostTypes.SyncAggregate{},
+		ParentRoot:    phase0.Root{},
+		StateRoot:     phase0.Root{},
+		Body: &consensusapi.BlindedBeaconBlockBody{
+			RANDAOReveal:           phase0.BLSSignature{},
+			ETH1Data:               &phase0.ETH1Data{},
+			Graffiti:               phase0.Hash32{},
+			ProposerSlashings:      []*phase0.ProposerSlashing{},
+			AttesterSlashings:      []*phase0.AttesterSlashing{},
+			Attestations:           []*phase0.Attestation{},
+			Deposits:               []*phase0.Deposit{},
+			VoluntaryExits:         []*phase0.SignedVoluntaryExit{},
+			SyncAggregate:          &altair.SyncAggregate{},
 			ExecutionPayloadHeader: header.Data.Message.Header,
 		},
 	}
@@ -114,19 +119,19 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 		log.WithError(err).Fatal("could not sign blinded beacon block")
 	}
 
-	payload := boostTypes.SignedBlindedBeaconBlock{
+	payload := consensusapi.SignedBlindedBeaconBlock{
 		Message:   &blindedBeaconBlock,
-		Signature: signature,
+		Signature: phase0.BLSSignature(signature),
 	}
-	var respPayload boostTypes.GetPayloadResponse
+	var respPayload api.VersionedExecutionPayload
 	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/blinded_blocks", "test-cli", payload, &respPayload); err != nil {
 		log.WithError(err).Fatal("could not get payload")
 	}
 
-	if respPayload.Data == nil {
+	if respPayload.Bellatrix == nil {
 		log.Fatal("Did not receive correct payload")
 	}
-	log.WithField("payload", *respPayload.Data).Info("got payload from mev-boost")
+	log.WithField("payload", *respPayload.Bellatrix).Info("got payload from mev-boost")
 }
 
 func main() {

@@ -170,7 +170,7 @@ func TestHexToPublicKey(t *testing.T) {
 		*/
 		{
 			name:              "Should not panic and convert hexadecimal input to public key",
-			hex:               toHex((&phase0.BLSPubKey{0x01})[:]),
+			hex:               phase0.BLSPubKey{0x01}.String(),
 			expectedPanic:     false,
 			expectedPublicKey: &phase0.BLSPubKey{0x01},
 		},

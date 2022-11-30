@@ -260,7 +260,7 @@ func TestRegisterValidator(t *testing.T) {
 }
 
 func getHeaderPath(slot uint64, parentHash phase0.Hash32, pubkey phase0.BLSPubKey) string {
-	return fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, toHex(parentHash[:]), toHex(pubkey[:]))
+	return fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), pubkey.String())
 }
 
 func TestGetHeader(t *testing.T) {
@@ -387,7 +387,7 @@ func TestGetHeader(t *testing.T) {
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
 		require.NoError(t, err)
 		require.Equal(t, uint256.NewInt(12345), resp.Data.Message.Value)
-		require.Equal(t, "0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7", toHex(resp.Data.Message.Header.BlockHash[:]))
+		require.Equal(t, "0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7", resp.Data.Message.Header.BlockHash.String())
 	})
 
 	t.Run("Respect minimum bid cutoff", func(t *testing.T) {
@@ -481,7 +481,7 @@ func TestGetHeader(t *testing.T) {
 	t.Run("Invalid slot number", func(t *testing.T) {
 		// Number larger than uint64 creates parsing error
 		slot := fmt.Sprintf("%d0", uint64(math.MaxUint64))
-		invalidSlotPath := fmt.Sprintf("/eth/v1/builder/header/%s/%s/%s", slot, toHex(hash[:]), toHex(pubkey[:]))
+		invalidSlotPath := fmt.Sprintf("/eth/v1/builder/header/%s/%s/%s", slot, hash.String(), pubkey.String())
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, invalidSlotPath, nil)
@@ -491,7 +491,7 @@ func TestGetHeader(t *testing.T) {
 	})
 
 	t.Run("Invalid pubkey length", func(t *testing.T) {
-		invalidPubkeyPath := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", 1, toHex(hash[:]), "0x1")
+		invalidPubkeyPath := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", 1, hash.String(), "0x1")
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, invalidPubkeyPath, nil)
@@ -501,7 +501,7 @@ func TestGetHeader(t *testing.T) {
 	})
 
 	t.Run("Invalid hash length", func(t *testing.T) {
-		invalidSlotPath := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", 1, "0x1", toHex(pubkey[:]))
+		invalidSlotPath := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", 1, "0x1", pubkey.String())
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, invalidSlotPath, nil)

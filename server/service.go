@@ -350,17 +350,17 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
-			blockHash := toHex(responsePayload.Data.Message.Header.BlockHash[:])
+			blockHash := responsePayload.Data.Message.Header.BlockHash.String()
 			valueEth := weiBigIntToEthBigFloat(responsePayload.Data.Message.Value.ToBig())
 			log = log.WithFields(logrus.Fields{
 				"blockNumber": responsePayload.Data.Message.Header.BlockNumber,
 				"blockHash":   blockHash,
-				"txRoot":      toHex(responsePayload.Data.Message.Header.TransactionsRoot[:]),
+				"txRoot":      responsePayload.Data.Message.Header.TransactionsRoot.String(),
 				"value":       valueEth.Text('f', 18),
 			})
 
 			if relay.PublicKey != types.PublicKey(responsePayload.Data.Message.Pubkey) {
-				log.Errorf("bid pubkey mismatch. expected: %s - got: %s", relay.PublicKey.String(), toHex(responsePayload.Data.Message.Pubkey[:]))
+				log.Errorf("bid pubkey mismatch. expected: %s - got: %s", relay.PublicKey.String(), responsePayload.Data.Message.Pubkey.String())
 				return
 			}
 
@@ -376,7 +376,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Verify response coherence with proposer's input data
-			responseParentHash := toHex(responsePayload.Data.Message.Header.ParentHash[:])
+			responseParentHash := responsePayload.Data.Message.Header.ParentHash.String()
 			if responseParentHash != parentHashHex {
 				log.WithFields(logrus.Fields{
 					"originalParentHash": parentHashHex,
@@ -386,7 +386,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			isZeroValue := responsePayload.Data.Message.Value.String() == "0"
-			isEmptyListTxRoot := toHex(responsePayload.Data.Message.Header.TransactionsRoot[:]) == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
+			isEmptyListTxRoot := responsePayload.Data.Message.Header.TransactionsRoot.String() == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
 			if isZeroValue || isEmptyListTxRoot {
 				log.Warn("ignoring bid with 0 value")
 				return
@@ -412,7 +412,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 					return
 				} else if valueDiff == 0 { // current bid is equally profitable as already known one. Use hash as tiebreaker
 					previousBidBlockHash := result.response.Data.Message.Header.BlockHash
-					if blockHash >= toHex(previousBidBlockHash[:]) {
+					if blockHash >= previousBidBlockHash.String() {
 						return
 					}
 				}
@@ -441,7 +441,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	log.WithFields(logrus.Fields{
 		"blockHash":   result.blockHash,
 		"blockNumber": result.response.Data.Message.Header.BlockNumber,
-		"txRoot":      toHex(result.response.Data.Message.Header.TransactionsRoot[:]),
+		"txRoot":      result.response.Data.Message.Header.TransactionsRoot.String(),
 		"value":       valueEth.Text('f', 18),
 		"relays":      strings.Join(RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
@@ -484,11 +484,11 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	log = log.WithFields(logrus.Fields{
 		"slot":       payload.Message.Slot,
-		"blockHash":  toHex(payload.Message.Body.ExecutionPayloadHeader.BlockHash[:]),
-		"parentHash": toHex(payload.Message.Body.ExecutionPayloadHeader.ParentHash[:]),
+		"blockHash":  payload.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
+		"parentHash": payload.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
 	})
 
-	bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: toHex(payload.Message.Body.ExecutionPayloadHeader.BlockHash[:])}
+	bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
 	m.bidsLock.Lock()
 	originalBid := m.bids[bidKey]
 	m.bidsLock.Unlock()
@@ -543,7 +543,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			// Ensure the response blockhash matches the request
 			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Bellatrix.BlockHash {
 				log.WithFields(logrus.Fields{
-					"responseBlockHash": toHex(responsePayload.Bellatrix.BlockHash[:]),
+					"responseBlockHash": responsePayload.Bellatrix.BlockHash.String(),
 				}).Error("requestBlockHash does not equal responseBlockHash")
 				return
 			}
@@ -554,8 +554,8 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 				log.WithError(err).Error("could not calculate block hash")
 			} else if responsePayload.Bellatrix.BlockHash != calculatedBlockHash {
 				log.WithFields(logrus.Fields{
-					"calculatedBlockHash": toHex(calculatedBlockHash[:]),
-					"responseBlockHash":   toHex(responsePayload.Bellatrix.BlockHash[:]),
+					"calculatedBlockHash": calculatedBlockHash.String(),
+					"responseBlockHash":   responsePayload.Bellatrix.BlockHash.String(),
 				}).Error("responseBlockHash does not equal hash calculated from response block")
 			}
 

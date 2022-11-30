@@ -136,7 +136,7 @@ func (m *mockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, `{}`)
 }
 
-// By default, handleRegisterValidator returns a default types.SignedValidatorRegistration
+// By default, handleRegisterValidator returns a default SignedValidatorRegistration
 func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

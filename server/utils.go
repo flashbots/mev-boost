@@ -149,10 +149,6 @@ func weiBigIntToEthBigFloat(wei *big.Int) (ethValue *big.Float) {
 	return
 }
 
-func toHex(data []byte) string {
-	return hexutil.Bytes(data).String()
-}
-
 func ComputeBlockHash(payload *bellatrix.ExecutionPayload) (phase0.Hash32, error) {
 	header, err := executionPayloadToBlockHeader(payload)
 	if err != nil {

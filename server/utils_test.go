@@ -121,5 +121,5 @@ func TestCalculateBlockHash(t *testing.T) {
 
 	hash, err := ComputeBlockHash(payload)
 	require.NoError(t, err)
-	require.Equal(t, "0x6662fb418aa7b5c5c80e2e8bc87be48db82e799c4704368d34ddeb3b12549655", toHex(hash[:]))
+	require.Equal(t, "0x6662fb418aa7b5c5c80e2e8bc87be48db82e799c4704368d34ddeb3b12549655", hash.String())
 }
