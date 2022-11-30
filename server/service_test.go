@@ -22,8 +22,10 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config/rcm"
 	"github.com/flashbots/mev-boost/config/rcp"
+	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -86,79 +88,102 @@ func (be *testBackend) request(t *testing.T, method, path string, payload any) *
 	return rr
 }
 
-func newTestBackendWithInvalidRelayPublicKey(t *testing.T) *testBackend {
+func (be *testBackend) requestGetHeader(t *testing.T, path string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	backend := newTestBackend(t, 1, time.Second)
+	return be.request(t, http.MethodGet, path, nil)
+}
 
-	backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
-		12345,
+func (be *testBackend) stubRelayGetHeaderResponse(t *testing.T, index int, value uint64) {
+	t.Helper()
+
+	r := be.relayByIndex(t, index)
+	r.GetHeaderResponse = r.MakeGetHeaderResponse(
+		value,
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		r.RelayEntry.PublicKey().String(),
 	)
-
-	// Simulate a different public key registered to mev-boost
-	relayEntries := []relay.Entry{forgeRelayEntryWithARandomPublicKey(t, backend)}
-	replaceConfigManagerRelays(t, backend, relayEntries)
-
-	return backend
 }
 
-func forgeRelayEntryWithARandomPublicKey(t *testing.T, backend *testBackend) relay.Entry {
+func (be *testBackend) stubRelayHTTPServerWithTemporaryRedirect(t *testing.T, index int) {
 	t.Helper()
 
-	serverURL, err := url.ParseRequestURI(backend.relays[0].Server.URL)
-	require.NoError(t, err)
-
-	forgedURL := &url.URL{
-		Host:   serverURL.Host,
-		Scheme: serverURL.Scheme,
-		User:   url.User(testutil.RandomBLSPublicKey(t).String()),
-	}
-
-	relayEntry, err := relay.NewRelayEntry(forgedURL.String())
-	require.NoError(t, err)
-
-	backend.relays[0].RelayEntry = relayEntry
-
-	return relayEntry
-}
-
-func newTestBackendWithARedirectingRelay(t *testing.T) *testBackend {
-	t.Helper()
-
-	backend := newTestBackend(t, 1, time.Second)
-	redirectAddress := backend.relays[0].Server.URL
-	backend.relays[0].Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, redirectAddress, http.StatusTemporaryRedirect)
+	relayMock := be.relayByIndex(t, index)
+	relayMock.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, relayMock.Server.URL, http.StatusTemporaryRedirect)
 	}))
-
-	relayEntries := []relay.Entry{forgeRelayEntryWithNewURL(t, backend)}
-
-	replaceConfigManagerRelays(t, backend, relayEntries)
-
-	return backend
 }
 
-func forgeRelayEntryWithNewURL(t *testing.T, backend *testBackend) relay.Entry {
+func (be *testBackend) stubRelayEntryWithARandomPublicKey(t *testing.T, index int) relay.Entry {
 	t.Helper()
 
-	serverURL, err := url.ParseRequestURI(backend.relays[0].Server.URL)
+	return be.stubRelayEntryWithUser(t, index, url.User(testutil.RandomBLSPublicKey(t).String()))
+}
+
+func (be *testBackend) stubRelayEntry(t *testing.T, index int) relay.Entry {
+	t.Helper()
+
+	r := be.relayByIndex(t, index)
+
+	return be.stubRelayEntryWithUser(t, index, r.RelayEntry.RelayURL().User)
+}
+
+func (be *testBackend) stubRelayEntryWithUser(t *testing.T, index int, user *url.Userinfo) relay.Entry {
+	t.Helper()
+
+	r := be.relayByIndex(t, index)
+
+	forgedURL, err := url.ParseRequestURI(r.Server.URL)
 	require.NoError(t, err)
 
-	forgedURL := &url.URL{
-		Host:   serverURL.Host,
-		Scheme: serverURL.Scheme,
-		User:   url.User(backend.relays[0].RelayEntry.RelayURL().User.Username()),
-	}
+	forgedURL.User = user
 
 	relayEntry, err := relay.NewRelayEntry(forgedURL.String())
 	require.NoError(t, err)
 
-	backend.relays[0].RelayEntry = relayEntry
+	r.RelayEntry = relayEntry
 
 	return relayEntry
+}
+
+func (be *testBackend) relayByIndex(t *testing.T, index int) *mockRelay {
+	t.Helper()
+
+	require.Truef(t, index < len(be.relays), "relay index %d is out of range")
+
+	return be.relays[index]
+}
+
+func (be *testBackend) stubConfigManager(t *testing.T, proposerRelays map[string]relay.Set, defaultRelays relay.Set) {
+	t.Helper()
+
+	opts := make([]rcptest.MockOption, 0, len(proposerRelays)+1)
+	if defaultRelays != nil {
+		opts = append(opts, rcptest.WithDefaultRelays(defaultRelays))
+	}
+
+	for pubKey, relays := range proposerRelays {
+		opts = append(opts, rcptest.WithProposerRelays(pubKey, relays))
+	}
+
+	relayConfigProvider := rcptest.MockRelayConfigProvider(opts...)
+
+	cm, err := rcm.NewDefault(rcm.NewRegistryCreator(relayConfigProvider))
+	require.NoError(t, err)
+
+	be.boost.relayConfigManager = cm
+}
+
+func (be *testBackend) relaySet(t *testing.T, indexes ...int) relay.Set {
+	t.Helper()
+
+	list := make(relay.List, 0, len(indexes))
+	for i := range indexes {
+		list = append(list, be.relayByIndex(t, i).RelayEntry)
+	}
+
+	return testutil.RelaySetFromList(list)
 }
 
 func blindedBlockToExecutionPayloadBellatrix(signedBlindedBeaconBlock *types.SignedBlindedBeaconBlock) *types.ExecutionPayload {
@@ -201,18 +226,26 @@ func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *apiv1capell
 	}
 }
 
-func replaceConfigManagerRelays(t *testing.T, backend *testBackend, relayEntries []relay.Entry) {
+func assertRequestWasSuccessful(t *testing.T, rr *httptest.ResponseRecorder) {
 	t.Helper()
 
-	relays := relay.NewRelaySet()
-	for _, entry := range relayEntries {
-		relays.Add(entry)
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+}
+
+func assertRelayReturnedNoContent(t *testing.T, rr *httptest.ResponseRecorder) {
+	t.Helper()
+
+	assert.Equal(t, http.StatusNoContent, rr.Code)
+}
+
+func assertRelaysReceivedRequest(t *testing.T, sut *testBackend) func(string, ...int) {
+	t.Helper()
+
+	return func(path string, index ...int) {
+		for _, i := range index {
+			assert.Equal(t, 1, sut.relayByIndex(t, i).GetRequestCount(path))
+		}
 	}
-
-	relayConfigManager, err := rcm.NewDefault(rcm.NewRegistryCreator(rcp.NewDefault(relays).FetchConfig))
-	require.NoError(t, err)
-
-	backend.boost.relayConfigManager = relayConfigManager
 }
 
 func TestWebserver(t *testing.T) {
@@ -266,20 +299,6 @@ func TestWebserverMaxHeaderSize(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, http.StatusRequestHeaderFieldsTooLarge, code)
 	backend.boost.srv.Close()
-}
-
-// Example good registerValidator payload
-var payloadRegisterValidator = types.SignedValidatorRegistration{
-	Message: &types.RegisterValidatorRequestMessage{
-		FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
-		Timestamp:    1234356,
-		GasLimit:     278234191203,
-		Pubkey: _HexToPubkey(
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"),
-	},
-	// Signed by 0x4e343a647c5a5c44d76c2c58b63f02cdf3a9a0ec40f102ebc26363b4b1b95033
-	Signature: _HexToSignature(
-		"0x8209b5391cd69f392b1f02dbc03bab61f574bb6bb54bf87b59e2a85bdc0756f7db6a71ce1b41b727a1f46ccc77b213bf0df1426177b5b29926b39956114421eaa36ec4602969f6f6370a44de44a6bce6dae2136e5fb594cce2a476354264d1ea"),
 }
 
 func TestStatus(t *testing.T) {
@@ -379,7 +398,13 @@ func getHeaderPath(slot uint64, parentHash types.Hash, pubkey types.PublicKey) s
 	return fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), pubkey.String())
 }
 
+// This function is getting too long
+// If we don't mind, we should consider setting linter exceptions for tests: e.g. funlen, maintidx
+//
+//nolint:maintidx
 func TestGetHeader(t *testing.T) {
+	t.Parallel()
+
 	hash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
 	pubkey := _HexToPubkey(
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
@@ -554,13 +579,23 @@ func TestGetHeader(t *testing.T) {
 	})
 
 	t.Run("Invalid relay public key", func(t *testing.T) {
-		backend := newTestBackendWithInvalidRelayPublicKey(t)
+		t.Parallel()
 
-		rr := backend.request(t, http.MethodGet, path, nil)
-		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		// arrange
+		sut := newTestBackend(t, 1, time.Second)
 
-		// Request should have no content
-		require.Equal(t, http.StatusNoContent, rr.Code)
+		// Simulate a different public key registered to mev-boost
+		relayEntries := relay.List{sut.stubRelayEntryWithARandomPublicKey(t, 0)}
+
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubConfigManager(t, nil, testutil.RelaySetFromList(relayEntries))
+
+		// act
+		rr := sut.requestGetHeader(t, path)
+
+		// assert
+		assertRelayReturnedNoContent(t, rr)
+		assertRelaysReceivedRequest(t, sut)(path, 0)
 	})
 
 	t.Run("Invalid relay signature", func(t *testing.T) {
@@ -622,6 +657,91 @@ func TestGetHeader(t *testing.T) {
 		rr := backend.request(t, http.MethodGet, invalidParentHashPath, nil)
 		require.Equal(t, http.StatusNoContent, rr.Code)
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Proposer has a specified relay", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		proposerPubKey := testutil.RandomBLSPublicKey(t)
+		relayHeaderPath := getHeaderPath(1, hash, proposerPubKey)
+
+		sut := newTestBackend(t, 1, time.Second)
+
+		relaysByProposer := make(map[string]relay.Set)
+		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0)
+
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubConfigManager(t, relaysByProposer, nil)
+
+		// act
+		got := sut.requestGetHeader(t, relayHeaderPath)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedRequest(t, sut)(relayHeaderPath, 0)
+	})
+
+	t.Run("Proposer has no assigned relays and no default relays", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		proposerPubKey := testutil.RandomBLSPublicKey(t)
+		relayHeaderPath := getHeaderPath(1, hash, proposerPubKey)
+
+		sut := newTestBackend(t, 1, time.Second)
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubConfigManager(t, nil, nil)
+
+		// act
+		got := sut.requestGetHeader(t, relayHeaderPath)
+
+		// assert
+		assertRelayReturnedNoContent(t, got)
+	})
+
+	t.Run("Proposer has no specified relays, default relay is used", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		proposerPubKey := testutil.RandomBLSPublicKey(t)
+		relayHeaderPath := getHeaderPath(2, hash, proposerPubKey)
+
+		sut := newTestBackend(t, 1, time.Second)
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubConfigManager(t, nil, sut.relaySet(t, 0))
+
+		// act
+		got := sut.requestGetHeader(t, relayHeaderPath)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedRequest(t, sut)(relayHeaderPath, 0)
+	})
+
+	t.Run("Proposer has a few relays specified relay", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		proposerPubKey := testutil.RandomBLSPublicKey(t)
+		relayHeaderPath := getHeaderPath(1, hash, proposerPubKey)
+
+		sut := newTestBackend(t, 3, time.Second)
+
+		relaysByProposer := make(map[string]relay.Set)
+		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0, 1, 2)
+
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubRelayGetHeaderResponse(t, 1, 45231)
+		sut.stubRelayGetHeaderResponse(t, 2, 54321)
+		sut.stubConfigManager(t, relaysByProposer, nil)
+
+		// act
+		got := sut.requestGetHeader(t, relayHeaderPath)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedRequest(t, sut)(relayHeaderPath, 0, 1, 2)
 	})
 }
 
@@ -709,9 +829,16 @@ func TestCheckRelays(t *testing.T) {
 	})
 
 	t.Run("Should not follow redirects", func(t *testing.T) {
-		backend := newTestBackendWithARedirectingRelay(t)
+		// arrange
+		sut := newTestBackend(t, 1, time.Second)
+		sut.stubRelayHTTPServerWithTemporaryRedirect(t, 0)
+		sut.stubRelayEntry(t, 0)
+		sut.stubConfigManager(t, nil, sut.relaySet(t, 0))
 
-		numHealthyRelays := backend.boost.CheckRelays()
+		// act
+		numHealthyRelays := sut.boost.CheckRelays()
+
+		// assert
 		require.Equal(t, 0, numHealthyRelays)
 	})
 }
