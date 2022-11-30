@@ -719,7 +719,7 @@ func TestGetHeader(t *testing.T) {
 		assertRelaysReceivedRequest(t, sut)(relayHeaderPath, 0)
 	})
 
-	t.Run("Proposer has a few relays specified relay", func(t *testing.T) {
+	t.Run("Proposer has a few relays specified", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange

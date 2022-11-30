@@ -40,7 +40,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		got := sut.RelaysForValidator(validatorPublicKey.String())
 
 		// assert
-		assert.ElementsMatch(t, want.ToList(), got)
+		assertRelayListsMatch(t, want.ToList(), got)
 	})
 
 	t.Run("it returns default relays for an unknown validator", func(t *testing.T) {
@@ -58,7 +58,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		got := sut.RelaysForValidator(validatorPublicKey.String())
 
 		// assert
-		assert.ElementsMatch(t, want.ToList(), got)
+		assertRelayListsMatch(t, want.ToList(), got)
 	})
 
 	t.Run("it returns an error if it cannot create the registry", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		got := sut.AllRelays()
 
 		// assert
-		assert.ElementsMatch(t, want, got)
+		assertRelayListsMatch(t, want, got)
 	})
 
 	t.Run("it returns only unique relays", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		got := sut.AllRelays()
 
 		// assert
-		assert.ElementsMatch(t, want, got)
+		assertRelayListsMatch(t, want, got)
 		assert.Len(t, got, 2)
 	})
 
@@ -168,6 +168,12 @@ func TestDefaultConfigManager(t *testing.T) {
 
 		assert.Equal(t, uint64(iterations*numOfWorkers), count)
 	})
+}
+
+func assertRelayListsMatch(t *testing.T, want, got relay.List) {
+	t.Helper()
+
+	assert.ElementsMatch(t, want.ToStringSlice(), got.ToStringSlice())
 }
 
 func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Configurator) func(types.PublicKey, relay.Set) {
