@@ -6,6 +6,7 @@ import (
 	"github.com/flashbots/mev-boost/config/relay"
 )
 
+// Errors returned by the package.
 var (
 	ErrConfigProviderFailure        = errors.New("config provider failure")
 	ErrInvalidProposerConfig        = errors.New("invalid proposer config")

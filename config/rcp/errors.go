@@ -1,9 +1,6 @@
 package rcp
 
-import (
-	"errors"
-	"fmt"
-)
+import "fmt"
 
 type Error struct {
 	Cause   error
@@ -24,13 +21,6 @@ func WrapErr(err error) Error {
 		Message: fmt.Sprintf("%v", ErrCannotFetchConfig),
 	}
 }
-
-var (
-	ErrCannotFetchConfig     = errors.New("cannot fetch relay config")
-	ErrHTTPRequestFailed     = errors.New("http request failed")
-	ErrMalformedProviderURL  = errors.New("malformed relay config provider url")
-	ErrMalformedResponseBody = errors.New("malformed response body")
-)
 
 type APIError struct {
 	Code    int    `json:"code"`

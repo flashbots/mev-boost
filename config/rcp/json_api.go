@@ -17,7 +17,7 @@ type JSONAPI struct {
 
 // NewJSONAPI creates a new instance of JSONAPI.
 //
-// It takes an HTTP Client and the configuration endpoint URL.
+// It takes an HTTP Client and the providerURL.
 // If the client is not specified, http.DefaultClient will be used.
 func NewJSONAPI(client *http.Client, providerURL string) *JSONAPI {
 	if client == nil {
@@ -30,15 +30,14 @@ func NewJSONAPI(client *http.Client, providerURL string) *JSONAPI {
 // FetchConfig fetches the relay configuration from JSON API RCP.
 //
 // It returns *relay.Config on success.
-//
 // It returns an error if the RCP providerURL is malformed.
-// It returns an error if it cannot execute HTTP request.
-// It returns an error if it cannot unmarshal response body.
-// It returns an error if RCP returned status code different from http.StatusOK (200).
+// It returns an error if the RCP returns a non http.StatusOK.
+// It returns an error if it cannot execute the HTTP request.
+// It returns an error if it cannot unmarshal the response body.
 func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
 	resp, err := p.doRequest(p.providerURL)
 	if err != nil {
-		return nil, p.wrapErr(err)
+		return nil, WrapErr(err)
 	}
 
 	defer resp.Body.Close()
@@ -46,7 +45,7 @@ func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
 	if resp.StatusCode != http.StatusOK {
 		var apiErr APIError
 		if err := decodeResponseBody(resp.Body, &apiErr); err != nil {
-			return nil, p.wrapErr(err)
+			return nil, WrapErr(err)
 		}
 
 		return nil, apiErr
@@ -54,7 +53,7 @@ func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
 
 	var payload *relay.Config
 	if err := decodeResponseBody(resp.Body, &payload); err != nil {
-		return nil, p.wrapErr(err)
+		return nil, WrapErr(err)
 	}
 
 	return payload, nil
@@ -83,11 +82,4 @@ func decodeResponseBody(body io.Reader, target any) error {
 	}
 
 	return nil
-}
-
-func (p *JSONAPI) wrapErr(err error) Error {
-	return Error{
-		Cause:   err,
-		Message: fmt.Sprintf("%v", ErrCannotFetchConfig),
-	}
 }

@@ -4,12 +4,12 @@ import (
 	"github.com/flashbots/mev-boost/config/relay"
 )
 
-// Default returns pre-defined relay config.
+// Default returns a relay config based on the given relay.Set.
 type Default struct {
 	relays relay.Set
 }
 
-// NewDefault create a new instance of Default.
+// NewDefault creates a new instance of Default.
 //
 // It takes a relay set as an argument.
 // If the given relay set is nil, a new one will be created.
@@ -23,9 +23,9 @@ func NewDefault(relays relay.Set) *Default {
 	}
 }
 
-// FetchConfig returns pre-defined relay config.
+// FetchConfig returns a relay config based on the given relay.Set.
 //
-// It always returns the relay.Config with only `default_config` section populated.
+// It always returns the *relay.Config with only `default_config` section populated.
 // It doesn't have `proposer_config` section.
 // It doesn't return any errors.
 func (d *Default) FetchConfig() (*relay.Config, error) {

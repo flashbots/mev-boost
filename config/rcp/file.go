@@ -24,7 +24,6 @@ func NewFile(filePath string) *File {
 // FetchConfig loads relay configuration from a file.
 //
 // It returns *relay.Config on success.
-//
 // It returns an error if it cannot read the file.
 // It returns an error if the file has unexpected contents.
 func (f *File) FetchConfig() (*relay.Config, error) {
