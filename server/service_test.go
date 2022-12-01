@@ -48,7 +48,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relays.Add(backend.relays[i].RelayEntry)
 	}
 
-	relayConfigManager, err := rcm.NewDefault(rcm.NewRegistryCreator(rcp.NewDefault(relays).FetchConfig))
+	relayConfigManager, err := rcm.New(rcm.NewRegistryCreator(rcp.NewDefault(relays).FetchConfig))
 	require.NoError(t, err)
 
 	opts := BoostServiceOpts{
@@ -169,7 +169,7 @@ func (be *testBackend) stubConfigManager(t *testing.T, proposerRelays map[string
 
 	relayConfigProvider := rcptest.MockRelayConfigProvider(opts...)
 
-	cm, err := rcm.NewDefault(rcm.NewRegistryCreator(relayConfigProvider))
+	cm, err := rcm.New(rcm.NewRegistryCreator(relayConfigProvider))
 	require.NoError(t, err)
 
 	be.boost.relayConfigManager = cm

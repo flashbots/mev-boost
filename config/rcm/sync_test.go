@@ -129,7 +129,7 @@ func createConfigManagerWithRandomRelays(t *testing.T) *rcm.Configurator {
 	relays := testutil.RandomRelaySet(t, 3)
 	relayProvider := rcp.NewDefault(relays).FetchConfig
 
-	cm, err := rcm.NewDefault(rcm.NewRegistryCreator(relayProvider))
+	cm, err := rcm.New(rcm.NewRegistryCreator(relayProvider))
 	require.NoError(t, err)
 
 	return cm
@@ -151,7 +151,7 @@ func createConfigManagerWithFaultyProvider(t *testing.T) *rcm.Configurator {
 	defaultRelays := testutil.RandomRelaySet(t, 2)
 	relayProvider := onceOnlySuccessfulProvider(validatorPublicKey, proposerRelays, defaultRelays)
 
-	cm, err := rcm.NewDefault(rcm.NewRegistryCreator(relayProvider))
+	cm, err := rcm.New(rcm.NewRegistryCreator(relayProvider))
 	require.NoError(t, err)
 
 	return cm

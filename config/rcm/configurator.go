@@ -17,12 +17,12 @@ type Configurator struct {
 	relayRegistryMu sync.RWMutex
 }
 
-// NewDefault creates a new instance of Configurator.
+// New creates a new instance of Configurator.
 //
 // It synchronises the config via Configurator.SyncConfig.
 // It returns a newly created instance on success.
 // It returns an error if config synchronisation fails.
-func NewDefault(registryCreator *RegistryCreator) (*Configurator, error) {
+func New(registryCreator *RegistryCreator) (*Configurator, error) {
 	cm := &Configurator{
 		registryCreator: registryCreator,
 	}

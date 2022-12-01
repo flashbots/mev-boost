@@ -10,18 +10,15 @@ import (
 	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
-	"github.com/flashbots/mev-boost/server"
 	"github.com/flashbots/mev-boost/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	_ server.RelayConfigManager = (*rcm.Configurator)(nil)
-	_ rcm.RelayRegistry         = (*relay.Registry)(nil)
-)
+// ensure *rcm.Configurator implements rcm.RelayRegistry interface.
+var _ rcm.RelayRegistry = (*rcm.Configurator)(nil)
 
-func TestDefaultConfigManager(t *testing.T) {
+func TestConfigurator(t *testing.T) {
 	t.Parallel()
 
 	t.Run("it returns all relays for a known validator", func(t *testing.T) {
@@ -33,7 +30,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		configProvider := rcptest.MockRelayConfigProvider(
 			rcptest.WithProposerRelays(validatorPublicKey.String(), want))
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
 
 		// act
@@ -51,7 +48,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		want := testutil.RandomRelaySet(t, 3)
 		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithDefaultRelays(want))
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
 
 		// act
@@ -68,7 +65,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithErr())
 
 		// act
-		_, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
+		_, err := rcm.New(rcm.NewRegistryCreator(configProvider))
 
 		// assert
 		assert.ErrorIs(t, err, rcm.ErrConfigProviderFailure)
@@ -87,7 +84,7 @@ func TestDefaultConfigManager(t *testing.T) {
 			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays),
 			rcptest.WithDefaultRelays(defaultRelays))
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
 
 		// act
@@ -110,7 +107,7 @@ func TestDefaultConfigManager(t *testing.T) {
 			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays),
 			rcptest.WithDefaultRelays(defaultRelays))
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
 
 		// act
@@ -131,7 +128,7 @@ func TestDefaultConfigManager(t *testing.T) {
 
 		configProvider := onceOnlySuccessfulProvider(validatorPublicKey, proposerRelays, defaultRelays)
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(configProvider))
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
 
 		// act
@@ -147,7 +144,7 @@ func TestDefaultConfigManager(t *testing.T) {
 		t.Parallel()
 
 		assert.Panics(t, func() {
-			_, _ = rcm.NewDefault(nil)
+			_, _ = rcm.New(nil)
 		})
 	})
 
@@ -156,7 +153,7 @@ func TestDefaultConfigManager(t *testing.T) {
 
 		relays := testutil.RandomRelaySet(t, 5)
 
-		sut, err := rcm.NewDefault(rcm.NewRegistryCreator(rcp.NewDefault(relays).FetchConfig))
+		sut, err := rcm.New(rcm.NewRegistryCreator(rcp.NewDefault(relays).FetchConfig))
 		require.NoError(t, err)
 
 		const iterations = 10000

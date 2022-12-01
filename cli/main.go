@@ -303,7 +303,7 @@ func createConfigManager() (*rcm.Configurator, error) {
 		registryCreator = rcm.NewRegistryCreator(rcp.NewJSONAPI(nil, *proposerConfigURL).FetchConfig)
 	}
 
-	relayConfigManager, err := rcm.NewDefault(registryCreator)
+	relayConfigManager, err := rcm.New(registryCreator)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create config manager: %w", err)
 	}

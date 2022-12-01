@@ -11,6 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// ensure *relay.Registry implements rcm.RelayRegistry interface.
+var _ rcm.RelayRegistry = (*relay.Registry)(nil)
+
 func TestRegistryCreator(t *testing.T) {
 	t.Parallel()
 
