@@ -5,8 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config/rcm"
 	"github.com/flashbots/mev-boost/config/rcp"
+	"github.com/flashbots/mev-boost/config/rcp/rcptest"
+	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -152,4 +155,21 @@ func createConfigManagerWithFaultyProvider(t *testing.T) *rcm.Configurator {
 	require.NoError(t, err)
 
 	return cm
+}
+
+func onceOnlySuccessfulProvider(
+	pubKey types.PublicKey, proposerRelays, defaultRelays relay.Set,
+) rcm.ConfigProvider {
+	calls := []rcm.ConfigProvider{
+		rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerRelays(
+				pubKey.String(),
+				proposerRelays,
+			),
+			rcptest.WithDefaultRelays(defaultRelays),
+		), // first call is successful
+		rcptest.MockRelayConfigProvider(rcptest.WithErr()), // second call is an error
+	}
+
+	return rcptest.MockRelayConfigProvider(rcptest.WithCalls(calls))
 }

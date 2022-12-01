@@ -7,12 +7,6 @@ import (
 	"github.com/flashbots/mev-boost/config/relay"
 )
 
-// RelayRegistry provides read-only registry methods.
-type RelayRegistry interface {
-	RelaysForValidator(key relay.ValidatorPublicKey) relay.List
-	AllRelays() relay.List
-}
-
 // Configurator is a general implementation for an RCM.
 //
 // It holds a thread-safe Relay Registry under the hood,
@@ -25,7 +19,7 @@ type Configurator struct {
 
 // NewDefault creates a new instance of Configurator.
 //
-// It creates a new instances and immediately synchronises the config with an RCP.
+// It synchronises the config via Configurator.SyncConfig.
 // It returns a newly created instance on success.
 // It returns an error if config synchronisation fails.
 func NewDefault(registryCreator *RegistryCreator) (*Configurator, error) {

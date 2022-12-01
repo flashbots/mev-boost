@@ -3,7 +3,6 @@ package rcm_test
 import (
 	"testing"
 
-	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config/rcm"
 	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
@@ -177,21 +176,4 @@ func assertRegistryHasProposerRelays(t *testing.T, sut rcm.RelayRegistry) func(r
 	return func(pk relay.ValidatorPublicKey, want relay.Set) {
 		assert.ElementsMatch(t, want.ToStringSlice(), sut.RelaysForValidator(pk).ToStringSlice())
 	}
-}
-
-func onceOnlySuccessfulProvider(
-	pubKey types.PublicKey, proposerRelays, defaultRelays relay.Set,
-) rcm.ConfigProvider {
-	calls := []rcm.ConfigProvider{
-		rcptest.MockRelayConfigProvider(
-			rcptest.WithProposerRelays(
-				pubKey.String(),
-				proposerRelays,
-			),
-			rcptest.WithDefaultRelays(defaultRelays),
-		), // first call is successful
-		rcptest.MockRelayConfigProvider(rcptest.WithErr()), // second call is an error
-	}
-
-	return rcptest.MockRelayConfigProvider(rcptest.WithCalls(calls))
 }
