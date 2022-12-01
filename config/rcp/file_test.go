@@ -14,10 +14,10 @@ import (
 )
 
 var (
-	_, b, _, _                     = runtime.Caller(0)
-	root                           = filepath.Join(filepath.Dir(b), "../..")
-	validProposerConfigFilePath    = filepath.Join(root, "testdata", "valid-proposer-config.json")
-	corruptedPoposerConfigFilePath = filepath.Join(root, "testdata", "corrupted-proposer-config.json")
+	_, b, _, _                      = runtime.Caller(0)
+	root                            = filepath.Join(filepath.Dir(b), "../..")
+	validProposerConfigFilePath     = filepath.Join(root, "testdata", "valid-proposer-config.json")
+	corruptedProposerConfigFilePath = filepath.Join(root, "testdata", "corrupted-proposer-config.json")
 )
 
 func TestFileRelayConfigProvider(t *testing.T) {
@@ -55,7 +55,7 @@ func TestFileRelayConfigProvider(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		sut := rcp.NewFile(corruptedPoposerConfigFilePath)
+		sut := rcp.NewFile(corruptedProposerConfigFilePath)
 
 		// act
 		_, err := sut.FetchConfig()
