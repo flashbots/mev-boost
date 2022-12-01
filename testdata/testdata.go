@@ -3,6 +3,8 @@ package testdata
 import (
 	_ "embed"
 	"encoding/json"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/flashbots/mev-boost/config/relay"
@@ -10,7 +12,15 @@ import (
 )
 
 //go:embed valid-proposer-config.json
-var CorrectRelayConfig []byte
+var ValidProposerConfigBytes []byte
+
+var (
+	_, curPath, _, _ = runtime.Caller(0)
+	curDir           = filepath.Join(filepath.Dir(curPath))
+
+	ValidProposerConfigFilePath     = filepath.Join(curDir, "valid-proposer-config.json")
+	CorruptedProposerConfigFilePath = filepath.Join(curDir, "corrupted-proposer-config.json")
+)
 
 func ValidProposerConfig(t *testing.T) *relay.Config {
 	t.Helper()
@@ -20,7 +30,7 @@ func ValidProposerConfig(t *testing.T) *relay.Config {
 	// we want to make sure that json version of config
 	// is the same as the manually crafted config struct
 	var got *relay.Config
-	require.NoError(t, json.Unmarshal(CorrectRelayConfig, &got))
+	require.NoError(t, json.Unmarshal(ValidProposerConfigBytes, &got))
 	require.Equal(t, want, got)
 
 	return want

@@ -1,13 +1,11 @@
 package rcp_test
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/flashbots/mev-boost/config/rcp"
-	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,10 +18,10 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		srv := httptest.NewServer(successfulHandler(testdata.CorrectRelayConfig))
+		srv := httptest.NewServer(successfulHandler(testdata.ValidProposerConfigBytes))
 		defer srv.Close()
 
-		want := successfulResponse(t)
+		want := testdata.ValidProposerConfig(t)
 		sut := rcp.NewJSONAPI(http.DefaultClient, srv.URL)
 
 		// act
@@ -44,9 +42,7 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		_, err := sut.FetchConfig()
 
 		// assert
-		var rcpError rcp.Error
-		assert.ErrorAs(t, err, &rcpError)
-		assert.ErrorIs(t, err, rcp.ErrMalformedProviderURL)
+		assertRCPError(t, rcp.ErrMalformedProviderURL, err)
 	})
 
 	t.Run("it returns an error if it cannot fetch relays config", func(t *testing.T) {
@@ -59,9 +55,7 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		_, err := sut.FetchConfig()
 
 		// assert
-		var rcpError rcp.Error
-		assert.ErrorAs(t, err, &rcpError)
-		assert.ErrorIs(t, err, rcp.ErrHTTPRequestFailed)
+		assertRCPError(t, rcp.ErrHTTPRequestFailed, err)
 	})
 
 	t.Run("it returns an error if malformed http response is returned with status code 200", func(t *testing.T) {
@@ -77,12 +71,10 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		_, err := sut.FetchConfig()
 
 		// assert
-		var rcpError rcp.Error
-		assert.ErrorAs(t, err, &rcpError)
-		assert.ErrorIs(t, err, rcp.ErrMalformedResponseBody)
+		assertRCPError(t, rcp.ErrMalformedResponseBody, err)
 	})
 
-	t.Run("it returns an error if malformed api error response is returned", func(t *testing.T) {
+	t.Run("it returns an error if an api error response is not a valid json", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
@@ -95,12 +87,10 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		_, err := sut.FetchConfig()
 
 		// assert
-		var rcpError rcp.Error
-		assert.ErrorAs(t, err, &rcpError)
-		assert.ErrorIs(t, err, rcp.ErrMalformedResponseBody)
+		assertRCPError(t, rcp.ErrMalformedResponseBody, err)
 	})
 
-	t.Run("it handles API errors", func(t *testing.T) {
+	t.Run("it handles api errors", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
@@ -113,19 +103,17 @@ func TestJSONAPIRelayConfigProvider(t *testing.T) {
 		_, err := sut.FetchConfig()
 
 		// assert
-		var apiErr *rcp.APIError
-		assert.ErrorAs(t, err, &apiErr)
-		assert.ErrorIs(t, err, rcp.ErrCannotFetchConfig)
+		assertAPIError(t, rcp.ErrCannotFetchConfig, err)
 	})
 
 	t.Run("it uses a default http.Client if no configured client is passed", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		srv := httptest.NewServer(successfulHandler(testdata.CorrectRelayConfig))
+		srv := httptest.NewServer(successfulHandler(testdata.ValidProposerConfigBytes))
 		defer srv.Close()
 
-		want := successfulResponse(t)
+		want := testdata.ValidProposerConfig(t)
 		sut := rcp.NewJSONAPI(nil, srv.URL)
 
 		// act
@@ -150,10 +138,8 @@ func TestError(t *testing.T) {
 		err := rcp.WrapErr(rcp.ErrMalformedResponseBody)
 
 		// assert
-		var got rcp.Error
-		require.ErrorAs(t, err, &got)
-		assert.ErrorIs(t, err, rcp.ErrMalformedResponseBody)
-		assert.Equal(t, err.Error(), want)
+		assertRCPError(t, rcp.ErrMalformedResponseBody, err)
+		assert.Equal(t, want, err.Error())
 	})
 
 	t.Run("test json api error", func(t *testing.T) {
@@ -169,20 +155,28 @@ func TestError(t *testing.T) {
 		}
 
 		// assert
-		assert.ErrorIs(t, err, rcp.ErrCannotFetchConfig)
-		assert.Equal(t, http.StatusInternalServerError, err.Code)
-		assert.Equal(t, http.StatusText(http.StatusInternalServerError), err.Message)
+		assertAPIError(t, rcp.ErrCannotFetchConfig, err)
 		assert.Equal(t, want, err.Error())
 	})
 }
 
-func successfulResponse(t *testing.T) *relay.Config {
+func assertRCPError(t *testing.T, want, got error) {
 	t.Helper()
 
-	var want *relay.Config
-	require.NoError(t, json.Unmarshal(testdata.CorrectRelayConfig, &want))
+	var rcpError rcp.Error
+	assert.ErrorAs(t, got, &rcpError)
+	assert.ErrorIs(t, got, want)
+}
 
-	return want
+func assertAPIError(t *testing.T, want, got error) {
+	t.Helper()
+
+	var apiErr rcp.APIError
+	assert.ErrorAs(t, got, &apiErr)
+	assert.ErrorIs(t, got, want)
+
+	assert.Equal(t, http.StatusInternalServerError, apiErr.Code)
+	assert.Equal(t, http.StatusText(http.StatusInternalServerError), apiErr.Message)
 }
 
 func successfulHandler(body []byte) http.HandlerFunc {

@@ -9,23 +9,17 @@ import (
 	"github.com/flashbots/mev-boost/config/relay"
 )
 
-// HTTPClient is an HTTP client interface.
-// Used to abstract HTTP communication.
-type HTTPClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
 // JSONAPI fetches the config using JSON API RCP.
 type JSONAPI struct {
 	providerURL string
-	client      HTTPClient
+	client      *http.Client
 }
 
 // NewJSONAPI creates a new instance of JSONAPI.
 //
 // It takes an HTTP Client and the configuration endpoint URL.
 // If the client is not specified, http.DefaultClient will be used.
-func NewJSONAPI(client HTTPClient, providerURL string) *JSONAPI {
+func NewJSONAPI(client *http.Client, providerURL string) *JSONAPI {
 	if client == nil {
 		client = http.DefaultClient
 	}
@@ -50,7 +44,7 @@ func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		var apiErr *APIError
+		var apiErr APIError
 		if err := decodeResponseBody(resp.Body, &apiErr); err != nil {
 			return nil, p.wrapErr(err)
 		}
