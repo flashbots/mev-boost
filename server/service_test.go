@@ -398,13 +398,7 @@ func getHeaderPath(slot uint64, parentHash types.Hash, pubkey types.PublicKey) s
 	return fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), pubkey.String())
 }
 
-// This function is getting too long
-// If we don't mind, we should consider setting linter exceptions for tests: e.g. funlen, maintidx
-//
-//nolint:maintidx
 func TestGetHeader(t *testing.T) {
-	t.Parallel()
-
 	hash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
 	pubkey := _HexToPubkey(
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
@@ -579,8 +573,6 @@ func TestGetHeader(t *testing.T) {
 	})
 
 	t.Run("Invalid relay public key", func(t *testing.T) {
-		t.Parallel()
-
 		// arrange
 		sut := newTestBackend(t, 1, time.Second)
 
@@ -658,6 +650,12 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, http.StatusNoContent, rr.Code)
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 	})
+}
+
+func TestGetHeader_ProposerConfig(t *testing.T) {
+	t.Parallel()
+
+	hash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
 
 	t.Run("Proposer has a specified relay", func(t *testing.T) {
 		t.Parallel()
