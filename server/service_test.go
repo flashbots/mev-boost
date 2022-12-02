@@ -24,7 +24,7 @@ import (
 	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
-	"github.com/flashbots/mev-boost/testutil"
+	"github.com/flashbots/mev-boost/config/relay/reltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -118,7 +118,7 @@ func (be *testBackend) stubRelayHTTPServerWithTemporaryRedirect(t *testing.T, in
 func (be *testBackend) stubRelayEntryWithARandomPublicKey(t *testing.T, index int) relay.Entry {
 	t.Helper()
 
-	return be.stubRelayEntryWithUser(t, index, url.User(testutil.RandomBLSPublicKey(t).String()))
+	return be.stubRelayEntryWithUser(t, index, url.User(reltest.RandomBLSPublicKey(t).String()))
 }
 
 func (be *testBackend) stubRelayEntry(t *testing.T, index int) relay.Entry {
@@ -183,7 +183,7 @@ func (be *testBackend) relaySet(t *testing.T, indexes ...int) relay.Set {
 		list = append(list, be.relayByIndex(t, i).RelayEntry)
 	}
 
-	return testutil.RelaySetFromList(list)
+	return reltest.RelaySetFromList(list)
 }
 
 func blindedBlockToExecutionPayloadBellatrix(signedBlindedBeaconBlock *types.SignedBlindedBeaconBlock) *types.ExecutionPayload {
@@ -580,7 +580,7 @@ func TestGetHeader(t *testing.T) {
 		relayEntries := relay.List{sut.stubRelayEntryWithARandomPublicKey(t, 0)}
 
 		sut.stubRelayGetHeaderResponse(t, 0, 12345)
-		sut.stubConfigManager(t, nil, testutil.RelaySetFromList(relayEntries))
+		sut.stubConfigManager(t, nil, reltest.RelaySetFromList(relayEntries))
 
 		// act
 		rr := sut.requestGetHeader(t, path)
@@ -661,7 +661,7 @@ func TestGetHeader_ProposerConfig(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		proposerPubKey := testutil.RandomBLSPublicKey(t)
+		proposerPubKey := reltest.RandomBLSPublicKey(t)
 		relayHeaderPath := getHeaderPath(1, hash, proposerPubKey)
 
 		sut := newTestBackend(t, 1, time.Second)
@@ -684,7 +684,7 @@ func TestGetHeader_ProposerConfig(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		proposerPubKey := testutil.RandomBLSPublicKey(t)
+		proposerPubKey := reltest.RandomBLSPublicKey(t)
 		relayHeaderPath := getHeaderPath(1, hash, proposerPubKey)
 
 		sut := newTestBackend(t, 1, time.Second)
@@ -702,7 +702,7 @@ func TestGetHeader_ProposerConfig(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		proposerPubKey := testutil.RandomBLSPublicKey(t)
+		proposerPubKey := reltest.RandomBLSPublicKey(t)
 		relayHeaderPath := getHeaderPath(2, hash, proposerPubKey)
 
 		sut := newTestBackend(t, 1, time.Second)
@@ -721,7 +721,7 @@ func TestGetHeader_ProposerConfig(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		proposerPubKey := testutil.RandomBLSPublicKey(t)
+		proposerPubKey := reltest.RandomBLSPublicKey(t)
 		relayHeaderPath := getHeaderPath(1, hash, proposerPubKey)
 
 		sut := newTestBackend(t, 3, time.Second)

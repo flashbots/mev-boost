@@ -6,7 +6,7 @@ import (
 	"github.com/flashbots/mev-boost/config/rcm"
 	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
-	"github.com/flashbots/mev-boost/testutil"
+	"github.com/flashbots/mev-boost/config/relay/reltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,10 +21,10 @@ func TestRegistryCreator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		validatorPublicKey := testutil.RandomBLSPublicKey(t)
-		proposerRelays := testutil.RandomRelaySet(t, 3)
-		defaultRelays := testutil.RandomRelaySet(t, 2)
-		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		proposerRelays := reltest.RandomRelaySet(t, 3)
+		defaultRelays := reltest.RandomRelaySet(t, 2)
+		want := reltest.JoinSets(proposerRelays, defaultRelays).ToList()
 
 		configProvider := rcptest.MockRelayConfigProvider(
 			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays),
@@ -40,7 +40,7 @@ func TestRegistryCreator(t *testing.T) {
 		assert.ElementsMatch(t, got.AllRelays(), want)
 		assert.ElementsMatch(t, got.RelaysForValidator(validatorPublicKey.String()), proposerRelays.ToList())
 		assert.ElementsMatch(t, got.RelaysForValidator(
-			testutil.RandomBLSPublicKey(t).String()),
+			reltest.RandomBLSPublicKey(t).String()),
 			defaultRelays.ToList())
 	})
 
@@ -48,11 +48,11 @@ func TestRegistryCreator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		proposer1 := testutil.RandomBLSPublicKey(t)
-		proposer2 := testutil.RandomBLSPublicKey(t)
+		proposer1 := reltest.RandomBLSPublicKey(t)
+		proposer2 := reltest.RandomBLSPublicKey(t)
 
-		proposer1Relays := testutil.RandomRelaySet(t, 3)
-		proposer2Relays := testutil.RandomRelaySet(t, 2)
+		proposer1Relays := reltest.RandomRelaySet(t, 3)
+		proposer2Relays := reltest.RandomRelaySet(t, 2)
 
 		configProvider := rcptest.MockRelayConfigProvider(
 			rcptest.WithProposerRelays(proposer1.String(), proposer1Relays),
@@ -169,7 +169,7 @@ func assertRegistryHasAllRelays(t *testing.T, got rcm.RelayRegistry) func(...rel
 	t.Helper()
 
 	return func(relays ...relay.Set) {
-		assert.ElementsMatch(t, testutil.JoinSets(relays...).ToStringSlice(), got.AllRelays().ToStringSlice())
+		assert.ElementsMatch(t, reltest.JoinSets(relays...).ToStringSlice(), got.AllRelays().ToStringSlice())
 	}
 }
 

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/flashbots/mev-boost/config/relay"
-	"github.com/flashbots/mev-boost/testutil"
+	"github.com/flashbots/mev-boost/config/relay/reltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +21,7 @@ func TestRelaySet(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		want := testutil.RandomRelayEntry(t)
+		want := reltest.RandomRelayEntry(t)
 		sut := relay.NewRelaySet()
 
 		// act
@@ -35,7 +35,7 @@ func TestRelaySet(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		want := testutil.RandomRelayEntry(t)
+		want := reltest.RandomRelayEntry(t)
 		sut := relay.NewRelaySet()
 
 		// act
@@ -63,11 +63,11 @@ func TestRelaySet(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		relays := testutil.RandomRelayList(t, 2)
+		relays := reltest.RandomRelayList(t, 2)
 		want := []string{relays[0].String(), relays[1].String()}
 
 		sut := relay.NewRelaySet()
-		testutil.PopulateSetFromList(sut, relays)
+		reltest.PopulateSetFromList(sut, relays)
 
 		// act
 		got := sut.ToStringSlice()
@@ -80,11 +80,11 @@ func TestRelaySet(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		relays := testutil.RandomRelayList(t, 2)
+		relays := reltest.RandomRelayList(t, 2)
 		want := fmt.Sprintf("%s,%s", relays[0].String(), relays[1].String())
 
 		sut := relay.NewRelaySet()
-		testutil.PopulateSetFromList(sut, relays)
+		reltest.PopulateSetFromList(sut, relays)
 
 		// act
 		got := sut.String()

@@ -5,7 +5,7 @@ import (
 
 	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/config/relay"
-	"github.com/flashbots/mev-boost/testutil"
+	"github.com/flashbots/mev-boost/config/relay/reltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ func TestDefaultRelayConfigProvider(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		relays := testutil.RandomRelaySet(t, 3)
+		relays := reltest.RandomRelaySet(t, 3)
 		want := expectDefaultRelaysConfig(relays.ToList())
 
 		sut := rcp.NewDefault(relays)

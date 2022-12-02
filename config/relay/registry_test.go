@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/flashbots/mev-boost/config/relay"
-	"github.com/flashbots/mev-boost/testutil"
+	"github.com/flashbots/mev-boost/config/relay/reltest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,8 +15,8 @@ func TestProposerRegistry(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		want := testutil.RandomRelaySet(t, 3).ToList()
-		pubKey := testutil.RandomBLSPublicKey(t).String()
+		want := reltest.RandomRelaySet(t, 3).ToList()
+		pubKey := reltest.RandomBLSPublicKey(t).String()
 
 		sut := relay.NewProposerRegistry()
 		addRelaysForValidator(sut, pubKey, want...)
@@ -32,8 +32,8 @@ func TestProposerRegistry(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		want := testutil.RandomRelaySet(t, 3).ToList()
-		pubKey := testutil.RandomBLSPublicKey(t).String()
+		want := reltest.RandomRelaySet(t, 3).ToList()
+		pubKey := reltest.RandomBLSPublicKey(t).String()
 
 		sut := relay.NewProposerRegistry()
 		addDefaultRelays(sut, want...)
@@ -49,8 +49,8 @@ func TestProposerRegistry(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		pubKey := testutil.RandomBLSPublicKey(t).String()
-		want := testutil.RelaySetWithRelayHavingTheSameURL(t, 3).ToList()
+		pubKey := reltest.RandomBLSPublicKey(t).String()
+		want := reltest.RelaySetWithRelayHavingTheSameURL(t, 3).ToList()
 
 		sut := relay.NewProposerRegistry()
 		addRelaysForValidator(sut, pubKey, want...)
@@ -67,8 +67,8 @@ func TestProposerRegistry(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		pubKey := testutil.RandomBLSPublicKey(t).String()
-		want := testutil.RelaySetWithRelayHavingTheSameURL(t, 3).ToList()
+		pubKey := reltest.RandomBLSPublicKey(t).String()
+		want := reltest.RelaySetWithRelayHavingTheSameURL(t, 3).ToList()
 
 		sut := relay.NewProposerRegistry()
 		addDefaultRelays(sut, want...)
@@ -85,8 +85,8 @@ func TestProposerRegistry(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		pubKey := testutil.RandomBLSPublicKey(t).String()
-		want := testutil.RandomRelaySet(t, 3).ToList()
+		pubKey := reltest.RandomBLSPublicKey(t).String()
+		want := reltest.RandomRelaySet(t, 3).ToList()
 
 		sut := relay.NewProposerRegistry()
 		addRelaysForValidator(sut, pubKey, want[0])
@@ -104,10 +104,10 @@ func TestProposerRegistry(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		pubKey := testutil.RandomBLSPublicKey(t).String()
-		proposerRelays := testutil.RelaySetWithRelayHavingTheSameURL(t, 3)
-		defaultRelays := testutil.RelaySetWithRelayHavingTheSameURL(t, 2)
-		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
+		pubKey := reltest.RandomBLSPublicKey(t).String()
+		proposerRelays := reltest.RelaySetWithRelayHavingTheSameURL(t, 3)
+		defaultRelays := reltest.RelaySetWithRelayHavingTheSameURL(t, 2)
+		want := reltest.JoinSets(proposerRelays, defaultRelays).ToList()
 
 		sut := relay.NewProposerRegistry()
 		addRelaysForValidator(sut, pubKey, proposerRelays.ToList()...)

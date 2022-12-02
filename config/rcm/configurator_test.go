@@ -3,6 +3,7 @@ package rcm_test
 import (
 	"math/rand"
 	"runtime"
+	"sync"
 	"testing"
 
 	"github.com/flashbots/go-boost-utils/types"
@@ -10,7 +11,7 @@ import (
 	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
-	"github.com/flashbots/mev-boost/testutil"
+	"github.com/flashbots/mev-boost/config/relay/reltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,8 +26,8 @@ func TestConfigurator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		validatorPublicKey := testutil.RandomBLSPublicKey(t)
-		want := testutil.RandomRelaySet(t, 3)
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		want := reltest.RandomRelaySet(t, 3)
 		configProvider := rcptest.MockRelayConfigProvider(
 			rcptest.WithProposerRelays(validatorPublicKey.String(), want))
 
@@ -44,8 +45,8 @@ func TestConfigurator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		validatorPublicKey := testutil.RandomBLSPublicKey(t)
-		want := testutil.RandomRelaySet(t, 3)
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		want := reltest.RandomRelaySet(t, 3)
 		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithDefaultRelays(want))
 
 		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
@@ -75,11 +76,11 @@ func TestConfigurator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		validatorPublicKey := testutil.RandomBLSPublicKey(t)
-		proposerRelays := testutil.RandomRelaySet(t, 3)
-		defaultRelays := testutil.RandomRelaySet(t, 2)
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		proposerRelays := reltest.RandomRelaySet(t, 3)
+		defaultRelays := reltest.RandomRelaySet(t, 2)
 
-		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
+		want := reltest.JoinSets(proposerRelays, defaultRelays).ToList()
 		configProvider := rcptest.MockRelayConfigProvider(
 			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays),
 			rcptest.WithDefaultRelays(defaultRelays))
@@ -98,11 +99,11 @@ func TestConfigurator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		validatorPublicKey := testutil.RandomBLSPublicKey(t)
-		proposerRelays := testutil.RelaySetWithRelayHavingTheSameURL(t, 3)
-		defaultRelays := testutil.RelaySetWithRelayHavingTheSameURL(t, 2)
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		proposerRelays := reltest.RelaySetWithRelayHavingTheSameURL(t, 3)
+		defaultRelays := reltest.RelaySetWithRelayHavingTheSameURL(t, 2)
 
-		want := testutil.JoinSets(proposerRelays, defaultRelays).ToList()
+		want := reltest.JoinSets(proposerRelays, defaultRelays).ToList()
 		configProvider := rcptest.MockRelayConfigProvider(
 			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays),
 			rcptest.WithDefaultRelays(defaultRelays))
@@ -122,9 +123,9 @@ func TestConfigurator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		validatorPublicKey := testutil.RandomBLSPublicKey(t)
-		proposerRelays := testutil.RandomRelaySet(t, 3)
-		defaultRelays := testutil.RandomRelaySet(t, 2)
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		proposerRelays := reltest.RandomRelaySet(t, 3)
+		defaultRelays := reltest.RandomRelaySet(t, 2)
 
 		configProvider := onceOnlySuccessfulProvider(validatorPublicKey, proposerRelays, defaultRelays)
 
@@ -137,7 +138,7 @@ func TestConfigurator(t *testing.T) {
 		// assert
 		require.Error(t, err)
 		assertRelaysHaveNotChanged(t, sut)(validatorPublicKey, proposerRelays)
-		assertRelaysHaveNotChanged(t, sut)(testutil.RandomBLSPublicKey(t), defaultRelays)
+		assertRelaysHaveNotChanged(t, sut)(reltest.RandomBLSPublicKey(t), defaultRelays)
 	})
 
 	t.Run("it panics if relay provider is not supplied", func(t *testing.T) {
@@ -151,19 +152,12 @@ func TestConfigurator(t *testing.T) {
 	t.Run("it is thread-safe", func(t *testing.T) {
 		t.Parallel()
 
-		relays := testutil.RandomRelaySet(t, 5)
+		relays := reltest.RandomRelaySet(t, 5)
 
 		sut, err := rcm.New(rcm.NewRegistryCreator(rcp.NewDefault(relays).FetchConfig))
 		require.NoError(t, err)
 
-		const iterations = 10000
-		numOfWorkers := int64(runtime.GOMAXPROCS(0))
-
-		count := testutil.RunConcurrentlyAndCountFnCalls(numOfWorkers, iterations, func(r *rand.Rand, num int64) {
-			randomlyCallRCMMethods(t, sut)(r, num)
-		})
-
-		assert.Equal(t, uint64(iterations*numOfWorkers), count)
+		assertWasRunConCurrently(t, sut)
 	})
 }
 
@@ -181,6 +175,36 @@ func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Configurator) func(types.
 	}
 }
 
+func assertWasRunConCurrently(t *testing.T, sut *rcm.Configurator) {
+	t.Helper()
+
+	const iterations = 10000
+	numOfWorkers := runtime.NumCPU()
+
+	runConcurrently(numOfWorkers, iterations, func(r *rand.Rand, num int64) {
+		randomlyCallRCMMethods(t, sut)(r, num)
+	})
+}
+
+func runConcurrently(numOfWorkers int, num int64, fn func(*rand.Rand, int64)) {
+	var wg sync.WaitGroup
+	wg.Add(numOfWorkers)
+
+	for g := numOfWorkers; g > 0; g-- {
+		r := rand.New(rand.NewSource(int64(g)))
+
+		go func(r *rand.Rand) {
+			defer wg.Done()
+
+			for n := int64(1); n <= num; n++ {
+				fn(r, n)
+			}
+		}(r)
+	}
+
+	wg.Wait()
+}
+
 func randomlyCallRCMMethods(t *testing.T, sut *rcm.Configurator) func(*rand.Rand, int64) {
 	t.Helper()
 
@@ -189,7 +213,7 @@ func randomlyCallRCMMethods(t *testing.T, sut *rcm.Configurator) func(*rand.Rand
 		case r.Int63n(num)%2 == 0:
 			require.NoError(t, sut.SyncConfig())
 		case r.Int63n(num)%3 == 0:
-			sut.RelaysForValidator(testutil.RandomBLSPublicKey(t).String())
+			sut.RelaysForValidator(reltest.RandomBLSPublicKey(t).String())
 		default:
 			sut.AllRelays()
 		}

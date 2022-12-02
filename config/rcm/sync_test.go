@@ -10,7 +10,7 @@ import (
 	"github.com/flashbots/mev-boost/config/rcp"
 	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
-	"github.com/flashbots/mev-boost/testutil"
+	"github.com/flashbots/mev-boost/config/relay/reltest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -126,7 +126,7 @@ func assertDefaultIntervalIsUsed(t *testing.T) func(context.Context, chan error)
 func createConfigManagerWithRandomRelays(t *testing.T) *rcm.Configurator {
 	t.Helper()
 
-	relays := testutil.RandomRelaySet(t, 3)
+	relays := reltest.RandomRelaySet(t, 3)
 	relayProvider := rcp.NewDefault(relays).FetchConfig
 
 	cm, err := rcm.New(rcm.NewRegistryCreator(relayProvider))
@@ -146,9 +146,9 @@ func createTestOnSyncHandler(errCh chan error) func(_ time.Time, err error) {
 func createConfigManagerWithFaultyProvider(t *testing.T) *rcm.Configurator {
 	t.Helper()
 
-	validatorPublicKey := testutil.RandomBLSPublicKey(t)
-	proposerRelays := testutil.RandomRelaySet(t, 3)
-	defaultRelays := testutil.RandomRelaySet(t, 2)
+	validatorPublicKey := reltest.RandomBLSPublicKey(t)
+	proposerRelays := reltest.RandomRelaySet(t, 3)
+	defaultRelays := reltest.RandomRelaySet(t, 2)
 	relayProvider := onceOnlySuccessfulProvider(validatorPublicKey, proposerRelays, defaultRelays)
 
 	cm, err := rcm.New(rcm.NewRegistryCreator(relayProvider))

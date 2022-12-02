@@ -6,7 +6,7 @@ import (
 
 	"github.com/flashbots/mev-boost/config/rcm"
 	"github.com/flashbots/mev-boost/config/relay"
-	"github.com/flashbots/mev-boost/testutil"
+	"github.com/flashbots/mev-boost/config/relay/reltest"
 )
 
 type MockConfig struct {
@@ -84,7 +84,7 @@ func WithInvalidProposerRelays(t *testing.T) MockOption {
 	t.Helper()
 
 	return func(cfg *MockConfig) {
-		pubKey := testutil.RandomBLSPublicKey(t).String()
+		pubKey := reltest.RandomBLSPublicKey(t).String()
 		cfg.relayCfg.ProposerConfig = map[relay.ValidatorPublicKey]relay.Relay{
 			pubKey: {
 				Builder: relay.Builder{
@@ -118,7 +118,7 @@ func WithProposerEnabledBuilderAndNoRelays(t *testing.T) MockOption {
 	t.Helper()
 
 	return func(cfg *MockConfig) {
-		pubKey := testutil.RandomBLSPublicKey(t).String()
+		pubKey := reltest.RandomBLSPublicKey(t).String()
 		cfg.relayCfg.ProposerConfig = map[relay.ValidatorPublicKey]relay.Relay{
 			pubKey: {
 				Builder: relay.Builder{
@@ -133,12 +133,12 @@ func WithSomeDisabledProposerBuilders(t *testing.T) MockOption {
 	t.Helper()
 
 	return func(cfg *MockConfig) {
-		pubKey := testutil.RandomBLSPublicKey(t).String()
+		pubKey := reltest.RandomBLSPublicKey(t).String()
 		cfg.relayCfg.ProposerConfig = map[relay.ValidatorPublicKey]relay.Relay{
 			pubKey: {
 				Builder: relay.Builder{
 					Enabled: false,
-					Relays:  testutil.RandomRelaySet(t, 3).ToStringSlice(),
+					Relays:  reltest.RandomRelaySet(t, 3).ToStringSlice(),
 				},
 			},
 		}
