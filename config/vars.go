@@ -5,7 +5,7 @@ import (
 )
 
 // Set during build
-var (
+const (
 	// Version is the version of the software, set at build time
 	Version = "v1.4.1-dev"
 

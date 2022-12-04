@@ -1,6 +1,6 @@
 package server
 
-var (
+const (
 	// Router paths
 	pathStatus            = "/eth/v1/builder/status"
 	pathRegisterValidator = "/eth/v1/builder/validators"
