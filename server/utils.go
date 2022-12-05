@@ -161,8 +161,8 @@ func executionPayloadToBlockHeader(payload *bellatrix.ExecutionPayload) (*types.
 	transactionData := make([]*types.Transaction, len(payload.Transactions))
 	for i, encTx := range payload.Transactions {
 		var tx types.Transaction
-		err := tx.UnmarshalBinary(encTx)
-		if err != nil {
+
+		if err := tx.UnmarshalBinary(encTx); err != nil {
 			return nil, errInvalidTransaction
 		}
 		transactionData[i] = &tx
