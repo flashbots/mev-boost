@@ -128,7 +128,7 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 		log.WithError(err).Fatal("could not get payload")
 	}
 
-	if respPayload.Bellatrix == nil {
+	if respPayload.IsEmpty() {
 		log.Fatal("Did not receive correct payload")
 		return
 	}
