@@ -130,6 +130,7 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 
 	if respPayload.Bellatrix == nil {
 		log.Fatal("Did not receive correct payload")
+		return
 	}
 	log.WithField("payload", *respPayload.Bellatrix).Info("got payload from mev-boost")
 }
