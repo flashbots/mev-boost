@@ -136,11 +136,8 @@ We maintain a MEV-Boost Docker images at https://hub.docker.com/r/flashbots/mev-
 - Pull & run the latest image:
 
 ```bash
-# Get the default MEV-Boost image
+# Get the MEV-Boost image
 docker pull flashbots/mev-boost:latest
-
-# Get the portable MEV-Boost image
-docker pull flashbots/mev-boost:latest-portable
 
 # Run it
 docker run flashbots/mev-boost -help
