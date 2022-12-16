@@ -3,7 +3,13 @@ FROM golang:1.18 as builder
 ARG VERSION
 ARG CGO_CFLAGS
 WORKDIR /build
-ADD . /build/
+
+COPY go.mod ./
+COPY go.sum ./
+
+RUN go mod download
+
+ADD . .
 RUN --mount=type=cache,target=/root/.cache/go-build CGO_CFLAGS="$CGO_CFLAGS" GOOS=linux go build -trimpath -ldflags "-s -X 'github.com/flashbots/mev-boost/config.Version=$VERSION'" -v -o mev-boost .
 
 FROM alpine
