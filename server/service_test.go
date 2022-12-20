@@ -14,6 +14,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/attestantio/go-builder-client/api"
+	apiv1capella "github.com/attestantio/go-eth2-client/api/v1/capella"
+	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
 )
@@ -90,6 +94,26 @@ func blindedBlockToExecutionPayload(signedBlindedBeaconBlock *types.SignedBlinde
 		ExtraData:     header.ExtraData,
 		BaseFeePerGas: header.BaseFeePerGas,
 		BlockHash:     header.BlockHash,
+	}
+}
+
+func blindedBlockToExecutionPayloadAttestant(signedBlindedBeaconBlock *apiv1capella.SignedBlindedBeaconBlock) *bellatrix.ExecutionPayload {
+	header := signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader
+	return &bellatrix.ExecutionPayload{
+		ParentHash:    header.ParentHash,
+		FeeRecipient:  header.FeeRecipient,
+		StateRoot:     header.StateRoot,
+		ReceiptsRoot:  header.ReceiptsRoot,
+		LogsBloom:     header.LogsBloom,
+		PrevRandao:    header.PrevRandao,
+		BlockNumber:   header.BlockNumber,
+		GasLimit:      header.GasLimit,
+		GasUsed:       header.GasUsed,
+		Timestamp:     header.Timestamp,
+		ExtraData:     header.ExtraData,
+		BaseFeePerGas: header.BaseFeePerGas,
+		BlockHash:     header.BlockHash,
+		Transactions:  make([]bellatrix.Transaction, 0),
 	}
 }
 
@@ -660,6 +684,34 @@ func TestGetPayloadWithTestdata(t *testing.T) {
 			require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Data.BlockHash)
 		})
 	}
+}
+
+func TestGetPayloadCapella(t *testing.T) {
+	// Load the signed blinded beacon block used for getPayload
+	jsonFile, err := os.Open("../testdata/signed-blinded-beacon-block-capella.json")
+	require.NoError(t, err)
+	defer jsonFile.Close()
+	signedBlindedBeaconBlock := new(apiv1capella.SignedBlindedBeaconBlock)
+	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
+
+	backend := newTestBackend(t, 1, time.Second)
+
+	// Prepare getPayload response
+	backend.relays[0].GetAttestantPayloadResponse = &api.VersionedExecutionPayload{
+		Version:   spec.DataVersionBellatrix,
+		Bellatrix: blindedBlockToExecutionPayloadAttestant(signedBlindedBeaconBlock),
+	}
+
+	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
+	getPayloadPath := "/eth/v1/builder/blinded_blocks"
+	rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBeaconBlock)
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
+
+	resp := new(api.VersionedExecutionPayload)
+	err = json.Unmarshal(rr.Body.Bytes(), resp)
+	require.NoError(t, err)
+	require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Bellatrix.BlockHash)
 }
 
 func TestGetPayloadToOriginRelayOnly(t *testing.T) {

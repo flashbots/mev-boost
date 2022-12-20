@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/attestantio/go-builder-client/api"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
@@ -49,8 +50,9 @@ type mockRelay struct {
 	handlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
 
 	// Default responses placeholders, used if overrider does not exist
-	GetHeaderResponse  *types.GetHeaderResponse
-	GetPayloadResponse *types.GetPayloadResponse
+	GetHeaderResponse           *types.GetHeaderResponse
+	GetPayloadResponse          *types.GetPayloadResponse
+	GetAttestantPayloadResponse *api.VersionedExecutionPayload
 
 	// Server section
 	Server        *httptest.Server
@@ -244,6 +246,14 @@ func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	)
 	if m.GetPayloadResponse != nil {
 		response = m.GetPayloadResponse
+	}
+
+	if m.GetAttestantPayloadResponse != nil {
+		if err := json.NewEncoder(w).Encode(m.GetAttestantPayloadResponse); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		return
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {

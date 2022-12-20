@@ -15,6 +15,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/attestantio/go-builder-client/api"
+	"github.com/attestantio/go-eth2-client/api/v1/capella"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
@@ -450,26 +452,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.respondOK(w, result.response)
 }
 
-func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
-	log := m.log.WithField("method", "getPayload")
-	log.Debug("getPayload")
-
-	// Read the body first, so we can log it later on error
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		log.WithError(err).Error("could not read body of request from the beacon node")
-		m.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// Decode the body now
-	payload := new(types.SignedBlindedBeaconBlock)
-	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-		log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
-		m.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
+func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *types.SignedBlindedBeaconBlock, body []byte) {
 	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
 		log.WithField("body", string(body)).Error("missing parts of the request payload from the beacon-node")
 		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
@@ -580,6 +563,148 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 
 	m.respondOK(w, result)
+}
+
+func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *capella.SignedBlindedBeaconBlock, body []byte) {
+	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
+		log.WithField("body", string(body)).Error("missing parts of the request payload from the beacon-node")
+		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
+		return
+	}
+
+	log = log.WithFields(logrus.Fields{
+		"slot":       payload.Message.Slot,
+		"blockHash":  payload.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
+		"parentHash": payload.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
+	})
+
+	bidKey := bidRespKey{slot: uint64(payload.Message.Slot), blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
+	m.bidsLock.Lock()
+	originalBid := m.bids[bidKey]
+	m.bidsLock.Unlock()
+	if originalBid.blockHash == "" {
+		log.Error("no bid for this getPayload payload found. was getHeader called before?")
+	} else if len(originalBid.relays) == 0 {
+		log.Warn("bid found but no associated relays")
+	}
+
+	// send bid and signed block to relay monitor with capella payload
+	// go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
+
+	relays := originalBid.relays
+	if len(relays) == 0 {
+		log.Warn("originating relay not found, sending getPayload request to all relays")
+		relays = m.relays
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	result := new(api.VersionedExecutionPayload)
+	ua := UserAgent(req.Header.Get("User-Agent"))
+
+	// Prepare the request context, which will be cancelled after the first successful response from a relay
+	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
+	defer requestCtxCancel()
+
+	for _, relay := range relays {
+		wg.Add(1)
+		go func(relay RelayEntry) {
+			defer wg.Done()
+			url := relay.GetURI(pathGetPayload)
+			log := log.WithField("url", url)
+			log.Debug("calling getPayload")
+
+			responsePayload := new(api.VersionedExecutionPayload)
+			_, err := SendHTTPRequest(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload)
+			if err != nil {
+				if errors.Is(requestCtx.Err(), context.Canceled) {
+					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
+				} else {
+					log.WithError(err).Error("error making request to relay")
+				}
+				return
+			}
+
+			if responsePayload.Bellatrix == nil || types.Hash(responsePayload.Bellatrix.BlockHash) == nilHash {
+				log.Error("response with empty data!")
+				return
+			}
+
+			// Ensure the response blockhash matches the request
+			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Bellatrix.BlockHash {
+				log.WithFields(logrus.Fields{
+					"responseBlockHash": responsePayload.Bellatrix.BlockHash.String(),
+				}).Error("requestBlockHash does not equal responseBlockHash")
+				return
+			}
+
+			// Ensure the response blockhash matches the response block
+			calculatedBlockHash, err := ComputeBlockHash(responsePayload.Bellatrix)
+			if err != nil {
+				log.WithError(err).Error("could not calculate block hash")
+			} else if responsePayload.Bellatrix.BlockHash != calculatedBlockHash {
+				log.WithFields(logrus.Fields{
+					"calculatedBlockHash": calculatedBlockHash.String(),
+					"responseBlockHash":   responsePayload.Bellatrix.BlockHash.String(),
+				}).Error("responseBlockHash does not equal hash calculated from response block")
+			}
+
+			// Lock before accessing the shared payload
+			mu.Lock()
+			defer mu.Unlock()
+
+			if requestCtx.Err() != nil { // request has been cancelled (or deadline exceeded)
+				return
+			}
+
+			// Received successful response. Now cancel other requests and return immediately
+			requestCtxCancel()
+			*result = *responsePayload
+			log.Info("received payload from relay")
+		}(relay)
+	}
+
+	// Wait for all requests to complete...
+	wg.Wait()
+
+	// If no payload has been received from relay, log loudly about withholding!
+	if result.Bellatrix == nil || types.Hash(result.Bellatrix.BlockHash) == nilHash {
+		originRelays := RelayEntriesToStrings(originalBid.relays)
+		log.WithField("relays", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
+		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
+		return
+	}
+
+	m.respondOK(w, result)
+}
+
+func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
+	log := m.log.WithField("method", "getPayload")
+	log.Debug("getPayload")
+
+	// Read the body first, so we can log it later on error
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.WithError(err).Error("could not read body of request from the beacon node")
+		m.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Decode the body now
+	payload := new(capella.SignedBlindedBeaconBlock)
+	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
+		log.WithError(err).WithField("body", string(body)).Info("could not decode request payload from the beacon-node (capella signed blinded beacon block)")
+		log.Debug("attempting to decode payload body with bellatrix")
+		payload := new(types.SignedBlindedBeaconBlock)
+		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
+			log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (bellatrix signed blinded beacon block)")
+			m.respondError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		m.processBellatrixPayload(w, req, log, payload, body)
+		return
+	}
+	m.processCapellaPayload(w, req, log, payload, body)
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status
