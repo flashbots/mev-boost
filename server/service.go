@@ -625,27 +625,27 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 				return
 			}
 
-			if responsePayload.Bellatrix == nil || types.Hash(responsePayload.Bellatrix.BlockHash) == nilHash {
+			if responsePayload.Capella == nil || types.Hash(responsePayload.Capella.BlockHash) == nilHash {
 				log.Error("response with empty data!")
 				return
 			}
 
 			// Ensure the response blockhash matches the request
-			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Bellatrix.BlockHash {
+			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Capella.BlockHash {
 				log.WithFields(logrus.Fields{
-					"responseBlockHash": responsePayload.Bellatrix.BlockHash.String(),
+					"responseBlockHash": responsePayload.Capella.BlockHash.String(),
 				}).Error("requestBlockHash does not equal responseBlockHash")
 				return
 			}
 
 			// Ensure the response blockhash matches the response block
-			calculatedBlockHash, err := ComputeBlockHash(responsePayload.Bellatrix)
+			calculatedBlockHash, err := ComputeBlockHash(responsePayload.Capella)
 			if err != nil {
 				log.WithError(err).Error("could not calculate block hash")
-			} else if responsePayload.Bellatrix.BlockHash != calculatedBlockHash {
+			} else if responsePayload.Capella.BlockHash != calculatedBlockHash {
 				log.WithFields(logrus.Fields{
 					"calculatedBlockHash": calculatedBlockHash.String(),
-					"responseBlockHash":   responsePayload.Bellatrix.BlockHash.String(),
+					"responseBlockHash":   responsePayload.Capella.BlockHash.String(),
 				}).Error("responseBlockHash does not equal hash calculated from response block")
 			}
 
@@ -668,7 +668,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	wg.Wait()
 
 	// If no payload has been received from relay, log loudly about withholding!
-	if result.Bellatrix == nil || types.Hash(result.Bellatrix.BlockHash) == nilHash {
+	if result.Capella == nil || types.Hash(result.Capella.BlockHash) == nilHash {
 		originRelays := RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relays", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())

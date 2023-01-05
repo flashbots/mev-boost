@@ -51,8 +51,8 @@ type mockRelay struct {
 
 	// Default responses placeholders, used if overrider does not exist
 	GetHeaderResponse           *types.GetHeaderResponse
-	GetPayloadResponse          *types.GetPayloadResponse
-	GetAttestantPayloadResponse *api.VersionedExecutionPayload
+	GetBellatrixPayloadResponse *types.GetPayloadResponse
+	GetCapellaPayloadResponse   *api.VersionedExecutionPayload
 
 	// Server section
 	Server        *httptest.Server
@@ -237,6 +237,14 @@ func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
+	if m.GetCapellaPayloadResponse != nil {
+		if err := json.NewEncoder(w).Encode(m.GetCapellaPayloadResponse); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
 	// Build the default response.
 	response := m.MakeGetPayloadResponse(
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
@@ -244,16 +252,9 @@ func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
 		12345,
 	)
-	if m.GetPayloadResponse != nil {
-		response = m.GetPayloadResponse
-	}
 
-	if m.GetAttestantPayloadResponse != nil {
-		if err := json.NewEncoder(w).Encode(m.GetAttestantPayloadResponse); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		return
+	if m.GetBellatrixPayloadResponse != nil {
+		response = m.GetBellatrixPayloadResponse
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {

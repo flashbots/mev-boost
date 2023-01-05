@@ -16,8 +16,9 @@ import (
 
 	"github.com/attestantio/go-builder-client/api"
 	apiv1capella "github.com/attestantio/go-eth2-client/api/v1/capella"
-	"github.com/attestantio/go-eth2-client/spec"
+	consensusspec "github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/stretchr/testify/require"
 )
@@ -78,7 +79,7 @@ func (be *testBackend) request(t *testing.T, method, path string, payload any) *
 	return rr
 }
 
-func blindedBlockToExecutionPayload(signedBlindedBeaconBlock *types.SignedBlindedBeaconBlock) *types.ExecutionPayload {
+func blindedBlockToExecutionPayloadBellatrix(signedBlindedBeaconBlock *types.SignedBlindedBeaconBlock) *types.ExecutionPayload {
 	header := signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader
 	return &types.ExecutionPayload{
 		ParentHash:    header.ParentHash,
@@ -97,9 +98,9 @@ func blindedBlockToExecutionPayload(signedBlindedBeaconBlock *types.SignedBlinde
 	}
 }
 
-func blindedBlockToExecutionPayloadAttestant(signedBlindedBeaconBlock *apiv1capella.SignedBlindedBeaconBlock) *bellatrix.ExecutionPayload {
+func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *apiv1capella.SignedBlindedBeaconBlock) *capella.ExecutionPayload {
 	header := signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader
-	return &bellatrix.ExecutionPayload{
+	return &capella.ExecutionPayload{
 		ParentHash:    header.ParentHash,
 		FeeRecipient:  header.FeeRecipient,
 		StateRoot:     header.StateRoot,
@@ -114,6 +115,7 @@ func blindedBlockToExecutionPayloadAttestant(signedBlindedBeaconBlock *apiv1cape
 		BaseFeePerGas: header.BaseFeePerGas,
 		BlockHash:     header.BlockHash,
 		Transactions:  make([]bellatrix.Transaction, 0),
+		Withdrawals:   make([]*capella.Withdrawal, 0),
 	}
 }
 
@@ -588,15 +590,15 @@ func TestGetPayload(t *testing.T) {
 		resp := new(types.GetPayloadResponse)
 
 		// 1/2 failing responses are okay
-		backend.relays[0].GetPayloadResponse = resp
+		backend.relays[0].GetBellatrixPayloadResponse = resp
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.GreaterOrEqual(t, backend.relays[1].GetRequestCount(path)+backend.relays[0].GetRequestCount(path), 1)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 		// 2/2 failing responses are okay
 		backend = newTestBackend(t, 2, time.Second)
-		backend.relays[0].GetPayloadResponse = resp
-		backend.relays[1].GetPayloadResponse = resp
+		backend.relays[0].GetBellatrixPayloadResponse = resp
+		backend.relays[1].GetBellatrixPayloadResponse = resp
 		rr = backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
@@ -672,7 +674,7 @@ func TestGetPayloadWithTestdata(t *testing.T) {
 					BlockHash: signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
 				},
 			}
-			backend.relays[0].GetPayloadResponse = &mockResp
+			backend.relays[0].GetBellatrixPayloadResponse = &mockResp
 
 			rr := backend.request(t, http.MethodPost, path, signedBlindedBeaconBlock)
 			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
@@ -697,9 +699,9 @@ func TestGetPayloadCapella(t *testing.T) {
 	backend := newTestBackend(t, 1, time.Second)
 
 	// Prepare getPayload response
-	backend.relays[0].GetAttestantPayloadResponse = &api.VersionedExecutionPayload{
-		Version:   spec.DataVersionBellatrix,
-		Bellatrix: blindedBlockToExecutionPayloadAttestant(signedBlindedBeaconBlock),
+	backend.relays[0].GetCapellaPayloadResponse = &api.VersionedExecutionPayload{
+		Version: consensusspec.DataVersionCapella,
+		Capella: blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock),
 	}
 
 	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
@@ -711,7 +713,7 @@ func TestGetPayloadCapella(t *testing.T) {
 	resp := new(api.VersionedExecutionPayload)
 	err = json.Unmarshal(rr.Body.Bytes(), resp)
 	require.NoError(t, err)
-	require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Bellatrix.BlockHash)
+	require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Capella.BlockHash)
 }
 
 func TestGetPayloadToOriginRelayOnly(t *testing.T) {
@@ -739,8 +741,8 @@ func TestGetPayloadToOriginRelayOnly(t *testing.T) {
 	require.Equal(t, 1, backend.relays[1].GetRequestCount(getHeaderPath))
 
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = &types.GetPayloadResponse{
-		Data: blindedBlockToExecutionPayload(signedBlindedBeaconBlock),
+	backend.relays[0].GetBellatrixPayloadResponse = &types.GetPayloadResponse{
+		Data: blindedBlockToExecutionPayloadBellatrix(signedBlindedBeaconBlock),
 	}
 
 	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
