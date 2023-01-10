@@ -1,6 +1,9 @@
 package rcp
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Error struct {
 	Cause   error
@@ -28,7 +31,7 @@ type APIError struct {
 }
 
 func (e APIError) Error() string {
-	return fmt.Sprintf("api error: %d: %s: %v", e.Code, e.Message, ErrCannotFetchConfig)
+	return strings.ToLower(fmt.Sprintf("api error: %d: %s: %v", e.Code, e.Message, ErrCannotFetchConfig))
 }
 
 func (e APIError) Unwrap() error {

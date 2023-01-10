@@ -71,6 +71,12 @@ func validProposerConfig() *relay.Config {
 					Enabled: true,
 				},
 			},
+			"0x8e323fd501233cd4d1b9d63d74076a38de50f2f584b001a5ac2412e4e46adb26d2fb2a6041e7e8c57cd4df0916727227": relay.Relay{
+				FeeRecipient: "0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5",
+				Builder: relay.Builder{
+					GasLimit: "12345654321",
+				},
+			},
 		},
 		DefaultConfig: relay.Relay{
 			FeeRecipient: "0x6e35733c5af9B61374A128e6F85f553aF09ff89A",

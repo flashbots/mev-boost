@@ -146,7 +146,7 @@ func TestError(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		want := "api error: 500: Internal Server Error: cannot fetch relay config"
+		want := "api error: 500: internal server error: cannot fetch relay config"
 
 		// act
 		err := rcp.APIError{

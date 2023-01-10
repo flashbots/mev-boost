@@ -1,6 +1,6 @@
 // Package rcp contains Relay Config Provider Clients used to fetch the Proposer Config from different RCPs.
 //
-// Relay Config Providers are data sources which hold information about proposers relays and the default relays.
+// Relay Config Providers are data sources which hold information about proposer relays and the default relays.
 // For example an RCP maybe a file containing Proposer Config, or a remote API endpoint returning the Proposer Config.
 //
 // A Proposer Config is basically a JSON structure which has the information about the proposers and their relays.
