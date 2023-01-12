@@ -22,14 +22,30 @@ var _ rcm.RelayRegistry = (*rcm.Configurator)(nil)
 func TestConfigurator(t *testing.T) {
 	t.Parallel()
 
-	t.Run("it returns all relays for a known validator", func(t *testing.T) {
+	t.Run("proposer is not found & default with no relays is disabled -> empty", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithDisabledEmptyDefaultRelays())
+
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
+		require.NoError(t, err)
+
+		// act
+		got := sut.RelaysForValidator(validatorPublicKey.String())
+
+		// assert
+		assertRelayListsMatch(t, emptyRelayList(), got)
+	})
+
+	t.Run("proposer is not found & default with relays is enabled -> default", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
 		validatorPublicKey := reltest.RandomBLSPublicKey(t)
 		want := reltest.RandomRelaySet(t, 3)
-		configProvider := rcptest.MockRelayConfigProvider(
-			rcptest.WithProposerRelays(validatorPublicKey.String(), want))
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithDefaultRelays(want))
 
 		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
@@ -41,13 +57,75 @@ func TestConfigurator(t *testing.T) {
 		assertRelayListsMatch(t, want.ToList(), got)
 	})
 
-	t.Run("it returns default relays for an unknown validator", func(t *testing.T) {
+	t.Run("proposer with no relays is disabled & default with no relays is disabled -> empty", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
 		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithDisabledEmptyProposer(validatorPublicKey.String()),
+			rcptest.WithDisabledEmptyDefaultRelays())
+
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
+		require.NoError(t, err)
+
+		// act
+		got := sut.RelaysForValidator(validatorPublicKey.String())
+
+		// assert
+		assertRelayListsMatch(t, emptyRelayList(), got)
+	})
+
+	t.Run("proposer with no relays is disabled & default with relays is enabled -> empty", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithDisabledEmptyProposer(validatorPublicKey.String()),
+			rcptest.WithDisabledDefaultRelays(relay.NewRelaySet()))
+
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
+		require.NoError(t, err)
+
+		// act
+		got := sut.RelaysForValidator(validatorPublicKey.String())
+
+		// assert
+		assertRelayListsMatch(t, emptyRelayList(), got)
+	})
+
+	t.Run("proposer with relays is enabled & default with relays is enabled -> proposer", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
 		want := reltest.RandomRelaySet(t, 3)
-		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithDefaultRelays(want))
+
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerRelays(validatorPublicKey.String(), want),
+			rcptest.WithDefaultRelays(reltest.RandomRelaySet(t, 3)))
+
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
+		require.NoError(t, err)
+
+		// act
+		got := sut.RelaysForValidator(validatorPublicKey.String())
+
+		// assert
+		assertRelayListsMatch(t, want.ToList(), got)
+	})
+
+	t.Run("proposer with relays is enabled & default with no relays is disabled -> proposer", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		want := reltest.RandomRelaySet(t, 3)
+
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerRelays(validatorPublicKey.String(), want),
+			rcptest.WithDisabledEmptyDefaultRelays())
 
 		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
 		require.NoError(t, err)
@@ -70,29 +148,6 @@ func TestConfigurator(t *testing.T) {
 
 		// assert
 		assert.ErrorIs(t, err, rcm.ErrConfigProviderFailure)
-	})
-
-	t.Run("it returns proposer and default relays", func(t *testing.T) {
-		t.Parallel()
-
-		// arrange
-		validatorPublicKey := reltest.RandomBLSPublicKey(t)
-		proposerRelays := reltest.RandomRelaySet(t, 3)
-		defaultRelays := reltest.RandomRelaySet(t, 2)
-
-		want := reltest.JoinSets(proposerRelays, defaultRelays).ToList()
-		configProvider := rcptest.MockRelayConfigProvider(
-			rcptest.WithProposerRelays(validatorPublicKey.String(), proposerRelays),
-			rcptest.WithDefaultRelays(defaultRelays))
-
-		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
-		require.NoError(t, err)
-
-		// act
-		got := sut.AllRelays()
-
-		// assert
-		assertRelayListsMatch(t, want, got)
 	})
 
 	t.Run("it returns only unique relays", func(t *testing.T) {
@@ -159,6 +214,10 @@ func TestConfigurator(t *testing.T) {
 
 		assertWasRunConCurrently(t, sut)
 	})
+}
+
+func emptyRelayList() relay.List {
+	return relay.NewRelaySet().ToList()
 }
 
 func assertRelayListsMatch(t *testing.T, want, got relay.List) {

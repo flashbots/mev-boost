@@ -80,6 +80,23 @@ func WithProposerRelays(pubKey relay.ValidatorPublicKey, relays relay.Set) MockO
 	}
 }
 
+func WithDisabledEmptyProposer(pubKey relay.ValidatorPublicKey) MockOption {
+	return func(cfg *MockConfig) {
+		proposerConfig := cfg.relayCfg.ProposerConfig
+		if proposerConfig == nil {
+			proposerConfig = make(relay.ProposerConfig)
+		}
+
+		proposerConfig[pubKey] = relay.Relay{
+			Builder: relay.Builder{
+				Enabled: false,
+			},
+		}
+
+		cfg.relayCfg.ProposerConfig = proposerConfig
+	}
+}
+
 func WithInvalidProposerRelays(t *testing.T) MockOption {
 	t.Helper()
 
@@ -100,6 +117,23 @@ func WithDefaultRelays(relays relay.Set) MockOption {
 	return func(cfg *MockConfig) {
 		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
 			Enabled: true,
+			Relays:  relays.ToStringSlice(),
+		}
+	}
+}
+
+func WithDisabledEmptyDefaultRelays() MockOption {
+	return func(cfg *MockConfig) {
+		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
+			Enabled: false,
+		}
+	}
+}
+
+func WithDisabledDefaultRelays(relays relay.Set) MockOption {
+	return func(cfg *MockConfig) {
+		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
+			Enabled: false,
 			Relays:  relays.ToStringSlice(),
 		}
 	}
