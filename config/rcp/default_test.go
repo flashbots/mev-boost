@@ -51,7 +51,7 @@ func TestDefaultRelayConfigProvider(t *testing.T) {
 func expectDefaultRelaysConfig(entries relay.List) *relay.Config {
 	return &relay.Config{
 		DefaultConfig: relay.Relay{
-			Builder: relay.Builder{
+			Builder: &relay.Builder{
 				Enabled: true,
 				Relays:  entries.ToStringSlice(),
 			},
@@ -62,7 +62,7 @@ func expectDefaultRelaysConfig(entries relay.List) *relay.Config {
 func expectConfigWithNoDefaultRelays() *relay.Config {
 	return &relay.Config{
 		DefaultConfig: relay.Relay{
-			Builder: relay.Builder{
+			Builder: &relay.Builder{
 				Enabled: true,
 				Relays:  []string{},
 			},

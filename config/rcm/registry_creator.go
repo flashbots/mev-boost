@@ -83,7 +83,11 @@ func (r *RegistryCreator) validateConfig(cfg *relay.Config) error {
 	return nil
 }
 
-func (r *RegistryCreator) checkIfBuilderHasRelays(builder relay.Builder) error {
+func (r *RegistryCreator) checkIfBuilderHasRelays(builder *relay.Builder) error {
+	if builder == nil {
+		return nil
+	}
+
 	if builder.Enabled && len(builder.Relays) < 1 {
 		return ErrEmptyBuilderRelays
 	}
@@ -103,6 +107,10 @@ func (r *RegistryCreator) walkProposerCfg(proposerCfg relay.ProposerConfig, fn p
 
 func (r *RegistryCreator) populateProposerRelays(cfg *relay.Config) error {
 	proposerCfgWalker := func(publicKey relay.ValidatorPublicKey, cfg relay.Relay) error {
+		if cfg.Builder == nil {
+			return nil
+		}
+
 		if !cfg.Builder.Enabled {
 			r.relayRegistry.AddEmptyProposer(publicKey)
 
@@ -128,6 +136,10 @@ func (r *RegistryCreator) populateDefaultRelays(cfg *relay.Config) error {
 }
 
 func (r *RegistryCreator) processRelays(cfg relay.Relay, fn func(entry relay.Entry)) error {
+	if cfg.Builder == nil {
+		return nil
+	}
+
 	for _, relayURL := range cfg.Builder.Relays {
 		relayEntry, err := relay.NewRelayEntry(relayURL)
 		if err != nil {

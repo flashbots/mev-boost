@@ -31,7 +31,7 @@ func NewDefault(relays relay.Set) *Default {
 func (d *Default) FetchConfig() (*relay.Config, error) {
 	cfg := &relay.Config{
 		DefaultConfig: relay.Relay{
-			Builder: relay.Builder{
+			Builder: &relay.Builder{
 				Enabled: true,
 				Relays:  d.relays.ToStringSlice(),
 			},

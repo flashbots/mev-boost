@@ -21,7 +21,7 @@ func RandomRelaySet(t *testing.T, num int) relay.Set {
 	return s
 }
 
-func RelaySetWithRelayHavingTheSameURL(t *testing.T, num int) relay.Set {
+func RelaySetWithRelaysHavingTheSameURL(t *testing.T, num int) relay.Set {
 	t.Helper()
 
 	relayURL := RandomRelayURL(t)

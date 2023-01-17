@@ -8,7 +8,7 @@ type Config struct {
 type ProposerConfig map[string]Relay
 
 type Relay struct {
-	Builder Builder `json:"builder"`
+	Builder *Builder `json:"builder"`
 }
 
 type Builder struct {

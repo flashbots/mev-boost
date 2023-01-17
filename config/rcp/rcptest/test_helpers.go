@@ -58,7 +58,7 @@ func WithProposerRelays(pubKey relay.ValidatorPublicKey, relays relay.Set) MockO
 		_, ok := proposerConfig[pubKey]
 		if !ok {
 			proposerConfig[pubKey] = relay.Relay{
-				Builder: relay.Builder{
+				Builder: &relay.Builder{
 					Enabled: true,
 					Relays:  relays.ToStringSlice(),
 				},
@@ -71,7 +71,7 @@ func WithProposerRelays(pubKey relay.ValidatorPublicKey, relays relay.Set) MockO
 
 		panic("not implemented")
 
-		//reg.Builder = relay.Builder{
+		//reg.Builder = &relay.Builder{
 		//	Enabled: true,
 		//	Relays:  append(reg.Builder.Relays, relays...),
 		//}
@@ -88,11 +88,23 @@ func WithDisabledEmptyProposer(pubKey relay.ValidatorPublicKey) MockOption {
 		}
 
 		proposerConfig[pubKey] = relay.Relay{
-			Builder: relay.Builder{
+			Builder: &relay.Builder{
 				Enabled: false,
 			},
 		}
 
+		cfg.relayCfg.ProposerConfig = proposerConfig
+	}
+}
+
+func WithProposerWithNoBuilder(pubKey relay.ValidatorPublicKey) MockOption {
+	return func(cfg *MockConfig) {
+		proposerConfig := cfg.relayCfg.ProposerConfig
+		if proposerConfig == nil {
+			proposerConfig = make(relay.ProposerConfig)
+		}
+
+		proposerConfig[pubKey] = relay.Relay{}
 		cfg.relayCfg.ProposerConfig = proposerConfig
 	}
 }
@@ -104,7 +116,7 @@ func WithInvalidProposerRelays(t *testing.T) MockOption {
 		pubKey := reltest.RandomBLSPublicKey(t).String()
 		cfg.relayCfg.ProposerConfig = map[relay.ValidatorPublicKey]relay.Relay{
 			pubKey: {
-				Builder: relay.Builder{
+				Builder: &relay.Builder{
 					Enabled: true,
 					Relays:  []string{"invalid-relay-url"},
 				},
@@ -115,7 +127,7 @@ func WithInvalidProposerRelays(t *testing.T) MockOption {
 
 func WithDefaultRelays(relays relay.Set) MockOption {
 	return func(cfg *MockConfig) {
-		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
+		cfg.relayCfg.DefaultConfig.Builder = &relay.Builder{
 			Enabled: true,
 			Relays:  relays.ToStringSlice(),
 		}
@@ -124,7 +136,7 @@ func WithDefaultRelays(relays relay.Set) MockOption {
 
 func WithDisabledEmptyDefaultRelays() MockOption {
 	return func(cfg *MockConfig) {
-		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
+		cfg.relayCfg.DefaultConfig.Builder = &relay.Builder{
 			Enabled: false,
 		}
 	}
@@ -132,7 +144,7 @@ func WithDisabledEmptyDefaultRelays() MockOption {
 
 func WithDisabledDefaultRelays(relays relay.Set) MockOption {
 	return func(cfg *MockConfig) {
-		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
+		cfg.relayCfg.DefaultConfig.Builder = &relay.Builder{
 			Enabled: false,
 			Relays:  relays.ToStringSlice(),
 		}
@@ -141,7 +153,7 @@ func WithDisabledDefaultRelays(relays relay.Set) MockOption {
 
 func WithInvalidDefaultRelays() MockOption {
 	return func(cfg *MockConfig) {
-		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
+		cfg.relayCfg.DefaultConfig.Builder = &relay.Builder{
 			Enabled: true,
 			Relays:  []string{"htt://fef/"},
 		}
@@ -155,7 +167,7 @@ func WithProposerEnabledBuilderAndNoRelays(t *testing.T) MockOption {
 		pubKey := reltest.RandomBLSPublicKey(t).String()
 		cfg.relayCfg.ProposerConfig = map[relay.ValidatorPublicKey]relay.Relay{
 			pubKey: {
-				Builder: relay.Builder{
+				Builder: &relay.Builder{
 					Enabled: true,
 				},
 			},
@@ -170,7 +182,7 @@ func WithSomeDisabledProposerBuilders(t *testing.T) MockOption {
 		pubKey := reltest.RandomBLSPublicKey(t).String()
 		cfg.relayCfg.ProposerConfig = map[relay.ValidatorPublicKey]relay.Relay{
 			pubKey: {
-				Builder: relay.Builder{
+				Builder: &relay.Builder{
 					Enabled: false,
 					Relays:  reltest.RandomRelaySet(t, 3).ToStringSlice(),
 				},
@@ -181,7 +193,7 @@ func WithSomeDisabledProposerBuilders(t *testing.T) MockOption {
 
 func WithDefaultEnabledBuilderAndNoRelays() MockOption {
 	return func(cfg *MockConfig) {
-		cfg.relayCfg.DefaultConfig.Builder = relay.Builder{
+		cfg.relayCfg.DefaultConfig.Builder = &relay.Builder{
 			Enabled: true,
 		}
 	}

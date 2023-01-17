@@ -57,6 +57,25 @@ func TestConfigurator(t *testing.T) {
 		assertRelayListsMatch(t, want.ToList(), got)
 	})
 
+	t.Run("proposer with no builder & default with no relays is disabled -> empty", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerWithNoBuilder(validatorPublicKey.String()),
+			rcptest.WithDisabledEmptyDefaultRelays())
+
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
+		require.NoError(t, err)
+
+		// act
+		got := sut.RelaysForValidator(validatorPublicKey.String())
+
+		// assert
+		assertRelayListsMatch(t, emptyRelayList(), got)
+	})
+
 	t.Run("proposer with no relays is disabled & default with no relays is disabled -> empty", func(t *testing.T) {
 		t.Parallel()
 
@@ -74,6 +93,26 @@ func TestConfigurator(t *testing.T) {
 
 		// assert
 		assertRelayListsMatch(t, emptyRelayList(), got)
+	})
+
+	t.Run("proposer with no builder & default with relays is enabled -> default", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		validatorPublicKey := reltest.RandomBLSPublicKey(t)
+		want := reltest.RandomRelaySet(t, 3)
+		configProvider := rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerWithNoBuilder(validatorPublicKey.String()),
+			rcptest.WithDefaultRelays(want))
+
+		sut, err := rcm.New(rcm.NewRegistryCreator(configProvider))
+		require.NoError(t, err)
+
+		// act
+		got := sut.RelaysForValidator(validatorPublicKey.String())
+
+		// assert
+		assertRelayListsMatch(t, want.ToList(), got)
 	})
 
 	t.Run("proposer with no relays is disabled & default with relays is enabled -> empty", func(t *testing.T) {
@@ -155,8 +194,8 @@ func TestConfigurator(t *testing.T) {
 
 		// arrange
 		validatorPublicKey := reltest.RandomBLSPublicKey(t)
-		proposerRelays := reltest.RelaySetWithRelayHavingTheSameURL(t, 3)
-		defaultRelays := reltest.RelaySetWithRelayHavingTheSameURL(t, 2)
+		proposerRelays := reltest.RelaySetWithRelaysHavingTheSameURL(t, 3)
+		defaultRelays := reltest.RelaySetWithRelaysHavingTheSameURL(t, 2)
 
 		want := reltest.JoinSets(proposerRelays, defaultRelays).ToList()
 		configProvider := rcptest.MockRelayConfigProvider(
