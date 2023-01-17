@@ -40,17 +40,14 @@ func validProposerConfig() *relay.Config {
 	return &relay.Config{
 		ProposerConfig: relay.ProposerConfig{
 			"0xa1d1ad0714035353258038e964ae9675dc0252ee22cea896825c01458e1807bfad2f9969338798548d9858a571f7425c": relay.Relay{
-				FeeRecipient: "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
 				Builder: relay.Builder{
 					Enabled: true,
 					Relays: []string{
 						"https://0x84f4b47474dfd6f2e0f4f05d9a056fbf8414e8c5a02e3363a29272262ee136c2bca0872b2f3cfa10e2017d52ce03a9d6@bloxroute.ethical.blxrbdn.com",
 					},
-					GasLimit: "12345654321",
 				},
 			},
 			"0xb2ff4716ed345b05dd1dfc6a5a9fa70856d8c75dcc9e881dd2f766d5f891326f0d10e96f3a444ce6c912b69c22c6754d": relay.Relay{
-				FeeRecipient: "0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5",
 				Builder: relay.Builder{
 					Enabled: true,
 					Relays: []string{
@@ -59,27 +56,31 @@ func validProposerConfig() *relay.Config {
 					},
 				},
 			},
+			"0xb2ff4716ed345b05dd1dfc6a5a9fa70856d8c75dcc9e881dd2f766d5f891326f0d10e96f3a444ce6c912b69c22c6754e": relay.Relay{
+				Builder: relay.Builder{
+					Enabled: true,
+					Relays: []string{
+						"https://0x8b66d47c8bd32211c0ed807048e7f6467a8a046db020db2d7097f5afd6996545ecc07b827efaa8f1524cb14ca268afa2@boost-relay.flashbots.net",
+						"https://0x84f4b47474dfd6f2e0f4f05d9a056fbf8414e8c5a02e3363a29272262ee136c2bca0872b2f3cfa10e2017d52ce03a9d6@bloxroute.ethical.blxrbdn.com",
+					},
+				},
+			},
 			"0x8e323fd501233cd4d1b9d63d74076a38de50f2f584b001a5ac2412e4e46adb26d2fb2a6041e7e8c57cd4df0916729219": relay.Relay{
-				FeeRecipient: "0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5",
 				Builder: relay.Builder{
 					Enabled: false,
 				},
 			},
-			"0x8e323fd501233cd4d1b9d63d74076a38de50f2f584b001a5ac2412e4e46adb26d2fb2a6041e7e8c57cd4df0916727225": relay.Relay{
-				FeeRecipient: "0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5",
-				Builder: relay.Builder{
-					Enabled: true,
-				},
-			},
 			"0x8e323fd501233cd4d1b9d63d74076a38de50f2f584b001a5ac2412e4e46adb26d2fb2a6041e7e8c57cd4df0916727227": relay.Relay{
-				FeeRecipient: "0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5",
-				Builder: relay.Builder{
-					GasLimit: "12345654321",
-				},
+				Builder: relay.Builder{},
+			},
+			"0x8e323fd501233cd4d1b9d63d74076a38de50f2f584b001a5ac2412e4e46adb26d2fb2a6041e7e8c57cd4df0916727228": relay.Relay{
+				Builder: relay.Builder{},
+			},
+			"0x8e323fd501233cd4d1b9d63d74076a38de50f2f584b001a5ac2412e4e46adb26d2fb2a6041e7e8c57cd4df0916727229": relay.Relay{
+				Builder: relay.Builder{},
 			},
 		},
 		DefaultConfig: relay.Relay{
-			FeeRecipient: "0x6e35733c5af9B61374A128e6F85f553aF09ff89A",
 			Builder: relay.Builder{
 				Enabled: true,
 				Relays: []string{

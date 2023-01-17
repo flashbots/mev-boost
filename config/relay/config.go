@@ -8,12 +8,10 @@ type Config struct {
 type ProposerConfig map[string]Relay
 
 type Relay struct {
-	FeeRecipient string  `json:"fee_recipient"`
-	Builder      Builder `json:"builder"`
+	Builder Builder `json:"builder"`
 }
 
 type Builder struct {
-	Enabled  bool     `json:"enabled"`
-	Relays   []string `json:"relays"`
-	GasLimit string   `json:"gas_limit"`
+	Enabled bool     `json:"enabled"`
+	Relays  []string `json:"relays"`
 }
