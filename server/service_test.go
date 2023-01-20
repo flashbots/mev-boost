@@ -20,6 +20,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -202,7 +203,7 @@ func TestStatus(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.True(t, len(rr.Header().Get("X-MEVBoost-Version")) > 0)
-		require.Equal(t, "bellatrix", rr.Header().Get("X-MEVBoost-ForkVersion"))
+		require.Equal(t, config.ForkVersion, rr.Header().Get("X-MEVBoost-ForkVersion"))
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
@@ -215,7 +216,7 @@ func TestStatus(t *testing.T) {
 
 		require.Equal(t, http.StatusServiceUnavailable, rr.Code)
 		require.True(t, len(rr.Header().Get("X-MEVBoost-Version")) > 0)
-		require.Equal(t, "bellatrix", rr.Header().Get("X-MEVBoost-ForkVersion"))
+		require.Equal(t, config.ForkVersion, rr.Header().Get("X-MEVBoost-ForkVersion"))
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 	})
 }
