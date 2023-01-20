@@ -179,6 +179,7 @@ func Main() {
 	relaysList := relayConfigManager.AllRelays().ToStringSlice()
 
 	log.Infof("using %d relays", len(relaysList))
+
 	for index, entry := range relaysList {
 		log.Infof("relay #%d: %s", index+1, entry)
 	}
@@ -335,6 +336,7 @@ func runConfigSyncerIfEnabled(relayConfigManager *rcm.Configurator) {
 func onSyncHandler(_ time.Time, err error) {
 	if err != nil {
 		log.WithError(err).Error("cannot sync configuration")
+
 		return
 	}
 

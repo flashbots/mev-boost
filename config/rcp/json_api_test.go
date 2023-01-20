@@ -164,6 +164,7 @@ func assertRCPError(t *testing.T, want, got error) {
 	t.Helper()
 
 	var rcpError rcp.Error
+
 	assert.ErrorAs(t, got, &rcpError)
 	assert.ErrorIs(t, got, want)
 }
@@ -172,6 +173,7 @@ func assertAPIError(t *testing.T, want, got error) {
 	t.Helper()
 
 	var apiErr rcp.APIError
+
 	assert.ErrorAs(t, got, &apiErr)
 	assert.ErrorIs(t, got, want)
 

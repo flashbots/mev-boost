@@ -11,7 +11,7 @@ type List []Entry
 
 // String returns a comma separated string of relay urls.
 //
-// Implements fmt.Stringer interface
+// Implements fmt.Stringer interface.
 func (l List) String() string {
 	return strings.Join(l.ToStringSlice(), ",")
 }

@@ -2,6 +2,7 @@ package relay
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 )
@@ -32,7 +33,7 @@ func (rm *MonitorList) Contains(relayMonitor *url.URL) bool {
 func (rm *MonitorList) Set(value string) error {
 	relayMonitor, err := url.Parse(value)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot parse relay monitor url: %w", err)
 	}
 
 	if rm.Contains(relayMonitor) {

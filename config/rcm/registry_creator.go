@@ -143,7 +143,7 @@ func (r *RegistryCreator) processRelays(cfg relay.Relay, fn func(entry relay.Ent
 	for _, relayURL := range cfg.Builder.Relays {
 		relayEntry, err := relay.NewRelayEntry(relayURL)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot process relays: %w", err)
 		}
 
 		fn(relayEntry)

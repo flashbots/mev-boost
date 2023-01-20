@@ -20,6 +20,10 @@ type MockOption func(cfg *MockConfig)
 
 func MockRelayConfigProvider(opt ...MockOption) func() (*relay.Config, error) {
 	cfg := &MockConfig{relayCfg: &relay.Config{}}
+	if cfg.relayCfg.ProposerConfig == nil {
+		cfg.relayCfg.ProposerConfig = make(relay.ProposerConfig)
+	}
+
 	for _, o := range opt {
 		o(cfg)
 	}
@@ -34,78 +38,34 @@ func MockRelayConfigProvider(opt ...MockOption) func() (*relay.Config, error) {
 			return nextCall()
 		}
 
-		return stubRelayConfigProvider(cfg.relayCfg, cfg.err)
-	}
-}
-
-func stubRelayConfigProvider(cfg *relay.Config, err error) (*relay.Config, error) {
-	return cfg, err
-}
-
-func WithErr() MockOption {
-	return func(cfg *MockConfig) {
-		cfg.err = io.ErrUnexpectedEOF
+		return cfg.relayCfg, cfg.err
 	}
 }
 
 func WithProposerRelays(pubKey relay.ValidatorPublicKey, relays relay.Set) MockOption {
 	return func(cfg *MockConfig) {
-		proposerConfig := cfg.relayCfg.ProposerConfig
-		if proposerConfig == nil {
-			proposerConfig = make(relay.ProposerConfig, len(relays))
+		cfg.relayCfg.ProposerConfig[pubKey] = relay.Relay{
+			Builder: &relay.Builder{
+				Enabled: true,
+				Relays:  relays.ToStringSlice(),
+			},
 		}
-
-		_, ok := proposerConfig[pubKey]
-		if !ok {
-			proposerConfig[pubKey] = relay.Relay{
-				Builder: &relay.Builder{
-					Enabled: true,
-					Relays:  relays.ToStringSlice(),
-				},
-			}
-
-			cfg.relayCfg.ProposerConfig = proposerConfig
-
-			return
-		}
-
-		panic("not implemented")
-
-		//reg.Builder = &relay.Builder{
-		//	Enabled: true,
-		//	Relays:  append(reg.Builder.Relays, relays...),
-		//}
-		//
-		//cfg.relayCfg.ProposerConfig[pubKey] = reg
 	}
 }
 
 func WithDisabledEmptyProposer(pubKey relay.ValidatorPublicKey) MockOption {
 	return func(cfg *MockConfig) {
-		proposerConfig := cfg.relayCfg.ProposerConfig
-		if proposerConfig == nil {
-			proposerConfig = make(relay.ProposerConfig)
-		}
-
-		proposerConfig[pubKey] = relay.Relay{
+		cfg.relayCfg.ProposerConfig[pubKey] = relay.Relay{
 			Builder: &relay.Builder{
 				Enabled: false,
 			},
 		}
-
-		cfg.relayCfg.ProposerConfig = proposerConfig
 	}
 }
 
 func WithProposerWithNoBuilder(pubKey relay.ValidatorPublicKey) MockOption {
 	return func(cfg *MockConfig) {
-		proposerConfig := cfg.relayCfg.ProposerConfig
-		if proposerConfig == nil {
-			proposerConfig = make(relay.ProposerConfig)
-		}
-
-		proposerConfig[pubKey] = relay.Relay{}
-		cfg.relayCfg.ProposerConfig = proposerConfig
+		cfg.relayCfg.ProposerConfig[pubKey] = relay.Relay{}
 	}
 }
 
@@ -196,6 +156,12 @@ func WithDefaultEnabledBuilderAndNoRelays() MockOption {
 		cfg.relayCfg.DefaultConfig.Builder = &relay.Builder{
 			Enabled: true,
 		}
+	}
+}
+
+func WithErr() MockOption {
+	return func(cfg *MockConfig) {
+		cfg.err = io.ErrUnexpectedEOF
 	}
 }
 

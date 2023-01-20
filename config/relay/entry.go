@@ -9,7 +9,7 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 )
 
-// ErrMissingRelayPubKey is returned if a new Entry relayURL has no public key
+// ErrMissingRelayPubKey is returned if a new Entry relayURL has no public key.
 var ErrMissingRelayPubKey = fmt.Errorf("missing relay public key")
 
 // ErrInvalidRelayURL is returned if a new Entry has malformed relayURL.
@@ -68,7 +68,7 @@ func NewRelayEntry(relayURL string) (Entry, error) {
 
 	var pubKey types.PublicKey
 	if err := pubKey.UnmarshalText([]byte(pubKeyHex)); err != nil {
-		return Entry{}, err
+		return Entry{}, fmt.Errorf("%w: %s", err, relayURL)
 	}
 
 	return Entry{
@@ -82,5 +82,6 @@ func GetURI(url *url.URL, path string) string {
 	u2 := *url
 	u2.User = nil
 	u2.Path = path
+
 	return u2.String()
 }

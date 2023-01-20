@@ -33,7 +33,7 @@ func (s Set) Set(relayURL string) error {
 }
 
 // String returns a comma separated string of relay urls.
-// Implements fmt.Stringer interface
+// Implements fmt.Stringer interface.
 func (s Set) String() string {
 	return s.ToList().String()
 }

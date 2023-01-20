@@ -2,6 +2,7 @@ package rcp
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/flashbots/mev-boost/config/relay"
@@ -29,14 +30,14 @@ func NewFile(filePath string) *File {
 func (f *File) FetchConfig() (*relay.Config, error) {
 	configFile, err := os.Open(f.filePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot fetch config: %w", err)
 	}
 
 	defer configFile.Close()
 
 	var cfg *relay.Config
 	if err := json.NewDecoder(configFile).Decode(&cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot fetch config: %w", err)
 	}
 
 	return cfg, nil

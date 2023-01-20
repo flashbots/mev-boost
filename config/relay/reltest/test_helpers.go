@@ -88,6 +88,7 @@ func RandomBLSPublicKey(t *testing.T) types.PublicKey {
 
 func JoinSets(sets ...relay.Set) relay.Set {
 	want := relay.NewRelaySet()
+
 	for _, set := range sets {
 		for _, entry := range set {
 			want.Add(entry)
