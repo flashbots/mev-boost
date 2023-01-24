@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -48,6 +49,9 @@ var (
 	defaultTimeoutMsGetPayload        = getEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
 	defaultTimeoutMsRegisterValidator = getEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
 
+	// is used when json rcp fetches configuration.
+	defaultTimeoutMsSyncConfig = getEnvInt("CONFIG_SYNC_TIMEOUT_MS", 3000)
+
 	relays        = relay.NewRelaySet()
 	relayMonitors relay.MonitorList
 
@@ -61,9 +65,10 @@ var (
 
 	listenAddr = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
 
-	proposerConfigURL     = flag.String("proposer-config-url", "", "proposer config endpoint url")
-	proposerConfigFile    = flag.String("proposer-config-file", "", "proposer config file path")
-	proposerConfigRefresh = flag.Bool("proposer-config-refresh-enabled", false, "periodically reload proposer config")
+	proposerConfigURL         = flag.String("proposer-config-url", "", "proposer config endpoint url")
+	proposerConfigFile        = flag.String("proposer-config-file", "", "proposer config file path")
+	proposerConfigRefresh     = flag.Bool("proposer-config-refresh-enabled", false, "periodically reload proposer config")
+	proposerConfigSyncTimeout = flag.Int("proposer-config-sync-timeout", defaultTimeoutMsSyncConfig, "proposer config sync timeout [ms]")
 
 	relayURLs        = flag.String("relays", defaultRelays, "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
 	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
@@ -301,7 +306,9 @@ func createConfigManager() (*rcm.Configurator, error) {
 	case *proposerConfigFile != "":
 		registryCreator = rcm.NewRegistryCreator(rcp.NewFile(*proposerConfigFile).FetchConfig)
 	case *proposerConfigURL != "":
-		registryCreator = rcm.NewRegistryCreator(rcp.NewJSONAPI(nil, *proposerConfigURL).FetchConfig)
+		syncTimeout := time.Duration(*proposerConfigSyncTimeout) * time.Millisecond
+		c := &http.Client{Timeout: syncTimeout}
+		registryCreator = rcm.NewRegistryCreator(rcp.NewJSONAPI(c, *proposerConfigURL).FetchConfig)
 	}
 
 	relayConfigManager, err := rcm.New(registryCreator)
