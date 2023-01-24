@@ -11,7 +11,7 @@ import (
 
 func Test_mockRelay(t *testing.T) {
 	t.Run("bad payload", func(t *testing.T) {
-		relay := newMockRelay(t)
+		relay := staticMockRelay(t)
 		req, err := http.NewRequest(http.MethodPost, pathRegisterValidator, bytes.NewReader([]byte("123")))
 		require.NoError(t, err)
 		rr := httptest.NewRecorder()

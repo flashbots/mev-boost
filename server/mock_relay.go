@@ -62,13 +62,13 @@ type mockRelay struct {
 
 // newMockRelay creates a mocked relay which implements the backend.BoostBackend interface
 // A secret key must be provided to sign default and custom response messages
-func newMockRelay(t *testing.T) *mockRelay {
+func newMockRelay(t *testing.T, secretKey *bls.SecretKey, publicKey *bls.PublicKey) *mockRelay {
 	t.Helper()
 
 	mockRelay := &mockRelay{
 		t:            t,
-		secretKey:    mockRelaySecretKey,
-		publicKey:    mockRelayPublicKey,
+		secretKey:    secretKey,
+		publicKey:    publicKey,
 		requestCount: make(map[string]int),
 	}
 
@@ -79,11 +79,26 @@ func newMockRelay(t *testing.T) *mockRelay {
 	url, err := url.Parse(mockRelay.Server.URL)
 	require.NoError(t, err)
 
-	urlWithKey := fmt.Sprintf("%s://%s@%s", url.Scheme, hexutil.Encode(mockRelayPublicKey.Compress()), url.Host)
+	urlWithKey := fmt.Sprintf("%s://%s@%s", url.Scheme, hexutil.Encode(publicKey.Compress()), url.Host)
 	mockRelay.RelayEntry, err = relay.NewRelayEntry(urlWithKey)
 	require.NoError(t, err)
 
 	return mockRelay
+}
+
+func staticMockRelay(t *testing.T) *mockRelay {
+	t.Helper()
+
+	return newMockRelay(t, mockRelaySecretKey, mockRelayPublicKey)
+}
+
+func randomMockRelay(t *testing.T) *mockRelay {
+	t.Helper()
+
+	secretKey, publicKey, err := bls.GenerateNewKeypair()
+	require.NoError(t, err)
+
+	return newMockRelay(t, secretKey, publicKey)
 }
 
 // newTestMiddleware creates a middleware which increases the Request counter and creates a fake delay for the response

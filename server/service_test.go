@@ -29,14 +29,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type testBackendCfg struct {
+	useRelaysWithRandomKeys bool
+}
+
+type testBackendOpt func(cfg *testBackendCfg)
+
+func withRandomRelayKeys() testBackendOpt {
+	return func(cfg *testBackendCfg) {
+		cfg.useRelaysWithRandomKeys = true
+	}
+}
+
 type testBackend struct {
 	boost  *BoostService
 	relays []*mockRelay
 }
 
 // newTestBackend creates a new backend, initializes mock relays, registers them and return the instance
-func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *testBackend {
+func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration, opt ...testBackendOpt) *testBackend {
 	t.Helper()
+
+	cfg := &testBackendCfg{}
+	for _, o := range opt {
+		o(cfg)
+	}
+
 	backend := testBackend{
 		relays: make([]*mockRelay, numRelays),
 	}
@@ -44,7 +62,12 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 	relays := relay.NewRelaySet()
 	for i := 0; i < numRelays; i++ {
 		// Create a mock relay
-		backend.relays[i] = newMockRelay(t)
+		if cfg.useRelaysWithRandomKeys {
+			backend.relays[i] = randomMockRelay(t)
+		} else {
+			backend.relays[i] = staticMockRelay(t)
+		}
+
 		relays.Add(backend.relays[i].RelayEntry)
 	}
 
@@ -94,16 +117,31 @@ func (be *testBackend) requestGetHeader(t *testing.T, path string) *httptest.Res
 	return be.request(t, http.MethodGet, path, nil)
 }
 
+func (be *testBackend) requestGetPayload(t *testing.T, path string, payload any) *httptest.ResponseRecorder {
+	t.Helper()
+
+	return be.request(t, http.MethodPost, path, payload)
+}
+
 func (be *testBackend) stubRelayGetHeaderResponse(t *testing.T, index int, value uint64) {
 	t.Helper()
 
 	r := be.relayByIndex(t, index)
 	r.GetHeaderResponse = r.MakeGetHeaderResponse(
 		value,
-		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+		"0xc457e7cedd8bf0c16630dea852b20fb387fdb71c5ab369529ec09011371b22e1",
+		"0xe8b9bd82aa0e957736c5a029903e53d581edf451e28ab274f4ba314c442e35a4",
 		r.RelayEntry.PublicKey().String(),
 	)
+}
+
+func (be *testBackend) stubRelayGetPayloadResponse(t *testing.T, index int, payload *types.SignedBlindedBeaconBlock) {
+	t.Helper()
+
+	r := be.relayByIndex(t, index)
+	r.GetPayloadResponse = &types.GetPayloadResponse{
+		Data: blindedBlockToExecutionPayload(payload),
+	}
 }
 
 func (be *testBackend) stubRelayHTTPServerWithTemporaryRedirect(t *testing.T, index int) {
@@ -150,7 +188,7 @@ func (be *testBackend) stubRelayEntryWithUser(t *testing.T, index int, user *url
 func (be *testBackend) relayByIndex(t *testing.T, index int) *mockRelay {
 	t.Helper()
 
-	require.Truef(t, index < len(be.relays), "relay index %d is out of range")
+	require.Truef(t, index < len(be.relays), "relay index %d is out of range", index)
 
 	return be.relays[index]
 }
@@ -236,6 +274,12 @@ func assertRelayReturnedNoContent(t *testing.T, rr *httptest.ResponseRecorder) {
 	t.Helper()
 
 	assert.Equal(t, http.StatusNoContent, rr.Code)
+}
+
+func assertRelayDidNotRespond(t *testing.T, rr *httptest.ResponseRecorder) {
+	t.Helper()
+
+	assert.Equal(t, http.StatusBadGateway, rr.Code)
 }
 
 func assertRelaysReceivedRequest(t *testing.T, sut *testBackend) func(string, ...int) {
@@ -655,9 +699,9 @@ func TestGetHeader(t *testing.T) {
 func TestGetHeader_ProposerConfig(t *testing.T) {
 	t.Parallel()
 
-	hash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
+	hash := _HexToHash("0xe8b9bd82aa0e957736c5a029903e53d581edf451e28ab274f4ba314c442e35a4")
 
-	t.Run("Proposer has a specified relay", func(t *testing.T) {
+	t.Run("Proposer has one specified relay", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
@@ -724,8 +768,7 @@ func TestGetHeader_ProposerConfig(t *testing.T) {
 		proposerPubKey := reltest.RandomBLSPublicKey(t)
 		relayHeaderPath := getHeaderPath(1, hash, proposerPubKey)
 
-		sut := newTestBackend(t, 3, time.Second)
-
+		sut := newTestBackend(t, 3, time.Second, withRandomRelayKeys())
 		relaysByProposer := make(map[string]relay.Set)
 		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0, 1, 2)
 
@@ -947,4 +990,124 @@ func TestGetPayloadToOriginRelayOnly(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 	require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
 	require.Equal(t, 0, backend.relays[1].GetRequestCount(getPayloadPath))
+}
+
+func TestGetPayload_ProposerConfig(t *testing.T) {
+	t.Parallel()
+
+	blockHash := _HexToHash("0xc457e7cedd8bf0c16630dea852b20fb387fdb71c5ab369529ec09011371b22e1")
+	parentHash := _HexToHash("0xe8b9bd82aa0e957736c5a029903e53d581edf451e28ab274f4ba314c442e35a4")
+	proposerPubKey := _HexToPubkey("0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
+
+	relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
+	relayPayloadPath := "/eth/v1/builder/blinded_blocks"
+
+	payload := &types.SignedBlindedBeaconBlock{
+		Signature: _HexToSignature(
+			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9"),
+		Message: &types.BlindedBeaconBlock{
+			Slot:          1,
+			ProposerIndex: 1,
+			ParentRoot:    types.Root{0x01},
+			StateRoot:     types.Root{0x02},
+			Body: &types.BlindedBeaconBlockBody{
+				RandaoReveal:  types.Signature{0xa1},
+				Eth1Data:      &types.Eth1Data{},
+				Graffiti:      types.Hash{0xa2},
+				SyncAggregate: &types.SyncAggregate{},
+				ExecutionPayloadHeader: &types.ExecutionPayloadHeader{
+					ParentHash:   parentHash,
+					BlockHash:    blockHash,
+					BlockNumber:  12345,
+					FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+				},
+			},
+		},
+	}
+
+	t.Run("Proposer has one specified relay", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		sut := newTestBackend(t, 1, time.Second)
+
+		relaysByProposer := make(map[string]relay.Set)
+		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0)
+		sut.stubConfigManager(t, relaysByProposer, nil)
+
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubRelayGetPayloadResponse(t, 0, payload)
+		sut.requestGetHeader(t, relayHeaderPath)
+
+		// act
+		got := sut.requestGetPayload(t, relayPayloadPath, payload)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedRequest(t, sut)(relayPayloadPath, 0)
+	})
+
+	t.Run("Proposer has no specified relays and no default relays", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		sut := newTestBackend(t, 1, time.Second)
+		sut.stubConfigManager(t, nil, nil)
+
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubRelayGetPayloadResponse(t, 0, payload)
+		sut.requestGetHeader(t, relayHeaderPath)
+
+		// act
+		got := sut.requestGetPayload(t, relayPayloadPath, payload)
+
+		// assert
+		assertRelayDidNotRespond(t, got)
+	})
+
+	t.Run("Proposer has no specified relays, default relay is used", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		sut := newTestBackend(t, 1, time.Second)
+		sut.stubConfigManager(t, nil, sut.relaySet(t, 0))
+
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubRelayGetPayloadResponse(t, 0, payload)
+		sut.requestGetHeader(t, relayHeaderPath)
+
+		// act
+		got := sut.requestGetPayload(t, relayPayloadPath, payload)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedRequest(t, sut)(relayPayloadPath, 0)
+	})
+
+	t.Run("Proposer has a few relays specified", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		sut := newTestBackend(t, 3, time.Second, withRandomRelayKeys())
+
+		relaysByProposer := make(map[string]relay.Set)
+		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0, 1, 2)
+		sut.stubConfigManager(t, relaysByProposer, nil)
+
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubRelayGetHeaderResponse(t, 1, 45231)
+		sut.stubRelayGetHeaderResponse(t, 2, 54321)
+
+		sut.stubRelayGetPayloadResponse(t, 0, payload)
+		sut.stubRelayGetPayloadResponse(t, 1, payload)
+		sut.stubRelayGetPayloadResponse(t, 2, payload)
+		sut.requestGetHeader(t, relayHeaderPath)
+
+		// act
+		got := sut.requestGetPayload(t, relayPayloadPath, payload)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedRequest(t, sut)(relayPayloadPath, 0, 1, 2)
+	})
 }
