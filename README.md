@@ -397,4 +397,4 @@ Logo by [@lekevicius](https://twitter.com/lekevicius) on CC0 license.
 
 ---
 
-Made with ☀️ by the 💎 reserchers and developers.
+Made with ☀️ by the 💎 researchers and developers.
