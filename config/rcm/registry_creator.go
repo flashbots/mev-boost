@@ -9,12 +9,10 @@ import (
 // proposerWalkerFn a helper used for traversing proposal config.
 type proposerWalkerFn func(publicKey relay.ValidatorPublicKey, cfg relay.Relay) error
 
-// RegistryCreator creates Relay Registries.
+// RegistryCreator creates a new instance of Relay Registry.
 //
-// The default and/or proposer relays may be empty.
-// It ignores the disabled builders and their relays.
-// If the config provider fetches a proposer config with a builder enabled
-// and with no relays, the registry won't be created.
+// It invokes ConfigProvider to fetch proposer configuration, then validates the retrieved config,
+// and finally creates a new instance of relay.Registry.
 type RegistryCreator struct {
 	configProvider ConfigProvider
 	relayRegistry  *relay.Registry
@@ -32,11 +30,10 @@ func NewRegistryCreator(configProvider ConfigProvider) *RegistryCreator {
 	}
 }
 
-// Create builds a Relay Registry from the proposer config retrieved from an RCP.
+// Create builds a relay.Registry from the proposer config retrieved from an RCP.
 //
 // It returns a valid instance of *relay.Registry on success.
 // It returns an error if config is invalid.
-// It ignores the disabled builders and their relays.
 func (r *RegistryCreator) Create() (*relay.Registry, error) {
 	cfg, err := r.configProvider()
 	if err != nil {

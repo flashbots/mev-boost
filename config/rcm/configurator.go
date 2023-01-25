@@ -1,6 +1,7 @@
 package rcm
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -32,7 +33,7 @@ func New(registryCreator *RegistryCreator) (*Configurator, error) {
 	}
 
 	if err := cm.SyncConfig(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot create a new instance *Configurator: %w", err)
 	}
 
 	return cm, nil
@@ -40,7 +41,7 @@ func New(registryCreator *RegistryCreator) (*Configurator, error) {
 
 // SyncConfig synchronises the Relay Registry with an RCP.
 //
-// It returns an error if it cannot create the new Relay Registry.
+// It returns an error if it cannot create a new relay.Registry.
 // It atomically replaces the content of currently used Relay Registry with the new one on success.
 func (m *Configurator) SyncConfig() error {
 	m.relayRegistryMu.Lock()
@@ -48,7 +49,7 @@ func (m *Configurator) SyncConfig() error {
 
 	r, err := m.registryCreator.Create()
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot syncronise configuration: %w", err)
 	}
 
 	// atomically replace registry
