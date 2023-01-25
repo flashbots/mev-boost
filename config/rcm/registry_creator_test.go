@@ -38,8 +38,8 @@ func TestRegistryCreator(t *testing.T) {
 		// assert
 		require.NoError(t, err)
 		assert.ElementsMatch(t, got.AllRelays(), want)
-		assert.ElementsMatch(t, got.RelaysForValidator(validatorPublicKey.String()), proposerRelays.ToList())
-		assert.ElementsMatch(t, got.RelaysForValidator(
+		assert.ElementsMatch(t, got.RelaysForProposer(validatorPublicKey.String()), proposerRelays.ToList())
+		assert.ElementsMatch(t, got.RelaysForProposer(
 			reltest.RandomBLSPublicKey(t).String()),
 			defaultRelays.ToList())
 	})
@@ -177,6 +177,6 @@ func assertRegistryHasProposerRelays(t *testing.T, sut rcm.RelayRegistry) func(r
 	t.Helper()
 
 	return func(pk relay.ValidatorPublicKey, want relay.Set) {
-		assert.ElementsMatch(t, want.ToStringSlice(), sut.RelaysForValidator(pk).ToStringSlice())
+		assert.ElementsMatch(t, want.ToStringSlice(), sut.RelaysForProposer(pk).ToStringSlice())
 	}
 }

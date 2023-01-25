@@ -34,16 +34,16 @@ func (r *Registry) AddDefaultRelay(entry Entry) {
 	r.defaultRelays.Add(entry)
 }
 
-// RelaysForValidator returns all the relays for this given validator.
+// RelaysForProposer returns all the relays for this given proposer.
 //
 // If there are no relays for the provided key, then the default relays are returned.
-func (r *Registry) RelaysForValidator(key ValidatorPublicKey) List {
+func (r *Registry) RelaysForProposer(key ValidatorPublicKey) List {
 	return r.relaysByPubKey.GetOrDefault(key, r.defaultRelays)
 }
 
 // AllRelays returns all known relays.
 //
-// It returns a unique set of validator relays and default relays.
+// It returns a unique set of proposer relays and default relays.
 func (r *Registry) AllRelays() List {
 	relayList := NewRelaySet()
 

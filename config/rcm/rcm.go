@@ -20,6 +20,6 @@ type ConfigProvider func() (*relay.Config, error)
 
 // RelayRegistry provides read-only registry methods.
 type RelayRegistry interface {
-	RelaysForValidator(key relay.ValidatorPublicKey) relay.List
+	RelaysForProposer(key relay.ValidatorPublicKey) relay.List
 	AllRelays() relay.List
 }

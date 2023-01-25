@@ -57,12 +57,12 @@ func (m *Configurator) SyncConfig() error {
 	return nil
 }
 
-// RelaysForValidator looks up the Relay Registry to get a list of relay for the given public key.
-func (m *Configurator) RelaysForValidator(publicKey relay.ValidatorPublicKey) relay.List {
+// RelaysForProposer looks up the Relay Registry to get a list of relay for the given public key.
+func (m *Configurator) RelaysForProposer(publicKey relay.ValidatorPublicKey) relay.List {
 	m.relayRegistryMu.RLock()
 	defer m.relayRegistryMu.RUnlock()
 
-	return m.loadRegistry().RelaysForValidator(publicKey)
+	return m.loadRegistry().RelaysForProposer(publicKey)
 }
 
 // AllRelays retrieves a list of all unique relays from the Relay Registry.

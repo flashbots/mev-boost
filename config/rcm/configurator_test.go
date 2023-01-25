@@ -33,7 +33,7 @@ func TestConfigurator(t *testing.T) {
 		require.NoError(t, err)
 
 		// act
-		got := sut.RelaysForValidator(validatorPublicKey.String())
+		got := sut.RelaysForProposer(validatorPublicKey.String())
 
 		// assert
 		assertRelayListsMatch(t, emptyRelayList(), got)
@@ -51,7 +51,7 @@ func TestConfigurator(t *testing.T) {
 		require.NoError(t, err)
 
 		// act
-		got := sut.RelaysForValidator(validatorPublicKey.String())
+		got := sut.RelaysForProposer(validatorPublicKey.String())
 
 		// assert
 		assertRelayListsMatch(t, want.ToList(), got)
@@ -70,7 +70,7 @@ func TestConfigurator(t *testing.T) {
 		require.NoError(t, err)
 
 		// act
-		got := sut.RelaysForValidator(validatorPublicKey.String())
+		got := sut.RelaysForProposer(validatorPublicKey.String())
 
 		// assert
 		assertRelayListsMatch(t, emptyRelayList(), got)
@@ -89,7 +89,7 @@ func TestConfigurator(t *testing.T) {
 		require.NoError(t, err)
 
 		// act
-		got := sut.RelaysForValidator(validatorPublicKey.String())
+		got := sut.RelaysForProposer(validatorPublicKey.String())
 
 		// assert
 		assertRelayListsMatch(t, emptyRelayList(), got)
@@ -109,7 +109,7 @@ func TestConfigurator(t *testing.T) {
 		require.NoError(t, err)
 
 		// act
-		got := sut.RelaysForValidator(validatorPublicKey.String())
+		got := sut.RelaysForProposer(validatorPublicKey.String())
 
 		// assert
 		assertRelayListsMatch(t, want.ToList(), got)
@@ -128,7 +128,7 @@ func TestConfigurator(t *testing.T) {
 		require.NoError(t, err)
 
 		// act
-		got := sut.RelaysForValidator(validatorPublicKey.String())
+		got := sut.RelaysForProposer(validatorPublicKey.String())
 
 		// assert
 		assertRelayListsMatch(t, emptyRelayList(), got)
@@ -149,7 +149,7 @@ func TestConfigurator(t *testing.T) {
 		require.NoError(t, err)
 
 		// act
-		got := sut.RelaysForValidator(validatorPublicKey.String())
+		got := sut.RelaysForProposer(validatorPublicKey.String())
 
 		// assert
 		assertRelayListsMatch(t, want.ToList(), got)
@@ -170,7 +170,7 @@ func TestConfigurator(t *testing.T) {
 		require.NoError(t, err)
 
 		// act
-		got := sut.RelaysForValidator(validatorPublicKey.String())
+		got := sut.RelaysForProposer(validatorPublicKey.String())
 
 		// assert
 		assertRelayListsMatch(t, want.ToList(), got)
@@ -269,7 +269,7 @@ func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Configurator) func(types.
 	t.Helper()
 
 	return func(pk types.PublicKey, want relay.Set) {
-		assert.ElementsMatch(t, want.ToStringSlice(), sut.RelaysForValidator(pk.String()).ToStringSlice())
+		assert.ElementsMatch(t, want.ToStringSlice(), sut.RelaysForProposer(pk.String()).ToStringSlice())
 	}
 }
 
@@ -311,7 +311,7 @@ func randomlyCallRCMMethods(t *testing.T, sut *rcm.Configurator) func(*rand.Rand
 		case r.Int63n(num)%2 == 0:
 			require.NoError(t, sut.SyncConfig())
 		case r.Int63n(num)%3 == 0:
-			sut.RelaysForValidator(reltest.RandomBLSPublicKey(t).String())
+			sut.RelaysForProposer(reltest.RandomBLSPublicKey(t).String())
 		default:
 			sut.AllRelays()
 		}

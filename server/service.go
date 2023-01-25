@@ -49,9 +49,9 @@ type AuctionTranscript struct {
 	Acceptance *types.SignedBlindedBeaconBlock `json:"acceptance"`
 }
 
-// RelayConfigManager provides relays for a given validator.
+// RelayConfigManager provides relays for a given proposer.
 type RelayConfigManager interface {
-	RelaysForValidator(publicKey relay.ValidatorPublicKey) relay.List
+	RelaysForProposer(publicKey relay.ValidatorPublicKey) relay.List
 	AllRelays() relay.List
 }
 
@@ -270,7 +270,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	relayErrCh := make(chan error)
 
 	for pubKey, payloads := range payloadsByValidator {
-		relays := m.relayConfigManager.RelaysForValidator(pubKey)
+		relays := m.relayConfigManager.RelaysForProposer(pubKey)
 
 		for _, r := range relays {
 			wg.Add(1)
@@ -340,7 +340,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	validatorRelays := m.relayConfigManager.RelaysForValidator(pubkey)
+	proposerRelays := m.relayConfigManager.RelaysForProposer(pubkey)
 
 	result := bidResp{}                            // the final response, containing the highest bid (if any)
 	relays := make(map[BlockHashHex][]relay.Entry) // relays that sent the bid for a specific blockHash
@@ -349,7 +349,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	for _, r := range validatorRelays {
+	for _, r := range proposerRelays {
 		wg.Add(1)
 
 		go func(relay relay.Entry) {
