@@ -63,7 +63,11 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		// drain body completely to reuse connection
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 
 	if resp.StatusCode == http.StatusNoContent {
 		return resp.StatusCode, nil
