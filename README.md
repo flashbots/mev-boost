@@ -241,48 +241,56 @@ Run MEV-Boost pointed at a Sepolia relay:
 These are the CLI arguments for the main branch. For arguments available in a specific release, check the [release page](https://github.com/flashbots/mev-boost/releases).
 
 ```
-$ ./mev-boost -help
-Usage of mev-boost:
+❯ ./mev-boost --help
+Usage of ./mev-boost:
   -addr string
-        listen-address for mev-boost server (default "localhost:18550")
+    	listen-address for mev-boost server (default "localhost:18550")
   -debug
-        shorthand for '-loglevel debug'
+    	shorthand for '-loglevel debug'
   -genesis-fork-version string
-        use a custom genesis fork version
+    	use a custom genesis fork version
   -goerli
-        use Goerli
+    	use Goerli
   -json
-        log in JSON format instead of text
+    	log in JSON format instead of text
   -log-no-version
-        disables adding the version to every log entry
+    	disables adding the version to every log entry
   -log-service string
-        add a 'service=...' tag to all log messages
+    	add a 'service=...' tag to all log messages
   -loglevel string
-        minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic (default "info")
+    	minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic (default "info")
   -mainnet
-        use Mainnet (default true)
+    	use Mainnet (default true)
   -min-bid float
-        minimum bid to accept from a relay [eth]
+    	minimum bid to accept from a relay [eth]
+  -proposer-config-file string
+    	proposer config file path
+  -proposer-config-refresh-enabled
+    	periodically reload proposer config
+  -proposer-config-sync-timeout int
+    	proposer config sync timeout [ms] (default 3000)
+  -proposer-config-url string
+    	proposer config endpoint url
   -relay value
-        a single relay, can be specified multiple times
+    	a single relay, can be specified multiple times
   -relay-check
-        check relay status on startup and on the status API call
+    	check relay status on startup and on the status API call
   -relay-monitor value
-        a single relay monitor, can be specified multiple times
+    	a single relay monitor, can be specified multiple times
   -relay-monitors string
-        relay monitor urls - single entry or comma-separated list (scheme://host)
+    	relay monitor urls - single entry or comma-separated list (scheme://host)
   -relays string
-        relay urls - single entry or comma-separated list (scheme://pubkey@host)
+    	relay urls - single entry or comma-separated list (scheme://pubkey@host)
   -request-timeout-getheader int
-        timeout for getHeader requests to the relay [ms] (default 950)
+    	timeout for getHeader requests to the relay [ms] (default 950)
   -request-timeout-getpayload int
-        timeout for getPayload requests to the relay [ms] (default 4000)
+    	timeout for getPayload requests to the relay [ms] (default 4000)
   -request-timeout-regval int
-        timeout for registerValidator requests [ms] (default 3000)
+    	timeout for registerValidator requests [ms] (default 3000)
   -sepolia
-        use Sepolia
+    	use Sepolia
   -version
-        only print version
+    	only print version
 ```
 
 ### `-relays` vs `-relay`
