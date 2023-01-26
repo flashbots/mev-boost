@@ -135,8 +135,8 @@ func createConfigManagerWithRandomRelays(t *testing.T) *rcm.Configurator {
 	return cm
 }
 
-func createTestOnSyncHandler(errCh chan error) func(_ time.Time, err error) {
-	onSyncHandler := func(_ time.Time, err error) {
+func createTestOnSyncHandler(errCh chan error) func(_ time.Time, err error, _ relay.List) {
+	onSyncHandler := func(_ time.Time, err error, _ relay.List) {
 		errCh <- err
 	}
 

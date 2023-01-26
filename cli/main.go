@@ -340,14 +340,14 @@ func runConfigSyncerIfEnabled(relayConfigManager *rcm.Configurator) {
 // onSyncHandler runs every time when configuration is synced.
 //
 // We ignore the first time parameter, as the logger already has the time field.
-func onSyncHandler(_ time.Time, err error) {
+func onSyncHandler(_ time.Time, err error, relays relay.List) {
 	if err != nil {
 		log.WithError(err).Error("cannot sync configuration")
 
 		return
 	}
 
-	log.Infof("successfully synced relay configuration")
+	log.Infof("successfully synced relay configuration: %s", relays)
 }
 
 func getEnv(key, defaultValue string) string {

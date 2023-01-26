@@ -3,6 +3,8 @@ package rcm
 import (
 	"context"
 	"time"
+
+	"github.com/flashbots/mev-boost/config/relay"
 )
 
 // DefaultSyncInterval is the default config synchronisation interval.
@@ -11,10 +13,10 @@ import (
 const DefaultSyncInterval = 32 * 12 / 2 * time.Second
 
 // OnSyncHandler an even handler which is invoked on every synchronisation call.
-type OnSyncHandler = func(t time.Time, err error)
+type OnSyncHandler = func(t time.Time, err error, relays relay.List)
 
 // NopSyncHandler the default sync handler which does nothing.
-func NopSyncHandler(_ time.Time, _ error) {}
+func NopSyncHandler(_ time.Time, _ error, _ relay.List) {}
 
 // SyncConfig holds synchronisation options.
 type SyncConfig struct {
@@ -98,7 +100,7 @@ func (s *Syncer) SyncConfig(ctx context.Context) {
 
 	go func() {
 		for t := range ticker.C {
-			s.onSyncHandler(t, s.configManager.SyncConfig())
+			s.onSyncHandler(t, s.configManager.SyncConfig(), s.configManager.AllRelays())
 		}
 	}()
 
