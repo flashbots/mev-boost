@@ -37,7 +37,7 @@ func (rm *MonitorList) Set(value string) error {
 	}
 
 	if rm.Contains(relayMonitor) {
-		return ErrDuplicateEntry
+		return fmt.Errorf("%w: %s", ErrDuplicateEntry, relayMonitor)
 	}
 
 	*rm = append(*rm, relayMonitor)

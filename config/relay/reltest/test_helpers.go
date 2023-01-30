@@ -10,60 +10,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func RandomRelaySet(t *testing.T, num int) relay.Set {
-	t.Helper()
+func RandomRelaySet(tb testing.TB, num int) relay.Set {
+	tb.Helper()
 
 	s := relay.NewRelaySet()
 	for i := 0; i < num; i++ {
-		s.Add(RandomRelayEntry(t))
+		s.Add(RandomRelayEntry(tb))
 	}
 
 	return s
 }
 
-func RelaySetWithRelaysHavingTheSameURL(t *testing.T, num int) relay.Set {
-	t.Helper()
+func RelaySetWithRelaysHavingTheSameURL(tb testing.TB, num int) relay.Set {
+	tb.Helper()
 
-	relayURL := RandomRelayURL(t)
+	relayURL := RandomRelayURL(tb)
 
 	s := relay.NewRelaySet()
 	for i := 0; i < num; i++ {
-		s.Add(RelayEntryFromURL(t, relayURL))
+		s.Add(RelayEntryFromURL(tb, relayURL))
 	}
 
 	return s
 }
 
-func RandomRelayList(t *testing.T, num int) relay.List {
-	t.Helper()
+func RandomRelayList(tb testing.TB, num int) relay.List {
+	tb.Helper()
 
 	list := make(relay.List, num)
 	for i := 0; i < num; i++ {
-		list[i] = RandomRelayEntry(t)
+		list[i] = RandomRelayEntry(tb)
 	}
 
 	return list
 }
 
-func RandomRelayEntry(t *testing.T) relay.Entry {
-	t.Helper()
+func RandomRelayEntry(tb testing.TB) relay.Entry {
+	tb.Helper()
 
-	return RelayEntryFromURL(t, RandomRelayURL(t))
+	return RelayEntryFromURL(tb, RandomRelayURL(tb))
 }
 
-func RelayEntryFromURL(t *testing.T, relayURL *url.URL) relay.Entry {
-	t.Helper()
+func RelayEntryFromURL(tb testing.TB, relayURL *url.URL) relay.Entry {
+	tb.Helper()
 
 	relayEntry, err := relay.NewRelayEntry(relayURL.String())
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return relayEntry
 }
 
-func RandomRelayURL(t *testing.T) *url.URL {
-	t.Helper()
+func RandomRelayURL(tb testing.TB) *url.URL {
+	tb.Helper()
 
-	blsPublicKey := RandomBLSPublicKey(t)
+	blsPublicKey := RandomBLSPublicKey(tb)
 
 	relayURL := &url.URL{
 		Scheme: "https",
@@ -74,14 +74,14 @@ func RandomRelayURL(t *testing.T) *url.URL {
 	return relayURL
 }
 
-func RandomBLSPublicKey(t *testing.T) types.PublicKey {
-	t.Helper()
+func RandomBLSPublicKey(tb testing.TB) types.PublicKey {
+	tb.Helper()
 
 	_, blsPublicKey, err := bls.GenerateNewKeypair()
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	publicKey, err := types.BlsPublicKeyToPublicKey(blsPublicKey)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return publicKey
 }
