@@ -26,6 +26,7 @@ import (
 	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/config/relay/reltest"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -122,6 +123,12 @@ func (be *testBackend) request(tb testing.TB, method, path string, payload any) 
 	rr := httptest.NewRecorder()
 	be.boost.getRouter().ServeHTTP(rr, req)
 	return rr
+}
+
+func (be *testBackend) requestRegisterValidator(tb testing.TB, path string, payload any) *httptest.ResponseRecorder {
+	tb.Helper()
+
+	return be.request(tb, http.MethodPost, path, payload)
 }
 
 func (be *testBackend) requestGetHeader(tb testing.TB, path string) *httptest.ResponseRecorder {
@@ -335,8 +342,25 @@ func assertRelaysReceivedRequest(t *testing.T, sut *testBackend) func(string, ..
 
 	return func(path string, index ...int) {
 		for _, i := range index {
-			assert.Equal(t, 1, sut.relayByIndex(t, i).GetRequestCount(path))
+			r := sut.relayByIndex(t, i)
+			assert.Equalf(t, 1, r.GetRequestCount(path),
+				"path: %s: relay: %d: %s",
+				path, i, r.RelayEntry.RelayURL())
 		}
+	}
+}
+
+func assertRelaysReceivedAtLeastOneRequest(t *testing.T, sut *testBackend) func(string, ...int) {
+	t.Helper()
+
+	return func(path string, index ...int) {
+		var requestsCount int
+
+		for _, i := range index {
+			requestsCount += sut.relayByIndex(t, i).GetRequestCount(path)
+		}
+
+		assert.GreaterOrEqualf(t, requestsCount, 1, "at least one response from a relay expected")
 	}
 }
 
@@ -427,6 +451,7 @@ func TestRegisterValidator(t *testing.T) {
 
 	t.Run("Normal function", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.log.Logger.SetLevel(logrus.DebugLevel)
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -1029,6 +1054,79 @@ func TestGetPayloadToOriginRelayOnly(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 	require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
 	require.Equal(t, 0, backend.relays[1].GetRequestCount(getPayloadPath))
+}
+
+func TestRegisterValidator_ProposerConfig(t *testing.T) {
+	t.Parallel()
+
+	proposerPubKey := _HexToPubkey("0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
+	registerValidatorPath := "/eth/v1/builder/validators"
+	payload := []types.SignedValidatorRegistration{stubSignedValidatorRegistration()}
+
+	t.Run("Proposer has one specified relay", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		sut := newTestBackend(t, 1, time.Second)
+
+		relaysByProposer := make(map[string]relay.Set)
+		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0)
+		sut.stubConfigManager(t, relaysByProposer, nil)
+
+		// act
+		got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedAtLeastOneRequest(t, sut)(registerValidatorPath, 0)
+	})
+
+	t.Run("Proposer has no specified relays and no default relays", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		sut := newTestBackend(t, 1, time.Second, withRandomRelayKeys())
+		sut.stubConfigManager(t, nil, nil)
+
+		// act
+		got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
+
+		// assert
+		assertRelayDidNotRespond(t, got)
+	})
+
+	t.Run("Proposer has no specified relays, default relay is used", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		sut := newTestBackend(t, 1, time.Second)
+		sut.stubConfigManager(t, nil, sut.relaySet(t, 0))
+
+		// act
+		got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedAtLeastOneRequest(t, sut)(registerValidatorPath, 0)
+	})
+
+	t.Run("Proposer has a few relays specified", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		sut := newTestBackend(t, 3, time.Second, withRandomRelayKeys())
+
+		relaysByProposer := make(map[string]relay.Set)
+		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0, 1, 2)
+		sut.stubConfigManager(t, relaysByProposer, nil)
+
+		// act
+		got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedAtLeastOneRequest(t, sut)(registerValidatorPath, 0, 1, 2)
+	})
 }
 
 func TestGetPayload_ProposerConfig(t *testing.T) {

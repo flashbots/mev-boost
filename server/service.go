@@ -17,7 +17,6 @@ import (
 
 	"github.com/attestantio/go-builder-client/api"
 	"github.com/attestantio/go-eth2-client/api/v1/capella"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
@@ -251,19 +250,8 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 // handleRegisterValidator - returns 200 if at least one relay returns 200, else 502
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "registerValidator")
-	log.Debug("registerValidator")
 
 	var payload []types.SignedValidatorRegistration
-
-	buf, err := io.ReadAll(req.Body)
-	if err != nil {
-		m.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	log.Debugf("registerValidator: got payload: %s", string(buf))
-	req.Body = io.NopCloser(bytes.NewReader(buf))
-
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -275,20 +263,23 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		"ua":               ua,
 	})
 
-	payloadsByValidator := make(map[string][]types.SignedValidatorRegistration, len(payload))
+	payloadsByValidator := make(map[relay.ValidatorPublicKey][]types.SignedValidatorRegistration, len(payload))
 
+	// todo(question): can the payloads really have different public keys?
+	// If not, this can be simplified to avoid extra allocations.
 	for _, p := range payload {
-		pubKey := fmt.Sprintf("0x%x", p.Message.Pubkey)
+		pubKey := p.Message.Pubkey.String()
 		payloadsByValidator[pubKey] = append(payloadsByValidator[pubKey], p)
 	}
-
-	log.Debugf("registerValidator: payloads by validator: %s", spew.Sdump(payloadsByValidator))
 
 	wg := new(sync.WaitGroup)
 	relayErrCh := make(chan error)
 
 	for pubKey, payloads := range payloadsByValidator {
 		relays := m.relayConfigManager.RelaysForProposer(pubKey)
+		if len(relays) < 1 {
+			log.Warnf("there are no relays specified for %s", pubKey)
+		}
 
 		for _, r := range relays {
 			wg.Add(1)
@@ -298,6 +289,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 
 				url := relay.GetURI(pathRegisterValidator)
 				log := log.WithField("url", url)
+				log.Debugf("registering validator %s", pubKey)
 
 				_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, payloads, nil)
 				relayErrCh <- err
