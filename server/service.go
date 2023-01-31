@@ -17,6 +17,7 @@ import (
 
 	"github.com/attestantio/go-builder-client/api"
 	"github.com/attestantio/go-eth2-client/api/v1/capella"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
@@ -253,6 +254,16 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log.Debug("registerValidator")
 
 	var payload []types.SignedValidatorRegistration
+
+	buf, err := io.ReadAll(req.Body)
+	if err != nil {
+		m.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	log.Debugf("registerValidator: got payload: %s", string(buf))
+	req.Body = io.NopCloser(bytes.NewReader(buf))
+
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -270,6 +281,8 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		pubKey := fmt.Sprintf("0x%x", p.Message.Pubkey)
 		payloadsByValidator[pubKey] = append(payloadsByValidator[pubKey], p)
 	}
+
+	log.Debugf("registerValidator: payloads by validator: %s", spew.Sdump(payloadsByValidator))
 
 	wg := new(sync.WaitGroup)
 	relayErrCh := make(chan error)
