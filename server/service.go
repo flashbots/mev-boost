@@ -26,6 +26,7 @@ import (
 )
 
 var (
+	errNoRelays                  = errors.New("no relays")
 	errInvalidSlot               = errors.New("invalid slot")
 	errInvalidHash               = errors.New("invalid hash")
 	errInvalidPubkey             = errors.New("invalid pubkey")
@@ -91,6 +92,10 @@ type BoostService struct {
 
 // NewBoostService created a new BoostService
 func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
+	if len(opts.RelayConfigManager.AllRelays()) == 0 {
+		return nil, errNoRelays
+	}
+
 	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
 	if err != nil {
 		return nil, err
