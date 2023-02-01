@@ -22,12 +22,12 @@ func TestSyncer(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		errCh := make(chan error, 1)
+		syncCh := make(chan relaySync, 1)
 
 		sut := rcm.NewSyncer(
 			createConfigManagerWithRandomRelays(t),
 			rcm.SyncerWithInterval(10*time.Millisecond),
-			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(errCh)))
+			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(syncCh)))
 
 		// act
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -36,19 +36,19 @@ func TestSyncer(t *testing.T) {
 		sut.SyncConfig(ctx)
 
 		// assert
-		assert.NoError(t, <-errCh)
+		assert.NoError(t, (<-syncCh).err)
 	})
 
 	t.Run("it handles sync failures", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		errCh := make(chan error, 1)
+		syncCh := make(chan relaySync, 1)
 
 		sut := rcm.NewSyncer(
 			createConfigManagerWithFaultyProvider(t),
 			rcm.SyncerWithInterval(10*time.Millisecond),
-			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(errCh)))
+			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(syncCh)))
 
 		// act
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -57,7 +57,30 @@ func TestSyncer(t *testing.T) {
 		sut.SyncConfig(ctx)
 
 		// assert
-		assert.ErrorIs(t, <-errCh, rcm.ErrConfigProviderFailure)
+		assert.ErrorIs(t, (<-syncCh).err, rcm.ErrConfigProviderFailure)
+	})
+
+	t.Run("it handles empty proposer and default relays properly on sync", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		syncCh := make(chan relaySync, 1)
+
+		sut := rcm.NewSyncer(
+			createConfigManagerWithFilledRelaysAtFirstAndEmptyProposersConsequentially(t),
+			rcm.SyncerWithInterval(10*time.Millisecond),
+			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(syncCh)))
+
+		// act
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		sut.SyncConfig(ctx)
+
+		// assert
+		got := <-syncCh
+		assert.NoError(t, got.err)
+		assert.Empty(t, got.relays)
 	})
 
 	t.Run("it uses a nop onSyncHandler if none specified", func(t *testing.T) {
@@ -81,11 +104,11 @@ func TestSyncer(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		errCh := make(chan error, 1)
+		syncCh := make(chan relaySync, 1)
 
 		sut := rcm.NewSyncer(
 			createConfigManagerWithRandomRelays(t),
-			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(errCh)))
+			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(syncCh)))
 
 		// act
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -94,7 +117,7 @@ func TestSyncer(t *testing.T) {
 		sut.SyncConfig(ctx)
 
 		// assert
-		assertDefaultIntervalIsUsed(t)(ctx, errCh)
+		assertDefaultIntervalIsUsed(t)(ctx, syncCh)
 	})
 
 	t.Run("it panics if config manager is not provided", func(t *testing.T) {
@@ -106,16 +129,16 @@ func TestSyncer(t *testing.T) {
 	})
 }
 
-func assertDefaultIntervalIsUsed(t *testing.T) func(context.Context, chan error) {
+func assertDefaultIntervalIsUsed(t *testing.T) func(context.Context, chan relaySync) {
 	t.Helper()
 
 	// We don't want to wait more than 3 minutes to check the rcm.DefaultSyncInterval value.
 	// if context is timed-out earlier that then onSyncHandler was executed,
 	// it means the interval is bigger than the context timeout,
 	// so we may deduce that the rcm.DefaultSyncInterval is used.
-	return func(ctx context.Context, errCh chan error) {
+	return func(ctx context.Context, syncCh chan relaySync) {
 		select {
-		case <-errCh:
+		case <-syncCh:
 			assert.Fail(t, "sync interval is less than rcm.DefaultSyncInterval")
 		case <-ctx.Done():
 			return
@@ -135,9 +158,14 @@ func createConfigManagerWithRandomRelays(t *testing.T) *rcm.Configurator {
 	return cm
 }
 
-func createTestOnSyncHandler(errCh chan error) func(_ time.Time, err error, _ relay.List) {
-	onSyncHandler := func(_ time.Time, err error, _ relay.List) {
-		errCh <- err
+type relaySync struct {
+	err    error
+	relays relay.List
+}
+
+func createTestOnSyncHandler(res chan relaySync) func(_ time.Time, err error, _ relay.List) {
+	onSyncHandler := func(_ time.Time, err error, relays relay.List) {
+		res <- relaySync{err: err, relays: relays}
 	}
 
 	return onSyncHandler
@@ -169,6 +197,37 @@ func onceOnlySuccessfulProvider(
 			rcptest.WithDefaultRelays(defaultRelays),
 		), // first call is successful
 		rcptest.MockRelayConfigProvider(rcptest.WithErr()), // second call is an error
+	}
+
+	return rcptest.MockRelayConfigProvider(rcptest.WithCalls(calls))
+}
+
+func createConfigManagerWithFilledRelaysAtFirstAndEmptyProposersConsequentially(t *testing.T) *rcm.Configurator {
+	t.Helper()
+
+	validatorPublicKey := reltest.RandomBLSPublicKey(t)
+	proposerRelays := reltest.RandomRelaySet(t, 3)
+	defaultRelays := reltest.RandomRelaySet(t, 2)
+	relayProvider := filledFirstEmptyConsequentially(validatorPublicKey, proposerRelays, defaultRelays)
+
+	cm, err := rcm.New(rcm.NewRegistryCreator(relayProvider))
+	require.NoError(t, err)
+
+	return cm
+}
+
+func filledFirstEmptyConsequentially(
+	pubKey types.PublicKey, proposerRelays, defaultRelays relay.Set,
+) rcm.ConfigProvider {
+	calls := []rcm.ConfigProvider{
+		rcptest.MockRelayConfigProvider(
+			rcptest.WithProposerRelays(
+				pubKey.String(),
+				proposerRelays,
+			),
+			rcptest.WithDefaultRelays(defaultRelays),
+		), // first call is successful
+		rcptest.MockRelayConfigProvider(), // second call returns no data
 	}
 
 	return rcptest.MockRelayConfigProvider(rcptest.WithCalls(calls))

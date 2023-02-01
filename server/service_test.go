@@ -331,7 +331,7 @@ func assertRelayReturnedNoContent(t *testing.T, rr *httptest.ResponseRecorder) {
 	assert.Equal(t, http.StatusNoContent, rr.Code)
 }
 
-func assertRelayDidNotRespond(t *testing.T, rr *httptest.ResponseRecorder) {
+func assertBadGateway(t *testing.T, rr *httptest.ResponseRecorder) {
 	t.Helper()
 
 	assert.Equal(t, http.StatusBadGateway, rr.Code)
@@ -1092,7 +1092,7 @@ func TestRegisterValidator_ProposerConfig(t *testing.T) {
 		got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
 
 		// assert
-		assertRelayDidNotRespond(t, got)
+		assertBadGateway(t, got)
 	})
 
 	t.Run("Proposer has no specified relays, default relay is used", func(t *testing.T) {
@@ -1177,7 +1177,7 @@ func TestGetPayload_ProposerConfig(t *testing.T) {
 		got := sut.requestGetPayload(t, relayPayloadPath, payload)
 
 		// assert
-		assertRelayDidNotRespond(t, got)
+		assertBadGateway(t, got)
 	})
 
 	t.Run("Proposer has no specified relays, default relay is used", func(t *testing.T) {

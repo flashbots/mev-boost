@@ -15,7 +15,6 @@ type proposerWalkerFn func(publicKey relay.ValidatorPublicKey, cfg relay.Relay) 
 // and finally creates a new instance of relay.Registry.
 type RegistryCreator struct {
 	configProvider ConfigProvider
-	relayRegistry  *relay.Registry
 }
 
 // NewRegistryCreator creates a new instance of RegistryCreator.
@@ -26,7 +25,6 @@ func NewRegistryCreator(configProvider ConfigProvider) *RegistryCreator {
 
 	return &RegistryCreator{
 		configProvider: configProvider,
-		relayRegistry:  relay.NewProposerRegistry(),
 	}
 }
 
@@ -44,15 +42,19 @@ func (r *RegistryCreator) Create() (*relay.Registry, error) {
 		return nil, fmt.Errorf("%v: %w", ErrInvalidProposerConfig, err)
 	}
 
-	if err := r.populateProposerRelays(cfg); err != nil {
+	relayRegistry := relay.NewProposerRegistry()
+
+	relayRegistry, err = r.populateProposerRelays(cfg, relayRegistry)
+	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrCannotPopulateProposerRelays, err)
 	}
 
-	if err := r.populateDefaultRelays(cfg); err != nil {
+	relayRegistry, err = r.populateDefaultRelays(cfg, relayRegistry)
+	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrCannotPopulateDefaultRelays, err)
 	}
 
-	return r.relayRegistry, nil
+	return relayRegistry, nil
 }
 
 // validateConfig check if the relay config is correct.
@@ -102,34 +104,42 @@ func (r *RegistryCreator) walkProposerCfg(proposerCfg relay.ProposerConfig, fn p
 	return nil
 }
 
-func (r *RegistryCreator) populateProposerRelays(cfg *relay.Config) error {
+func (r *RegistryCreator) populateProposerRelays(cfg *relay.Config, relayRegistry *relay.Registry) (*relay.Registry, error) {
 	proposerCfgWalker := func(publicKey relay.ValidatorPublicKey, cfg relay.Relay) error {
 		if cfg.Builder == nil {
 			return nil
 		}
 
 		if !cfg.Builder.Enabled {
-			r.relayRegistry.AddEmptyProposer(publicKey)
+			relayRegistry.AddEmptyProposer(publicKey)
 
 			return nil
 		}
 
 		walker := func(relay relay.Entry) {
-			r.relayRegistry.AddRelayForProposer(publicKey, relay)
+			relayRegistry.AddRelayForProposer(publicKey, relay)
 		}
 
 		return r.processRelays(cfg, walker)
 	}
 
-	return r.walkProposerCfg(cfg.ProposerConfig, proposerCfgWalker)
-}
-
-func (r *RegistryCreator) populateDefaultRelays(cfg *relay.Config) error {
-	walker := func(relay relay.Entry) {
-		r.relayRegistry.AddDefaultRelay(relay)
+	if err := r.walkProposerCfg(cfg.ProposerConfig, proposerCfgWalker); err != nil {
+		return nil, err
 	}
 
-	return r.processRelays(cfg.DefaultConfig, walker)
+	return relayRegistry, nil
+}
+
+func (r *RegistryCreator) populateDefaultRelays(cfg *relay.Config, relayRegistry *relay.Registry) (*relay.Registry, error) {
+	walker := func(relay relay.Entry) {
+		relayRegistry.AddDefaultRelay(relay)
+	}
+
+	if err := r.processRelays(cfg.DefaultConfig, walker); err != nil {
+		return nil, err
+	}
+
+	return relayRegistry, nil
 }
 
 func (r *RegistryCreator) processRelays(cfg relay.Relay, fn func(entry relay.Entry)) error {
