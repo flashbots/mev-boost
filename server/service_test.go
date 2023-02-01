@@ -760,96 +760,6 @@ func TestGetHeader(t *testing.T) {
 	})
 }
 
-func TestGetHeader_ProposerConfig(t *testing.T) {
-	t.Parallel()
-
-	parentHash := _HexToHash("0xe8b9bd82aa0e957736c5a029903e53d581edf451e28ab274f4ba314c442e35a4")
-
-	t.Run("Proposer has one specified relay", func(t *testing.T) {
-		t.Parallel()
-
-		// arrange
-		proposerPubKey := reltest.RandomBLSPublicKey(t)
-		relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
-
-		sut := newTestBackend(t, 1, time.Second)
-
-		relaysByProposer := make(map[string]relay.Set)
-		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0)
-
-		sut.stubRelayGetHeaderResponse(t, 0, 12345)
-		sut.stubConfigManager(t, relaysByProposer, nil)
-
-		// act
-		got := sut.requestGetHeader(t, relayHeaderPath)
-
-		// assert
-		assertRequestWasSuccessful(t, got)
-		assertRelaysReceivedRequest(t, sut)(relayHeaderPath, 0)
-	})
-
-	t.Run("Proposer has no assigned relays and no default relays", func(t *testing.T) {
-		t.Parallel()
-
-		// arrange
-		proposerPubKey := reltest.RandomBLSPublicKey(t)
-		relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
-
-		sut := newTestBackend(t, 1, time.Second)
-		sut.stubRelayGetHeaderResponse(t, 0, 12345)
-		sut.stubConfigManager(t, nil, nil)
-
-		// act
-		got := sut.requestGetHeader(t, relayHeaderPath)
-
-		// assert
-		assertRelayReturnedNoContent(t, got)
-	})
-
-	t.Run("Proposer has no specified relays, default relay is used", func(t *testing.T) {
-		t.Parallel()
-
-		// arrange
-		proposerPubKey := reltest.RandomBLSPublicKey(t)
-		relayHeaderPath := getHeaderPath(2, parentHash, proposerPubKey)
-
-		sut := newTestBackend(t, 1, time.Second)
-		sut.stubRelayGetHeaderResponse(t, 0, 12345)
-		sut.stubConfigManager(t, nil, sut.relaySet(t, 0))
-
-		// act
-		got := sut.requestGetHeader(t, relayHeaderPath)
-
-		// assert
-		assertRequestWasSuccessful(t, got)
-		assertRelaysReceivedRequest(t, sut)(relayHeaderPath, 0)
-	})
-
-	t.Run("Proposer has a few relays specified", func(t *testing.T) {
-		t.Parallel()
-
-		// arrange
-		proposerPubKey := reltest.RandomBLSPublicKey(t)
-		relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
-
-		sut := newTestBackend(t, 3, time.Second, withRandomRelayKeys())
-		relaysByProposer := make(map[string]relay.Set)
-		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0, 1, 2)
-
-		sut.stubRelayGetHeaderResponse(t, 0, 12345)
-		sut.stubRelayGetHeaderResponse(t, 1, 45231)
-		sut.stubRelayGetHeaderResponse(t, 2, 54321)
-		sut.stubConfigManager(t, relaysByProposer, nil)
-
-		// act
-		got := sut.requestGetHeader(t, relayHeaderPath)
-
-		// assert
-		assertRequestWasSuccessful(t, got)
-		assertRelaysReceivedRequest(t, sut)(relayHeaderPath, 0, 1, 2)
-	})
-}
-
 func TestGetPayload(t *testing.T) {
 	path := "/eth/v1/builder/blinded_blocks"
 
@@ -1126,6 +1036,96 @@ func TestRegisterValidator_ProposerConfig(t *testing.T) {
 		// assert
 		assertRequestWasSuccessful(t, got)
 		assertRelaysReceivedAtLeastOneRequest(t, sut)(registerValidatorPath, 0, 1, 2)
+	})
+}
+
+func TestGetHeader_ProposerConfig(t *testing.T) {
+	t.Parallel()
+
+	parentHash := _HexToHash("0xe8b9bd82aa0e957736c5a029903e53d581edf451e28ab274f4ba314c442e35a4")
+
+	t.Run("Proposer has one specified relay", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		proposerPubKey := reltest.RandomBLSPublicKey(t)
+		relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
+
+		sut := newTestBackend(t, 1, time.Second)
+
+		relaysByProposer := make(map[string]relay.Set)
+		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0)
+
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubConfigManager(t, relaysByProposer, nil)
+
+		// act
+		got := sut.requestGetHeader(t, relayHeaderPath)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedRequest(t, sut)(relayHeaderPath, 0)
+	})
+
+	t.Run("Proposer has no assigned relays and no default relays", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		proposerPubKey := reltest.RandomBLSPublicKey(t)
+		relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
+
+		sut := newTestBackend(t, 1, time.Second)
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubConfigManager(t, nil, nil)
+
+		// act
+		got := sut.requestGetHeader(t, relayHeaderPath)
+
+		// assert
+		assertRelayReturnedNoContent(t, got)
+	})
+
+	t.Run("Proposer has no specified relays, default relay is used", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		proposerPubKey := reltest.RandomBLSPublicKey(t)
+		relayHeaderPath := getHeaderPath(2, parentHash, proposerPubKey)
+
+		sut := newTestBackend(t, 1, time.Second)
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubConfigManager(t, nil, sut.relaySet(t, 0))
+
+		// act
+		got := sut.requestGetHeader(t, relayHeaderPath)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedRequest(t, sut)(relayHeaderPath, 0)
+	})
+
+	t.Run("Proposer has a few relays specified", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		proposerPubKey := reltest.RandomBLSPublicKey(t)
+		relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
+
+		sut := newTestBackend(t, 3, time.Second, withRandomRelayKeys())
+		relaysByProposer := make(map[string]relay.Set)
+		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0, 1, 2)
+
+		sut.stubRelayGetHeaderResponse(t, 0, 12345)
+		sut.stubRelayGetHeaderResponse(t, 1, 45231)
+		sut.stubRelayGetHeaderResponse(t, 2, 54321)
+		sut.stubConfigManager(t, relaysByProposer, nil)
+
+		// act
+		got := sut.requestGetHeader(t, relayHeaderPath)
+
+		// assert
+		assertRequestWasSuccessful(t, got)
+		assertRelaysReceivedRequest(t, sut)(relayHeaderPath, 0, 1, 2)
 	})
 }
 
