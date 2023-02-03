@@ -26,7 +26,6 @@ import (
 	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/config/relay/reltest"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -451,7 +450,7 @@ func TestRegisterValidator(t *testing.T) {
 
 	t.Run("Normal function", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
-		backend.boost.log.Logger.SetLevel(logrus.DebugLevel)
+
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
