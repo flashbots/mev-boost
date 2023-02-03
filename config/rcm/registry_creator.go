@@ -6,9 +6,6 @@ import (
 	"github.com/flashbots/mev-boost/config/relay"
 )
 
-// proposerWalkerFn a helper used for traversing proposal config.
-type proposerWalkerFn func(publicKey relay.ValidatorPublicKey, cfg relay.Relay) error
-
 // RegistryCreator creates a new instance of Relay Registry.
 //
 // It invokes ConfigProvider to fetch proposer configuration, then validates the retrieved config,
@@ -38,18 +35,18 @@ func (r *RegistryCreator) Create() (*relay.Registry, error) {
 		return nil, fmt.Errorf("%w: %v", ErrConfigProviderFailure, err)
 	}
 
-	if err := r.validateConfig(cfg); err != nil {
+	if err := validateProposerConfig(cfg); err != nil {
 		return nil, fmt.Errorf("%v: %w", ErrInvalidProposerConfig, err)
 	}
 
 	relayRegistry := relay.NewProposerRegistry()
 
-	relayRegistry, err = r.populateProposerRelays(cfg, relayRegistry)
+	relayRegistry, err = r.populateProposers(cfg, relayRegistry)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrCannotPopulateProposerRelays, err)
 	}
 
-	relayRegistry, err = r.populateDefaultRelays(cfg, relayRegistry)
+	relayRegistry, err = r.populateDefault(cfg, relayRegistry)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrCannotPopulateDefaultRelays, err)
 	}
@@ -57,82 +54,37 @@ func (r *RegistryCreator) Create() (*relay.Registry, error) {
 	return relayRegistry, nil
 }
 
-// validateConfig check if the relay config is correct.
-//
-// It returns nil on success.
-// It returns an error if the builder is true and there are no relays
-// It returns an error If the builder is true and there are no default relays.
-func (r *RegistryCreator) validateConfig(cfg *relay.Config) error {
-	walker := func(publicKey relay.ValidatorPublicKey, cfg relay.Relay) error {
-		if err := r.checkIfBuilderHasRelays(cfg.Builder); err != nil {
-			return fmt.Errorf("%w: proposer %s", err, publicKey)
+func (r *RegistryCreator) populateProposers(cfg *relay.Config, relayRegistry *relay.Registry) (*relay.Registry, error) {
+	for publicKey, proposerCfg := range cfg.ProposerConfig {
+		if err := r.populateProposer(publicKey, proposerCfg, relayRegistry); err != nil {
+			return nil, fmt.Errorf("%w: proposer %s", err, publicKey)
 		}
-
-		return nil
-	}
-
-	if err := r.walkProposerCfg(cfg.ProposerConfig, walker); err != nil {
-		return err
-	}
-
-	if err := r.checkIfBuilderHasRelays(cfg.DefaultConfig.Builder); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *RegistryCreator) checkIfBuilderHasRelays(builder *relay.Builder) error {
-	if builder == nil {
-		return nil
-	}
-
-	if builder.Enabled && len(builder.Relays) < 1 {
-		return ErrEmptyBuilderRelays
-	}
-
-	return nil
-}
-
-func (r *RegistryCreator) walkProposerCfg(proposerCfg relay.ProposerConfig, fn proposerWalkerFn) error {
-	for validatorPubKey, cfg := range proposerCfg {
-		if err := fn(validatorPubKey, cfg); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *RegistryCreator) populateProposerRelays(cfg *relay.Config, relayRegistry *relay.Registry) (*relay.Registry, error) {
-	proposerCfgWalker := func(publicKey relay.ValidatorPublicKey, cfg relay.Relay) error {
-		if cfg.Builder == nil {
-			return nil
-		}
-
-		if !cfg.Builder.Enabled {
-			relayRegistry.AddEmptyProposer(publicKey)
-
-			return nil
-		}
-
-		walker := func(relay relay.Entry) {
-			relayRegistry.AddRelayForProposer(publicKey, relay)
-		}
-
-		return r.processRelays(cfg, walker)
-	}
-
-	if err := r.walkProposerCfg(cfg.ProposerConfig, proposerCfgWalker); err != nil {
-		return nil, err
 	}
 
 	return relayRegistry, nil
 }
 
-func (r *RegistryCreator) populateDefaultRelays(cfg *relay.Config, relayRegistry *relay.Registry) (*relay.Registry, error) {
-	walker := func(relay relay.Entry) {
-		relayRegistry.AddDefaultRelay(relay)
+func (r *RegistryCreator) populateProposer(publicKey relay.ValidatorPublicKey, cfg relay.Relay, relayRegistry *relay.Registry) error {
+	if cfg.Builder == nil {
+		return nil
+	}
+
+	if !cfg.Builder.Enabled {
+		relayRegistry.AddEmptyProposer(publicKey)
+
+		return nil
+	}
+
+	walker := func(entry relay.Entry) {
+		relayRegistry.AddRelayForProposer(publicKey, entry)
+	}
+
+	return r.processRelays(cfg, walker)
+}
+
+func (r *RegistryCreator) populateDefault(cfg *relay.Config, relayRegistry *relay.Registry) (*relay.Registry, error) {
+	walker := func(entry relay.Entry) {
+		relayRegistry.AddDefaultRelay(entry)
 	}
 
 	if err := r.processRelays(cfg.DefaultConfig, walker); err != nil {
@@ -154,6 +106,45 @@ func (r *RegistryCreator) processRelays(cfg relay.Relay, fn func(entry relay.Ent
 		}
 
 		fn(relayEntry)
+	}
+
+	return nil
+}
+
+// validateProposerConfig checks if the relay config has correct data.
+//
+// It returns nil on success.
+// It returns an error if a proposer.builder is enabled and there are no relays
+// It returns an error If the default builder is enabled and there are no default relays.
+func validateProposerConfig(cfg *relay.Config) error {
+	if err := ensureProposersHaveRelays(cfg); err != nil {
+		return err
+	}
+
+	if err := ensureBuilderHasRelays(cfg.DefaultConfig.Builder); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ensureProposersHaveRelays(cfg *relay.Config) error {
+	for publicKey, proposerCfg := range cfg.ProposerConfig {
+		if err := ensureBuilderHasRelays(proposerCfg.Builder); err != nil {
+			return fmt.Errorf("%w: proposer %s", err, publicKey)
+		}
+	}
+
+	return nil
+}
+
+func ensureBuilderHasRelays(builder *relay.Builder) error {
+	if builder == nil {
+		return nil
+	}
+
+	if builder.Enabled && len(builder.Relays) < 1 {
+		return ErrEmptyBuilderRelays
 	}
 
 	return nil
