@@ -363,6 +363,29 @@ func assertRelaysReceivedAtLeastOneRequest(t *testing.T, sut *testBackend) func(
 	}
 }
 
+func TestNewBoostServiceErrors(t *testing.T) {
+	t.Parallel()
+
+	t.Run("errors when no relays", func(t *testing.T) {
+		t.Parallel()
+
+		// arrange
+		configProvider := rcptest.MockRelayConfigProvider() // a config provider with no relays
+		configManager, err := rcm.New(rcm.NewRegistryCreator(configProvider))
+		require.NoError(t, err)
+
+		opts := BoostServiceOpts{
+			RelayConfigManager: configManager,
+		}
+
+		// act
+		_, err = NewBoostService(opts)
+
+		// assert
+		require.ErrorIs(t, err, errNoRelays)
+	})
+}
+
 func TestWebserver(t *testing.T) {
 	t.Run("errors when webserver is already existing", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
@@ -450,7 +473,6 @@ func TestRegisterValidator(t *testing.T) {
 
 	t.Run("Normal function", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
-
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
