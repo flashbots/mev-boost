@@ -24,9 +24,9 @@ func (r *Registry) AddRelayForProposer(key ValidatorPublicKey, entry Entry) {
 	r.relaysByPubKey.Add(key, entry)
 }
 
-// AddEmptyProposer adds a proposer with an empty relay set.
-func (r *Registry) AddEmptyProposer(key ValidatorPublicKey) {
-	r.relaysByPubKey.AddEmptyProposer(key)
+// AddDisabledProposer adds a proposer with an empty relay set.
+func (r *Registry) AddDisabledProposer(key ValidatorPublicKey) {
+	r.relaysByPubKey.AddDisabledProposer(key)
 }
 
 // AddDefaultRelay adds a default relay.
@@ -71,7 +71,7 @@ func (r relaysByValidatorPubKey) Add(key ValidatorPublicKey, entry Entry) {
 	r[key].Add(entry)
 }
 
-func (r relaysByValidatorPubKey) AddEmptyProposer(key ValidatorPublicKey) {
+func (r relaysByValidatorPubKey) AddDisabledProposer(key ValidatorPublicKey) {
 	r.initIfNotExists(key)
 }
 

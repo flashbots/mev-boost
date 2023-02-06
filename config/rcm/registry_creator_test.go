@@ -146,7 +146,7 @@ func TestRegistryCreator(t *testing.T) {
 		t.Parallel()
 
 		// arrange
-		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithInvalidDefaultRelays())
+		configProvider := rcptest.MockRelayConfigProvider(rcptest.WithMalformedDefaultRelays())
 		sut := rcm.NewRegistryCreator(configProvider)
 
 		// act

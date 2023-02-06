@@ -111,7 +111,7 @@ func WithDisabledDefaultRelays(relays relay.Set) MockOption {
 	}
 }
 
-func WithInvalidDefaultRelays() MockOption {
+func WithMalformedDefaultRelays() MockOption {
 	return func(cfg *MockConfig) {
 		cfg.relayCfg.DefaultConfig.Builder = &relay.Builder{
 			Enabled: true,

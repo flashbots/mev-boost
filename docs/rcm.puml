@@ -26,7 +26,7 @@ class relay.Registry implements rcm.Registry {
   +AllRelays() List
   +RelaysForProposer(key ValidatorPublicKey) List 
   +AddRelayForProposer(key ValidatorPublicKey, entry Entry)
-  +AddEmptyProposer(key ValidatorPublicKey)
+  +AddDisabledProposer(key ValidatorPublicKey)
   +AddDefaultRelay(entry Entry)
 }
 

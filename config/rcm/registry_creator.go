@@ -70,7 +70,7 @@ func (r *RegistryCreator) populateProposer(publicKey relay.ValidatorPublicKey, c
 	}
 
 	if !cfg.Builder.Enabled {
-		relayRegistry.AddEmptyProposer(publicKey)
+		relayRegistry.AddDisabledProposer(publicKey)
 
 		return nil
 	}
