@@ -7,6 +7,7 @@ require (
 	github.com/flashbots/go-boost-utils v1.2.2
 	github.com/flashbots/go-utils v0.4.8
 	github.com/gorilla/mux v1.8.0
+	github.com/holiman/uint256 v1.2.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.1
 )
@@ -14,7 +15,6 @@ require (
 require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/goccy/go-yaml v1.9.6 // indirect
-	github.com/holiman/uint256 v1.2.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7 // indirect

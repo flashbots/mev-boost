@@ -125,7 +125,7 @@ func GetURI(url *url.URL, path string) string {
 // bidResp are entries in the bids cache
 type bidResp struct {
 	t         time.Time
-	response  boostTypes.GetHeaderResponse
+	response  GetHeaderResponse
 	blockHash string
 	relays    []RelayEntry
 }
