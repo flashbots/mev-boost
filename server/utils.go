@@ -117,7 +117,7 @@ func DecodeJSON(r io.Reader, dst any) error {
 // bidResp are entries in the bids cache
 type bidResp struct {
 	t         time.Time
-	response  boostTypes.GetHeaderResponse
+	response  GetHeaderResponse
 	blockHash string
 	relays    relay.List
 }

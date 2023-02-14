@@ -11,11 +11,17 @@ import (
 	"time"
 
 	"github.com/attestantio/go-builder-client/api"
+	"github.com/attestantio/go-builder-client/api/capella"
+	"github.com/attestantio/go-builder-client/spec"
+	consensusspec "github.com/attestantio/go-eth2-client/spec"
+	capellaspec "github.com/attestantio/go-eth2-client/spec/capella"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/gorilla/mux"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,7 +57,7 @@ type mockRelay struct {
 	handlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
 
 	// Default responses placeholders, used if overrider does not exist
-	GetHeaderResponse           *types.GetHeaderResponse
+	GetHeaderResponse           *GetHeaderResponse
 	GetBellatrixPayloadResponse *types.GetPayloadResponse
 	GetCapellaPayloadResponse   *api.VersionedExecutionPayload
 
@@ -178,28 +184,60 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 
 // MakeGetHeaderResponse is used to create the default or can be used to create a custom response to the getHeader
 // method
-func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string) *types.GetHeaderResponse {
-	// Fill the payload with custom values.
-	message := &types.BuilderBid{
-		Header: &types.ExecutionPayloadHeader{
-			BlockHash:  _HexToHash(blockHash),
-			ParentHash: _HexToHash(parentHash),
-		},
-		Value:  types.IntToU256(value),
-		Pubkey: _HexToPubkey(publicKey),
-	}
+func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string, version consensusspec.DataVersion) *GetHeaderResponse {
+	switch version {
+	case consensusspec.DataVersionBellatrix:
+		// Fill the payload with custom values.
+		message := &types.BuilderBid{
+			Header: &types.ExecutionPayloadHeader{
+				BlockHash:  _HexToHash(blockHash),
+				ParentHash: _HexToHash(parentHash),
+			},
+			Value:  types.IntToU256(value),
+			Pubkey: _HexToPubkey(publicKey),
+		}
 
-	// Sign the message.
-	signature, err := types.SignMessage(message, types.DomainBuilder, m.secretKey)
-	require.NoError(m.tb, err)
+		// Sign the message.
+		signature, err := types.SignMessage(message, types.DomainBuilder, m.secretKey)
+		require.NoError(m.tb, err)
 
-	return &types.GetHeaderResponse{
-		Version: "bellatrix",
-		Data: &types.SignedBuilderBid{
-			Message:   message,
-			Signature: signature,
-		},
+		return &GetHeaderResponse{
+			Bellatrix: &types.GetHeaderResponse{
+				Version: "bellatrix",
+				Data: &types.SignedBuilderBid{
+					Message:   message,
+					Signature: signature,
+				},
+			},
+		}
+	case consensusspec.DataVersionCapella:
+		// Fill the payload with custom values.
+		message := &capella.BuilderBid{
+			Header: &capellaspec.ExecutionPayloadHeader{
+				BlockHash:  phase0.Hash32(_HexToHash(blockHash)),
+				ParentHash: phase0.Hash32(_HexToHash(parentHash)),
+			},
+			Value:  uint256.NewInt(value),
+			Pubkey: phase0.BLSPubKey(_HexToPubkey(publicKey)),
+		}
+
+		// Sign the message.
+		signature, err := types.SignMessage(message, types.DomainBuilder, m.secretKey)
+		require.NoError(m.tb, err)
+
+		return &GetHeaderResponse{
+			Capella: &spec.VersionedSignedBuilderBid{
+				Version: consensusspec.DataVersionCapella,
+				Capella: &capella.SignedBuilderBid{
+					Message:   message,
+					Signature: phase0.BLSSignature(signature),
+				},
+			},
+		}
+	case consensusspec.DataVersionAltair, consensusspec.DataVersionPhase0:
+		return nil
 	}
+	return nil
 }
 
 // handleGetHeader handles incoming requests to server.pathGetHeader
@@ -222,6 +260,7 @@ func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+		consensusspec.DataVersionBellatrix,
 	)
 	if m.GetHeaderResponse != nil {
 		response = m.GetHeaderResponse
