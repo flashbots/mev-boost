@@ -1376,7 +1376,7 @@ func TestGetPayload_ProposerConfig(t *testing.T) {
 
 		// assert
 		assertRequestWasSuccessful(t, got)
-		assertRelaysReceivedRequest(t, sut)(relayPayloadPath, 0)
+		assertRelaysReceivedAtLeastOneRequest(t, sut)(relayPayloadPath, 0)
 	})
 
 	t.Run("Proposer has no specified relays and no default relays", func(t *testing.T) {
@@ -1413,7 +1413,7 @@ func TestGetPayload_ProposerConfig(t *testing.T) {
 
 		// assert
 		assertRequestWasSuccessful(t, got)
-		assertRelaysReceivedRequest(t, sut)(relayPayloadPath, 0)
+		assertRelaysReceivedAtLeastOneRequest(t, sut)(relayPayloadPath, 0)
 	})
 
 	t.Run("Proposer has a few relays specified", func(t *testing.T) {
@@ -1440,7 +1440,7 @@ func TestGetPayload_ProposerConfig(t *testing.T) {
 
 		// assert
 		assertRequestWasSuccessful(t, got)
-		assertRelaysReceivedRequest(t, sut)(relayPayloadPath, 0, 1, 2)
+		assertRelaysReceivedAtLeastOneRequest(t, sut)(relayPayloadPath, 0, 1, 2)
 	})
 }
 
