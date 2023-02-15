@@ -184,15 +184,8 @@ func Main() {
 		log.WithError(err).Fatal("cannot init relay config manager")
 	}
 
+	printRelaysList(relayConfigManager)
 	runConfigSyncerIfEnabled(relayConfigManager)
-
-	relaysList := relayConfigManager.AllRelays().ToStringSlice()
-
-	log.Infof("using %d relays", len(relaysList))
-
-	for index, entry := range relaysList {
-		log.Infof("relay #%d: %s", index+1, entry)
-	}
 
 	// For backwards compatibility with the -relay-monitors flag.
 	if *relayMonitorURLs != "" {
@@ -326,6 +319,16 @@ func createConfigManager() (*rcm.Configurator, error) {
 	}
 
 	return relayConfigManager, nil
+}
+
+func printRelaysList(relayConfigManager *rcm.Configurator) {
+	relaysList := relayConfigManager.AllRelays().ToStringSlice()
+
+	log.Infof("using %d relays", len(relaysList))
+
+	for index, entry := range relaysList {
+		log.Infof("relay #%d: %s", index+1, entry)
+	}
 }
 
 func runConfigSyncerIfEnabled(relayConfigManager *rcm.Configurator) {
