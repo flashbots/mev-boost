@@ -123,7 +123,7 @@ func TestSyncer(t *testing.T) {
 	t.Run("it panics if config manager is not provided", func(t *testing.T) {
 		t.Parallel()
 
-		assert.PanicsWithValue(t, "configManager is require and cannot be nil", func() {
+		assert.PanicsWithValue(t, "configurator is required and cannot be nil", func() {
 			_ = rcm.NewSyncer(nil)
 		})
 	})

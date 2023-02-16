@@ -179,13 +179,13 @@ func Main() {
 		}
 	}
 
-	relayConfigManager, err := createConfigManager()
+	relayConfigurator, err := createConfigurator()
 	if err != nil {
-		log.WithError(err).Fatal("cannot init relay config manager")
+		log.WithError(err).Fatal("cannot init relay configurator")
 	}
 
-	printRelaysList(relayConfigManager)
-	runConfigSyncerIfEnabled(relayConfigManager)
+	printRelaysList(relayConfigurator)
+	runConfigSyncerIfEnabled(relayConfigurator)
 
 	// For backwards compatibility with the -relay-monitors flag.
 	if *relayMonitorURLs != "" {
@@ -225,7 +225,7 @@ func Main() {
 		Log:                      log,
 		ListenAddr:               *listenAddr,
 		RelayMonitors:            relayMonitors,
-		RelayConfigManager:       relayConfigManager,
+		RelayConfigManager:       relayConfigurator,
 		GenesisForkVersionHex:    genesisForkVersionHex,
 		RelayCheck:               *relayCheck,
 		RelayMinBid:              *relayMinBidWei,
@@ -295,7 +295,7 @@ func mapKeysToString(m map[string]string) string {
 	return "-" + strings.Join(res, " or -")
 }
 
-func createConfigManager() (*rcm.Configurator, error) {
+func createConfigurator() (*rcm.Configurator, error) {
 	var registryCreator *rcm.RegistryCreator
 
 	switch {
@@ -309,16 +309,16 @@ func createConfigManager() (*rcm.Configurator, error) {
 		registryCreator = rcm.NewRegistryCreator(rcp.NewJSONAPI(c, *proposerConfigURL).FetchConfig)
 	}
 
-	relayConfigManager, err := rcm.New(registryCreator)
+	relayConfigurator, err := rcm.New(registryCreator)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create config manager: %w", err)
+		return nil, fmt.Errorf("cannot create relay configurator: %w", err)
 	}
 
-	if len(relayConfigManager.AllRelays()) == 0 {
+	if len(relayConfigurator.AllRelays()) == 0 {
 		return nil, ErrNoRelaysProvided
 	}
 
-	return relayConfigManager, nil
+	return relayConfigurator, nil
 }
 
 func printRelaysList(relayConfigManager *rcm.Configurator) {

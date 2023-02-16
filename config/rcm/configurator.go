@@ -1,12 +1,14 @@
 package rcm
 
 import (
+	"errors"
 	"fmt"
-	"sync"
 	"sync/atomic"
 
 	"github.com/flashbots/mev-boost/config/relay"
 )
+
+var ErrCannotCreateConfigurator = errors.New("cannot create configurator")
 
 // Configurator is a general implementation for an RCM.
 //
@@ -15,7 +17,6 @@ import (
 type Configurator struct {
 	registryCreator *RegistryCreator
 	relayRegistry   atomic.Value
-	relayRegistryMu sync.RWMutex
 }
 
 // New creates a new instance of Configurator.
@@ -29,11 +30,11 @@ func New(registryCreator *RegistryCreator) (*Configurator, error) {
 	}
 
 	if registryCreator == nil {
-		panic("registryCreator is required")
+		return nil, fmt.Errorf("%w: registry creator is required and cannot be nil", ErrCannotCreateConfigurator)
 	}
 
 	if err := cm.SyncConfig(); err != nil {
-		return nil, fmt.Errorf("cannot create a new instance *Configurator: %w", err)
+		return nil, fmt.Errorf("%v: %w", ErrCannotCreateConfigurator, err)
 	}
 
 	return cm, nil
@@ -44,9 +45,6 @@ func New(registryCreator *RegistryCreator) (*Configurator, error) {
 // It returns an error if it cannot create a new relay.Registry.
 // It atomically replaces the content of currently used Relay Registry with the new one on success.
 func (m *Configurator) SyncConfig() error {
-	m.relayRegistryMu.Lock()
-	defer m.relayRegistryMu.Unlock()
-
 	r, err := m.registryCreator.Create()
 	if err != nil {
 		return fmt.Errorf("cannot syncronise configuration: %w", err)
@@ -60,17 +58,11 @@ func (m *Configurator) SyncConfig() error {
 
 // RelaysForProposer looks up the Relay Registry to get a list of relay for the given public key.
 func (m *Configurator) RelaysForProposer(publicKey relay.ValidatorPublicKey) relay.List {
-	m.relayRegistryMu.RLock()
-	defer m.relayRegistryMu.RUnlock()
-
 	return m.loadRegistry().RelaysForProposer(publicKey)
 }
 
 // AllRelays retrieves a list of all unique relays from the Relay Registry.
 func (m *Configurator) AllRelays() relay.List {
-	m.relayRegistryMu.RLock()
-	defer m.relayRegistryMu.RUnlock()
-
 	return m.loadRegistry().AllRelays()
 }
 

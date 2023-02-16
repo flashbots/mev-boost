@@ -1,7 +1,7 @@
 package relay
 
 // Set is a set of relay entries.
-type Set map[string]Entry
+type Set map[ValidatorPublicKey]Entry
 
 // NewRelaySet creates a new instance of Set.
 func NewRelaySet() Set {

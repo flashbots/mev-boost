@@ -176,7 +176,7 @@ func TestConfigurator(t *testing.T) {
 		assertRelayListsMatch(t, want.ToList(), got)
 	})
 
-	t.Run("it returns an error if it cannot create the registry", func(t *testing.T) {
+	t.Run("it returns an error if it cannot sync the configuration for the first time", func(t *testing.T) {
 		t.Parallel()
 
 		// arrange
@@ -235,12 +235,11 @@ func TestConfigurator(t *testing.T) {
 		assertRelaysHaveNotChanged(t, sut)(reltest.RandomBLSPublicKey(t), defaultRelays)
 	})
 
-	t.Run("it panics if relay provider is not supplied", func(t *testing.T) {
+	t.Run("it returns an error if relay provider is not supplied", func(t *testing.T) {
 		t.Parallel()
 
-		assert.Panics(t, func() {
-			_, _ = rcm.New(nil)
-		})
+		_, err := rcm.New(nil)
+		assert.Error(t, err)
 	})
 
 	t.Run("it is thread-safe", func(t *testing.T) {
@@ -251,7 +250,7 @@ func TestConfigurator(t *testing.T) {
 		sut, err := rcm.New(rcm.NewRegistryCreator(rcp.NewDefault(relays).FetchConfig))
 		require.NoError(t, err)
 
-		assertWasRunConCurrently(t, sut)
+		runConcurrentlyAndAssertItRunsCorretly(t, sut)
 	})
 }
 
@@ -273,7 +272,7 @@ func assertRelaysHaveNotChanged(t *testing.T, sut *rcm.Configurator) func(types.
 	}
 }
 
-func assertWasRunConCurrently(t *testing.T, sut *rcm.Configurator) {
+func runConcurrentlyAndAssertItRunsCorretly(t *testing.T, sut *rcm.Configurator) {
 	t.Helper()
 
 	const iterations = 10000

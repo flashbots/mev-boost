@@ -92,9 +92,6 @@ type BoostService struct {
 
 // NewBoostService created a new BoostService
 func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
-	// todo(question): Now that we have a `proposer-config-refresh-enabled` and it is enabled.
-	// If the service started successfully (has some relays), but then the config was synchronised and has no relays,
-	// and then the service is restarted (killed for some reason), this check will fail and the service will crash-loop.
 	if len(opts.RelayConfigManager.AllRelays()) == 0 {
 		return nil, errNoRelays
 	}

@@ -50,14 +50,14 @@ type Syncer struct {
 
 // NewSyncer creates a new instance of Syncer.
 //
-// It takes configManager instance as a required param.
+// It takes a Configurator instance as a required param.
 // It may take numerous optional params.
 //
-// It panics if no configManager is passed.
+// It panics if Configurator is not passed.
 // If no interval option is passed, then the DefaultSyncInterval will be used.
-func NewSyncer(configManager *Configurator, opt ...SyncOption) *Syncer {
-	if configManager == nil {
-		panic("configManager is require and cannot be nil")
+func NewSyncer(configurator *Configurator, opt ...SyncOption) *Syncer {
+	if configurator == nil {
+		panic("configurator is required and cannot be nil")
 	}
 
 	cfg := &SyncConfig{}
@@ -74,7 +74,7 @@ func NewSyncer(configManager *Configurator, opt ...SyncOption) *Syncer {
 	}
 
 	return &Syncer{
-		configManager: configManager,
+		configManager: configurator,
 		interval:      cfg.interval,
 		onSyncHandler: cfg.onSyncHandler,
 	}
