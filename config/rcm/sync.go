@@ -2,6 +2,7 @@ package rcm
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/flashbots/mev-boost/config/relay"
@@ -99,10 +100,26 @@ func (s *Syncer) SyncConfig(ctx context.Context) {
 	defer ticker.Stop()
 
 	go func() {
-		for t := range ticker.C {
-			s.onSyncHandler(t, s.configManager.SyncConfig(), s.configManager.AllRelays())
+		for {
+			if s.isDone(ctx) {
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case t := <-ticker.C:
+				s.onSyncHandler(t, s.configManager.SyncConfig(), s.configManager.AllRelays())
+			}
 		}
 	}()
 
+	// block until context is done
 	<-ctx.Done()
+}
+
+func (s *Syncer) isDone(ctx context.Context) bool {
+	err := ctx.Err()
+
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }

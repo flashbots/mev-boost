@@ -10,6 +10,7 @@ require (
 	github.com/holiman/uint256 v1.2.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.1
+	go.uber.org/goleak v1.2.1
 )
 
 require (
