@@ -107,6 +107,12 @@ func newTestBackend(tb testing.TB, numRelays int, relayTimeout time.Duration, op
 	return &backend
 }
 
+func (be *testBackend) close() {
+	for _, r := range be.relays {
+		r.Server.Close()
+	}
+}
+
 func (be *testBackend) request(tb testing.TB, method, path string, payload any) *httptest.ResponseRecorder {
 	tb.Helper()
 	var req *http.Request
@@ -123,6 +129,10 @@ func (be *testBackend) request(tb testing.TB, method, path string, payload any) 
 	require.NoError(tb, err)
 	rr := httptest.NewRecorder()
 	be.boost.getRouter().ServeHTTP(rr, req)
+	//tb.Cleanup(func() {
+	//	require.NoError(tb, rr.Result().Body.Close())
+	//})
+
 	return rr
 }
 
@@ -1195,6 +1205,7 @@ func TestRegisterValidator_ProposerConfig(t *testing.T) {
 
 		// arrange
 		sut := newTestBackend(t, 1, time.Second)
+		defer sut.close()
 
 		relaysByProposer := make(map[string]relay.Set)
 		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0)
@@ -1213,6 +1224,8 @@ func TestRegisterValidator_ProposerConfig(t *testing.T) {
 
 		// arrange
 		sut := newTestBackend(t, 1, time.Second, withRandomRelayKeys())
+		defer sut.close()
+
 		sut.stubConfigManager(t, nil, nil)
 
 		// act
@@ -1227,6 +1240,8 @@ func TestRegisterValidator_ProposerConfig(t *testing.T) {
 
 		// arrange
 		sut := newTestBackend(t, 1, time.Second)
+		defer sut.close()
+
 		sut.stubConfigManager(t, nil, sut.relaySet(t, 0))
 
 		// act
@@ -1242,6 +1257,7 @@ func TestRegisterValidator_ProposerConfig(t *testing.T) {
 
 		// arrange
 		sut := newTestBackend(t, 3, time.Second, withRandomRelayKeys())
+		defer sut.close()
 
 		relaysByProposer := make(map[string]relay.Set)
 		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0, 1, 2)
@@ -1269,6 +1285,7 @@ func TestGetHeader_ProposerConfig(t *testing.T) {
 		relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
 
 		sut := newTestBackend(t, 1, time.Second)
+		defer sut.close()
 
 		relaysByProposer := make(map[string]relay.Set)
 		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0)
@@ -1292,6 +1309,8 @@ func TestGetHeader_ProposerConfig(t *testing.T) {
 		relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
 
 		sut := newTestBackend(t, 1, time.Second)
+		defer sut.close()
+
 		sut.stubRelayGetBellatrixHeaderResponse(t, 0, 12345)
 		sut.stubConfigManager(t, nil, nil)
 
@@ -1310,6 +1329,8 @@ func TestGetHeader_ProposerConfig(t *testing.T) {
 		relayHeaderPath := getHeaderPath(2, parentHash, proposerPubKey)
 
 		sut := newTestBackend(t, 1, time.Second)
+		defer sut.close()
+
 		sut.stubRelayGetBellatrixHeaderResponse(t, 0, 12345)
 		sut.stubConfigManager(t, nil, sut.relaySet(t, 0))
 
@@ -1329,6 +1350,8 @@ func TestGetHeader_ProposerConfig(t *testing.T) {
 		relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
 
 		sut := newTestBackend(t, 3, time.Second, withRandomRelayKeys())
+		defer sut.close()
+
 		relaysByProposer := make(map[string]relay.Set)
 		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0, 1, 2)
 
@@ -1362,6 +1385,7 @@ func TestGetPayload_ProposerConfig(t *testing.T) {
 
 		// arrange
 		sut := newTestBackend(t, 1, time.Second)
+		defer sut.close()
 
 		relaysByProposer := make(map[string]relay.Set)
 		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0)
@@ -1384,8 +1408,9 @@ func TestGetPayload_ProposerConfig(t *testing.T) {
 
 		// arrange
 		sut := newTestBackend(t, 1, time.Second)
-		sut.stubConfigManager(t, nil, nil)
+		defer sut.close()
 
+		sut.stubConfigManager(t, nil, nil)
 		sut.stubRelayGetBellatrixHeaderResponse(t, 0, 12345)
 		sut.stubRelayGetBellatrixPayloadResponse(t, 0, payload)
 		sut.requestGetHeader(t, relayHeaderPath)
@@ -1402,8 +1427,9 @@ func TestGetPayload_ProposerConfig(t *testing.T) {
 
 		// arrange
 		sut := newTestBackend(t, 1, time.Second)
-		sut.stubConfigManager(t, nil, sut.relaySet(t, 0))
+		defer sut.close()
 
+		sut.stubConfigManager(t, nil, sut.relaySet(t, 0))
 		sut.stubRelayGetBellatrixHeaderResponse(t, 0, 12345)
 		sut.stubRelayGetBellatrixPayloadResponse(t, 0, payload)
 		sut.requestGetHeader(t, relayHeaderPath)
@@ -1421,6 +1447,7 @@ func TestGetPayload_ProposerConfig(t *testing.T) {
 
 		// arrange
 		sut := newTestBackend(t, 3, time.Second, withRandomRelayKeys())
+		defer sut.close()
 
 		relaysByProposer := make(map[string]relay.Set)
 		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0, 1, 2)
@@ -1450,6 +1477,8 @@ func BenchmarkRegisterValidator(b *testing.B) {
 	payload := []types.SignedValidatorRegistration{reg}
 
 	sut := newTestBackend(b, 1, time.Second, withRandomRelayKeys(), withDiscardedOutput())
+	defer sut.close()
+
 	b.ResetTimer()
 
 	var rr *httptest.ResponseRecorder
@@ -1466,6 +1495,8 @@ func BenchmarkGetHeader(b *testing.B) {
 	relayHeaderPath := getHeaderPath(1, parentHash, proposerPubKey)
 
 	sut := newTestBackend(b, 3, time.Second, withRandomRelayKeys(), withDiscardedOutput())
+	defer sut.close()
+
 	relaysByProposer := make(map[string]relay.Set)
 	relaysByProposer[proposerPubKey.String()] = sut.relaySet(b, 0, 1, 2)
 
@@ -1494,6 +1525,7 @@ func BenchmarkGetPayload(b *testing.B) {
 	relayPayloadPath := "/eth/v1/builder/blinded_blocks"
 
 	sut := newTestBackend(b, 3, time.Second, withRandomRelayKeys(), withDiscardedOutput())
+	defer sut.close()
 
 	relaysByProposer := make(map[string]relay.Set)
 	relaysByProposer[proposerPubKey.String()] = sut.relaySet(b, 0, 1, 2)
