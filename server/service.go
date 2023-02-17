@@ -276,20 +276,6 @@ func (v validatorsByRelay) add(
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "registerValidator")
 
-	// todo(screwyprof): remove this
-	// dump request body
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		m.respondError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	buf := bytes.NewBuffer(body)
-	log.Debugf("payload: %s", buf.String())
-
-	req.Body = io.NopCloser(buf)
-	//
-
 	var payload []types.SignedValidatorRegistration
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
