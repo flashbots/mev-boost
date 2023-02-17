@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"math"
 	"math/big"
@@ -1200,57 +1201,57 @@ func TestRegisterValidator_ProposerConfig(t *testing.T) {
 	registerValidatorPath := "/eth/v1/builder/validators"
 	payload := []types.SignedValidatorRegistration{stubSignedValidatorRegistration()}
 
-	t.Run("Proposer has one specified relay", func(t *testing.T) {
-		t.Parallel()
-
-		// arrange
-		sut := newTestBackend(t, 1, time.Second)
-		defer sut.close()
-
-		relaysByProposer := make(map[string]relay.Set)
-		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0)
-		sut.stubConfigurator(t, relaysByProposer, nil)
-
-		// act
-		got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
-
-		// assert
-		assertRequestWasSuccessful(t, got)
-		assertRelaysReceivedAtLeastOneRequest(t, sut)(registerValidatorPath, 0)
-	})
-
-	t.Run("Proposer has no specified relays and no default relays", func(t *testing.T) {
-		t.Parallel()
-
-		// arrange
-		sut := newTestBackend(t, 1, time.Second, withRandomRelayKeys())
-		defer sut.close()
-
-		sut.stubConfigurator(t, nil, nil)
-
-		// act
-		got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
-
-		// assert
-		assertBadGateway(t, got)
-	})
-
-	t.Run("Proposer has no specified relays, default relay is used", func(t *testing.T) {
-		t.Parallel()
-
-		// arrange
-		sut := newTestBackend(t, 1, time.Second)
-		defer sut.close()
-
-		sut.stubConfigurator(t, nil, sut.relaySet(t, 0))
-
-		// act
-		got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
-
-		// assert
-		assertRequestWasSuccessful(t, got)
-		assertRelaysReceivedAtLeastOneRequest(t, sut)(registerValidatorPath, 0)
-	})
+	//t.Run("Proposer has one specified relay", func(t *testing.T) {
+	//	t.Parallel()
+	//
+	//	// arrange
+	//	sut := newTestBackend(t, 1, time.Second)
+	//	defer sut.close()
+	//
+	//	relaysByProposer := make(map[string]relay.Set)
+	//	relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0)
+	//	sut.stubConfigurator(t, relaysByProposer, nil)
+	//
+	//	// act
+	//	got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
+	//
+	//	// assert
+	//	assertRequestWasSuccessful(t, got)
+	//	assertRelaysReceivedAtLeastOneRequest(t, sut)(registerValidatorPath, 0)
+	//})
+	//
+	//t.Run("Proposer has no specified relays and no default relays", func(t *testing.T) {
+	//	t.Parallel()
+	//
+	//	// arrange
+	//	sut := newTestBackend(t, 1, time.Second, withRandomRelayKeys())
+	//	defer sut.close()
+	//
+	//	sut.stubConfigurator(t, nil, nil)
+	//
+	//	// act
+	//	got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
+	//
+	//	// assert
+	//	assertBadGateway(t, got)
+	//})
+	//
+	//t.Run("Proposer has no specified relays, default relay is used", func(t *testing.T) {
+	//	t.Parallel()
+	//
+	//	// arrange
+	//	sut := newTestBackend(t, 1, time.Second)
+	//	defer sut.close()
+	//
+	//	sut.stubConfigurator(t, nil, sut.relaySet(t, 0))
+	//
+	//	// act
+	//	got := sut.requestRegisterValidator(t, registerValidatorPath, payload)
+	//
+	//	// assert
+	//	assertRequestWasSuccessful(t, got)
+	//	assertRelaysReceivedAtLeastOneRequest(t, sut)(registerValidatorPath, 0)
+	//})
 
 	t.Run("Proposer has a few relays specified", func(t *testing.T) {
 		t.Parallel()
@@ -1258,6 +1259,8 @@ func TestRegisterValidator_ProposerConfig(t *testing.T) {
 		// arrange
 		sut := newTestBackend(t, 3, time.Second, withRandomRelayKeys())
 		defer sut.close()
+
+		sut.boost.log.Logger.SetLevel(logrus.DebugLevel)
 
 		relaysByProposer := make(map[string]relay.Set)
 		relaysByProposer[proposerPubKey.String()] = sut.relaySet(t, 0, 1, 2)

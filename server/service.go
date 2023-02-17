@@ -247,22 +247,18 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-type validatorPayloads struct {
-	pubKey   relay.ValidatorPublicKey
-	payloads []types.SignedValidatorRegistration
+type payloadByValidator map[relay.ValidatorPublicKey]types.SignedValidatorRegistration
+type validatorsByRelay map[relay.Entry]payloadByValidator
+
+func (v validatorsByRelay) add(
+	relays relay.List, pubKey relay.ValidatorPublicKey, payload types.SignedValidatorRegistration) {
+	valPayload := make(payloadByValidator, 1)
+	valPayload[pubKey] = payload
+
+	for _, r := range relays {
+		v[r] = valPayload
+	}
 }
-
-// type relaysByValidators map[relay.ValidatorPublicKey]relay.List
-
-//type validatorsByRelay map[relay.Entry][]validatorPayloads
-//func (v validatorsByRelay) add(relay relay.Entry, pubKey relay.ValidatorPublicKey, relays relay.List) {
-//	for _, r := range relays {
-//		v[r] = append(v[r], validatorPayloads{
-//			pubKey:   pubKey,
-//			payloads: payloadsByValidator[pubKey],
-//		})
-//	}
-//}
 
 // handleRegisterValidator - returns 200 if at least one relay returns 200, else 502
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
@@ -275,78 +271,44 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	}
 
 	ua := UserAgent(req.Header.Get("User-Agent"))
-	log = log.WithFields(logrus.Fields{
+	log.WithFields(logrus.Fields{
 		"numRegistrations": len(payload),
 		"ua":               ua,
-	})
-	log.Info("registering validators")
+	}).Info("registering validators")
 
-	payloadsByValidator := make(map[relay.ValidatorPublicKey][]types.SignedValidatorRegistration, len(payload))
+	validatorPayloads := make(payloadByValidator, len(payload))
 	for _, p := range payload {
 		pubKey := p.Message.Pubkey.String()
-		payloadsByValidator[pubKey] = append(payloadsByValidator[pubKey], p)
+		validatorPayloads[pubKey] = p
 	}
 
-	relaysByValidator := make(map[relay.ValidatorPublicKey]relay.List, len(payload))
-	validatorsByRelay := make(map[relay.Entry][]validatorPayloads, len(m.relayConfigurator.AllRelays()))
-
-	for pubKey := range payloadsByValidator {
+	relayValidators := make(validatorsByRelay, len(m.relayConfigurator.AllRelays()))
+	for pubKey, p := range validatorPayloads {
 		relays := m.relayConfigurator.RelaysForProposer(pubKey)
 		if len(relays) < 1 {
 			log.Warnf("there are no relays specified for %s", pubKey)
 		}
 
-		relaysByValidator[pubKey] = relays
-
-		for _, r := range relays {
-			validatorsByRelay[r] = append(validatorsByRelay[r], validatorPayloads{
-				pubKey:   pubKey,
-				payloads: payloadsByValidator[pubKey],
-			})
-		}
+		relayValidators.add(relays, pubKey, p)
 	}
 
-	// payloads by validators
-	// Val1
-	// payloads [a]
-	// Val2
-	// payloads [b]
-	// Val3
-	// payloads [c]
-
-	// relays by validators
-	// Val1
-	// relays -> 1, 2
-	// Val2
-	// relays -> 1
-	// Val3
-	// relays -> 2, 3
-
-	// validators by relays
-	// rel 1
-	// validator payloads -> Val1, Val2
-	// rel 2
-	// validators payloads -> Val1, Val3
-	// rel 3
-	// validators payloads -> Val 3
-
 	wg := new(sync.WaitGroup)
-	relayErrCh := make(chan error, len(validatorsByRelay))
+	relayErrCh := make(chan error, len(relayValidators))
 
-	for r, val := range validatorsByRelay {
+	for r, val := range relayValidators {
 		wg.Add(1)
 
-		go func(r relay.Entry, validatorPayloads []validatorPayloads) {
+		go func(r relay.Entry, validatorPayloads payloadByValidator) {
 			defer wg.Done()
 
 			relayURL := r.GetURI(pathRegisterValidator)
 			log := log.WithField("url", relayURL)
 
 			payloads := make([]types.SignedValidatorRegistration, 0, len(validatorPayloads))
-			for _, validatorPayload := range validatorPayloads {
-				log.Debugf("registering validator %s", validatorPayload.pubKey)
+			for pubKey, p := range validatorPayloads {
+				log.Debugf("registering validator %s", pubKey)
 
-				payloads = append(payloads, validatorPayload.payloads...)
+				payloads = append(payloads, p)
 			}
 
 			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, relayURL, ua, payloads, nil)
