@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/pprof"
 	"net/url"
 	"strconv"
 	"strings"
@@ -154,6 +155,14 @@ func (m *BoostService) getRouter() http.Handler {
 	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
+	// profiling
+	r.HandleFunc("/debug/pprof/", pprof.Index)
+	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	r.HandleFunc("/debug/pprof/{cmd}", pprof.Index) // special handling for Gorilla mux
+
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
 	return loggedRouter
@@ -247,11 +256,14 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-type payloadByValidator map[relay.ValidatorPublicKey]types.SignedValidatorRegistration
-type validatorsByRelay map[relay.Entry]payloadByValidator
+type (
+	payloadByValidator map[relay.ValidatorPublicKey]types.SignedValidatorRegistration
+	validatorsByRelay  map[relay.Entry]payloadByValidator
+)
 
 func (v validatorsByRelay) add(
-	relays relay.List, pubKey relay.ValidatorPublicKey, payload types.SignedValidatorRegistration) {
+	relays relay.List, pubKey relay.ValidatorPublicKey, payload types.SignedValidatorRegistration,
+) {
 	valPayload := make(payloadByValidator, 1)
 	valPayload[pubKey] = payload
 
@@ -263,6 +275,20 @@ func (v validatorsByRelay) add(
 // handleRegisterValidator - returns 200 if at least one relay returns 200, else 502
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "registerValidator")
+
+	// todo(screwyprof): remove this
+	// dump request body
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		m.respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	buf := bytes.NewBuffer(body)
+	log.Debugf("payload: %s", buf.String())
+
+	req.Body = io.NopCloser(buf)
+	//
 
 	var payload []types.SignedValidatorRegistration
 	if err := DecodeJSON(req.Body, &payload); err != nil {
