@@ -258,17 +258,12 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 
 type (
 	payloadByValidator map[relay.ValidatorPublicKey]types.SignedValidatorRegistration
-	validatorsByRelay  map[relay.Entry]payloadByValidator
+	payloadsByRelay    map[relay.Entry][]types.SignedValidatorRegistration
 )
 
-func (v validatorsByRelay) add(
-	relays relay.List, pubKey relay.ValidatorPublicKey, payload types.SignedValidatorRegistration,
-) {
-	valPayload := make(payloadByValidator, 1)
-	valPayload[pubKey] = payload
-
+func (v payloadsByRelay) add(relays relay.List, payload types.SignedValidatorRegistration) {
 	for _, r := range relays {
-		v[r] = valPayload
+		v[r] = append(v[r], payload)
 	}
 }
 
@@ -294,44 +289,36 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		validatorPayloads[pubKey] = p
 	}
 
-	relayValidators := make(validatorsByRelay, len(m.relayConfigurator.AllRelays()))
+	relayPayloads := make(payloadsByRelay, len(m.relayConfigurator.AllRelays()))
 	for pubKey, p := range validatorPayloads {
 		relays := m.relayConfigurator.RelaysForProposer(pubKey)
 		if len(relays) < 1 {
 			log.Warnf("there are no relays specified for %s", pubKey)
 		}
 
-		relayValidators.add(relays, pubKey, p)
+		relayPayloads.add(relays, p)
 	}
 
 	wg := new(sync.WaitGroup)
-	relayErrCh := make(chan error, len(relayValidators))
+	relayErrCh := make(chan error, len(relayPayloads))
 
-	for r, val := range relayValidators {
+	for r, payloads := range relayPayloads {
 		wg.Add(1)
 
-		go func(r relay.Entry, validatorPayloads payloadByValidator) {
+		go func(r relay.Entry, payloads []types.SignedValidatorRegistration) {
 			defer wg.Done()
 
 			relayURL := r.GetURI(pathRegisterValidator)
-			log := log.WithField("url", relayURL)
-
-			payloads := make([]types.SignedValidatorRegistration, 0, len(validatorPayloads))
-			for pubKey, p := range validatorPayloads {
-				log.Debugf("registering validator %s", pubKey)
-
-				payloads = append(payloads, p)
-			}
 
 			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, relayURL, ua, payloads, nil)
 			relayErrCh <- err
 
 			if err != nil {
-				log.WithError(err).Warn("error calling registerValidator on relay")
+				log.WithField("url", relayURL).WithError(err).Warn("error calling registerValidator on relay")
 
 				return
 			}
-		}(r, val)
+		}(r, payloads)
 	}
 
 	go m.sendValidatorRegistrationsToRelayMonitors(payload)
