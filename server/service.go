@@ -50,8 +50,8 @@ type AuctionTranscript struct {
 	Acceptance *types.SignedBlindedBeaconBlock `json:"acceptance"`
 }
 
-// RelayConfigManager provides relays for a given proposer.
-type RelayConfigManager interface {
+// RelayConfigurator provides relays for a given proposer.
+type RelayConfigurator interface {
 	RelaysForProposer(publicKey relay.ValidatorPublicKey) relay.List
 	AllRelays() relay.List
 }
@@ -61,7 +61,7 @@ type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
 	RelayMonitors         []*url.URL
-	RelayConfigManager    RelayConfigManager
+	RelayConfigurator     RelayConfigurator
 	GenesisForkVersionHex string
 	RelayCheck            bool
 	RelayMinBid           types.U256Str
@@ -73,13 +73,13 @@ type BoostServiceOpts struct {
 
 // BoostService - the mev-boost service
 type BoostService struct {
-	listenAddr         string
-	relayMonitors      []*url.URL
-	relayConfigManager RelayConfigManager
-	log                *logrus.Entry
-	srv                *http.Server
-	relayCheck         bool
-	relayMinBid        types.U256Str
+	listenAddr        string
+	relayMonitors     []*url.URL
+	relayConfigurator RelayConfigurator
+	log               *logrus.Entry
+	srv               *http.Server
+	relayCheck        bool
+	relayMinBid       types.U256Str
 
 	builderSigningDomain types.Domain
 	httpClientGetHeader  http.Client
@@ -92,7 +92,7 @@ type BoostService struct {
 
 // NewBoostService created a new BoostService
 func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
-	if len(opts.RelayConfigManager.AllRelays()) == 0 {
+	if len(opts.RelayConfigurator.AllRelays()) == 0 {
 		return nil, errNoRelays
 	}
 
@@ -102,13 +102,13 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	}
 
 	return &BoostService{
-		listenAddr:         opts.ListenAddr,
-		relayMonitors:      opts.RelayMonitors,
-		relayConfigManager: opts.RelayConfigManager,
-		log:                opts.Log,
-		relayCheck:         opts.RelayCheck,
-		relayMinBid:        opts.RelayMinBid,
-		bids:               make(map[bidRespKey]bidResp),
+		listenAddr:        opts.ListenAddr,
+		relayMonitors:     opts.RelayMonitors,
+		relayConfigurator: opts.RelayConfigurator,
+		log:               opts.Log,
+		relayCheck:        opts.RelayCheck,
+		relayMinBid:       opts.RelayMinBid,
+		bids:              make(map[bidRespKey]bidResp),
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
@@ -288,10 +288,10 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	}
 
 	relaysByValidator := make(map[relay.ValidatorPublicKey]relay.List, len(payload))
-	validatorsByRelay := make(map[relay.Entry][]validatorPayloads, len(m.relayConfigManager.AllRelays()))
+	validatorsByRelay := make(map[relay.Entry][]validatorPayloads, len(m.relayConfigurator.AllRelays()))
 
 	for pubKey := range payloadsByValidator {
-		relays := m.relayConfigManager.RelaysForProposer(pubKey)
+		relays := m.relayConfigurator.RelaysForProposer(pubKey)
 		if len(relays) < 1 {
 			log.Warnf("there are no relays specified for %s", pubKey)
 		}
@@ -408,7 +408,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	proposerRelays := m.relayConfigManager.RelaysForProposer(pubkey)
+	proposerRelays := m.relayConfigurator.RelaysForProposer(pubkey)
 
 	result := bidResp{}                            // the final response, containing the highest bid (if any)
 	relays := make(map[BlockHashHex][]relay.Entry) // relays that sent the bid for a specific blockHash
@@ -583,7 +583,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 	if len(relays) == 0 {
 		log.Warn("originating relay not found, sending getPayload request to all relays")
 
-		relays = m.relayConfigManager.AllRelays()
+		relays = m.relayConfigurator.AllRelays()
 	}
 
 	var wg sync.WaitGroup
@@ -697,7 +697,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	relays := originalBid.relays
 	if len(relays) == 0 {
 		log.Warn("originating relay not found, sending getPayload request to all relays")
-		relays = m.relayConfigManager.AllRelays()
+		relays = m.relayConfigurator.AllRelays()
 	}
 
 	var wg sync.WaitGroup
@@ -815,7 +815,7 @@ func (m *BoostService) CheckRelays() int {
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
 
-	for _, r := range m.relayConfigManager.AllRelays() {
+	for _, r := range m.relayConfigurator.AllRelays() {
 		wg.Add(1)
 
 		go func(relay relay.Entry) {

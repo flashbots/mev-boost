@@ -30,7 +30,7 @@ func TestSyncer(t *testing.T) {
 		syncCh := make(chan relaySync, 1)
 
 		sut := rcm.NewSyncer(
-			createConfigManagerWithRandomRelays(t),
+			createConfiguratorWithRandomRelays(t),
 			rcm.SyncerWithInterval(10*time.Millisecond),
 			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(syncCh)))
 
@@ -51,7 +51,7 @@ func TestSyncer(t *testing.T) {
 		syncCh := make(chan relaySync, 1)
 
 		sut := rcm.NewSyncer(
-			createConfigManagerWithFaultyProvider(t),
+			createConfiguratorWithFaultyProvider(t),
 			rcm.SyncerWithInterval(10*time.Millisecond),
 			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(syncCh)))
 
@@ -72,7 +72,7 @@ func TestSyncer(t *testing.T) {
 		syncCh := make(chan relaySync, 1)
 
 		sut := rcm.NewSyncer(
-			createConfigManagerWithFilledRelaysAtFirstAndEmptyProposersConsequentially(t),
+			createConfiguratorWithFilledRelaysAtFirstAndEmptyProposersConsequentially(t),
 			rcm.SyncerWithInterval(10*time.Millisecond),
 			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(syncCh)))
 
@@ -93,7 +93,7 @@ func TestSyncer(t *testing.T) {
 
 		// arrange
 		sut := rcm.NewSyncer(
-			createConfigManagerWithRandomRelays(t),
+			createConfiguratorWithRandomRelays(t),
 			rcm.SyncerWithInterval(10*time.Millisecond))
 
 		// act
@@ -112,7 +112,7 @@ func TestSyncer(t *testing.T) {
 		syncCh := make(chan relaySync, 1)
 
 		sut := rcm.NewSyncer(
-			createConfigManagerWithRandomRelays(t),
+			createConfiguratorWithRandomRelays(t),
 			rcm.SyncerWithOnSyncHandler(createTestOnSyncHandler(syncCh)))
 
 		// act
@@ -125,7 +125,7 @@ func TestSyncer(t *testing.T) {
 		assertDefaultIntervalIsUsed(t)(ctx, syncCh)
 	})
 
-	t.Run("it panics if config manager is not provided", func(t *testing.T) {
+	t.Run("it panics if configurator is not provided", func(t *testing.T) {
 		t.Parallel()
 
 		assert.PanicsWithValue(t, "configurator is required and cannot be nil", func() {
@@ -151,7 +151,7 @@ func assertDefaultIntervalIsUsed(t *testing.T) func(context.Context, chan relayS
 	}
 }
 
-func createConfigManagerWithRandomRelays(t *testing.T) *rcm.Configurator {
+func createConfiguratorWithRandomRelays(t *testing.T) *rcm.Configurator {
 	t.Helper()
 
 	relays := reltest.RandomRelaySet(t, 3)
@@ -176,7 +176,7 @@ func createTestOnSyncHandler(res chan relaySync) func(_ time.Time, err error, _ 
 	return onSyncHandler
 }
 
-func createConfigManagerWithFaultyProvider(t *testing.T) *rcm.Configurator {
+func createConfiguratorWithFaultyProvider(t *testing.T) *rcm.Configurator {
 	t.Helper()
 
 	validatorPublicKey := reltest.RandomBLSPublicKey(t)
@@ -207,7 +207,7 @@ func onceOnlySuccessfulProvider(
 	return rcptest.MockRelayConfigProvider(rcptest.WithCalls(calls))
 }
 
-func createConfigManagerWithFilledRelaysAtFirstAndEmptyProposersConsequentially(t *testing.T) *rcm.Configurator {
+func createConfiguratorWithFilledRelaysAtFirstAndEmptyProposersConsequentially(t *testing.T) *rcm.Configurator {
 	t.Helper()
 
 	validatorPublicKey := reltest.RandomBLSPublicKey(t)

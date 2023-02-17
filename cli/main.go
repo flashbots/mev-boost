@@ -225,7 +225,7 @@ func Main() {
 		Log:                      log,
 		ListenAddr:               *listenAddr,
 		RelayMonitors:            relayMonitors,
-		RelayConfigManager:       relayConfigurator,
+		RelayConfigurator:        relayConfigurator,
 		GenesisForkVersionHex:    genesisForkVersionHex,
 		RelayCheck:               *relayCheck,
 		RelayMinBid:              *relayMinBidWei,
@@ -321,8 +321,8 @@ func createConfigurator() (*rcm.Configurator, error) {
 	return relayConfigurator, nil
 }
 
-func printRelaysList(relayConfigManager *rcm.Configurator) {
-	relaysList := relayConfigManager.AllRelays().ToStringSlice()
+func printRelaysList(relayConfigurator *rcm.Configurator) {
+	relaysList := relayConfigurator.AllRelays().ToStringSlice()
 
 	log.Infof("using %d relays", len(relaysList))
 
@@ -331,7 +331,7 @@ func printRelaysList(relayConfigManager *rcm.Configurator) {
 	}
 }
 
-func runConfigSyncerIfEnabled(relayConfigManager *rcm.Configurator) {
+func runConfigSyncerIfEnabled(relayConfigurator *rcm.Configurator) {
 	if *proposerConfigRefresh {
 		log.Infof("default proposer config sync interval is %.2f min", rcm.DefaultSyncInterval.Minutes())
 
@@ -340,7 +340,7 @@ func runConfigSyncerIfEnabled(relayConfigManager *rcm.Configurator) {
 		// we cannot utilise it here as we don't have a cancellable context at the moment.
 		// If we use a cancellable context  here instead of context.Background(),
 		// it will just stop the synchronisation, yet won't stop the other running go-routines.
-		syncer := rcm.NewSyncer(relayConfigManager, rcm.SyncerWithOnSyncHandler(onSyncHandler))
+		syncer := rcm.NewSyncer(relayConfigurator, rcm.SyncerWithOnSyncHandler(onSyncHandler))
 		go syncer.SyncConfig(context.Background())
 	}
 }

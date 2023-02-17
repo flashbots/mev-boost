@@ -44,7 +44,7 @@ func SyncerWithInterval(d time.Duration) SyncOption {
 
 // Syncer synchronises relay configuration with the given RCP.
 type Syncer struct {
-	configManager *Configurator
+	configurator  *Configurator
 	interval      time.Duration
 	onSyncHandler OnSyncHandler
 }
@@ -75,7 +75,7 @@ func NewSyncer(configurator *Configurator, opt ...SyncOption) *Syncer {
 	}
 
 	return &Syncer{
-		configManager: configurator,
+		configurator:  configurator,
 		interval:      cfg.interval,
 		onSyncHandler: cfg.onSyncHandler,
 	}
@@ -109,7 +109,7 @@ func (s *Syncer) SyncConfig(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case t := <-ticker.C:
-				s.onSyncHandler(t, s.configManager.SyncConfig(), s.configManager.AllRelays())
+				s.onSyncHandler(t, s.configurator.SyncConfig(), s.configurator.AllRelays())
 			}
 		}
 	}()
