@@ -93,7 +93,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: ^1.20
       - name: Install cross-compiler for linux/arm64 and windows
         run: sudo apt-get -y install gcc-aarch64-linux-gnu gcc-mingw-w64
       - name: Run GoReleaser
@@ -124,7 +124,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: ^1.20
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
@@ -154,7 +154,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: ^1.20
       - name: Make directories
         run: |
           mkdir -p ./build/linux_windows
