@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.19 as builder
+FROM golang:1.20 as builder
 ARG VERSION
 ARG CGO_CFLAGS
 WORKDIR /build
