@@ -8,8 +8,10 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/stretchr/testify/require"
 )
@@ -93,4 +95,17 @@ func TestWeiBigIntToEthBigFloat(t *testing.T) {
 	// test with nil, which results on invalid big.Int input
 	f = weiBigIntToEthBigFloat(nil)
 	require.Equal(t, "0.000000000000000000", f.Text('f', 18))
+}
+
+func TestCapellaComputeBlockHash(t *testing.T) {
+	jsonFile, err := os.Open("../testdata/zhejiang-execution-payload-capella.json")
+	require.NoError(t, err)
+	defer jsonFile.Close()
+
+	payload := new(capella.ExecutionPayload)
+	require.NoError(t, DecodeJSON(jsonFile, payload))
+
+	hash, err := ComputeBlockHash(payload)
+	require.NoError(t, err)
+	require.Equal(t, "0x08751ea2076d3ecc606231495a90ba91a66a9b8fb1a2b76c333f1957a1c667c3", hash.String())
 }
