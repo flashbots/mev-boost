@@ -3,7 +3,7 @@ module github.com/flashbots/mev-boost
 go 1.20
 
 require (
-	github.com/ethereum/go-ethereum v1.11.1
+	github.com/ethereum/go-ethereum v1.11.2
 	github.com/flashbots/go-boost-utils v1.2.2
 	github.com/flashbots/go-utils v0.4.8
 	github.com/gorilla/mux v1.8.0
