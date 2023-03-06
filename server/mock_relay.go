@@ -229,11 +229,11 @@ func (m *mockRelay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 		m.handlerOverrideGetHeader(w, req)
 		return
 	}
-	m.defaultHandleGetHeader(w, req)
+	m.defaultHandleGetHeader(w)
 }
 
 // defaultHandleGetHeader returns the default handler for handleGetHeader
-func (m *mockRelay) defaultHandleGetHeader(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) defaultHandleGetHeader(w http.ResponseWriter) {
 	// By default, everything will be ok.
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -279,11 +279,11 @@ func (m *mockRelay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 		m.handlerOverrideGetPayload(w, req)
 		return
 	}
-	m.defaultHandleGetPayload(w, req)
+	m.defaultHandleGetPayload(w)
 }
 
 // defaultHandleGetPayload returns the default handler for handleGetPayload
-func (m *mockRelay) defaultHandleGetPayload(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) defaultHandleGetPayload(w http.ResponseWriter) {
 	// By default, everything will be ok.
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

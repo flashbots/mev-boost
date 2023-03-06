@@ -23,10 +23,16 @@ import (
 	"github.com/flashbots/mev-boost/config"
 )
 
+const (
+	// DefaultMaxRetries is the default number of retries for HTTP requests
+	DefaultMaxRetries = 5
+)
+
 var (
 	errHTTPErrorResponse  = errors.New("HTTP error response")
 	errInvalidForkVersion = errors.New("invalid fork version")
 	errInvalidTransaction = errors.New("invalid transaction")
+	errMaxRetriesExceeded = errors.New("max retries exceeded")
 )
 
 // UserAgent is a custom string type to avoid confusing url + userAgent parameters in SendHTTPRequest
@@ -95,7 +101,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 }
 
 // SendHTTPRequestWithRetries - prepare and send HTTP request, retrying the request if within the client timeout
-func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload any, dst any, handleError ErrorHandlerFunc) (code int, err error) {
+func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload, dst any, handleError ErrorHandlerFunc) (code int, err error) {
 	var requestCtx context.Context
 	var cancel context.CancelFunc
 	if client.Timeout > 0 {
@@ -106,15 +112,14 @@ func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method,
 	}
 	defer cancel()
 
-	maxRetries := 5
 	attempts := 0
 	for {
 		attempts++
 		if requestCtx.Err() != nil {
-			return 0, fmt.Errorf("request cancelled or timeout reached after %d attempts", attempts)
+			return 0, fmt.Errorf("request context error after %d attempts: %w", attempts, requestCtx.Err())
 		}
-		if attempts > maxRetries {
-			return 0, fmt.Errorf("max retries reached")
+		if attempts > DefaultMaxRetries {
+			return 0, errMaxRetriesExceeded
 		}
 
 		code, err = SendHTTPRequest(ctx, client, method, url, userAgent, payload, dst)

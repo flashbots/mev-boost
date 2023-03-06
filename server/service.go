@@ -507,7 +507,6 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 
 			responsePayload := new(types.GetPayloadResponse)
 			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload, errorHandler)
-
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
 					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay

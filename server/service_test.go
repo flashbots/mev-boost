@@ -794,7 +794,7 @@ func TestGetPayload(t *testing.T) {
 		backend.relays[0].handlerOverrideGetPayload = func(w http.ResponseWriter, r *http.Request) {
 			if count > 0 {
 				// success response on the second attempt
-				backend.relays[0].defaultHandleGetPayload(w, r)
+				backend.relays[0].defaultHandleGetPayload(w)
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
@@ -816,7 +816,7 @@ func TestGetPayload(t *testing.T) {
 			count++
 			if count > maxRetries {
 				// success response after max retry attempts
-				backend.relays[0].defaultHandleGetPayload(w, r)
+				backend.relays[0].defaultHandleGetPayload(w)
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
