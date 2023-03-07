@@ -21,11 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
-)
-
-const (
-	// DefaultMaxRetries is the default number of retries for HTTP requests
-	DefaultMaxRetries = 5
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -40,9 +36,6 @@ type UserAgent string
 
 // BlockHashHex is a hex-string representation of a block hash
 type BlockHashHex string
-
-// ErrorHandlerFunc called if http request fails before retry
-type ErrorHandlerFunc func(err error)
 
 // SendHTTPRequest - prepare and send HTTP request, marshaling the payload if any, and decoding the response if dst is set
 func SendHTTPRequest(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload, dst any) (code int, err error) {
@@ -101,7 +94,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 }
 
 // SendHTTPRequestWithRetries - prepare and send HTTP request, retrying the request if within the client timeout
-func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload, dst any, handleError ErrorHandlerFunc) (code int, err error) {
+func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload, dst any, maxRetries int, log *logrus.Entry) (code int, err error) {
 	var requestCtx context.Context
 	var cancel context.CancelFunc
 	if client.Timeout > 0 {
@@ -118,15 +111,13 @@ func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method,
 		if requestCtx.Err() != nil {
 			return 0, fmt.Errorf("request context error after %d attempts: %w", attempts, requestCtx.Err())
 		}
-		if attempts > DefaultMaxRetries {
+		if attempts > maxRetries {
 			return 0, errMaxRetriesExceeded
 		}
 
 		code, err = SendHTTPRequest(ctx, client, method, url, userAgent, payload, dst)
 		if err != nil {
-			if handleError != nil {
-				handleError(err)
-			}
+			log.WithError(err).Warn("error making request to relay, retrying")
 			continue
 		}
 		return code, nil
