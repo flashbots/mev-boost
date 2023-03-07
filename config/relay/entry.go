@@ -56,7 +56,7 @@ func NewRelayEntry(relayURL string) (Entry, error) {
 	// Parse the provided relay's relayURL and save the parsed relayURL in the Entry.
 	parsedURL, err := url.ParseRequestURI(relayURL)
 	if err != nil {
-		return Entry{}, fmt.Errorf("%w: %v: %s", ErrInvalidRelayURL, err, relayURL)
+		return Entry{}, fmt.Errorf("%w: %w: %s", ErrInvalidRelayURL, err, relayURL)
 	}
 
 	pubKeyHex := parsedURL.User.Username()

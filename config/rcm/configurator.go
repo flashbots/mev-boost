@@ -34,7 +34,7 @@ func New(registryCreator *RegistryCreator) (*Configurator, error) {
 	}
 
 	if err := cm.SyncConfig(); err != nil {
-		return nil, fmt.Errorf("%v: %w", ErrCannotCreateConfigurator, err)
+		return nil, fmt.Errorf("%w: %w", ErrCannotCreateConfigurator, err)
 	}
 
 	return cm, nil

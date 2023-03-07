@@ -32,23 +32,23 @@ func NewRegistryCreator(configProvider ConfigProvider) *RegistryCreator {
 func (r *RegistryCreator) Create() (*relay.Registry, error) {
 	cfg, err := r.configProvider()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrConfigProviderFailure, err)
+		return nil, fmt.Errorf("%w: %w", ErrConfigProviderFailure, err)
 	}
 
 	if err := validateProposerConfig(cfg); err != nil {
-		return nil, fmt.Errorf("%v: %w", ErrInvalidProposerConfig, err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidProposerConfig, err)
 	}
 
 	relayRegistry := relay.NewProposerRegistry()
 
 	relayRegistry, err = r.populateProposers(cfg, relayRegistry)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrCannotPopulateProposerRelays, err)
+		return nil, fmt.Errorf("%w: %w", ErrCannotPopulateProposerRelays, err)
 	}
 
 	relayRegistry, err = r.populateDefault(cfg, relayRegistry)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrCannotPopulateDefaultRelays, err)
+		return nil, fmt.Errorf("%w: %w", ErrCannotPopulateDefaultRelays, err)
 	}
 
 	return relayRegistry, nil

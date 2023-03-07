@@ -62,7 +62,7 @@ func (p *JSONAPI) FetchConfig() (*relay.Config, error) {
 func (p *JSONAPI) doRequest(endpoint string) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrMalformedProviderURL, err)
+		return nil, fmt.Errorf("%w: %w", ErrMalformedProviderURL, err)
 	}
 
 	req.Header.Set("Accept", "*/*")
@@ -70,7 +70,7 @@ func (p *JSONAPI) doRequest(endpoint string) (*http.Response, error) {
 
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrHTTPRequestFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrHTTPRequestFailed, err)
 	}
 
 	return resp, nil
@@ -78,7 +78,7 @@ func (p *JSONAPI) doRequest(endpoint string) (*http.Response, error) {
 
 func decodeResponseBody(body io.Reader, target any) error {
 	if err := json.NewDecoder(body).Decode(target); err != nil {
-		return fmt.Errorf("%w: cannot decode response: %v", ErrMalformedResponseBody, err)
+		return fmt.Errorf("%w: cannot decode response: %w", ErrMalformedResponseBody, err)
 	}
 
 	return nil
