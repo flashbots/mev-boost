@@ -748,11 +748,10 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// Decode the body now
 	payload := new(capella.SignedBlindedBeaconBlock)
 	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-		log.WithError(err).WithField("body", string(body)).Info("could not decode request payload from the beacon-node (capella signed blinded beacon block)")
-		log.Debug("attempting to decode payload body with bellatrix")
+		log.Debug("could not decode Capella request payload, attempting to decode body into Bellatrix payload")
 		payload := new(types.SignedBlindedBeaconBlock)
 		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-			log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (bellatrix signed blinded beacon block)")
+			log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
 			m.respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}

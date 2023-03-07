@@ -18,6 +18,7 @@ linters:
     - varnamelen
     - wrapcheck
     - wsl
+    - musttag
 
     #
     # Maybe fix later:

@@ -195,7 +195,7 @@ A single MEV-Boost instance can be used by multiple beacon nodes and validators.
 
 Aside from running MEV-Boost on your local network, you must configure:
 * individual **beacon nodes** to connect to MEV-Boost. Beacon Node configuration varies by Consensus client. Guides for each client can be found on the [MEV-boost website](https://boost.flashbots.net/#block-356364ebd7cc424fb524428ed0134b21).
-* individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relays).
+* individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relay).
 
 Lists of available relays are maintained by
 * [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) [[2]](https://ethstaker.cc/mev-relay-list/)

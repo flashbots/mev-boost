@@ -159,6 +159,17 @@ func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.He
 		transactionData[i] = &tx
 	}
 
+	withdrawalData := make([]*types.Withdrawal, len(payload.Withdrawals))
+	for i, w := range payload.Withdrawals {
+		withdrawalData[i] = &types.Withdrawal{
+			Index:     uint64(w.Index),
+			Validator: uint64(w.ValidatorIndex),
+			Address:   common.Address(w.Address),
+			Amount:    uint64(w.Amount),
+		}
+	}
+	withdrawalsHash := types.DeriveSha(types.Withdrawals(withdrawalData), trie.NewStackTrie(nil))
+
 	// base fee per gas is stored little-endian but we need it
 	// big-endian for big.Int.
 	var baseFeePerGasBytes [32]byte
@@ -168,20 +179,21 @@ func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.He
 	baseFeePerGas := new(big.Int).SetBytes(baseFeePerGasBytes[:])
 
 	return &types.Header{
-		ParentHash:  common.Hash(payload.ParentHash),
-		UncleHash:   types.EmptyUncleHash,
-		Coinbase:    common.Address(payload.FeeRecipient),
-		Root:        common.Hash(payload.StateRoot),
-		TxHash:      types.DeriveSha(types.Transactions(transactionData), trie.NewStackTrie(nil)),
-		ReceiptHash: common.Hash(payload.ReceiptsRoot),
-		Bloom:       types.Bloom(payload.LogsBloom),
-		Difficulty:  common.Big0,
-		Number:      new(big.Int).SetUint64(payload.BlockNumber),
-		GasLimit:    payload.GasLimit,
-		GasUsed:     payload.GasUsed,
-		Time:        payload.Timestamp,
-		Extra:       payload.ExtraData,
-		MixDigest:   common.Hash(payload.PrevRandao),
-		BaseFee:     baseFeePerGas,
+		ParentHash:      common.Hash(payload.ParentHash),
+		UncleHash:       types.EmptyUncleHash,
+		Coinbase:        common.Address(payload.FeeRecipient),
+		Root:            common.Hash(payload.StateRoot),
+		TxHash:          types.DeriveSha(types.Transactions(transactionData), trie.NewStackTrie(nil)),
+		ReceiptHash:     common.Hash(payload.ReceiptsRoot),
+		Bloom:           types.Bloom(payload.LogsBloom),
+		Difficulty:      common.Big0,
+		Number:          new(big.Int).SetUint64(payload.BlockNumber),
+		GasLimit:        payload.GasLimit,
+		GasUsed:         payload.GasUsed,
+		Time:            payload.Timestamp,
+		Extra:           payload.ExtraData,
+		MixDigest:       common.Hash(payload.PrevRandao),
+		BaseFee:         baseFeePerGas,
+		WithdrawalsHash: &withdrawalsHash,
 	}, nil
 }
