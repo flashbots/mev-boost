@@ -62,6 +62,7 @@ type BoostServiceOpts struct {
 	RequestTimeoutGetHeader  time.Duration
 	RequestTimeoutGetPayload time.Duration
 	RequestTimeoutRegVal     time.Duration
+	RequestMaxRetries        int
 }
 
 // BoostService - the mev-boost service
@@ -78,6 +79,7 @@ type BoostService struct {
 	httpClientGetHeader  http.Client
 	httpClientGetPayload http.Client
 	httpClientRegVal     http.Client
+	requestMaxRetries    int
 
 	bidsLock sync.Mutex
 	bids     map[bidRespKey]bidResp // keeping track of bids, to log the originating relay on withholding
@@ -116,6 +118,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 			Timeout:       opts.RequestTimeoutRegVal,
 			CheckRedirect: httpClientDisallowRedirects,
 		},
+		requestMaxRetries: opts.RequestMaxRetries,
 	}, nil
 }
 
@@ -498,11 +501,12 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 		go func(relay RelayEntry) {
 			defer wg.Done()
 			url := relay.GetURI(pathGetPayload)
+
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
 
 			responsePayload := new(types.GetPayloadResponse)
-			_, err := SendHTTPRequest(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload)
+			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
 					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
@@ -615,7 +619,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 			log.Debug("calling getPayload")
 
 			responsePayload := new(api.VersionedExecutionPayload)
-			_, err := SendHTTPRequest(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload)
+			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
 					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
