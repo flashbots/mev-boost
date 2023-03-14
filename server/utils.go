@@ -20,8 +20,8 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
-	"github.com/sirupsen/logrus"
 	"github.com/flashbots/mev-boost/config/relay"
+	"github.com/sirupsen/logrus"
 )
 
 var (
