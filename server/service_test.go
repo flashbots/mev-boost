@@ -20,6 +20,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/config/rcm"
 	"github.com/flashbots/mev-boost/config/rcp/rcptest"
 	"github.com/flashbots/mev-boost/config/relay"
@@ -112,7 +113,7 @@ func TestStatus(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.True(t, len(rr.Header().Get("X-MEVBoost-Version")) > 0)
-		require.Equal(t, "bellatrix", rr.Header().Get("X-MEVBoost-ForkVersion"))
+		require.Equal(t, config.ForkVersion, rr.Header().Get("X-MEVBoost-ForkVersion"))
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
@@ -125,7 +126,7 @@ func TestStatus(t *testing.T) {
 
 		require.Equal(t, http.StatusServiceUnavailable, rr.Code)
 		require.True(t, len(rr.Header().Get("X-MEVBoost-Version")) > 0)
-		require.Equal(t, "bellatrix", rr.Header().Get("X-MEVBoost-ForkVersion"))
+		require.Equal(t, config.ForkVersion, rr.Header().Get("X-MEVBoost-ForkVersion"))
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 	})
 }
@@ -695,6 +696,48 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
 	})
+
+	t.Run("Retries on error from relay", func(t *testing.T) {
+		backend := newTestBackend(t, 1, 2*time.Second)
+
+		count := 0
+		backend.relays[0].handlerOverrideGetPayload = func(w http.ResponseWriter, r *http.Request) {
+			if count > 0 {
+				// success response on the second attempt
+				backend.relays[0].defaultHandleGetPayload(w)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
+				require.NoError(t, err)
+			}
+			count++
+		}
+		rr := backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	})
+
+	t.Run("Error after max retries are reached", func(t *testing.T) {
+		backend := newTestBackend(t, 1, 0)
+
+		count := 0
+		maxRetries := 5
+
+		backend.relays[0].handlerOverrideGetPayload = func(w http.ResponseWriter, r *http.Request) {
+			count++
+			if count > maxRetries {
+				// success response after max retry attempts
+				backend.relays[0].defaultHandleGetPayload(w)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
+				require.NoError(t, err)
+			}
+		}
+		rr := backend.request(t, http.MethodPost, path, payload)
+		require.Equal(t, 5, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
+		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
 }
 
 func TestCheckRelays(t *testing.T) {
@@ -1202,9 +1245,7 @@ func BenchmarkGetPayload(b *testing.B) {
 	}
 }
 
-func blindedBlockToExecutionPayloadBellatrix(
-	signedBlindedBeaconBlock *types.SignedBlindedBeaconBlock,
-) *types.ExecutionPayload {
+func blindedBlockToExecutionPayloadBellatrix(signedBlindedBeaconBlock *types.SignedBlindedBeaconBlock) *types.ExecutionPayload {
 	header := signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader
 	return &types.ExecutionPayload{
 		ParentHash:    header.ParentHash,
@@ -1223,9 +1264,7 @@ func blindedBlockToExecutionPayloadBellatrix(
 	}
 }
 
-func blindedBlockToExecutionPayloadCapella(
-	signedBlindedBeaconBlock *apiv1capella.SignedBlindedBeaconBlock,
-) *capella.ExecutionPayload {
+func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *apiv1capella.SignedBlindedBeaconBlock) *capella.ExecutionPayload {
 	header := signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader
 	return &capella.ExecutionPayload{
 		ParentHash:    header.ParentHash,

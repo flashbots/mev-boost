@@ -40,6 +40,7 @@ var (
 	defaultLogServiceTag     = os.Getenv("LOG_SERVICE_TAG")
 	defaultRelays            = os.Getenv("RELAYS")
 	defaultRelayMonitors     = os.Getenv("RELAY_MONITORS")
+	defaultMaxRetries        = getEnvInt("REQUEST_MAX_RETRIES", 5)
 
 	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
 	defaultUseSepolia         = os.Getenv("SEPOLIA") != ""
@@ -80,6 +81,8 @@ var (
 	relayTimeoutMsGetHeader  = flag.Int("request-timeout-getheader", defaultTimeoutMsGetHeader, "timeout for getHeader requests to the relay [ms]")
 	relayTimeoutMsGetPayload = flag.Int("request-timeout-getpayload", defaultTimeoutMsGetPayload, "timeout for getPayload requests to the relay [ms]")
 	relayTimeoutMsRegVal     = flag.Int("request-timeout-regval", defaultTimeoutMsRegisterValidator, "timeout for registerValidator requests [ms]")
+
+	relayRequestMaxRetries = flag.Int("request-max-retries", defaultMaxRetries, "maximum number of retries for a relay get payload request")
 
 	// helpers
 	useGenesisForkVersionMainnet  = flag.Bool("mainnet", true, "use Mainnet")
@@ -232,6 +235,7 @@ func Main() {
 		RequestTimeoutGetHeader:  time.Duration(*relayTimeoutMsGetHeader) * time.Millisecond,
 		RequestTimeoutGetPayload: time.Duration(*relayTimeoutMsGetPayload) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(*relayTimeoutMsRegVal) * time.Millisecond,
+		RequestMaxRetries:        *relayRequestMaxRetries,
 	}
 	service, err := server.NewBoostService(opts)
 	if err != nil {

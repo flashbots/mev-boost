@@ -88,6 +88,7 @@ func newTestBackend(tb testing.TB, numRelays int, relayTimeout time.Duration, op
 		RequestTimeoutGetHeader:  relayTimeout,
 		RequestTimeoutGetPayload: relayTimeout,
 		RequestTimeoutRegVal:     relayTimeout,
+		RequestMaxRetries:        5,
 	}
 	service, err := NewBoostService(opts)
 	require.NoError(tb, err)
