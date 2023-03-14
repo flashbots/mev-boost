@@ -1,4 +1,4 @@
-![mev-boost](https://user-images.githubusercontent.com/116939/179831878-dc6a0f76-94f4-46cc-bafd-18a3a4b58ea4.png)
+![mev-boost](https://user-images.githubusercontent.com/116939/224986867-3d1916c6-3219-4d61-b1ce-213fc663070c.png)
 
 #
 
@@ -94,7 +94,7 @@ Requires [Go 1.18+](https://go.dev/doc/install).
 
 ### `go install`
 
-Install MEV-Boost with `go install`:
+Install the latest MEV-Boost release with `go install`:
 
 ```bash
 go install github.com/flashbots/mev-boost@latest
@@ -366,9 +366,12 @@ sequenceDiagram
 # Maintainers
 
 - [@metachris](https://github.com/metachris)
+- [@jtraglia](https://github.com/jtraglia)
+- [@ralexstokes](https://github.com/ralexstokes)
+- [@terencechain](https://github.com/terencechain)
+- [@lightclient](https://github.com/lightclient)
+- [@avalonche](https://github.com/)
 - [@Ruteri](https://github.com/Ruteri)
-- [@elopio](https://github.com/elopio)
-- [@kailinr](https://github.com/kailinr)
 
 # Contributing
 
@@ -402,7 +405,3 @@ ecosystem more secure.
 The code in this project is free software under the [MIT License](LICENSE).
 
 Logo by [@lekevicius](https://twitter.com/lekevicius) on CC0 license.
-
----
-
-Made with ☀️ by the 💎 researchers and developers.
