@@ -7,10 +7,10 @@ import (
 // Set during build
 const (
 	// Version is the version of the software, set at build time
-	Version = "v1.4.1-dev"
+	Version = "v1.5.0"
 
 	// ForkVersion is the latest supported fork version at build time
-	ForkVersion = "bellatrix"
+	ForkVersion = "capella"
 )
 
 // Other settings
