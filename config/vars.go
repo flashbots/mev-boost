@@ -7,7 +7,7 @@ import (
 // Set during build
 const (
 	// Version is the version of the software, set at build time
-	Version = "v1.5.0"
+	Version = "v1.5.1-dev"
 
 	// ForkVersion is the latest supported fork version at build time
 	ForkVersion = "capella"
