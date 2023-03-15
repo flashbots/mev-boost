@@ -370,7 +370,7 @@ sequenceDiagram
 - [@ralexstokes](https://github.com/ralexstokes)
 - [@terencechain](https://github.com/terencechain)
 - [@lightclient](https://github.com/lightclient)
-- [@avalonche](https://github.com/)
+- [@avalonche](https://github.com/avalonche)
 - [@Ruteri](https://github.com/Ruteri)
 
 # Contributing
