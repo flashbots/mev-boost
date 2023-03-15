@@ -56,7 +56,7 @@ git push origin --tags
 
 # all done here
 #
-# if you want manually create and push the Docker image:
+# if you want to manually create and push the Docker image:
 make docker-image-portable
 make docker-push-version
 
