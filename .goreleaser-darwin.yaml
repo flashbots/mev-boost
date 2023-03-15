@@ -1,7 +1,13 @@
 project_name: mev-boost
 builds:
   - id: mev-boost-portable
+    tags:
+      - osusergo
+      - netgo
+    flags:
+      - -trimpath
     ldflags:
+      - -w -s
       - -X github.com/flashbots/mev-boost/config.Version={{.Version}}
     env:
       - CGO_ENABLED=1

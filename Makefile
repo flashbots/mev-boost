@@ -10,11 +10,19 @@ v:
 
 .PHONY: build
 build:
-	go build -trimpath -ldflags "-s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o mev-boost .
+	go build -tags osusergo,netgo -trimpath -ldflags "-w -s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o mev-boost .
 
 .PHONY: build-portable
 build-portable:
-	CGO_CFLAGS="-O -D__BLST_PORTABLE__" go build -trimpath -ldflags "-s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o mev-boost .
+	CGO_CFLAGS="-O -D__BLST_PORTABLE__" go build -tags osusergo,netgo -trimpath -ldflags "-w -s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o mev-boost .
+
+.PHONY: build-static
+build-static:
+	go build -tags osusergo,netgo -trimpath -ldflags "-extldflags=-static -w -s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o mev-boost .
+
+.PHONY: build-portable-static
+build-portable-static:
+	CGO_CFLAGS="-O -D__BLST_PORTABLE__" go build -tags osusergo,netgo -trimpath -ldflags "-extldflags=-static -w -s -X 'github.com/flashbots/mev-boost/config.Version=${VERSION}'" -v -o mev-boost .
 
 .PHONY: build-testcli
 build-testcli:
