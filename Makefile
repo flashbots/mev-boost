@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty="-dev")
 DOCKER_REPO := flashbots/mev-boost
 
-# Force os/user & net/go to be pure Go.
+# Force os/user & net to be pure Go.
 GO_BUILD_FLAGS += -tags osusergo,netgo
 # Remove all file system paths from the executable.
 GO_BUILD_FLAGS += -trimpath
