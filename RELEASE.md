@@ -54,11 +54,13 @@ git tag -s v2.3.1-rc1  # without a tag, the Docker image would include the wrong
 # now push to Github (CI will build the Docker image: https://github.com/flashbots/mev-boost/actions)
 git push origin --tags
 
-# you can also manually create and push the Docker image
+# all done here
+#
+# if you want to manually create and push the Docker image:
 make docker-image-portable
 make docker-push-version
 
-# now other parties can test the release candidate from Docker like this:
+# other parties can now test the release candidate from Docker like this:
 docker pull flashbots/mev-boost:v2.3.1-rc1
 ```
 
@@ -86,6 +88,7 @@ To create a new version (with tag), follow all these steps! They are necessary t
   * `git checkout stable`
   * `git merge tags/v2.3.1 --ff-only`
   * `git checkout main`
+  * `git merge tags/v2.3.1 --ff-only`
 * Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v2.3.2-dev`), commit to main and push to Github
 * Now push the main and stable branch, as well as the tag to Github: `git push origin main stable --tags`
 
