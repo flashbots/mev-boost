@@ -49,7 +49,7 @@ Env & defaults:
 	-mm                                                      - mergemock mode, use mergemock defaults, only call execution and use fake slot in getHeader
 
 	-genesis-validators-root  GENESIS_VALIDATORS_ROOT = "0x0000000000000000000000000000000000000000000000000000000000000000" (mainnet) - network genesis validators root
-														"0xbf7e331f7f7c1dd2e05159666b3bf8bc7a8a3a9eb1d518969eab529dd9b88c1a" (goerli)
+														"0x043db0d9a83813551ee2f33450d23797757d430911a9320530ad8a0eabc43efb" (goerli)
 	                                                    "0xd8ea171f3c94aea21ebc42a1ed61052acf3f9209c00e4efbaaddac09ed9b8078" (sepolia)
 
 	-genesis-fork-version     GENESIS_FORK_VERSION    = "0x00000000" (mainnet) - network fork version
