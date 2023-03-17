@@ -2,17 +2,13 @@
 project_name: mev-boost
 builds:
   - id: mev-boost
-    tags:
-      - osusergo
-      - netgo
     flags:
       - -trimpath
     ldflags:
-      - -extldflags=-static
       - -w -s
       - -X github.com/flashbots/mev-boost/config.Version={{.Version}}
     env:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
     goos:
       - linux
       - windows
@@ -33,11 +29,11 @@ builds:
       - goos: linux
         goarch: arm64
         env:
-          - CGO_ENABLED=1
+          - CGO_ENABLED=0
           - CC=aarch64-linux-gnu-gcc
       - goos: windows
         goarch: amd64
         goamd64: v1
         env:
-          - CGO_ENABLED=1
+          - CGO_ENABLED=0
           - CC=x86_64-w64-mingw32-gcc

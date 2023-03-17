@@ -1,8 +1,6 @@
 VERSION ?= $(shell git describe --tags --always --dirty="-dev")
 DOCKER_REPO := flashbots/mev-boost
 
-# Force os/user & net to be pure Go.
-GO_BUILD_FLAGS += -tags osusergo,netgo
 # Remove all file system paths from the executable.
 GO_BUILD_FLAGS += -trimpath
 # Make the build more verbose.
@@ -25,11 +23,7 @@ v:
 
 .PHONY: build
 build:
-	$(EXTRA_ENV) go build $(GO_BUILD_FLAGS) -ldflags "$(GO_BUILD_LDFLAGS)" -o mev-boost .
-
-.PHONY: build-static
-build-static: GO_BUILD_LDFLAGS += "-extldflags=-static"
-build-static: build
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -ldflags "$(GO_BUILD_LDFLAGS)" -o mev-boost .
 
 .PHONY: build-testcli
 build-testcli:
@@ -73,13 +67,9 @@ run-mergemock-integration: build
 
 .PHONY: docker-image
 docker-image:
-	DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --build-arg CGO_CFLAGS="" --build-arg VERSION=${VERSION} . -t mev-boost
+	DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --build-arg VERSION=${VERSION} . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
 	docker tag mev-boost:latest ${DOCKER_REPO}:latest
-
-.PHONY: docker-push-version
-docker-push-version:
-	docker push ${DOCKER_REPO}:${VERSION}
 
 .PHONY: clean
 clean:
