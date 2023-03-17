@@ -35,7 +35,7 @@ test:
 
 .PHONY: test-race
 test-race:
-	CGO_ENABLED=0 go test -race ./...
+	CGO_ENABLED=1 go test -race ./...
 
 .PHONY: lint
 lint:
