@@ -1,0 +1,29 @@
+# https://goreleaser.com/customization/builds/
+project_name: mev-boost
+builds:
+  - id: mev-boost
+    env:
+      # Force build to be all Go.
+      - CGO_ENABLED=0
+    flags:
+      # Remove all file system paths from the executable.
+      - -trimpath
+    ldflags:
+      # Disables DWARF debugging information.
+      - -w
+      # Disables symbol table information.
+      - -s
+      # Sets the value of the symbol.
+      - -X github.com/flashbots/mev-boost/config.Version={{.Version}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+    ignore:
+      # The windows/arm64 build doesn't work.
+      - goos: windows
+        goarch: arm64
