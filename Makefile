@@ -46,7 +46,7 @@ lint:
 
 .PHONY: test-coverage
 test-coverage:
-	CGO_ENABLED=0 go test -race -v -covermode=atomic -coverprofile=coverage.out ./...
+	CGO_ENABLED=0 go test -v -covermode=atomic -coverprofile=coverage.out ./...
 	go tool cover -func coverage.out
 
 .PHONY: cover
