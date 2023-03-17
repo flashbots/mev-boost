@@ -33,16 +33,6 @@ jobs:
           tags: |
             type=sha
             type=semver,pattern={{version}}
-            type=raw,value=latest,enable=false
-
-      - name: Extract metadata (tags, labels) for portable Docker images
-        id: meta-portable
-        uses: docker/metadata-action@v4
-        with:
-          images: flashbots/mev-boost
-          tags: |
-            type=sha
-            type=semver,pattern={{version}},suffix=-portable
             type=raw,value=latest,enable=${{ !contains(env.RELEASE_VERSION, '-') }}
 
       - name: Set up QEMU
@@ -68,18 +58,6 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v6
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Build and push portable
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          push: true
-          build-args: |
-            VERSION=${{ env.RELEASE_VERSION }}
-            CGO_CFLAGS=-O -D__BLST_PORTABLE__
-          platforms: linux/amd64,linux/arm64,linux/arm/v6
-          tags: ${{ steps.meta-portable.outputs.tags }}
-          labels: ${{ steps.meta-portable.outputs.labels }}
 
   build-linux-windows:
     runs-on: ubuntu-latest

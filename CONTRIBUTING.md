@@ -28,8 +28,6 @@ go run . -goerli -relay-check -relays https://0xafa4c6985aa049fb79dd37010438cfeb
 
 Note that you'll need to set the correct genesis fork version (either manually with `-genesis-fork-version` or a helper flag `-mainnet`/`-goerli`/`-sepolia`).
 
-If the test or target application crashes with an "illegal instruction" exception, run/rebuild with CGO_CFLAGS environment variable set to `-O -D__BLST_PORTABLE__`. This error also happens if you are on an ARM-based system, including the Apple M1/M2 chip.
-
 ## Test
 
 ```bash

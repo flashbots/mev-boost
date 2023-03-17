@@ -32,7 +32,7 @@ See also:
 
 * [boost.flashbots.net](https://boost.flashbots.net)
 * [MEV-Boost Docker images](https://hub.docker.com/r/flashbots/mev-boost)
-* [Wiki](https://github.com/flashbots/mev-boost/wiki) & [Troubleshooting guide](https://github.com/flashbots/mev-boost/wiki/Troubleshooting)
+* [Wiki](https://github.com/flashbots/mev-boost/wiki)
 * [MEV-Boost relay source code](https://github.com/flashbots/mev-boost-relay)
 * Specs:
   * [Builder API](https://ethereum.github.io/builder-specs)
@@ -48,7 +48,6 @@ See also:
   - [From source](#from-source)
   - [From Docker image](#from-docker-image)
   - [Systemd configuration](#systemd-configuration)
-  - [Troubleshooting](#troubleshooting)
 - [Usage](#usage)
   - [Mainnet](#mainnet)
   - [Goerli testnet](#goerli-testnet)
@@ -84,7 +83,7 @@ See also [Rémy Roy's guide](https://github.com/remyroy/ethstaker/blob/main/prep
 
 ## Binaries
 
-Each release includes binaries from Linux, Windows and macOS (portable build, for amd and arm). You can find the latest release at
+Each release includes binaries from Linux, Windows and macOS. You can find the latest release at
 https://github.com/flashbots/mev-boost/releases
 
 
@@ -121,8 +120,8 @@ git checkout tags/YOUR_VERSION
 # Build most recent version of MEV-Boost
 make build
 
-# Use build-portable if the standard build crashes on startup
-make build-portable
+# Build a statically linked version (only works on Linux)
+make build
 
 # Show help. This confirms MEV-Boost is able to start
 ./mev-boost -help
@@ -173,20 +172,6 @@ ExecStart=/home/mev-boost/bin/mev-boost \
 WantedBy=multi-user.target
 ```
 </details>
-
-## Troubleshooting
-
-If MEV-Boost crashes with [`"SIGILL: illegal instruction"`](https://github.com/flashbots/mev-boost/issues/256) then you need to use a portable build:
-
-You can either use a [portable Docker image](https://hub.docker.com/r/flashbots/mev-boost/tags), or install/build the portable build like this:
-
-```bash
-# using `go install`
-CGO_CFLAGS="-O -D__BLST_PORTABLE__" go install github.com/flashbots/mev-boost@latest
-
-# build from source
-make build-portable
-```
 
 
 # Usage

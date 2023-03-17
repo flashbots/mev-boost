@@ -27,18 +27,9 @@ v:
 build:
 	$(EXTRA_ENV) go build $(GO_BUILD_FLAGS) -ldflags "$(GO_BUILD_LDFLAGS)" -o mev-boost .
 
-.PHONY: build-portable
-build-portable: EXTRA_ENV = CGO_CFLAGS="-O -D__BLST_PORTABLE__"
-build-portable: build
-
 .PHONY: build-static
 build-static: GO_BUILD_LDFLAGS += "-extldflags=-static"
 build-static: build
-
-.PHONY: build-portable-static
-build-portable-static: EXTRA_ENV = CGO_CFLAGS="-O -D__BLST_PORTABLE__"
-build-portable-static: GO_BUILD_LDFLAGS += -extldflags=-static
-build-portable-static: build
 
 .PHONY: build-testcli
 build-testcli:
@@ -85,11 +76,6 @@ docker-image:
 	DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --build-arg CGO_CFLAGS="" --build-arg VERSION=${VERSION} . -t mev-boost
 	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
 	docker tag mev-boost:latest ${DOCKER_REPO}:latest
-
-.PHONY: docker-image-portable
-docker-image-portable:
-	DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --build-arg CGO_CFLAGS="-O -D__BLST_PORTABLE__" --build-arg VERSION=${VERSION}  . -t mev-boost
-	docker tag mev-boost:latest ${DOCKER_REPO}:${VERSION}
 
 .PHONY: docker-push-version
 docker-push-version:

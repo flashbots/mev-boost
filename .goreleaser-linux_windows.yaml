@@ -1,7 +1,7 @@
 # https://goreleaser.com/customization/builds/
 project_name: mev-boost
 builds:
-  - id: mev-boost-portable
+  - id: mev-boost
     tags:
       - osusergo
       - netgo
@@ -13,8 +13,6 @@ builds:
       - -X github.com/flashbots/mev-boost/config.Version={{.Version}}
     env:
       - CGO_ENABLED=1
-      - CGO_CFLAGS_ALLOW="-D__BLST_PORTABLE__"
-      - CGO_CFLAGS="-D__BLST_PORTABLE__"
     goos:
       - linux
       - windows
@@ -36,14 +34,10 @@ builds:
         goarch: arm64
         env:
           - CGO_ENABLED=1
-          - CGO_CFLAGS_ALLOW="-D__BLST_PORTABLE__"
-          - CGO_CFLAGS="-D__BLST_PORTABLE__"
           - CC=aarch64-linux-gnu-gcc
       - goos: windows
         goarch: amd64
         goamd64: v1
         env:
           - CGO_ENABLED=1
-          - CGO_CFLAGS_ALLOW="-D__BLST_PORTABLE__"
-          - CGO_CFLAGS="-D__BLST_PORTABLE__"
           - CC=x86_64-w64-mingw32-gcc
