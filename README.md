@@ -120,9 +120,6 @@ git checkout tags/YOUR_VERSION
 # Build most recent version of MEV-Boost
 make build
 
-# Build a statically linked version (only works on Linux)
-make build
-
 # Show help. This confirms MEV-Boost is able to start
 ./mev-boost -help
 ```
