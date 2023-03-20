@@ -22,8 +22,3 @@ builds:
     goarch:
       - amd64
       - arm64
-
-    ignore:
-      # The windows/arm64 build doesn't work.
-      - goos: windows
-        goarch: arm64
