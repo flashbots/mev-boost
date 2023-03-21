@@ -32,6 +32,11 @@ linters:
     - tagliatelle
 
     #
+    # Disabled because needing the manual gnark-crypto override
+    #
+    - gomoddirectives
+
+    #
     # Disabled because of generics:
     #
     - contextcheck
