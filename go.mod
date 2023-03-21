@@ -80,3 +80,11 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// Manually replace gnark-crypto with the audited version (v0.7.1). This is
+// required because there are two depedencies that require different versions
+// of gnark-crypto: geth requires v0.9.1 (for fuzzing) and go-boost-utils
+// requires v0.7.1 (for signatures). Because the major version is the same, Go
+// believes these versions are backwards-compatible, which they are, and will
+// use the newer of the two.
+replace github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.7.1-0.20220622171907-450e0206211e
