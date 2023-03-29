@@ -60,9 +60,6 @@ linters-settings:
     disable:
       - fieldalignment
       - shadow
-  gomoddirectives:
-    replace-allow-list:
-      - github.com/consensys/gnark-crypto
 
 output:
   print-issued-lines: true
