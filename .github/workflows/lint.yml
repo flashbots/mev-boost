@@ -9,9 +9,6 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    env:
-      CGO_CFLAGS_ALLOW: "-O -D__BLST_PORTABLE__"
-      CGO_CFLAGS: "-O -D__BLST_PORTABLE__"
     steps:
       - name: Checkout
         uses: actions/checkout@v2

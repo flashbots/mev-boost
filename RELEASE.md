@@ -54,12 +54,6 @@ git tag -s v2.3.1-rc1  # without a tag, the Docker image would include the wrong
 # now push to Github (CI will build the Docker image: https://github.com/flashbots/mev-boost/actions)
 git push origin --tags
 
-# all done here
-#
-# if you want to manually create and push the Docker image:
-make docker-image-portable
-make docker-push-version
-
 # other parties can now test the release candidate from Docker like this:
 docker pull flashbots/mev-boost:v2.3.1-rc1
 ```

@@ -195,7 +195,7 @@ func TestHexToSignature(t *testing.T) {
 	privateKey, blsPublicKey, err := bls.GenerateNewKeypair()
 	require.NoError(t, err)
 
-	publicKey := hexutil.Encode(blsPublicKey.Compress())
+	publicKey := hexutil.Encode(bls.PublicKeyToBytes(blsPublicKey))
 
 	message := &types.BuilderBid{
 		Header: &types.ExecutionPayloadHeader{
@@ -208,7 +208,7 @@ func TestHexToSignature(t *testing.T) {
 	require.NoError(t, err)
 
 	sig := bls.Sign(privateKey, ssz)
-	sigBytes := sig.Compress()
+	sigBytes := bls.SignatureToBytes(sig)
 
 	// Convert bls.Signature bytes to types.Signature
 	signature := &types.Signature{}
