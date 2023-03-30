@@ -4,8 +4,7 @@ builds:
 release:
   draft: true
   extra_files:
-    - glob: ./build/**/*
-    - glob: ./build/checksums.txt
+    - glob: ./build/*
   header: |
     # 🚀 Features
     # 🎄 Enhancements
