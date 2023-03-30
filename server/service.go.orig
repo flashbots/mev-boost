@@ -289,6 +289,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		if len(relays) < 1 {
 			log.Warnf("there are no relays specified for %s", pubKey)
 		}
+
 		relayPayloads.add(relays, p)
 	}
 
@@ -300,11 +301,15 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 
 		go func(r relay.Entry, payloads []types.SignedValidatorRegistration) {
 			defer wg.Done()
+
 			relayURL := r.GetURI(pathRegisterValidator)
+
 			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, relayURL, ua, payloads, nil)
 			relayErrCh <- err
+
 			if err != nil {
 				log.WithField("url", relayURL).WithError(err).Warn("error calling registerValidator on relay")
+
 				return
 			}
 		}(r, payloads)
@@ -320,6 +325,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	for err := range relayErrCh {
 		if err == nil {
 			m.respondOK(w, nilResponse)
+
 			return
 		}
 	}
@@ -531,6 +537,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 	relays := originalBid.relays
 	if len(relays) == 0 {
 		log.Warn("originating relay not found, sending getPayload request to all relays")
+
 		relays = m.relayConfigurator.AllRelays()
 	}
 
@@ -545,6 +552,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 
 	for _, r := range relays {
 		wg.Add(1)
+
 		go func(relay relay.Entry) {
 			defer wg.Done()
 			url := relay.GetURI(pathGetPayload)
@@ -764,6 +772,7 @@ func (m *BoostService) CheckRelays() int {
 
 	for _, r := range m.relayConfigurator.AllRelays() {
 		wg.Add(1)
+
 		go func(relay relay.Entry) {
 			defer wg.Done()
 			url := relay.GetURI(pathStatus)

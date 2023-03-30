@@ -69,7 +69,7 @@ func (m *Configurator) AllRelays() relay.List {
 func (m *Configurator) loadRegistry() RelayRegistry {
 	r, ok := m.relayRegistry.Load().(RelayRegistry)
 	if !ok {
-		panic("unexpected relay registry type") // this must never happen
+		panic("unexpected relay registry type")
 	}
 
 	return r

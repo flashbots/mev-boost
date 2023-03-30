@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -295,7 +296,7 @@ func mapKeysToString(m map[string]string) string {
 	for opt := range m {
 		res = append(res, opt)
 	}
-
+	sort.Strings(res)
 	return "-" + strings.Join(res, " or -")
 }
 
