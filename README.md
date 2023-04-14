@@ -32,10 +32,8 @@ See also:
 
 * [MEV-Boost Docker images](https://hub.docker.com/r/flashbots/mev-boost)
 * [Wiki](https://github.com/flashbots/mev-boost/wiki)
-* [MEV-Boost relay source code](https://github.com/flashbots/mev-boost-relay)
 * Specs:
   * [Builder API](https://ethereum.github.io/builder-specs)
-  * [MEV-Boost Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
 
 ---
 
