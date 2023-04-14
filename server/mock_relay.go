@@ -31,7 +31,7 @@ const (
 var (
 	skBytes, _            = hexutil.Decode(mockRelaySecretKeyHex)
 	mockRelaySecretKey, _ = bls.SecretKeyFromBytes(skBytes)
-	mockRelayPublicKey    = bls.PublicKeyFromSecretKey(mockRelaySecretKey)
+	mockRelayPublicKey, _ = bls.PublicKeyFromSecretKey(mockRelaySecretKey)
 )
 
 // mockRelay is used to fake a relay's behavior.
@@ -77,7 +77,7 @@ func newMockRelay(t *testing.T) *mockRelay {
 	// Create the RelayEntry with correct pubkey
 	url, err := url.Parse(relay.Server.URL)
 	require.NoError(t, err)
-	urlWithKey := fmt.Sprintf("%s://%s@%s", url.Scheme, hexutil.Encode(mockRelayPublicKey.Compress()), url.Host)
+	urlWithKey := fmt.Sprintf("%s://%s@%s", url.Scheme, hexutil.Encode(bls.PublicKeyToBytes(mockRelayPublicKey)), url.Host)
 	relay.RelayEntry, err = NewRelayEntry(urlWithKey)
 	require.NoError(t, err)
 	return relay

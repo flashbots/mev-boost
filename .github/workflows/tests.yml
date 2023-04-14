@@ -9,9 +9,6 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    env:
-      CGO_CFLAGS_ALLOW: "-O -D__BLST_PORTABLE__"
-      CGO_CFLAGS: "-O -D__BLST_PORTABLE__"
     steps:
       - name: Set up Go
         uses: actions/setup-go@v3

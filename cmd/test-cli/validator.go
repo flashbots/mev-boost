@@ -43,7 +43,7 @@ func newRandomValidator(gasLimit uint64, feeRecipient string) validatorPrivateDa
 	if err != nil {
 		log.WithError(err).Fatal("unable to generate bls key pair")
 	}
-	return validatorPrivateData{sk.Serialize(), pk.Compress(), hexutil.Uint64(gasLimit), feeRecipient}
+	return validatorPrivateData{bls.SecretKeyToBytes(sk), bls.PublicKeyToBytes(pk), hexutil.Uint64(gasLimit), feeRecipient}
 }
 
 func (v *validatorPrivateData) PrepareRegistrationMessage(builderSigningDomain boostTypes.Domain) ([]boostTypes.SignedValidatorRegistration, error) {
