@@ -17,7 +17,7 @@ PoS node operators must run three pieces of software: a validator client, a cons
 
 Relays aggregate blocks from **multiple** builders in order to select the block with the highest fees. One instance of MEV-boost can be configured by a validator to connect to **multiple** relays. The consensus layer client of a validator proposes the most profitable block received from MEV-boost to the Ethereum network for attestation and block inclusion.
 
-A MEV-Boost security assessment was conducted on 2022-06-20 by [lotusbumi](https://github.com/lotusbumi). Additional audits of surrounding infrastructure, such as the Flashbots Relay, are currently underway. Additional information can be found in the [Security](#security) section of this repository.
+A MEV-Boost security assessment was conducted on 2022-06-20 by [lotusbumi](https://github.com/lotusbumi). Additional information can be found in the [Security](#security) section of this repository.
 
 
 ![MEV-Boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
@@ -30,13 +30,10 @@ MEV-Boost is a piece of software that any PoS Ethereum node operator (including 
 
 See also:
 
-* [boost.flashbots.net](https://boost.flashbots.net)
 * [MEV-Boost Docker images](https://hub.docker.com/r/flashbots/mev-boost)
 * [Wiki](https://github.com/flashbots/mev-boost/wiki)
-* [MEV-Boost relay source code](https://github.com/flashbots/mev-boost-relay)
 * Specs:
   * [Builder API](https://ethereum.github.io/builder-specs)
-  * [MEV-Boost Relay API](https://flashbots.notion.site/Relay-API-Spec-5fb0819366954962bc02e81cb33840f5)
 
 ---
 
