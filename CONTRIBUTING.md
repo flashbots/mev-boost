@@ -22,8 +22,8 @@ Alternatively, run mev-boost without build step:
 ```bash
 go run . -h
 
-# Run mev-boost pointed at our goerli builder+relay
-go run . -goerli -relay-check -relays https://0xafa4c6985aa049fb79dd37010438cfebeb0f2bd42b115b89dd678dab0670c1de38da0c4e9138c9290a398ecd9a0b3110@builder-relay-goerli.flashbots.net
+# Run mev-boost
+./mev-boost -goerli -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
 Note that you'll need to set the correct genesis fork version (either manually with `-genesis-fork-version` or a helper flag `-mainnet`/`-goerli`/`-sepolia`).
