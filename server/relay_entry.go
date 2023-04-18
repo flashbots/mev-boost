@@ -8,6 +8,9 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 )
 
+// The point-at-infinity is 48 zero bytes.
+var pointAtInfinityPubkey = [48]byte{}
+
 // RelayEntry represents a relay that mev-boost connects to.
 type RelayEntry struct {
 	PublicKey types.PublicKey
@@ -49,8 +52,7 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 	}
 
 	// Check if the public key is the point-at-infinity.
-	pointAtInfinity := [48]byte{}
-	if bytes.Equal(entry.PublicKey[:], pointAtInfinity[:]) {
+	if bytes.Equal(entry.PublicKey[:], pointAtInfinityPubkey[:]) {
 		return entry, ErrPointAtInfinityPubkey
 	}
 
