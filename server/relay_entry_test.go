@@ -63,7 +63,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedURL:       "https://" + publicKey.String() + "@12.345.678:9999",
 		},
 		{
-			name:        "Relay URL with invalid pubkey",
+			name:        "Relay URL with invalid public key",
 			relayURL:    "http://0x123456@foo.com",
 			expectedErr: types.ErrLength,
 		},
