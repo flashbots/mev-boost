@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"net/url"
 	"strings"
 
@@ -41,8 +42,19 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 		return entry, ErrMissingRelayPubkey
 	}
 
+	// Convert the username string to a public key.
 	err = entry.PublicKey.UnmarshalText([]byte(entry.URL.User.Username()))
-	return entry, err
+	if err != nil {
+		return entry, err
+	}
+
+	// Check if the public key is the point at infinity.
+	pointAtInfinity := [48]byte{}
+	if bytes.Equal(entry.PublicKey[:], pointAtInfinity[:]) {
+		return entry, ErrPointAtInfinityPubkey
+	}
+
+	return entry, nil
 }
 
 // RelayEntriesToStrings returns the string representation of a list of relay entries
