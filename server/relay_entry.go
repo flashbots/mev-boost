@@ -48,7 +48,7 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 		return entry, err
 	}
 
-	// Check if the public key is the point at infinity.
+	// Check if the public key is the point-at-infinity.
 	pointAtInfinity := [48]byte{}
 	if bytes.Equal(entry.PublicKey[:], pointAtInfinity[:]) {
 		return entry, ErrPointAtInfinityPubkey

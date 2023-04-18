@@ -68,7 +68,7 @@ func TestParseRelaysURLs(t *testing.T) {
 			expectedErr: types.ErrLength,
 		},
 		{
-			name:        "Relay URL with point at infinity public key",
+			name:        "Relay URL with point-at-infinity public key",
 			relayURL:    "http://0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@foo.com",
 			expectedErr: ErrPointAtInfinityPubkey,
 		},
