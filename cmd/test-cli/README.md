@@ -64,7 +64,7 @@ Env & defaults:
 ### Run mev-boost
 
 ```
-./mev-boost -kiln -relays https://0xb5246e299aeb782fbc7c91b41b3284245b1ed5206134b0028b81dfb974e5900616c67847c2354479934fc4bb75519ee1@builder-relay-kiln.flashbots.net
+./mev-boost -goerli -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
 ### Run beacon node
