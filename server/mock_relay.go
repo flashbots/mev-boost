@@ -10,15 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/attestantio/go-builder-client/api"
-	"github.com/attestantio/go-builder-client/api/capella"
-	"github.com/attestantio/go-builder-client/spec"
-	consensusspec "github.com/attestantio/go-eth2-client/spec"
-	capellaspec "github.com/attestantio/go-eth2-client/spec/capella"
-	"github.com/attestantio/go-eth2-client/spec/phase0"
+	builderApi "github.com/attestantio/go-builder-client/api"
+	builderApiBellatrix "github.com/attestantio/go-builder-client/api/bellatrix"
+	builderApiCapella "github.com/attestantio/go-builder-client/api/capella"
+	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
+	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
-	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/gorilla/mux"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
@@ -57,8 +58,8 @@ type mockRelay struct {
 
 	// Default responses placeholders, used if overrider does not exist
 	GetHeaderResponse           *GetHeaderResponse
-	GetBellatrixPayloadResponse *types.GetPayloadResponse
-	GetCapellaPayloadResponse   *api.VersionedExecutionPayload
+	GetBellatrixPayloadResponse *builderApi.VersionedExecutionPayload
+	GetCapellaPayloadResponse   *builderApi.VersionedExecutionPayload
 
 	// Server section
 	Server        *httptest.Server
@@ -152,7 +153,7 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 
 // defaultHandleRegisterValidator returns the default handler for handleRegisterValidator
 func (m *mockRelay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.Request) {
-	payload := []types.SignedValidatorRegistration{}
+	payload := []builderApiV1.SignedValidatorRegistration{}
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -164,57 +165,53 @@ func (m *mockRelay) defaultHandleRegisterValidator(w http.ResponseWriter, req *h
 
 // MakeGetHeaderResponse is used to create the default or can be used to create a custom response to the getHeader
 // method
-func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string, version consensusspec.DataVersion) *GetHeaderResponse {
+func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string, version spec.DataVersion) *GetHeaderResponse {
 	switch version {
-	case consensusspec.DataVersionBellatrix:
+	case spec.DataVersionBellatrix:
 		// Fill the payload with custom values.
-		message := &types.BuilderBid{
-			Header: &types.ExecutionPayloadHeader{
+		message := &builderApiBellatrix.BuilderBid{
+			Header: &bellatrix.ExecutionPayloadHeader{
 				BlockHash:  _HexToHash(blockHash),
 				ParentHash: _HexToHash(parentHash),
 			},
-			Value:  types.IntToU256(value),
+			Value:  uint256.NewInt(value),
 			Pubkey: _HexToPubkey(publicKey),
 		}
 
 		// Sign the message.
-		signature, err := types.SignMessage(message, types.DomainBuilder, m.secretKey)
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
 		require.NoError(m.t, err)
 
 		return &GetHeaderResponse{
-			Bellatrix: &types.GetHeaderResponse{
-				Version: "bellatrix",
-				Data: &types.SignedBuilderBid{
-					Message:   message,
-					Signature: signature,
-				},
+			Version: spec.DataVersionBellatrix,
+			Bellatrix: &builderApiBellatrix.SignedBuilderBid{
+				Message:   message,
+				Signature: signature,
 			},
 		}
-	case consensusspec.DataVersionCapella:
+	case spec.DataVersionCapella:
 		// Fill the payload with custom values.
-		message := &capella.BuilderBid{
-			Header: &capellaspec.ExecutionPayloadHeader{
-				BlockHash:  phase0.Hash32(_HexToHash(blockHash)),
-				ParentHash: phase0.Hash32(_HexToHash(parentHash)),
+		message := &builderApiCapella.BuilderBid{
+			Header: &capella.ExecutionPayloadHeader{
+				BlockHash:  _HexToHash(blockHash),
+				ParentHash: _HexToHash(parentHash),
 			},
 			Value:  uint256.NewInt(value),
-			Pubkey: phase0.BLSPubKey(_HexToPubkey(publicKey)),
+			Pubkey: _HexToPubkey(publicKey),
 		}
 
 		// Sign the message.
-		signature, err := types.SignMessage(message, types.DomainBuilder, m.secretKey)
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
 		require.NoError(m.t, err)
 
 		return &GetHeaderResponse{
-			Capella: &spec.VersionedSignedBuilderBid{
-				Version: consensusspec.DataVersionCapella,
-				Capella: &capella.SignedBuilderBid{
-					Message:   message,
-					Signature: phase0.BLSSignature(signature),
-				},
+			Version: spec.DataVersionCapella,
+			Capella: &builderApiCapella.SignedBuilderBid{
+				Message:   message,
+				Signature: signature,
 			},
 		}
-	case consensusspec.DataVersionAltair, consensusspec.DataVersionPhase0:
+	case spec.DataVersionAltair, spec.DataVersionPhase0:
 		return nil
 	}
 	return nil
@@ -244,7 +241,7 @@ func (m *mockRelay) defaultHandleGetHeader(w http.ResponseWriter) {
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-		consensusspec.DataVersionBellatrix,
+		spec.DataVersionBellatrix,
 	)
 	if m.GetHeaderResponse != nil {
 		response = m.GetHeaderResponse
@@ -258,10 +255,10 @@ func (m *mockRelay) defaultHandleGetHeader(w http.ResponseWriter) {
 
 // MakeGetPayloadResponse is used to create the default or can be used to create a custom response to the getPayload
 // method
-func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *types.GetPayloadResponse {
-	return &types.GetPayloadResponse{
-		Version: "bellatrix",
-		Data: &types.ExecutionPayload{
+func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *builderApi.VersionedExecutionPayload {
+	return &builderApi.VersionedExecutionPayload{
+		Version: spec.DataVersionBellatrix,
+		Bellatrix: &bellatrix.ExecutionPayload{
 			ParentHash:   _HexToHash(parentHash),
 			BlockHash:    _HexToHash(blockHash),
 			BlockNumber:  blockNumber,

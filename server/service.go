@@ -15,8 +15,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/attestantio/go-builder-client/api"
-	"github.com/attestantio/go-eth2-client/api/v1/capella"
+	builderApi "github.com/attestantio/go-builder-client/api"
+	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
+	apiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
+	apiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
@@ -34,7 +38,7 @@ var (
 )
 
 var (
-	nilHash     = types.Hash{}
+	nilHash     = phase0.Hash32{}
 	nilResponse = struct{}{}
 )
 
@@ -45,8 +49,8 @@ type httpErrorResp struct {
 
 // AuctionTranscript is the bid and blinded block received from the relay send to the relay monitor
 type AuctionTranscript struct {
-	Bid        *SignedBuilderBid               `json:"bid"`
-	Acceptance *types.SignedBlindedBeaconBlock `json:"acceptance"`
+	Bid        *SignedBuilderBid                        `json:"bid"`
+	Acceptance *apiV1Bellatrix.SignedBlindedBeaconBlock `json:"acceptance"`
 }
 
 // BoostServiceOpts provides all available options for use with NewBoostService
@@ -75,7 +79,7 @@ type BoostService struct {
 	relayCheck    bool
 	relayMinBid   types.U256Str
 
-	builderSigningDomain types.Domain
+	builderSigningDomain phase0.Domain
 	httpClientGetHeader  http.Client
 	httpClientGetPayload http.Client
 	httpClientRegVal     http.Client
@@ -91,7 +95,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		return nil, errNoRelays
 	}
 
-	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
+	builderSigningDomain, err := ComputeDomain(ssz.DomainTypeAppBuilder, opts.GenesisForkVersionHex, phase0.Root{}.String())
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +199,7 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
-func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types.SignedValidatorRegistration) {
+func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []builderApiV1.SignedValidatorRegistration) {
 	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("numRegistrations", len(payload))
 	for _, relayMonitor := range m.relayMonitors {
 		go func(relayMonitor *url.URL) {
@@ -248,7 +252,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log := m.log.WithField("method", "registerValidator")
 	log.Debug("registerValidator")
 
-	payload := []types.SignedValidatorRegistration{}
+	payload := []builderApiV1.SignedValidatorRegistration{}
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -364,7 +368,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Verify the relay signature in the relay response
-			ok, err := types.VerifySignature(responsePayload.Message(), m.builderSigningDomain, relay.PublicKey[:], responsePayload.Signature())
+			ok, err := ssz.VerifySignature(responsePayload.Message(), m.builderSigningDomain, relay.PublicKey[:], responsePayload.Signature())
 			if err != nil {
 				log.WithError(err).Error("error verifying relay signature")
 				return
@@ -455,7 +459,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.respondOK(w, &result.response)
 }
 
-func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *types.SignedBlindedBeaconBlock, body []byte) {
+func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *apiV1Bellatrix.SignedBlindedBeaconBlock, body []byte) {
 	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
 		log.WithField("body", string(body)).Error("missing parts of the request payload from the beacon-node")
 		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
@@ -468,7 +472,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 		"parentHash": payload.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
 	})
 
-	bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
+	bidKey := bidRespKey{slot: uint64(payload.Message.Slot), blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
 	m.bidsLock.Lock()
 	originalBid := m.bids[bidKey]
 	m.bidsLock.Unlock()
@@ -479,7 +483,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 	}
 
 	// send bid and signed block to relay monitor
-	go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.BuilderBid(), Acceptance: payload})
+	//go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.BuilderBid(), Acceptance: payload})
 
 	relays := originalBid.relays
 	if len(relays) == 0 {
@@ -489,7 +493,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	result := new(types.GetPayloadResponse)
+	result := new(builderApi.VersionedExecutionPayload)
 	ua := UserAgent(req.Header.Get("User-Agent"))
 
 	// Prepare the request context, which will be cancelled after the first successful response from a relay
@@ -505,7 +509,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
 
-			responsePayload := new(types.GetPayloadResponse)
+			responsePayload := new(builderApi.VersionedExecutionPayload)
 			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
@@ -516,27 +520,28 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 				return
 			}
 
-			if responsePayload.Data == nil || responsePayload.Data.BlockHash == nilHash {
+			if responsePayload.Bellatrix == nil || responsePayload.Bellatrix.BlockHash == nilHash {
 				log.Error("response with empty data!")
 				return
 			}
 
 			// Ensure the response blockhash matches the request
-			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Data.BlockHash {
+
+			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Bellatrix.BlockHash {
 				log.WithFields(logrus.Fields{
-					"responseBlockHash": responsePayload.Data.BlockHash.String(),
+					"responseBlockHash": responsePayload.Bellatrix.BlockHash.String(),
 				}).Error("requestBlockHash does not equal responseBlockHash")
 				return
 			}
 
 			// Ensure the response blockhash matches the response block
-			calculatedBlockHash, err := types.CalculateHash(responsePayload.Data)
+			calculatedBlockHash, err := ComputeBlockHash(responsePayload)
 			if err != nil {
 				log.WithError(err).Error("could not calculate block hash")
-			} else if responsePayload.Data.BlockHash != calculatedBlockHash {
+			} else if responsePayload.Bellatrix.BlockHash != calculatedBlockHash {
 				log.WithFields(logrus.Fields{
 					"calculatedBlockHash": calculatedBlockHash.String(),
-					"responseBlockHash":   responsePayload.Data.BlockHash.String(),
+					"responseBlockHash":   responsePayload.Bellatrix.BlockHash.String(),
 				}).Error("responseBlockHash does not equal hash calculated from response block")
 			}
 
@@ -559,7 +564,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 	wg.Wait()
 
 	// If no payload has been received from relay, log loudly about withholding!
-	if result.Data == nil || result.Data.BlockHash == nilHash {
+	if result.Bellatrix == nil || result.Bellatrix.BlockHash == nilHash {
 		originRelays := RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relays", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
@@ -569,7 +574,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 	m.respondOK(w, result)
 }
 
-func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *capella.SignedBlindedBeaconBlock, body []byte) {
+func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *apiV1Capella.SignedBlindedBeaconBlock, body []byte) {
 	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
 		log.WithField("body", string(body)).Error("missing parts of the request payload from the beacon-node")
 		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
@@ -603,7 +608,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	result := new(api.VersionedExecutionPayload)
+	result := new(builderApi.VersionedExecutionPayload)
 	ua := UserAgent(req.Header.Get("User-Agent"))
 
 	// Prepare the request context, which will be cancelled after the first successful response from a relay
@@ -618,7 +623,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
 
-			responsePayload := new(api.VersionedExecutionPayload)
+			responsePayload := new(builderApi.VersionedExecutionPayload)
 			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
@@ -629,7 +634,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 				return
 			}
 
-			if responsePayload.Capella == nil || types.Hash(responsePayload.Capella.BlockHash) == nilHash {
+			if responsePayload.Capella == nil || responsePayload.Capella.BlockHash == nilHash {
 				log.Error("response with empty data!")
 				return
 			}
@@ -643,7 +648,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 			}
 
 			// Ensure the response blockhash matches the response block
-			calculatedBlockHash, err := ComputeBlockHash(responsePayload.Capella)
+			calculatedBlockHash, err := ComputeBlockHash(responsePayload)
 			if err != nil {
 				log.WithError(err).Error("could not calculate block hash")
 			} else if responsePayload.Capella.BlockHash != calculatedBlockHash {
@@ -672,7 +677,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	wg.Wait()
 
 	// If no payload has been received from relay, log loudly about withholding!
-	if result.Capella == nil || types.Hash(result.Capella.BlockHash) == nilHash {
+	if result.Capella == nil || result.Capella.BlockHash == nilHash {
 		originRelays := RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relays", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
@@ -695,10 +700,10 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 
 	// Decode the body now
-	payload := new(capella.SignedBlindedBeaconBlock)
+	payload := new(apiV1Capella.SignedBlindedBeaconBlock)
 	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
 		log.Debug("could not decode Capella request payload, attempting to decode body into Bellatrix payload")
-		payload := new(types.SignedBlindedBeaconBlock)
+		payload := new(apiV1Bellatrix.SignedBlindedBeaconBlock)
 		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
 			log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
 			m.respondError(w, http.StatusBadRequest, err.Error())

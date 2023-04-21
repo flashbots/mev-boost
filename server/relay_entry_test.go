@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/flashbots/go-boost-utils/types"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/stretchr/testify/require"
 )
 
 func TestParseRelaysURLs(t *testing.T) {
 	// Used to fake a relay's public key.
-	publicKey := types.PublicKey{0x01}
+	publicKey := phase0.BLSPubKey{0x01}
 
 	testCases := []struct {
 		name     string
@@ -65,7 +65,7 @@ func TestParseRelaysURLs(t *testing.T) {
 		{
 			name:        "Relay URL with invalid public key",
 			relayURL:    "http://0x123456@foo.com",
-			expectedErr: types.ErrLength,
+			expectedErr: ErrInvalidLengthPubkey,
 		},
 		{
 			name:        "Relay URL with point-at-infinity public key",

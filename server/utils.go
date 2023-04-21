@@ -13,13 +13,16 @@ import (
 	"strings"
 	"time"
 
+	builderApi "github.com/attestantio/go-builder-client/api"
+	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
-	boostTypes "github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/sirupsen/logrus"
 )
@@ -29,6 +32,7 @@ var (
 	errInvalidForkVersion = errors.New("invalid fork version")
 	errInvalidTransaction = errors.New("invalid transaction")
 	errMaxRetriesExceeded = errors.New("max retries exceeded")
+	errInvalidPayload     = errors.New("invalid payload")
 )
 
 // UserAgent is a custom string type to avoid confusing url + userAgent parameters in SendHTTPRequest
@@ -126,15 +130,15 @@ func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method,
 }
 
 // ComputeDomain computes the signing domain
-func ComputeDomain(domainType boostTypes.DomainType, forkVersionHex, genesisValidatorsRootHex string) (domain boostTypes.Domain, err error) {
-	genesisValidatorsRoot := boostTypes.Root(common.HexToHash(genesisValidatorsRootHex))
+func ComputeDomain(domainType phase0.DomainType, forkVersionHex, genesisValidatorsRootHex string) (domain phase0.Domain, err error) {
+	genesisValidatorsRoot := phase0.Root(common.HexToHash(genesisValidatorsRootHex))
 	forkVersionBytes, err := hexutil.Decode(forkVersionHex)
 	if err != nil || len(forkVersionBytes) != 4 {
 		return domain, errInvalidForkVersion
 	}
 	var forkVersion [4]byte
 	copy(forkVersion[:], forkVersionBytes[:4])
-	return boostTypes.ComputeDomain(domainType, forkVersion, genesisValidatorsRoot), nil
+	return ssz.ComputeDomain(domainType, forkVersion, genesisValidatorsRoot), nil
 }
 
 // DecodeJSON reads JSON from io.Reader and decodes it into a struct
@@ -182,7 +186,7 @@ func weiBigIntToEthBigFloat(wei *big.Int) (ethValue *big.Float) {
 	return
 }
 
-func ComputeBlockHash(payload *capella.ExecutionPayload) (phase0.Hash32, error) {
+func ComputeBlockHash(payload *builderApi.VersionedExecutionPayload) (phase0.Hash32, error) {
 	header, err := executionPayloadToBlockHeader(payload)
 	if err != nil {
 		return phase0.Hash32{}, err
@@ -190,19 +194,30 @@ func ComputeBlockHash(payload *capella.ExecutionPayload) (phase0.Hash32, error) 
 	return phase0.Hash32(header.Hash()), nil
 }
 
-func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.Header, error) {
-	transactionData := make([]*types.Transaction, len(payload.Transactions))
-	for i, encTx := range payload.Transactions {
-		var tx types.Transaction
+func bigIntBaseFeePerGas(baseFeePerGas [32]byte) *big.Int {
+	// baseFeePerGas is little-endian but we need big-endian for big.Int
+	var baseFeePerGasBytes [32]byte
+	for i := 0; i < 32; i++ {
+		baseFeePerGasBytes[i] = baseFeePerGas[32-1-i]
+	}
+	return new(big.Int).SetBytes(baseFeePerGasBytes[:])
+}
 
+func hashTransactions(transactions []bellatrix.Transaction) (common.Hash, error) {
+	transactionData := make([]*types.Transaction, len(transactions))
+	for i, encTx := range transactions {
+		var tx types.Transaction
 		if err := tx.UnmarshalBinary(encTx); err != nil {
-			return nil, errInvalidTransaction
+			return common.Hash{}, errInvalidTransaction
 		}
 		transactionData[i] = &tx
 	}
+	return types.DeriveSha(types.Transactions(transactionData), trie.NewStackTrie(nil)), nil
+}
 
-	withdrawalData := make([]*types.Withdrawal, len(payload.Withdrawals))
-	for i, w := range payload.Withdrawals {
+func hashWithdrawals(withdrawals []*capella.Withdrawal) (common.Hash, error) {
+	withdrawalData := make([]*types.Withdrawal, len(withdrawals))
+	for i, w := range withdrawals {
 		withdrawalData[i] = &types.Withdrawal{
 			Index:     uint64(w.Index),
 			Validator: uint64(w.ValidatorIndex),
@@ -210,32 +225,63 @@ func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.He
 			Amount:    uint64(w.Amount),
 		}
 	}
-	withdrawalsHash := types.DeriveSha(types.Withdrawals(withdrawalData), trie.NewStackTrie(nil))
+	return types.DeriveSha(types.Withdrawals(withdrawalData), trie.NewStackTrie(nil)), nil
+}
 
-	// base fee per gas is stored little-endian but we need it
-	// big-endian for big.Int.
-	var baseFeePerGasBytes [32]byte
-	for i := 0; i < 32; i++ {
-		baseFeePerGasBytes[i] = payload.BaseFeePerGas[32-1-i]
+func executionPayloadToBlockHeader(payload *builderApi.VersionedExecutionPayload) (*types.Header, error) {
+	switch payload.Version {
+	case spec.DataVersionBellatrix:
+		baseFeePerGas := bigIntBaseFeePerGas(payload.Bellatrix.BaseFeePerGas)
+		transactionsHash, err := hashTransactions(payload.Bellatrix.Transactions)
+		if err != nil {
+			return nil, err
+		}
+		return &types.Header{
+			ParentHash:  common.Hash(payload.Bellatrix.ParentHash),
+			UncleHash:   types.EmptyUncleHash,
+			Coinbase:    common.Address(payload.Bellatrix.FeeRecipient),
+			Root:        payload.Bellatrix.StateRoot,
+			TxHash:      transactionsHash,
+			ReceiptHash: payload.Bellatrix.ReceiptsRoot,
+			Bloom:       payload.Bellatrix.LogsBloom,
+			Difficulty:  common.Big0,
+			Number:      new(big.Int).SetUint64(payload.Bellatrix.BlockNumber),
+			GasLimit:    payload.Bellatrix.GasLimit,
+			GasUsed:     payload.Bellatrix.GasUsed,
+			Time:        payload.Bellatrix.Timestamp,
+			Extra:       payload.Bellatrix.ExtraData,
+			MixDigest:   payload.Bellatrix.PrevRandao,
+			BaseFee:     baseFeePerGas,
+		}, nil
+	case spec.DataVersionCapella:
+		baseFeePerGas := bigIntBaseFeePerGas(payload.Capella.BaseFeePerGas)
+		transactionsHash, err := hashTransactions(payload.Capella.Transactions)
+		if err != nil {
+			return nil, err
+		}
+		withdrawalsHash, err := hashWithdrawals(payload.Capella.Withdrawals)
+		if err != nil {
+			return nil, err
+		}
+		return &types.Header{
+			ParentHash:      common.Hash(payload.Capella.ParentHash),
+			UncleHash:       types.EmptyUncleHash,
+			Coinbase:        common.Address(payload.Capella.FeeRecipient),
+			Root:            payload.Capella.StateRoot,
+			TxHash:          transactionsHash,
+			ReceiptHash:     payload.Capella.ReceiptsRoot,
+			Bloom:           payload.Capella.LogsBloom,
+			Difficulty:      common.Big0,
+			Number:          new(big.Int).SetUint64(payload.Capella.BlockNumber),
+			GasLimit:        payload.Capella.GasLimit,
+			GasUsed:         payload.Capella.GasUsed,
+			Time:            payload.Capella.Timestamp,
+			Extra:           payload.Capella.ExtraData,
+			MixDigest:       payload.Capella.PrevRandao,
+			BaseFee:         baseFeePerGas,
+			WithdrawalsHash: &withdrawalsHash,
+		}, nil
+	default:
+		return &types.Header{}, errInvalidPayload
 	}
-	baseFeePerGas := new(big.Int).SetBytes(baseFeePerGasBytes[:])
-
-	return &types.Header{
-		ParentHash:      common.Hash(payload.ParentHash),
-		UncleHash:       types.EmptyUncleHash,
-		Coinbase:        common.Address(payload.FeeRecipient),
-		Root:            common.Hash(payload.StateRoot),
-		TxHash:          types.DeriveSha(types.Transactions(transactionData), trie.NewStackTrie(nil)),
-		ReceiptHash:     common.Hash(payload.ReceiptsRoot),
-		Bloom:           types.Bloom(payload.LogsBloom),
-		Difficulty:      common.Big0,
-		Number:          new(big.Int).SetUint64(payload.BlockNumber),
-		GasLimit:        payload.GasLimit,
-		GasUsed:         payload.GasUsed,
-		Time:            payload.Timestamp,
-		Extra:           payload.ExtraData,
-		MixDigest:       common.Hash(payload.PrevRandao),
-		BaseFee:         baseFeePerGas,
-		WithdrawalsHash: &withdrawalsHash,
-	}, nil
 }

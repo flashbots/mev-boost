@@ -11,6 +11,8 @@ import (
 	"os"
 	"testing"
 
+	builderApi "github.com/attestantio/go-builder-client/api"
+	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/stretchr/testify/require"
@@ -105,7 +107,10 @@ func TestCapellaComputeBlockHash(t *testing.T) {
 	payload := new(capella.ExecutionPayload)
 	require.NoError(t, DecodeJSON(jsonFile, payload))
 
-	hash, err := ComputeBlockHash(payload)
+	hash, err := ComputeBlockHash(&builderApi.VersionedExecutionPayload{
+		Version: spec.DataVersionCapella,
+		Capella: payload,
+	})
 	require.NoError(t, err)
 	require.Equal(t, "0x08751ea2076d3ecc606231495a90ba91a66a9b8fb1a2b76c333f1957a1c667c3", hash.String())
 }

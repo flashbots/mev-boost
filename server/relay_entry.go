@@ -5,7 +5,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/flashbots/go-boost-utils/types"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // The point-at-infinity is 48 zero bytes.
@@ -13,7 +14,7 @@ var pointAtInfinityPubkey = [48]byte{}
 
 // RelayEntry represents a relay that mev-boost connects to.
 type RelayEntry struct {
-	PublicKey types.PublicKey
+	PublicKey phase0.BLSPubKey
 	URL       *url.URL
 }
 
@@ -46,16 +47,22 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 	}
 
 	// Convert the username string to a public key.
-	err = entry.PublicKey.UnmarshalText([]byte(entry.URL.User.Username()))
+	pubkey, err := hexutil.Decode(entry.URL.User.Username())
 	if err != nil {
 		return entry, err
 	}
 
+	// Ensure that the provide public key is the correct length
+	if len(pubkey) != len(pointAtInfinityPubkey) {
+		return entry, ErrInvalidLengthPubkey
+	}
+
 	// Check if the public key is the point-at-infinity.
-	if bytes.Equal(entry.PublicKey[:], pointAtInfinityPubkey[:]) {
+	if bytes.Equal(pubkey, pointAtInfinityPubkey[:]) {
 		return entry, ErrPointAtInfinityPubkey
 	}
 
+	copy(entry.PublicKey[:], pubkey)
 	return entry, nil
 }
 
