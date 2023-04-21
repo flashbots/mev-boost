@@ -53,7 +53,7 @@ type partialSignedBeaconBlock struct {
 
 func getCurrentBeaconBlock(beaconEndpoint string) (beaconBlockData, error) {
 	var blockResp partialSignedBeaconBlock
-	_, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, beaconEndpoint+"/eth/v2/beacon/blocks/head", "test-cli/beacon", nil, &blockResp)
+	_, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, beaconEndpoint+"/eth/v2/beacon/blocks/head", "test-cli/beacon", nil, nil, &blockResp)
 	if err != nil {
 		return beaconBlockData{}, err
 	}
