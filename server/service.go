@@ -293,14 +293,9 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		relayPayloads.add(relays, p)
 	}
 
-	wg := new(sync.WaitGroup)
 	relayErrCh := make(chan error, len(relayPayloads))
-
 	for r, payloads := range relayPayloads {
-		wg.Add(1)
-
 		go func(r relay.Entry, payloads []types.SignedValidatorRegistration) {
-			defer wg.Done()
 			relayURL := r.GetURI(pathRegisterValidator)
 			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, relayURL, ua, payloads, nil)
 			relayErrCh <- err
@@ -313,13 +308,9 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 
 	go m.sendValidatorRegistrationsToRelayMonitors(payload)
 
-	go func() {
-		wg.Wait()
-		close(relayErrCh)
-	}()
-
-	for err := range relayErrCh {
-		if err == nil {
+	for i := 0; i < len(relayPayloads); i++ {
+		respErr := <-relayErrCh
+		if respErr == nil {
 			m.respondOK(w, nilResponse)
 			return
 		}
