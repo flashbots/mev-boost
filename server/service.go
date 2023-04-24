@@ -277,13 +277,13 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		"ua":               ua,
 	}).Info("registering validators")
 
-	validatorPayloads := make(payloadByValidator, len(payload))
+	validatorPayloads := make(payloadByValidator)
 	for _, p := range payload {
 		pubKey := p.Message.Pubkey.String()
 		validatorPayloads[pubKey] = p
 	}
 
-	relayPayloads := make(payloadsByRelay, len(m.relayConfigurator.AllRelays()))
+	relayPayloads := make(payloadsByRelay)
 	for pubKey, p := range validatorPayloads {
 		relays := m.relayConfigurator.RelaysForProposer(pubKey)
 		if len(relays) < 1 {
