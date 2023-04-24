@@ -288,6 +288,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		relays := m.relayConfigurator.RelaysForProposer(pubKey)
 		if len(relays) < 1 {
 			log.Warnf("there are no relays specified for %s", pubKey)
+			continue
 		}
 		relayPayloads.add(relays, p)
 	}
