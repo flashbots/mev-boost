@@ -44,6 +44,17 @@ type httpErrorResp struct {
 	Message string `json:"message"`
 }
 
+type (
+	payloadByValidator map[relay.ValidatorPublicKey]types.SignedValidatorRegistration
+	payloadsByRelay    map[relay.Entry][]types.SignedValidatorRegistration
+)
+
+func (v payloadsByRelay) add(relays relay.List, payload types.SignedValidatorRegistration) {
+	for _, r := range relays {
+		v[r] = append(v[r], payload)
+	}
+}
+
 // AuctionTranscript is the bid and blinded block received from the relay send to the relay monitor
 type AuctionTranscript struct {
 	Bid        *SignedBuilderBid               `json:"bid"`
@@ -247,17 +258,6 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
 		m.respondOK(w, nilResponse)
 	} else {
 		m.respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
-	}
-}
-
-type (
-	payloadByValidator map[relay.ValidatorPublicKey]types.SignedValidatorRegistration
-	payloadsByRelay    map[relay.Entry][]types.SignedValidatorRegistration
-)
-
-func (v payloadsByRelay) add(relays relay.List, payload types.SignedValidatorRegistration) {
-	for _, r := range relays {
-		v[r] = append(v[r], payload)
 	}
 }
 
