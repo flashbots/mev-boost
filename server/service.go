@@ -659,7 +659,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	if m.slotUID.slot == uint64(payload.Message.Slot) {
 		uid = m.slotUID.uid.String()
 	} else {
-		log.Warnf("latest slotUid %d is not for payload slot %d", m.slotUID.slot, payload.Message.Slot)
+		log.Warnf("latest slotUID %d is not for payload slot %d", m.slotUID.slot, payload.Message.Slot)
 	}
 	m.slotUIDLock.Unlock()
 
