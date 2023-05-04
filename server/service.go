@@ -364,14 +364,16 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Verify the relay signature in the relay response
-			ok, err := types.VerifySignature(responsePayload.Message(), m.builderSigningDomain, relay.PublicKey[:], responsePayload.Signature())
-			if err != nil {
-				log.WithError(err).Error("error verifying relay signature")
-				return
-			}
-			if !ok {
-				log.Error("failed to verify relay signature")
-				return
+			if !config.SkipRelaySignatureCheck {
+				ok, err := types.VerifySignature(responsePayload.Message(), m.builderSigningDomain, relay.PublicKey[:], responsePayload.Signature())
+				if err != nil {
+					log.WithError(err).Error("error verifying relay signature")
+					return
+				}
+				if !ok {
+					log.Error("failed to verify relay signature")
+					return
+				}
 			}
 
 			// Verify response coherence with proposer's input data

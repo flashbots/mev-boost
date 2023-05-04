@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/flashbots/go-utils/cli"
 )
 
@@ -28,4 +30,6 @@ var (
 	ServerIdleTimeoutMs = cli.GetEnvInt("MEV_BOOST_SERVER_IDLE_TIMEOUT_MS", 0)
 
 	ServerMaxHeaderBytes = cli.GetEnvInt("MAX_HEADER_BYTES", 4000) // max header byte size for requests for dos prevention
+
+	SkipRelaySignatureCheck = os.Getenv("SKIP_RELAY_SIGNATURE_CHECK") == "1"
 )

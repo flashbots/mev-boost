@@ -44,6 +44,13 @@ lint:
 	staticcheck ./...
 	golangci-lint run
 
+.PHONY: fmt
+fmt:
+	gofmt -s -w .
+	gofumpt -extra -w .
+	gci write .
+	go mod tidy
+
 .PHONY: test-coverage
 test-coverage:
 	CGO_ENABLED=0 go test -v -covermode=atomic -coverprofile=coverage.out ./...
