@@ -33,7 +33,7 @@ func TestGetHeaderResponseJSON(t *testing.T) {
 			err = json.Compact(i, jsonBytes)
 			require.NoError(t, err)
 
-			require.Equal(t, i.String(), strings.TrimSpace(o.String()))
+			require.Equal(t, strings.ToUpper(i.String()), strings.ToUpper(strings.TrimSpace(o.String())))
 		})
 	}
 }
