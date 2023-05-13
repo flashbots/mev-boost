@@ -3,13 +3,11 @@ package cli
 import (
 	"flag"
 	"fmt"
-	"math/big"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/common"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
@@ -25,26 +23,26 @@ const (
 var (
 	// defaults
 	defaultLogJSON           = os.Getenv("LOG_JSON") != ""
-	defaultLogLevel          = getEnv("LOG_LEVEL", "info")
-	defaultListenAddr        = getEnv("BOOST_LISTEN_ADDR", "localhost:18550")
+	defaultLogLevel          = common.GetEnv("LOG_LEVEL", "info")
+	defaultListenAddr        = common.GetEnv("BOOST_LISTEN_ADDR", "localhost:18550")
 	defaultRelayCheck        = os.Getenv("RELAY_STARTUP_CHECK") != ""
-	defaultRelayMinBidEth    = getEnvFloat64("MIN_BID_ETH", 0)
+	defaultRelayMinBidEth    = common.GetEnvFloat64("MIN_BID_ETH", 0)
 	defaultDisableLogVersion = os.Getenv("DISABLE_LOG_VERSION") == "1" // disables adding the version to every log entry
 	defaultDebug             = os.Getenv("DEBUG") != ""
 	defaultLogServiceTag     = os.Getenv("LOG_SERVICE_TAG")
 	defaultRelays            = os.Getenv("RELAYS")
 	defaultRelayMonitors     = os.Getenv("RELAY_MONITORS")
-	defaultMaxRetries        = getEnvInt("REQUEST_MAX_RETRIES", 5)
+	defaultMaxRetries        = common.GetEnvInt("REQUEST_MAX_RETRIES", 5)
 
-	defaultGenesisForkVersion = getEnv("GENESIS_FORK_VERSION", "")
+	defaultGenesisForkVersion = common.GetEnv("GENESIS_FORK_VERSION", "")
 	defaultUseSepolia         = os.Getenv("SEPOLIA") != ""
 	defaultUseGoerli          = os.Getenv("GOERLI") != ""
 	defaultUseZhejiang        = os.Getenv("ZHEJIANG") != ""
 
 	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
-	defaultTimeoutMsGetHeader         = getEnvInt("RELAY_TIMEOUT_MS_GETHEADER", 950)   // timeout for getHeader requests
-	defaultTimeoutMsGetPayload        = getEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
-	defaultTimeoutMsRegisterValidator = getEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
+	defaultTimeoutMsGetHeader         = common.GetEnvInt("RELAY_TIMEOUT_MS_GETHEADER", 950)   // timeout for getHeader requests
+	defaultTimeoutMsGetPayload        = common.GetEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
+	defaultTimeoutMsRegisterValidator = common.GetEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
 
 	relays        relayList
 	relayMonitors relayMonitorList
@@ -194,7 +192,7 @@ func Main() {
 		log.Infof("minimum bid: %v eth", *relayMinBidEth)
 	}
 
-	relayMinBidWei, err := floatEthTo256Wei(*relayMinBidEth)
+	relayMinBidWei, err := common.FloatEthTo256Wei(*relayMinBidEth)
 	if err != nil {
 		log.WithError(err).Fatal("failed converting min bid")
 	}
@@ -223,48 +221,4 @@ func Main() {
 
 	log.Println("listening on", *listenAddr)
 	log.Fatal(service.StartHTTPServer())
-}
-
-func getEnv(key, defaultValue string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return defaultValue
-}
-
-func getEnvInt(key string, defaultValue int) int {
-	if value, ok := os.LookupEnv(key); ok {
-		val, err := strconv.Atoi(value)
-		if err == nil {
-			return val
-		}
-	}
-	return defaultValue
-}
-
-func getEnvFloat64(key string, defaultValue float64) float64 {
-	if value, ok := os.LookupEnv(key); ok {
-		val, err := strconv.ParseFloat(value, 64)
-		if err == nil {
-			return val
-		}
-	}
-	return defaultValue
-}
-
-// floatEthTo256Wei converts a float (precision 10) denominated in eth to a U256Str denominated in wei
-func floatEthTo256Wei(val float64) (*types.U256Str, error) {
-	weiU256 := new(types.U256Str)
-	ethFloat := new(big.Float)
-	weiFloat := new(big.Float)
-	weiFloatLessPrecise := new(big.Float)
-	weiInt := new(big.Int)
-
-	ethFloat.SetFloat64(val)
-	weiFloat.Mul(ethFloat, big.NewFloat(1e18))
-	weiFloatLessPrecise.SetString(weiFloat.String())
-	weiFloatLessPrecise.Int(weiInt)
-
-	err := weiU256.FromBig(weiInt)
-	return weiU256, err
 }

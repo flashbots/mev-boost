@@ -44,6 +44,9 @@ lint:
 	staticcheck ./...
 	golangci-lint run
 
+.PHONY: lt
+lt: lint test
+
 .PHONY: fmt
 fmt:
 	gofmt -s -w .

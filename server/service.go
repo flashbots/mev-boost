@@ -584,6 +584,17 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 		"parentHash": payload.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
 	})
 
+	// If genesisTime and slotTimeSec are set, log how much into the slot the request started
+	if config.GenesisTime > 0 && config.SlotTimeSec > 0 {
+		slotStartTimestamp := config.GenesisTime + (int64(payload.Message.Slot) * config.SlotTimeSec)
+		msIntoSlot := time.Now().UTC().UnixMilli() - (slotStartTimestamp * 1000)
+		log = log.WithField("msIntoSlot", msIntoSlot)
+		log.WithFields(logrus.Fields{
+			"genesisTime": config.GenesisTime,
+			"slotTimeSec": config.SlotTimeSec,
+		}).Infof("Processing Capella submitBlindedBlock - request starts %d milliseconds into slot %d", msIntoSlot, payload.Message.Slot)
+	}
+
 	bidKey := bidRespKey{slot: uint64(payload.Message.Slot), blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
 	m.bidsLock.Lock()
 	originalBid := m.bids[bidKey]
