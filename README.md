@@ -20,7 +20,7 @@ Relays aggregate blocks from **multiple** builders in order to select the block 
 A MEV-Boost security assessment was conducted on 2022-06-20 by [lotusbumi](https://github.com/lotusbumi). Additional information can be found in the [Security](#security) section of this repository.
 
 
-![MEV-Boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/main/docs/mev-boost-integration-overview.png)
+![MEV-Boost service integration overview](https://raw.githubusercontent.com/flashbots/mev-boost/54567443e718b09f8034d677723476b679782fb7/docs/mev-boost-integration-overview.png)
 
 ## Who can run MEV-Boost?
 
@@ -104,7 +104,7 @@ Ensure you are downloading the most updated MEV-Boost release. Releases are avai
 clone the repository and build it:
 
 ```bash
-# By default, the main branch includes ongoing merged PRs a future release.
+# By default, the develop branch includes ongoing merged PRs a future release.
 git clone https://github.com/flashbots/mev-boost.git
 cd mev-boost
 
@@ -225,7 +225,7 @@ Run MEV-Boost pointed at a Zhejiang relay:
 
 ## mev-boost cli arguments
 
-These are the CLI arguments for the main branch. For arguments available in a specific release, check the [release page](https://github.com/flashbots/mev-boost/releases).
+These are the CLI arguments for the develop branch. For arguments available in a specific release, check the [release page](https://github.com/flashbots/mev-boost/releases).
 
 ```
 $ ./mev-boost -help

@@ -81,10 +81,10 @@ To create a new version (with tag), follow all these steps! They are necessary t
 * Update the `stable` branch:
   * `git checkout stable`
   * `git merge tags/v2.3.1 --ff-only`
-  * `git checkout main`
+  * `git checkout develop`
   * `git merge tags/v2.3.1 --ff-only`
-* Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v2.3.2-dev`), commit to main and push to Github
-* Now push the main and stable branch, as well as the tag to Github: `git push origin main stable --tags`
+* Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v2.3.2-dev`), commit to develop and push to Github
+* Now push the develop and stable branches, as well as the tag to Github: `git push origin develop stable --tags`
 
 Now check the Github CI actions for release activity: https://github.com/flashbots/mev-boost/actions
 * CI builds and pushes the Docker image, and prepares a new draft release in https://github.com/flashbots/mev-boost/releases
