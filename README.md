@@ -4,6 +4,7 @@
 
 [![Goreport status](https://goreportcard.com/badge/github.com/flashbots/mev-boost)](https://goreportcard.com/report/github.com/flashbots/mev-boost)
 [![Test status](https://github.com/flashbots/mev-boost/workflows/Tests/badge.svg)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Tests%22)
+[![Docker hub](https://badgen.net/docker/size/flashbots/mev-boost?icon=docker&label=image)](https://hub.docker.com/r/flashbots/mev-boost/tags)
 
 ## What is MEV-Boost?
 
