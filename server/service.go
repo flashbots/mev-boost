@@ -319,6 +319,17 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	// If genesisTime and slotTimeSec are set, log how late into the slot the request started
+	if config.GenesisTime > 0 && config.SlotTimeSec > 0 {
+		slotStartTimestamp := config.GenesisTime + (int64(_slot) * config.SlotTimeSec)
+		msIntoSlot := time.Now().UTC().UnixMilli() - (slotStartTimestamp * 1000)
+		log = log.WithField("msIntoSlot", msIntoSlot)
+		log.WithFields(logrus.Fields{
+			"genesisTime": config.GenesisTime,
+			"slotTimeSec": config.SlotTimeSec,
+		}).Infof("getHeader request start at %d milliseconds into slot %d", msIntoSlot, _slot)
+	}
+
 	result := bidResp{}                           // the final response, containing the highest bid (if any)
 	relays := make(map[BlockHashHex][]RelayEntry) // relays that sent the bid for a specific blockHash
 
