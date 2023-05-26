@@ -708,7 +708,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "getPayload")
-	log.Debug("getPayload")
+	log.Info("getPayload request starts")
 
 	// Read the body first, so we can log it later on error
 	body, err := io.ReadAll(req.Body)
