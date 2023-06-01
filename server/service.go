@@ -295,6 +295,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	slot := vars["slot"]
 	parentHashHex := vars["parent_hash"]
 	pubkey := vars["pubkey"]
+
 	log := m.log.WithFields(logrus.Fields{
 		"method":     "getHeader",
 		"slot":       slot,
@@ -318,6 +319,15 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		m.respondError(w, http.StatusBadRequest, errInvalidHash.Error())
 		return
 	}
+
+	// Log how late into the slot the request starts
+	slotStartTimestamp := config.GenesisTime + (int64(_slot) * config.SlotTimeSec)
+	msIntoSlot := time.Now().UTC().UnixMilli() - (slotStartTimestamp * 1000)
+	log.WithFields(logrus.Fields{
+		"genesisTime": config.GenesisTime,
+		"slotTimeSec": config.SlotTimeSec,
+		"msIntoSlot":  msIntoSlot,
+	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, _slot)
 
 	result := bidResp{}                           // the final response, containing the highest bid (if any)
 	relays := make(map[BlockHashHex][]RelayEntry) // relays that sent the bid for a specific blockHash
@@ -578,12 +588,23 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 		return
 	}
 
+	// Prepare logger
 	log = log.WithFields(logrus.Fields{
 		"slot":       payload.Message.Slot,
 		"blockHash":  payload.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
 		"parentHash": payload.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
 	})
 
+	// Log how late into the slot the request starts
+	slotStartTimestamp := config.GenesisTime + (int64(payload.Message.Slot) * config.SlotTimeSec)
+	msIntoSlot := time.Now().UTC().UnixMilli() - (slotStartTimestamp * 1000)
+	log.WithFields(logrus.Fields{
+		"genesisTime": config.GenesisTime,
+		"slotTimeSec": config.SlotTimeSec,
+		"msIntoSlot":  msIntoSlot,
+	}).Infof("submitBlindedBlock request start - %d milliseconds into slot %d", msIntoSlot, payload.Message.Slot)
+
+	// Get the bid!
 	bidKey := bidRespKey{slot: uint64(payload.Message.Slot), blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
 	m.bidsLock.Lock()
 	originalBid := m.bids[bidKey]
@@ -686,7 +707,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "getPayload")
-	log.Debug("getPayload")
+	log.Debug("getPayload request starts")
 
 	// Read the body first, so we can log it later on error
 	body, err := io.ReadAll(req.Body)
