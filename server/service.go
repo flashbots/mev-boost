@@ -244,8 +244,8 @@ func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 // handleStatus sends calls to the status endpoint of every relay.
 // It returns OK if at least one returned OK, and returns error otherwise.
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("X-MEVBoost-Version", config.Version)
-	w.Header().Set("X-MEVBoost-ForkVersion", config.ForkVersion)
+	w.Header().Set(HeaderKeyVersion, config.Version)
+	w.Header().Set(HeaderKeyForkVersion, config.ForkVersion)
 	if !m.relayCheck || m.CheckRelays() > 0 {
 		m.respondOK(w, nilResponse)
 	} else {

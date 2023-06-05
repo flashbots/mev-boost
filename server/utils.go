@@ -25,7 +25,9 @@ import (
 )
 
 const (
-	HeaderKeySlotUID = "X-Slot-ID"
+	HeaderKeySlotUID     = "X-MEVBoost-SlotID"
+	HeaderKeyVersion     = "X-MEVBoost-Version"
+	HeaderKeyForkVersion = "X-MEVBoost-ForkVersion"
 )
 
 var (
