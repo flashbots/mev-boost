@@ -18,8 +18,8 @@ github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156/go.mod h1:Cb/ax
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/attestantio/go-builder-client v0.3.0 h1:NY7pUNT070T3tx/N8hCaO5KpExvaVQhH//9zsgRh43M=
 github.com/attestantio/go-builder-client v0.3.0/go.mod h1:DwesMTOqnCp4u+n3uZ+fWL8wwnSBZVD9VMIVPDR+AZE=
-github.com/attestantio/go-eth2-client v0.16.3 h1:D6LLwswDlHbUwsAqfBKaKXjWdBzRlNQRXUoC+5vFsDw=
-github.com/attestantio/go-eth2-client v0.16.3/go.mod h1:Om16oH+H34E2JHoOY8hLWg+64twlO+AjAE7kkK3f1Xc=
+github.com/attestantio/go-eth2-client v0.16.6 h1:Vpn54vQig48YgqyC2rAXUpUzxgjtZsSNs9HcNEL0oMg=
+github.com/attestantio/go-eth2-client v0.16.6/go.mod h1:lgxKsjRSxQnHSWxSbtZLGYlFkE3vFM4L+DK4bXqAxAU=
 github.com/aymerick/raymond v2.0.3-0.20180322193309-b565731e1464+incompatible/go.mod h1:osfaiScAUVup+UC9Nfq76eWqDhXlp+4UYaA8uhTBO6g=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
@@ -177,6 +177,8 @@ github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T
 github.com/holiman/uint256 v1.2.2 h1:TXKcSGc2WaxPD2+bmzAsVthL4+pEN0YwXcL5qED83vk=
 github.com/holiman/uint256 v1.2.2/go.mod h1:SC8Ryt4n+UBbPbIBKaG9zbbDlp4jOru9xFZmPzLUTxw=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
+github.com/huandu/go-clone v1.6.0 h1:HMo5uvg4wgfiy5FoGOqlFLQED/VGRm2D9Pi8g1FXPGc=
+github.com/huandu/go-clone/generic v1.6.0 h1:Wgmt/fUZ28r16F2Y3APotFD59sHk1p78K0XLdbUYN5U=
 github.com/hydrogen18/memlistener v0.0.0-20200120041712-dcc25e7acd91/go.mod h1:qEIFzExnS6016fRpRfxrExeVn2gbClQA99gQhnIcdhE=
 github.com/imkira/go-interpol v1.1.0/go.mod h1:z0h2/2T3XF8kyEPpRgJ3kmNv+C43p+I/CoI+jC3w2iA=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
