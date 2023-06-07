@@ -24,6 +24,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	HeaderKeySlotUID     = "X-MEVBoost-SlotID"
+	HeaderKeyVersion     = "X-MEVBoost-Version"
+	HeaderKeyForkVersion = "X-MEVBoost-ForkVersion"
+)
+
 var (
 	errHTTPErrorResponse  = errors.New("HTTP error response")
 	errInvalidForkVersion = errors.New("invalid fork version")
@@ -38,7 +44,7 @@ type UserAgent string
 type BlockHashHex string
 
 // SendHTTPRequest - prepare and send HTTP request, marshaling the payload if any, and decoding the response if dst is set
-func SendHTTPRequest(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload, dst any) (code int, err error) {
+func SendHTTPRequest(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, headers map[string]string, payload, dst any) (code int, err error) {
 	var req *http.Request
 
 	if payload == nil {
@@ -57,8 +63,13 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 		return 0, fmt.Errorf("could not prepare request: %w", err)
 	}
 
-	// Set user agent
+	// Set user agent header
 	req.Header.Set("User-Agent", strings.TrimSpace(fmt.Sprintf("mev-boost/%s %s", config.Version, userAgent)))
+
+	// Set other headers
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
 
 	// Execute request
 	resp, err := client.Do(req)
@@ -94,7 +105,7 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 }
 
 // SendHTTPRequestWithRetries - prepare and send HTTP request, retrying the request if within the client timeout
-func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, payload, dst any, maxRetries int, log *logrus.Entry) (code int, err error) {
+func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method, url string, userAgent UserAgent, headers map[string]string, payload, dst any, maxRetries int, log *logrus.Entry) (code int, err error) {
 	var requestCtx context.Context
 	var cancel context.CancelFunc
 	if client.Timeout > 0 {
@@ -115,7 +126,7 @@ func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method,
 			return 0, errMaxRetriesExceeded
 		}
 
-		code, err = SendHTTPRequest(ctx, client, method, url, userAgent, payload, dst)
+		code, err = SendHTTPRequest(ctx, client, method, url, userAgent, headers, payload, dst)
 		if err != nil {
 			log.WithError(err).Warn("error making request to relay, retrying")
 			time.Sleep(100 * time.Millisecond) // note: this timeout is only applied between retries, it does not delay the initial request!

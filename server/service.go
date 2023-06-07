@@ -20,6 +20,7 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -47,6 +48,11 @@ type httpErrorResp struct {
 type AuctionTranscript struct {
 	Bid        *SignedBuilderBid               `json:"bid"`
 	Acceptance *types.SignedBlindedBeaconBlock `json:"acceptance"`
+}
+
+type slotUID struct {
+	slot uint64
+	uid  uuid.UUID
 }
 
 // BoostServiceOpts provides all available options for use with NewBoostService
@@ -81,8 +87,11 @@ type BoostService struct {
 	httpClientRegVal     http.Client
 	requestMaxRetries    int
 
-	bidsLock sync.Mutex
 	bids     map[bidRespKey]bidResp // keeping track of bids, to log the originating relay on withholding
+	bidsLock sync.Mutex
+
+	slotUID     *slotUID
+	slotUIDLock sync.Mutex
 }
 
 // NewBoostService created a new BoostService
@@ -104,6 +113,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		relayCheck:    opts.RelayCheck,
 		relayMinBid:   opts.RelayMinBid,
 		bids:          make(map[bidRespKey]bidResp),
+		slotUID:       &slotUID{},
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
@@ -201,7 +211,7 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types
 		go func(relayMonitor *url.URL) {
 			url := GetURI(relayMonitor, pathRegisterValidator)
 			log = log.WithField("url", url)
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, "", payload, nil)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, UserAgent(""), nil, payload, nil)
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay monitor")
 				return
@@ -217,7 +227,7 @@ func (m *BoostService) sendAuctionTranscriptToRelayMonitors(transcript *AuctionT
 		go func(relayMonitor *url.URL) {
 			url := GetURI(relayMonitor, pathAuctionTranscript)
 			log := log.WithField("url", url)
-			_, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodPost, url, UserAgent(""), transcript, nil)
+			_, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodPost, url, UserAgent(""), nil, transcript, nil)
 			if err != nil {
 				log.WithError(err).Warn("error sending auction transcript to relay monitor")
 				return
@@ -234,8 +244,8 @@ func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 // handleStatus sends calls to the status endpoint of every relay.
 // It returns OK if at least one returned OK, and returns error otherwise.
 func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("X-MEVBoost-Version", config.Version)
-	w.Header().Set("X-MEVBoost-ForkVersion", config.ForkVersion)
+	w.Header().Set(HeaderKeyVersion, config.Version)
+	w.Header().Set(HeaderKeyForkVersion, config.ForkVersion)
 	if !m.relayCheck || m.CheckRelays() > 0 {
 		m.respondOK(w, nilResponse)
 	} else {
@@ -267,7 +277,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			url := relay.GetURI(pathRegisterValidator)
 			log := log.WithField("url", url)
 
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, payload, nil)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, nil, payload, nil)
 			relayRespCh <- err
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
@@ -296,11 +306,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	parentHashHex := vars["parent_hash"]
 	pubkey := vars["pubkey"]
 
+	ua := UserAgent(req.Header.Get("User-Agent"))
 	log := m.log.WithFields(logrus.Fields{
 		"method":     "getHeader",
 		"slot":       slot,
 		"parentHash": parentHashHex,
 		"pubkey":     pubkey,
+		"ua":         ua,
 	})
 	log.Debug("getHeader")
 
@@ -329,6 +341,21 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"msIntoSlot":  msIntoSlot,
 	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, _slot)
 
+	// Make sure we have a uid for this slot
+	m.slotUIDLock.Lock()
+	if m.slotUID.slot < _slot {
+		m.slotUID.slot = _slot
+		m.slotUID.uid = uuid.New()
+	}
+	uid := m.slotUID.uid
+	m.slotUIDLock.Unlock()
+
+	// Add request headers
+	headers := map[string]string{
+		HeaderKeySlotUID: uid.String(),
+	}
+
+	// Prepare relay responses
 	result := bidResp{}                           // the final response, containing the highest bid (if any)
 	relays := make(map[BlockHashHex][]RelayEntry) // relays that sent the bid for a specific blockHash
 
@@ -343,7 +370,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			url := relay.GetURI(path)
 			log := log.WithField("url", url)
 			responsePayload := new(GetHeaderResponse)
-			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, UserAgent(req.Header.Get("User-Agent")), nil, responsePayload)
+			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, ua, headers, nil, responsePayload)
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
 				return
@@ -518,7 +545,7 @@ func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.
 			log.Debug("calling getPayload")
 
 			responsePayload := new(types.GetPayloadResponse)
-			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload, m.requestMaxRetries, log)
+			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, nil, payload, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
 					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
@@ -589,7 +616,9 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	}
 
 	// Prepare logger
+	ua := UserAgent(req.Header.Get("User-Agent"))
 	log = log.WithFields(logrus.Fields{
+		"ua":         ua,
 		"slot":       payload.Message.Slot,
 		"blockHash":  payload.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
 		"parentHash": payload.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
@@ -624,10 +653,23 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 		relays = m.relays
 	}
 
+	// Get the uid for this slot
+	uid := ""
+	m.slotUIDLock.Lock()
+	if m.slotUID.slot == uint64(payload.Message.Slot) {
+		uid = m.slotUID.uid.String()
+	} else {
+		log.Warnf("latest slotUID is for slot %d rather than payload slot %d", m.slotUID.slot, payload.Message.Slot)
+	}
+	m.slotUIDLock.Unlock()
+
+	// Add request headers
+	headers := map[string]string{HeaderKeySlotUID: uid}
+
+	// Prepare for requests
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	result := new(api.VersionedExecutionPayload)
-	ua := UserAgent(req.Header.Get("User-Agent"))
 
 	// Prepare the request context, which will be cancelled after the first successful response from a relay
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
@@ -642,7 +684,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 			log.Debug("calling getPayload")
 
 			responsePayload := new(api.VersionedExecutionPayload)
-			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, payload, responsePayload, m.requestMaxRetries, log)
+			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, headers, payload, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
 					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
@@ -747,7 +789,7 @@ func (m *BoostService) CheckRelays() int {
 			log := m.log.WithField("url", url)
 			log.Debug("checking relay status")
 
-			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil)
+			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil, nil)
 			if err != nil {
 				log.WithError(err).Error("relay status error - request failed")
 				return
