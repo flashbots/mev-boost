@@ -647,12 +647,6 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	// send bid and signed block to relay monitor with capella payload
 	// go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
 
-	relays := originalBid.relays
-	if len(relays) == 0 {
-		log.Warn("originating relay not found, sending getPayload request to all relays")
-		relays = m.relays
-	}
-
 	// Get the uid for this slot
 	uid := ""
 	m.slotUIDLock.Lock()
@@ -675,7 +669,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
 	defer requestCtxCancel()
 
-	for _, relay := range relays {
+	for _, relay := range m.relays {
 		wg.Add(1)
 		go func(relay RelayEntry) {
 			defer wg.Done()
@@ -739,7 +733,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	// If no payload has been received from relay, log loudly about withholding!
 	if result.Capella == nil || types.Hash(result.Capella.BlockHash) == nilHash {
 		originRelays := RelayEntriesToStrings(originalBid.relays)
-		log.WithField("relays", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
+		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
