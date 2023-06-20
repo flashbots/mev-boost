@@ -94,15 +94,14 @@ func Main() {
 
 	// setup logging
 	log.Logger.SetOutput(os.Stdout)
-	rfc3339Milli := "2006-01-02T15:04:05.999Z07:00"
 	if *logJSON {
 		log.Logger.SetFormatter(&logrus.JSONFormatter{
-			TimestampFormat: rfc3339Milli,
+			TimestampFormat: config.RFC3339Milli,
 		})
 	} else {
 		log.Logger.SetFormatter(&logrus.TextFormatter{
 			FullTimestamp:   true,
-			TimestampFormat: rfc3339Milli,
+			TimestampFormat: config.RFC3339Milli,
 		})
 	}
 	if *logDebug {
