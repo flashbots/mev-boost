@@ -40,22 +40,28 @@ curl localhost:18550/eth/v1/builder/status
 
 ## Prepare a release candidate build and Docker image
 
-For example, creating a new release `v2.3.1-rc1`:
+For example, creating a new release `v1.9`:
+
+1. Create a Github issue about the upcoming release ([example](https://github.com/flashbots/mev-boost/issues/524))
+1. Create a release branch (`release/v1.9`)
+1. Create an alpha release: `v1.9-alpha1`
+1. Test in testnets, iterate as needed, create more alpha versions
+1. When tests are complete, create the final release
 
 ```bash
 # create a new branch
-git checkout -b release/v2.3.1-rc1
+git checkout -b release/v1.9
 
 # set and commit the correct version as described below, and create a signed tag
 vim config/vars.go
-git commit -am "v2.3.1-rc1"
-git tag -s v2.3.1-rc1  # without a tag, the Docker image would include the wrong version number
+git commit -am "v1.9-alpha1"
+git tag -s v1.9-alpha1  # without a tag, the Docker image would include the wrong version number
 
 # now push to Github (CI will build the Docker image: https://github.com/flashbots/mev-boost/actions)
 git push origin --tags
 
 # other parties can now test the release candidate from Docker like this:
-docker pull flashbots/mev-boost:v2.3.1-rc1
+docker pull flashbots/mev-boost:v1.9a1
 ```
 
 ## Ask node operators to test this RC (on Goerli or Sepolia)
@@ -76,15 +82,15 @@ docker pull flashbots/mev-boost:v2.3.1-rc1
 
 To create a new version (with tag), follow all these steps! They are necessary to have the correct build version inside, and work with `go install`.
 
-* Update `Version` in `config/vars.go` - change it to the next version (eg. from `v2.3.1-dev` to `v2.3.1`), and commit
-* Create a [signed git tag](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-tags): `git tag -s v2.3.1`
+* Update [`Version`](/config/vars.go) to final version to `v1.9`, and commit
+* Create a final tag: `git tag -s v1.9`
 * Update the `stable` branch:
   * `git checkout stable`
-  * `git merge tags/v2.3.1 --ff-only`
+  * `git merge tags/v1.9 --ff-only`
   * `git checkout develop`
-  * `git merge tags/v2.3.1 --ff-only`
-* Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v2.3.2-dev`), commit to develop and push to Github
-* Now push the develop and stable branches, as well as the tag to Github: `git push origin develop stable --tags`
+  * `git merge tags/v1.9 --ff-only`
+* Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v1.10-dev`) and commit to develop
+* Now push the `develop` and `stable` branches, as well as the tag: `git push origin develop stable --tags`
 
 Now check the Github CI actions for release activity: https://github.com/flashbots/mev-boost/actions
 * CI builds and pushes the Docker image, and prepares a new draft release in https://github.com/flashbots/mev-boost/releases
