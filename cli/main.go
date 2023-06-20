@@ -95,10 +95,13 @@ func Main() {
 	// setup logging
 	log.Logger.SetOutput(os.Stdout)
 	if *logJSON {
-		log.Logger.SetFormatter(&logrus.JSONFormatter{})
+		log.Logger.SetFormatter(&logrus.JSONFormatter{
+			TimestampFormat: config.RFC3339Milli,
+		})
 	} else {
 		log.Logger.SetFormatter(&logrus.TextFormatter{
-			FullTimestamp: true,
+			FullTimestamp:   true,
+			TimestampFormat: config.RFC3339Milli,
 		})
 	}
 	if *logDebug {

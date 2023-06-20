@@ -11,6 +11,9 @@ const Version = "v1.5.1-dev"
 
 // Other settings
 var (
+	// RFC3339Milli is a time format string based on time.RFC3339 but with millisecond precision
+	RFC3339Milli = "2006-01-02T15:04:05.999Z07:00"
+
 	// ServerReadTimeoutMs sets the maximum duration for reading the entire request, including the body. A zero or negative value means there will be no timeout.
 	ServerReadTimeoutMs = common.GetEnvInt("MEV_BOOST_SERVER_READ_TIMEOUT_MS", 1000)
 
