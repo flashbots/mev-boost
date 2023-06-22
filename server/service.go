@@ -331,15 +331,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// Log how late into the slot the request starts
-	slotStartTimestamp := config.GenesisTime + (int64(_slot) * config.SlotTimeSec)
-	msIntoSlot := time.Now().UTC().UnixMilli() - (slotStartTimestamp * 1000)
-	log.WithFields(logrus.Fields{
-		"genesisTime": config.GenesisTime,
-		"slotTimeSec": config.SlotTimeSec,
-		"msIntoSlot":  msIntoSlot,
-	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, _slot)
-
 	// Make sure we have a uid for this slot
 	m.slotUIDLock.Lock()
 	if m.slotUID.slot < _slot {
@@ -348,6 +339,16 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 	uid := m.slotUID.uid
 	m.slotUIDLock.Unlock()
+	log = log.WithField("slotUid", uid)
+
+	// Log how late into the slot the request starts
+	slotStartTimestamp := config.GenesisTime + (int64(_slot) * config.SlotTimeSec)
+	msIntoSlot := time.Now().UTC().UnixMilli() - (slotStartTimestamp * 1000)
+	log.WithFields(logrus.Fields{
+		"genesisTime": config.GenesisTime,
+		"slotTimeSec": config.SlotTimeSec,
+		"msIntoSlot":  msIntoSlot,
+	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, _slot)
 
 	// Add request headers
 	headers := map[string]string{
@@ -614,6 +615,16 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 		return
 	}
 
+	// Get the uid for this slot
+	uid := ""
+	m.slotUIDLock.Lock()
+	if m.slotUID.slot == uint64(payload.Message.Slot) {
+		uid = m.slotUID.uid.String()
+	} else {
+		log.Warnf("latest slotUID is for slot %d rather than payload slot %d", m.slotUID.slot, payload.Message.Slot)
+	}
+	m.slotUIDLock.Unlock()
+
 	// Prepare logger
 	ua := UserAgent(req.Header.Get("User-Agent"))
 	log = log.WithFields(logrus.Fields{
@@ -621,6 +632,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 		"slot":       payload.Message.Slot,
 		"blockHash":  payload.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
 		"parentHash": payload.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
+		"slotUid":    uid,
 	})
 
 	// Log how late into the slot the request starts
@@ -645,16 +657,6 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 
 	// send bid and signed block to relay monitor with capella payload
 	// go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
-
-	// Get the uid for this slot
-	uid := ""
-	m.slotUIDLock.Lock()
-	if m.slotUID.slot == uint64(payload.Message.Slot) {
-		uid = m.slotUID.uid.String()
-	} else {
-		log.Warnf("latest slotUID is for slot %d rather than payload slot %d", m.slotUID.slot, payload.Message.Slot)
-	}
-	m.slotUIDLock.Unlock()
 
 	// Add request headers
 	headers := map[string]string{HeaderKeySlotUID: uid}
