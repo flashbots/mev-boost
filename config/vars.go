@@ -7,7 +7,7 @@ import (
 )
 
 // Version is set at build time
-const Version = "v1.6-alpha4"
+const Version = "v1.6-alpha5"
 
 // Other settings
 var (
