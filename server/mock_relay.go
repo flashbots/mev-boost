@@ -14,6 +14,7 @@ import (
 	"github.com/attestantio/go-builder-client/api/capella"
 	"github.com/attestantio/go-builder-client/spec"
 	consensusspec "github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	capellaspec "github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -194,8 +195,9 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 		// Fill the payload with custom values.
 		message := &capella.BuilderBid{
 			Header: &capellaspec.ExecutionPayloadHeader{
-				BlockHash:  phase0.Hash32(_HexToHash(blockHash)),
-				ParentHash: phase0.Hash32(_HexToHash(parentHash)),
+				BlockHash:       phase0.Hash32(_HexToHash(blockHash)),
+				ParentHash:      phase0.Hash32(_HexToHash(parentHash)),
+				WithdrawalsRoot: phase0.Root{},
 			},
 			Value:  uint256.NewInt(value),
 			Pubkey: phase0.BLSPubKey(_HexToPubkey(publicKey)),
@@ -244,7 +246,7 @@ func (m *mockRelay) defaultHandleGetHeader(w http.ResponseWriter) {
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-		consensusspec.DataVersionBellatrix,
+		consensusspec.DataVersionCapella,
 	)
 	if m.GetHeaderResponse != nil {
 		response = m.GetHeaderResponse
@@ -258,14 +260,15 @@ func (m *mockRelay) defaultHandleGetHeader(w http.ResponseWriter) {
 
 // MakeGetPayloadResponse is used to create the default or can be used to create a custom response to the getPayload
 // method
-func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *types.GetPayloadResponse {
-	return &types.GetPayloadResponse{
-		Version: "bellatrix",
-		Data: &types.ExecutionPayload{
-			ParentHash:   _HexToHash(parentHash),
-			BlockHash:    _HexToHash(blockHash),
+func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *api.VersionedExecutionPayload {
+	return &api.VersionedExecutionPayload{
+		Version: consensusspec.DataVersionCapella,
+		Capella: &capellaspec.ExecutionPayload{
+			ParentHash:   phase0.Hash32(_HexToHash(parentHash)),
+			BlockHash:    phase0.Hash32(_HexToHash(blockHash)),
 			BlockNumber:  blockNumber,
-			FeeRecipient: _HexToAddress(feeRecipient),
+			FeeRecipient: bellatrix.ExecutionAddress(_HexToAddress(feeRecipient)),
+			Withdrawals:  make([]*capellaspec.Withdrawal, 0),
 		},
 	}
 }
@@ -288,14 +291,6 @@ func (m *mockRelay) defaultHandleGetPayload(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	if m.GetCapellaPayloadResponse != nil {
-		if err := json.NewEncoder(w).Encode(m.GetCapellaPayloadResponse); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		return
-	}
-
 	// Build the default response.
 	response := m.MakeGetPayloadResponse(
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
@@ -304,8 +299,8 @@ func (m *mockRelay) defaultHandleGetPayload(w http.ResponseWriter) {
 		12345,
 	)
 
-	if m.GetBellatrixPayloadResponse != nil {
-		response = m.GetBellatrixPayloadResponse
+	if m.GetCapellaPayloadResponse != nil {
+		response = m.GetCapellaPayloadResponse
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {

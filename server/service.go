@@ -221,22 +221,6 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types
 	}
 }
 
-func (m *BoostService) sendAuctionTranscriptToRelayMonitors(transcript *AuctionTranscript) {
-	log := m.log.WithField("method", "sendAuctionTranscriptToRelayMonitors")
-	for _, relayMonitor := range m.relayMonitors {
-		go func(relayMonitor *url.URL) {
-			url := GetURI(relayMonitor, pathAuctionTranscript)
-			log := log.WithField("url", url)
-			_, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodPost, url, UserAgent(""), nil, transcript, nil)
-			if err != nil {
-				log.WithError(err).Warn("error sending auction transcript to relay monitor")
-				return
-			}
-			log.Debug("sent auction transcript to relay monitor")
-		}(relayMonitor)
-	}
-}
-
 func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 	m.respondOK(w, nilResponse)
 }
@@ -494,120 +478,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.respondOK(w, &result.response)
 }
 
-func (m *BoostService) processBellatrixPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *types.SignedBlindedBeaconBlock, body []byte) {
-	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
-		log.WithField("body", string(body)).Error("missing parts of the request payload from the beacon-node")
-		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
-		return
-	}
-
-	log = log.WithFields(logrus.Fields{
-		"slot":       payload.Message.Slot,
-		"blockHash":  payload.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
-		"parentHash": payload.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
-	})
-
-	bidKey := bidRespKey{slot: payload.Message.Slot, blockHash: payload.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
-	m.bidsLock.Lock()
-	originalBid := m.bids[bidKey]
-	m.bidsLock.Unlock()
-	if originalBid.blockHash == "" {
-		log.Error("no bid for this getPayload payload found. was getHeader called before?")
-	} else if len(originalBid.relays) == 0 {
-		log.Warn("bid found but no associated relays")
-	}
-
-	// send bid and signed block to relay monitor
-	go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.BuilderBid(), Acceptance: payload})
-
-	relays := originalBid.relays
-	if len(relays) == 0 {
-		log.Warn("originating relay not found, sending getPayload request to all relays")
-		relays = m.relays
-	}
-
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	result := new(types.GetPayloadResponse)
-	ua := UserAgent(req.Header.Get("User-Agent"))
-
-	// Prepare the request context, which will be cancelled after the first successful response from a relay
-	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
-	defer requestCtxCancel()
-
-	for _, relay := range relays {
-		wg.Add(1)
-		go func(relay RelayEntry) {
-			defer wg.Done()
-			url := relay.GetURI(pathGetPayload)
-
-			log := log.WithField("url", url)
-			log.Debug("calling getPayload")
-
-			responsePayload := new(types.GetPayloadResponse)
-			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, nil, payload, responsePayload, m.requestMaxRetries, log)
-			if err != nil {
-				if errors.Is(requestCtx.Err(), context.Canceled) {
-					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
-				} else {
-					log.WithError(err).Error("error making request to relay")
-				}
-				return
-			}
-
-			if responsePayload.Data == nil || responsePayload.Data.BlockHash == nilHash {
-				log.Error("response with empty data!")
-				return
-			}
-
-			// Ensure the response blockhash matches the request
-			if payload.Message.Body.ExecutionPayloadHeader.BlockHash != responsePayload.Data.BlockHash {
-				log.WithFields(logrus.Fields{
-					"responseBlockHash": responsePayload.Data.BlockHash.String(),
-				}).Error("requestBlockHash does not equal responseBlockHash")
-				return
-			}
-
-			// Ensure the response blockhash matches the response block
-			calculatedBlockHash, err := types.CalculateHash(responsePayload.Data)
-			if err != nil {
-				log.WithError(err).Error("could not calculate block hash")
-			} else if responsePayload.Data.BlockHash != calculatedBlockHash {
-				log.WithFields(logrus.Fields{
-					"calculatedBlockHash": calculatedBlockHash.String(),
-					"responseBlockHash":   responsePayload.Data.BlockHash.String(),
-				}).Error("responseBlockHash does not equal hash calculated from response block")
-			}
-
-			// Lock before accessing the shared payload
-			mu.Lock()
-			defer mu.Unlock()
-
-			if requestCtx.Err() != nil { // request has been cancelled (or deadline exceeded)
-				return
-			}
-
-			// Received successful response. Now cancel other requests and return immediately
-			requestCtxCancel()
-			*result = *responsePayload
-			log.Info("received payload from relay")
-		}(relay)
-	}
-
-	// Wait for all requests to complete...
-	wg.Wait()
-
-	// If no payload has been received from relay, log loudly about withholding!
-	if result.Data == nil || result.Data.BlockHash == nilHash {
-		originRelays := RelayEntriesToStrings(originalBid.relays)
-		log.WithField("relays", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
-		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
-		return
-	}
-
-	m.respondOK(w, result)
-}
-
 func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *capella.SignedBlindedBeaconBlock, body []byte) {
 	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
 		log.WithField("body", string(body)).Error("missing parts of the request payload from the beacon-node")
@@ -654,9 +524,6 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	} else if len(originalBid.relays) == 0 {
 		log.Warn("bid found but no associated relays")
 	}
-
-	// send bid and signed block to relay monitor with capella payload
-	// go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
 
 	// Add request headers
 	headers := map[string]string{HeaderKeySlotUID: slotUID}
@@ -757,14 +624,8 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// Decode the body now
 	payload := new(capella.SignedBlindedBeaconBlock)
 	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-		log.Debug("could not decode Capella request payload, attempting to decode body into Bellatrix payload")
-		payload := new(types.SignedBlindedBeaconBlock)
-		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-			log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
-			m.respondError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		m.processBellatrixPayload(w, req, log, payload, body)
+		log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
+		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	m.processCapellaPayload(w, req, log, payload, body)
