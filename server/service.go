@@ -221,6 +221,22 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types
 	}
 }
 
+// func (m *BoostService) sendAuctionTranscriptToRelayMonitors(transcript *AuctionTranscript) {
+// 	log := m.log.WithField("method", "sendAuctionTranscriptToRelayMonitors")
+// 	for _, relayMonitor := range m.relayMonitors {
+// 		go func(relayMonitor *url.URL) {
+// 			url := GetURI(relayMonitor, pathAuctionTranscript)
+// 			log := log.WithField("url", url)
+// 			_, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodPost, url, UserAgent(""), nil, transcript, nil)
+// 			if err != nil {
+// 				log.WithError(err).Warn("error sending auction transcript to relay monitor")
+// 				return
+// 			}
+// 			log.Debug("sent auction transcript to relay monitor")
+// 		}(relayMonitor)
+// 	}
+// }
+
 func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
 	m.respondOK(w, nilResponse)
 }
@@ -524,6 +540,9 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	} else if len(originalBid.relays) == 0 {
 		log.Warn("bid found but no associated relays")
 	}
+
+	// send bid and signed block to relay monitor with capella payload
+	// go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
 
 	// Add request headers
 	headers := map[string]string{HeaderKeySlotUID: slotUID}
