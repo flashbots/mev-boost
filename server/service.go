@@ -541,6 +541,9 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 		log.Warn("bid found but no associated relays")
 	}
 
+	// send bid and signed block to relay monitor with capella payload
+	// go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
+
 	// Add request headers
 	headers := map[string]string{HeaderKeySlotUID: slotUID}
 
