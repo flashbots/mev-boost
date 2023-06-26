@@ -32,6 +32,5 @@ var (
 	// SkipRelaySignatureCheck can be used to disable relay signature check
 	SkipRelaySignatureCheck = os.Getenv("SKIP_RELAY_SIGNATURE_CHECK") == "1"
 
-	GenesisTime = int64(common.GetEnvInt("GENESIS_TIMESTAMP", common.GenesisTimeMainnet))
 	SlotTimeSec = int64(common.GetEnvInt("SLOT_SEC", common.SlotTimeSecMainnet))
 )

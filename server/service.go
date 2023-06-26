@@ -62,6 +62,7 @@ type BoostServiceOpts struct {
 	Relays                []RelayEntry
 	RelayMonitors         []*url.URL
 	GenesisForkVersionHex string
+	GenesisTime           int64
 	RelayCheck            bool
 	RelayMinBid           types.U256Str
 
@@ -80,6 +81,7 @@ type BoostService struct {
 	srv           *http.Server
 	relayCheck    bool
 	relayMinBid   types.U256Str
+	genesisTime   int64
 
 	builderSigningDomain types.Domain
 	httpClientGetHeader  http.Client
@@ -112,6 +114,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		log:           opts.Log,
 		relayCheck:    opts.RelayCheck,
 		relayMinBid:   opts.RelayMinBid,
+		genesisTime:   opts.GenesisTime,
 		bids:          make(map[bidRespKey]bidResp),
 		slotUID:       &slotUID{},
 
@@ -342,10 +345,10 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	log = log.WithField("slotUID", slotUID)
 
 	// Log how late into the slot the request starts
-	slotStartTimestamp := config.GenesisTime + (int64(_slot) * config.SlotTimeSec)
+	slotStartTimestamp := m.genesisTime + (int64(_slot) * config.SlotTimeSec)
 	msIntoSlot := time.Now().UTC().UnixMilli() - (slotStartTimestamp * 1000)
 	log.WithFields(logrus.Fields{
-		"genesisTime": config.GenesisTime,
+		"genesisTime": m.genesisTime,
 		"slotTimeSec": config.SlotTimeSec,
 		"msIntoSlot":  msIntoSlot,
 	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, _slot)
@@ -522,10 +525,10 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	})
 
 	// Log how late into the slot the request starts
-	slotStartTimestamp := config.GenesisTime + (int64(payload.Message.Slot) * config.SlotTimeSec)
+	slotStartTimestamp := m.genesisTime + (int64(payload.Message.Slot) * config.SlotTimeSec)
 	msIntoSlot := time.Now().UTC().UnixMilli() - (slotStartTimestamp * 1000)
 	log.WithFields(logrus.Fields{
-		"genesisTime": config.GenesisTime,
+		"genesisTime": m.genesisTime,
 		"slotTimeSec": config.SlotTimeSec,
 		"msIntoSlot":  msIntoSlot,
 	}).Infof("submitBlindedBlock request start - %d milliseconds into slot %d", msIntoSlot, payload.Message.Slot)

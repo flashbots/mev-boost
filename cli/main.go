@@ -18,6 +18,11 @@ const (
 	genesisForkVersionSepolia  = "0x90000069"
 	genesisForkVersionGoerli   = "0x00001020"
 	genesisForkVersionZhejiang = "0x00000069"
+
+	genesisTimeMainnet  int64 = 1606824023
+	genesisTimeSepolia  int64 = 1655733600
+	genesisTimeGoerli   int64 = 1614588812
+	genesisTimeZhejiang int64 = 1675263600
 )
 
 var (
@@ -68,11 +73,12 @@ var (
 	relayRequestMaxRetries = flag.Int("request-max-retries", defaultMaxRetries, "maximum number of retries for a relay get payload request")
 
 	// helpers
-	useGenesisForkVersionMainnet  = flag.Bool("mainnet", true, "use Mainnet")
-	useGenesisForkVersionSepolia  = flag.Bool("sepolia", defaultUseSepolia, "use Sepolia")
-	useGenesisForkVersionGoerli   = flag.Bool("goerli", defaultUseGoerli, "use Goerli")
-	useGenesisForkVersionZhejiang = flag.Bool("zhejiang", defaultUseZhejiang, "use Zhejiang")
-	useCustomGenesisForkVersion   = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
+	mainnet  = flag.Bool("mainnet", true, "use Mainnet")
+	sepolia  = flag.Bool("sepolia", defaultUseSepolia, "use Sepolia")
+	goerli   = flag.Bool("goerli", defaultUseGoerli, "use Goerli")
+	zhejiang = flag.Bool("zhejiang", defaultUseZhejiang, "use Zhejiang")
+
+	useCustomGenesisForkVersion = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
 )
 
 var log = logrus.NewEntry(logrus.New())
@@ -130,17 +136,23 @@ func Main() {
 	log.Debug("debug logging enabled")
 
 	genesisForkVersionHex := ""
+	var genesisTime int64 = 0
+
 	switch {
 	case *useCustomGenesisForkVersion != "":
 		genesisForkVersionHex = *useCustomGenesisForkVersion
-	case *useGenesisForkVersionSepolia:
+	case *sepolia:
 		genesisForkVersionHex = genesisForkVersionSepolia
-	case *useGenesisForkVersionGoerli:
+		genesisTime = genesisTimeSepolia
+	case *goerli:
 		genesisForkVersionHex = genesisForkVersionGoerli
-	case *useGenesisForkVersionZhejiang:
+		genesisTime = genesisTimeGoerli
+	case *zhejiang:
 		genesisForkVersionHex = genesisForkVersionZhejiang
-	case *useGenesisForkVersionMainnet:
+		genesisTime = genesisTimeZhejiang
+	case *mainnet:
 		genesisForkVersionHex = genesisForkVersionMainnet
+		genesisTime = genesisTimeMainnet
 	default:
 		flag.Usage()
 		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -zhejiang / -genesis-fork-version flags)")
@@ -206,6 +218,7 @@ func Main() {
 		Relays:                   relays,
 		RelayMonitors:            relayMonitors,
 		GenesisForkVersionHex:    genesisForkVersionHex,
+		GenesisTime:              genesisTime,
 		RelayCheck:               *relayCheck,
 		RelayMinBid:              *relayMinBidWei,
 		RequestTimeoutGetHeader:  time.Duration(*relayTimeoutMsGetHeader) * time.Millisecond,

@@ -107,7 +107,20 @@ func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *apiv1capell
 
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
-		_, err := NewBoostService(BoostServiceOpts{testLog, ":123", []RelayEntry{}, []*url.URL{}, "0x00000000", true, types.IntToU256(0), time.Second, time.Second, time.Second, 1})
+		_, err := NewBoostService(BoostServiceOpts{
+			Log:                      testLog,
+			ListenAddr:               ":123",
+			Relays:                   []RelayEntry{},
+			RelayMonitors:            []*url.URL{},
+			GenesisForkVersionHex:    "0x00000000",
+			GenesisTime:              0,
+			RelayCheck:               true,
+			RelayMinBid:              types.IntToU256(0),
+			RequestTimeoutGetHeader:  time.Second,
+			RequestTimeoutGetPayload: time.Second,
+			RequestTimeoutRegVal:     time.Second,
+			RequestMaxRetries:        1,
+		})
 		require.Error(t, err)
 	})
 }
