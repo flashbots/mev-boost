@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-builder-client/api"
+	"github.com/attestantio/go-builder-client/spec"
 	apiv1capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	consensusspec "github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
@@ -23,6 +23,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/holiman/uint256"
 	"github.com/prysmaticlabs/go-bitfield"
 	"github.com/stretchr/testify/require"
 )
@@ -283,7 +284,7 @@ func TestGetHeader(t *testing.T) {
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
 			consensusspec.DataVersionBellatrix,
 		)
-		resp.Bellatrix.Data.Message.Header.BlockHash = nilHash
+		resp.Bellatrix.Message.Header.BlockHash = nilHash
 
 		// 1/2 failing responses are okay
 		backend.relays[0].GetHeaderResponse = resp
@@ -334,7 +335,7 @@ func TestGetHeader(t *testing.T) {
 		)
 
 		// Scramble the signature
-		backend.relays[0].GetHeaderResponse.Bellatrix.Data.Signature = types.Signature{}
+		backend.relays[0].GetHeaderResponse.Bellatrix.Signature = phase0.BLSSignature{}
 
 		rr := backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -402,7 +403,7 @@ func TestGetHeaderBids(t *testing.T) {
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
 
 		// First relay will return signed response with value 12347.
@@ -411,7 +412,7 @@ func TestGetHeaderBids(t *testing.T) {
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
 
 		// First relay will return signed response with value 12346.
@@ -420,7 +421,7 @@ func TestGetHeaderBids(t *testing.T) {
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
 
 		// Run the request.
@@ -434,10 +435,12 @@ func TestGetHeaderBids(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 		// Highest value should be 12347, i.e. second relay.
-		resp := new(GetHeaderResponse)
+		resp := new(spec.VersionedSignedBuilderBid)
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
 		require.NoError(t, err)
-		require.Equal(t, big.NewInt(12347), resp.Value())
+		value, err := resp.Value()
+		require.NoError(t, err)
+		require.Equal(t, uint256.NewInt(12347), value)
 	})
 
 	t.Run("Use header with lowest blockhash if same value", func(t *testing.T) {
@@ -449,7 +452,7 @@ func TestGetHeaderBids(t *testing.T) {
 			"0xa38385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
 
 		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
@@ -457,7 +460,7 @@ func TestGetHeaderBids(t *testing.T) {
 			"0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
 
 		backend.relays[2].GetHeaderResponse = backend.relays[2].MakeGetHeaderResponse(
@@ -465,7 +468,7 @@ func TestGetHeaderBids(t *testing.T) {
 			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
 
 		// Run the request.
@@ -479,12 +482,16 @@ func TestGetHeaderBids(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 		// Highest value should be 12347, i.e. second relay.
-		resp := new(GetHeaderResponse)
+		resp := new(spec.VersionedSignedBuilderBid)
 
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
 		require.NoError(t, err)
-		require.Equal(t, big.NewInt(12345), resp.Value())
-		require.Equal(t, "0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7", resp.BlockHash())
+		value, err := resp.Value()
+		require.NoError(t, err)
+		require.Equal(t, uint256.NewInt(12345), value)
+		blockHash, err := resp.BlockHash()
+		require.NoError(t, err)
+		require.Equal(t, "0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7", blockHash.String())
 	})
 
 	t.Run("Respect minimum bid cutoff", func(t *testing.T) {
@@ -497,7 +504,7 @@ func TestGetHeaderBids(t *testing.T) {
 			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
 
 		// Run the request.
@@ -520,7 +527,7 @@ func TestGetHeaderBids(t *testing.T) {
 			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
 
 		// Run the request.
@@ -586,10 +593,12 @@ func TestGetHeaderCapellaBids(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 		// Highest value should be 12347, i.e. second relay.
-		resp := new(GetHeaderResponse)
+		resp := new(spec.VersionedSignedBuilderBid)
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
 		require.NoError(t, err)
-		require.Equal(t, big.NewInt(12347), resp.Value())
+		value, err := resp.Value()
+		require.NoError(t, err)
+		require.Equal(t, uint256.NewInt(12347), value)
 	})
 
 	t.Run("Use header with lowest blockhash if same value", func(t *testing.T) {
@@ -631,12 +640,16 @@ func TestGetHeaderCapellaBids(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 		// Highest value should be 12347, i.e. second relay.
-		resp := new(GetHeaderResponse)
+		resp := new(spec.VersionedSignedBuilderBid)
 
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
 		require.NoError(t, err)
-		require.Equal(t, big.NewInt(12345), resp.Value())
-		require.Equal(t, "0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7", resp.BlockHash())
+		value, err := resp.Value()
+		require.NoError(t, err)
+		require.Equal(t, uint256.NewInt(12345), value)
+		blockHash, err := resp.BlockHash()
+		require.NoError(t, err)
+		require.Equal(t, "0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7", blockHash.String())
 	})
 
 	t.Run("Respect minimum bid cutoff", func(t *testing.T) {
@@ -700,7 +713,7 @@ func TestGetHeaderCapellaBids(t *testing.T) {
 		)
 
 		// Scramble the signature
-		backend.relays[0].GetHeaderResponse.Capella.Capella.Signature = phase0.BLSSignature{}
+		backend.relays[0].GetHeaderResponse.Capella.Signature = phase0.BLSSignature{}
 
 		rr := backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))

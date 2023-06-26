@@ -82,3 +82,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/attestantio/go-builder-client => github.com/avalonche/go-builder-client v0.0.0-20230626093051-7af204c675dd

@@ -13,14 +13,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/attestantio/go-builder-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/flashbots/go-boost-utils/bls"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/holiman/uint256"
 	"github.com/sirupsen/logrus"
 )
 
@@ -169,10 +172,13 @@ func GetURI(url *url.URL, path string) string {
 
 // bidResp are entries in the bids cache
 type bidResp struct {
-	t         time.Time
-	response  GetHeaderResponse
-	blockHash string
-	relays    []RelayEntry
+	t           time.Time
+	response    spec.VersionedSignedBuilderBid
+	blockHash   string
+	blockNumber uint64
+	txRoot      string
+	value       *uint256.Int
+	relays      []RelayEntry
 }
 
 // bidRespKey is used as key for the bids cache
@@ -249,4 +255,15 @@ func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.He
 		BaseFee:         baseFeePerGas,
 		WithdrawalsHash: &withdrawalsHash,
 	}, nil
+}
+
+// TODO: move function to go-boost-utils
+func VerifySignature(root boostTypes.Root, d boostTypes.Domain, pkBytes, sigBytes []byte) (bool, error) {
+	signingData := boostTypes.SigningData{Root: root, Domain: d}
+	msg, err := signingData.HashTreeRoot()
+	if err != nil {
+		return false, err
+	}
+
+	return bls.VerifySignatureBytes(msg[:], sigBytes, pkBytes)
 }
