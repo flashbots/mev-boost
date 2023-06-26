@@ -172,19 +172,26 @@ func GetURI(url *url.URL, path string) string {
 
 // bidResp are entries in the bids cache
 type bidResp struct {
-	t           time.Time
-	response    spec.VersionedSignedBuilderBid
-	blockHash   string
-	blockNumber uint64
-	txRoot      string
-	value       *uint256.Int
-	relays      []RelayEntry
+	t        time.Time
+	response spec.VersionedSignedBuilderBid
+	bidInfo  bidInfo
+	relays   []RelayEntry
 }
 
 // bidRespKey is used as key for the bids cache
 type bidRespKey struct {
 	slot      uint64
 	blockHash string
+}
+
+// bidInfo is used to store bid response fields for logging and validation
+type bidInfo struct {
+	blockHash   phase0.Hash32
+	parentHash  phase0.Hash32
+	pubkey      phase0.BLSPubKey
+	blockNumber uint64
+	txRoot      phase0.Root
+	value       *uint256.Int
 }
 
 func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
@@ -257,13 +264,56 @@ func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.He
 	}, nil
 }
 
-// TODO: move function to go-boost-utils
-func VerifySignature(root boostTypes.Root, d boostTypes.Domain, pkBytes, sigBytes []byte) (bool, error) {
-	signingData := boostTypes.SigningData{Root: root, Domain: d}
+func parseBidInfo(bid *spec.VersionedSignedBuilderBid) (bidInfo, error) {
+	blockHash, err := bid.BlockHash()
+	if err != nil {
+		return bidInfo{}, err
+	}
+	parentHash, err := bid.ParentHash()
+	if err != nil {
+		return bidInfo{}, err
+	}
+	pubkey, err := bid.Builder()
+	if err != nil {
+		return bidInfo{}, err
+	}
+	blockNumber, err := bid.BlockNumber()
+	if err != nil {
+		return bidInfo{}, err
+	}
+	txRoot, err := bid.TransactionsRoot()
+	if err != nil {
+		return bidInfo{}, err
+	}
+	value, err := bid.Value()
+	if err != nil {
+		return bidInfo{}, err
+	}
+	bidInfo := bidInfo{
+		blockHash:   blockHash,
+		parentHash:  parentHash,
+		pubkey:      pubkey,
+		blockNumber: blockNumber,
+		txRoot:      txRoot,
+		value:       value,
+	}
+	return bidInfo, nil
+}
+
+func checkRelaySignature(bid *spec.VersionedSignedBuilderBid, domain boostTypes.Domain, pubKey boostTypes.PublicKey) (bool, error) {
+	root, err := bid.MessageHashTreeRoot()
+	if err != nil {
+		return false, err
+	}
+	sig, err := bid.Signature()
+	if err != nil {
+		return false, err
+	}
+	signingData := boostTypes.SigningData{Root: boostTypes.Root(root), Domain: domain}
 	msg, err := signingData.HashTreeRoot()
 	if err != nil {
 		return false, err
 	}
 
-	return bls.VerifySignatureBytes(msg[:], sigBytes, pkBytes)
+	return bls.VerifySignatureBytes(msg[:], sig[:], pubKey[:])
 }

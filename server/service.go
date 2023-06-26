@@ -388,64 +388,34 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
-			// Getting the block hash will check if there are missing fields in the response
-			blockHash, err := responsePayload.BlockHash()
+			// Getting the bid info will check if there are missing fields in the response
+			bidInfo, err := parseBidInfo(responsePayload)
 			if err != nil {
-				log.WithError(err).Error("error getting response block hash from relay")
+				log.WithError(err).Warn("error parsing bid info")
 				return
 			}
-			if blockHash == nilHash {
+
+			if bidInfo.blockHash == nilHash {
 				log.Warn("relay responded with empty block hash")
 				return
 			}
 
-			value, err := responsePayload.Value()
-			if err != nil {
-				log.WithError(err).Error("error getting response bid value from relay")
-				return
-			}
-			valueEth := weiBigIntToEthBigFloat(value.ToBig())
-
-			blockNumber, err := responsePayload.BlockNumber()
-			if err != nil {
-				log.WithError(err).Error("error getting response bid block number")
-				return
-			}
-			transactionsRoot, err := responsePayload.TransactionsRoot()
-			if err != nil {
-				log.WithError(err).Error("error getting transactions root")
-				return
-			}
+			valueEth := weiBigIntToEthBigFloat(bidInfo.value.ToBig())
 			log = log.WithFields(logrus.Fields{
-				"blockNumber": blockNumber,
-				"blockHash":   blockHash.String(),
-				"txRoot":      transactionsRoot.String(),
+				"blockNumber": bidInfo.blockNumber,
+				"blockHash":   bidInfo.blockHash.String(),
+				"txRoot":      bidInfo.txRoot.String(),
 				"value":       valueEth.Text('f', 18),
 			})
 
-			pubkey, err := responsePayload.Builder()
-			if err != nil {
-				log.WithError(err).Error("error getting response pubkey from relay")
-				return
-			}
-			if relay.PublicKey.String() != pubkey.String() {
-				log.Errorf("bid pubkey mismatch. expected: %s - got: %s", relay.PublicKey.String(), pubkey.String())
+			if relay.PublicKey.String() != bidInfo.pubkey.String() {
+				log.Errorf("bid pubkey mismatch. expected: %s - got: %s", relay.PublicKey.String(), bidInfo.pubkey.String())
 				return
 			}
 
 			// Verify the relay signature in the relay response
 			if !config.SkipRelaySignatureCheck {
-				root, err := responsePayload.MessageHashTreeRoot()
-				if err != nil {
-					log.WithError(err).Error("error getting response message hash tree root from relay")
-					return
-				}
-				sig, err := responsePayload.Signature()
-				if err != nil {
-					log.WithError(err).Error("error getting response signature from relay")
-					return
-				}
-				ok, err := VerifySignature(types.Root(root), m.builderSigningDomain, relay.PublicKey[:], sig[:])
+				ok, err := checkRelaySignature(responsePayload, m.builderSigningDomain, relay.PublicKey)
 				if err != nil {
 					log.WithError(err).Error("error verifying relay signature")
 					return
@@ -457,21 +427,16 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 
 			// Verify response coherence with proposer's input data
-			responseParentHash, err := responsePayload.ParentHash()
-			if err != nil {
-				log.WithError(err).Error("error getting response parent hash from relay")
-				return
-			}
-			if responseParentHash.String() != parentHashHex {
+			if bidInfo.parentHash.String() != parentHashHex {
 				log.WithFields(logrus.Fields{
 					"originalParentHash": parentHashHex,
-					"responseParentHash": responseParentHash.String(),
+					"responseParentHash": bidInfo.parentHash.String(),
 				}).Error("proposer and relay parent hashes are not the same")
 				return
 			}
 
-			isZeroValue := value.String() == "0"
-			isEmptyListTxRoot := transactionsRoot.String() == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
+			isZeroValue := bidInfo.value.String() == "0"
+			isEmptyListTxRoot := bidInfo.txRoot.String() == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
 			if isZeroValue || isEmptyListTxRoot {
 				log.Warn("ignoring bid with 0 value")
 				return
@@ -479,7 +444,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			log.Debug("bid received")
 
 			// Skip if value (fee) is lower than the minimum bid
-			if value.ToBig().Cmp(m.relayMinBid.BigInt()) == -1 {
+			if bidInfo.value.ToBig().Cmp(m.relayMinBid.BigInt()) == -1 {
 				log.Debug("ignoring bid below min-bid value")
 				return
 			}
@@ -488,16 +453,16 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			defer mu.Unlock()
 
 			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
-			relays[BlockHashHex(blockHash.String())] = append(relays[BlockHashHex(blockHash.String())], relay)
+			relays[BlockHashHex(bidInfo.blockHash.String())] = append(relays[BlockHashHex(bidInfo.blockHash.String())], relay)
 
 			// Compare the bid with already known top bid (if any)
 			if !result.response.IsEmpty() {
-				valueDiff := value.Cmp(result.value)
+				valueDiff := bidInfo.value.Cmp(result.bidInfo.value)
 				if valueDiff == -1 { // current bid is less profitable than already known one
 					return
 				} else if valueDiff == 0 { // current bid is equally profitable as already known one. Use hash as tiebreaker
-					previousBidBlockHash := result.blockHash
-					if blockHash.String() >= previousBidBlockHash {
+					previousBidBlockHash := result.bidInfo.blockHash
+					if bidInfo.blockHash.String() >= previousBidBlockHash.String() {
 						return
 					}
 				}
@@ -506,10 +471,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			// Use this relay's response as mev-boost response because it's most profitable
 			log.Debug("new best bid")
 			result.response = *responsePayload
-			result.blockHash = blockHash.String()
-			result.value = value
-			result.blockNumber = blockNumber
-			result.txRoot = transactionsRoot.String()
+			result.bidInfo = bidInfo
 			result.t = time.Now()
 		}(relay)
 	}
@@ -517,25 +479,25 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// Wait for all requests to complete...
 	wg.Wait()
 
-	if result.blockHash == "" {
+	if result.response.IsEmpty() {
 		log.Info("no bid received")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
 	// Log result
-	valueEth := weiBigIntToEthBigFloat(result.value.ToBig())
-	result.relays = relays[BlockHashHex(result.blockHash)]
+	valueEth := weiBigIntToEthBigFloat(result.bidInfo.value.ToBig())
+	result.relays = relays[BlockHashHex(result.bidInfo.blockHash.String())]
 	log.WithFields(logrus.Fields{
-		"blockHash":   result.blockHash,
-		"blockNumber": result.blockNumber,
-		"txRoot":      result.txRoot,
+		"blockHash":   result.bidInfo.blockHash.String(),
+		"blockNumber": result.bidInfo.blockNumber,
+		"txRoot":      result.bidInfo.txRoot,
 		"value":       valueEth.Text('f', 18),
 		"relays":      strings.Join(RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
 	// Remember the bid, for future logging in case of withholding
-	bidKey := bidRespKey{slot: _slot, blockHash: result.blockHash}
+	bidKey := bidRespKey{slot: _slot, blockHash: result.bidInfo.blockHash.String()}
 	m.bidsLock.Lock()
 	m.bids[bidKey] = result
 	m.bidsLock.Unlock()
@@ -585,7 +547,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	m.bidsLock.Lock()
 	originalBid := m.bids[bidKey]
 	m.bidsLock.Unlock()
-	if originalBid.blockHash == "" {
+	if originalBid.response.IsEmpty() {
 		log.Error("no bid for this getPayload payload found. was getHeader called before?")
 	} else if len(originalBid.relays) == 0 {
 		log.Warn("bid found but no associated relays")
