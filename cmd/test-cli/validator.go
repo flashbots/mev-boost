@@ -2,13 +2,19 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"time"
 
+	apiv1 "github.com/attestantio/go-builder-client/api/v1"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
-	boostTypes "github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/go-boost-utils/ssz"
+	"github.com/flashbots/go-boost-utils/utils"
 )
+
+var errInvalidLength = errors.New("invalid length")
 
 type validatorPrivateData struct {
 	Sk              hexutil.Bytes
@@ -46,38 +52,38 @@ func newRandomValidator(gasLimit uint64, feeRecipient string) validatorPrivateDa
 	return validatorPrivateData{bls.SecretKeyToBytes(sk), bls.PublicKeyToBytes(pk), hexutil.Uint64(gasLimit), feeRecipient}
 }
 
-func (v *validatorPrivateData) PrepareRegistrationMessage(builderSigningDomain boostTypes.Domain) ([]boostTypes.SignedValidatorRegistration, error) {
-	pk := boostTypes.PublicKey{}
-	err := pk.FromSlice(v.Pk)
-	if err != nil {
-		return []boostTypes.SignedValidatorRegistration{}, err
+func (v *validatorPrivateData) PrepareRegistrationMessage(builderSigningDomain phase0.Domain) ([]apiv1.SignedValidatorRegistration, error) {
+	pk := phase0.BLSPubKey{}
+	if len(v.Pk) != len(pk) {
+		return []apiv1.SignedValidatorRegistration{}, errInvalidLength
 	}
+	copy(pk[:], v.Pk)
 
-	addr, err := boostTypes.HexToAddress(v.FeeRecipientHex)
+	addr, err := utils.HexToAddress(v.FeeRecipientHex)
 	if err != nil {
-		return []boostTypes.SignedValidatorRegistration{}, err
+		return []apiv1.SignedValidatorRegistration{}, err
 	}
-	msg := boostTypes.RegisterValidatorRequestMessage{
+	msg := apiv1.ValidatorRegistration{
 		FeeRecipient: addr,
-		Timestamp:    uint64(time.Now().Unix()),
+		Timestamp:    time.Now(),
 		Pubkey:       pk,
 		GasLimit:     uint64(v.GasLimit),
 	}
 	signature, err := v.Sign(&msg, builderSigningDomain)
 	if err != nil {
-		return []boostTypes.SignedValidatorRegistration{}, err
+		return []apiv1.SignedValidatorRegistration{}, err
 	}
 
-	return []boostTypes.SignedValidatorRegistration{{
+	return []apiv1.SignedValidatorRegistration{{
 		Message:   &msg,
 		Signature: signature,
 	}}, nil
 }
 
-func (v *validatorPrivateData) Sign(msg boostTypes.HashTreeRoot, domain boostTypes.Domain) (boostTypes.Signature, error) {
+func (v *validatorPrivateData) Sign(msg ssz.ObjWithHashTreeRoot, domain phase0.Domain) (phase0.BLSSignature, error) {
 	sk, err := bls.SecretKeyFromBytes(v.Sk)
 	if err != nil {
-		return boostTypes.Signature{}, err
+		return phase0.BLSSignature{}, err
 	}
-	return boostTypes.SignMessage(msg, domain, sk)
+	return ssz.SignMessage(msg, domain, sk)
 }
