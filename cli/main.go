@@ -14,15 +14,13 @@ import (
 )
 
 const (
-	genesisForkVersionMainnet  = "0x00000000"
-	genesisForkVersionSepolia  = "0x90000069"
-	genesisForkVersionGoerli   = "0x00001020"
-	genesisForkVersionZhejiang = "0x00000069"
+	genesisForkVersionMainnet = "0x00000000"
+	genesisForkVersionSepolia = "0x90000069"
+	genesisForkVersionGoerli  = "0x00001020"
 
-	genesisTimeMainnet  int64 = 1606824023
-	genesisTimeSepolia  int64 = 1655733600
-	genesisTimeGoerli   int64 = 1614588812
-	genesisTimeZhejiang int64 = 1675263600
+	genesisTimeMainnet int64 = 1606824023
+	genesisTimeSepolia int64 = 1655733600
+	genesisTimeGoerli  int64 = 1614588812
 )
 
 var (
@@ -42,7 +40,6 @@ var (
 	defaultGenesisForkVersion = common.GetEnv("GENESIS_FORK_VERSION", "")
 	defaultUseSepolia         = os.Getenv("SEPOLIA") != ""
 	defaultUseGoerli          = os.Getenv("GOERLI") != ""
-	defaultUseZhejiang        = os.Getenv("ZHEJIANG") != ""
 
 	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
 	defaultTimeoutMsGetHeader         = common.GetEnvInt("RELAY_TIMEOUT_MS_GETHEADER", 950)   // timeout for getHeader requests
@@ -73,10 +70,9 @@ var (
 	relayRequestMaxRetries = flag.Int("request-max-retries", defaultMaxRetries, "maximum number of retries for a relay get payload request")
 
 	// helpers
-	mainnet  = flag.Bool("mainnet", true, "use Mainnet")
-	sepolia  = flag.Bool("sepolia", defaultUseSepolia, "use Sepolia")
-	goerli   = flag.Bool("goerli", defaultUseGoerli, "use Goerli")
-	zhejiang = flag.Bool("zhejiang", defaultUseZhejiang, "use Zhejiang")
+	mainnet = flag.Bool("mainnet", true, "use Mainnet")
+	sepolia = flag.Bool("sepolia", defaultUseSepolia, "use Sepolia")
+	goerli  = flag.Bool("goerli", defaultUseGoerli, "use Goerli")
 
 	useCustomGenesisForkVersion = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
 )
@@ -147,15 +143,12 @@ func Main() {
 	case *goerli:
 		genesisForkVersionHex = genesisForkVersionGoerli
 		genesisTime = genesisTimeGoerli
-	case *zhejiang:
-		genesisForkVersionHex = genesisForkVersionZhejiang
-		genesisTime = genesisTimeZhejiang
 	case *mainnet:
 		genesisForkVersionHex = genesisForkVersionMainnet
 		genesisTime = genesisTimeMainnet
 	default:
 		flag.Usage()
-		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -zhejiang / -genesis-fork-version flags)")
+		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -genesis-fork-version flags)")
 	}
 	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
 
