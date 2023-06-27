@@ -60,10 +60,6 @@ linters-settings:
     disable:
       - fieldalignment
       - shadow
-  gomoddirectives:
-     replace-allow-list:
-      # TODO: remove when https://github.com/attestantio/go-builder-client/pull/13 is merged
-      - github.com/attestantio/go-builder-client
 
 output:
   print-issued-lines: true
