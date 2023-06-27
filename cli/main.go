@@ -38,6 +38,7 @@ var (
 	defaultMaxRetries        = common.GetEnvInt("REQUEST_MAX_RETRIES", 5)
 
 	defaultGenesisForkVersion = common.GetEnv("GENESIS_FORK_VERSION", "")
+	defaultGenesisTime        = common.GetEnvInt("GENESIS_TIMESTAMP", -1)
 	defaultUseSepolia         = os.Getenv("SEPOLIA") != ""
 	defaultUseGoerli          = os.Getenv("GOERLI") != ""
 
@@ -75,6 +76,7 @@ var (
 	goerli  = flag.Bool("goerli", defaultUseGoerli, "use Goerli")
 
 	useCustomGenesisForkVersion = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
+	useCustomGenesisTime        = flag.Int("genesis-timestamp", defaultGenesisTime, "use a custom genesis timestamp (unix seconds)")
 )
 
 var log = logrus.NewEntry(logrus.New())
@@ -139,18 +141,30 @@ func Main() {
 		genesisForkVersionHex = *useCustomGenesisForkVersion
 	case *sepolia:
 		genesisForkVersionHex = genesisForkVersionSepolia
-		genesisTime = genesisTimeSepolia
 	case *goerli:
 		genesisForkVersionHex = genesisForkVersionGoerli
-		genesisTime = genesisTimeGoerli
 	case *mainnet:
 		genesisForkVersionHex = genesisForkVersionMainnet
-		genesisTime = genesisTimeMainnet
 	default:
 		flag.Usage()
 		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -genesis-fork-version flags)")
 	}
 	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
+
+	switch {
+	case *useCustomGenesisTime != -1:
+		genesisTime = uint64(*useCustomGenesisTime)
+	case *sepolia:
+		genesisTime = genesisTimeSepolia
+	case *goerli:
+		genesisTime = genesisTimeGoerli
+	case *mainnet:
+		genesisTime = genesisTimeMainnet
+	default:
+		flag.Usage()
+		log.Fatal("please specify a genesis timestamp (eg. -mainnet / -sepolia / -goerli / -genesis-timestamp flags)")
+	}
+	log.Infof("using genesis timestamp: %d", genesisTime)
 
 	// For backwards compatibility with the -relays flag.
 	if *relayURLs != "" {
