@@ -32,5 +32,5 @@ var (
 	// SkipRelaySignatureCheck can be used to disable relay signature check
 	SkipRelaySignatureCheck = os.Getenv("SKIP_RELAY_SIGNATURE_CHECK") == "1"
 
-	SlotTimeSec = int64(common.GetEnvInt("SLOT_SEC", common.SlotTimeSecMainnet))
+	SlotTimeSec = uint64(common.GetEnvInt("SLOT_SEC", common.SlotTimeSecMainnet))
 )

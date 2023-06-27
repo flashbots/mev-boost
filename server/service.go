@@ -62,7 +62,7 @@ type BoostServiceOpts struct {
 	Relays                []RelayEntry
 	RelayMonitors         []*url.URL
 	GenesisForkVersionHex string
-	GenesisTime           int64
+	GenesisTime           uint64
 	RelayCheck            bool
 	RelayMinBid           types.U256Str
 
@@ -81,7 +81,7 @@ type BoostService struct {
 	srv           *http.Server
 	relayCheck    bool
 	relayMinBid   types.U256Str
-	genesisTime   int64
+	genesisTime   uint64
 
 	builderSigningDomain types.Domain
 	httpClientGetHeader  http.Client
@@ -345,8 +345,8 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	log = log.WithField("slotUID", slotUID)
 
 	// Log how late into the slot the request starts
-	slotStartTimestamp := m.genesisTime + (int64(_slot) * config.SlotTimeSec)
-	msIntoSlot := time.Now().UTC().UnixMilli() - (slotStartTimestamp * 1000)
+	slotStartTimestamp := m.genesisTime + _slot*config.SlotTimeSec
+	msIntoSlot := uint64(time.Now().UTC().UnixMilli()) - slotStartTimestamp*1000
 	log.WithFields(logrus.Fields{
 		"genesisTime": m.genesisTime,
 		"slotTimeSec": config.SlotTimeSec,
@@ -525,8 +525,8 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	})
 
 	// Log how late into the slot the request starts
-	slotStartTimestamp := m.genesisTime + (int64(payload.Message.Slot) * config.SlotTimeSec)
-	msIntoSlot := time.Now().UTC().UnixMilli() - (slotStartTimestamp * 1000)
+	slotStartTimestamp := m.genesisTime + uint64(payload.Message.Slot)*config.SlotTimeSec
+	msIntoSlot := uint64(time.Now().UTC().UnixMilli()) - slotStartTimestamp*1000
 	log.WithFields(logrus.Fields{
 		"genesisTime": m.genesisTime,
 		"slotTimeSec": config.SlotTimeSec,

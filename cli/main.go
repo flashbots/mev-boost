@@ -18,9 +18,9 @@ const (
 	genesisForkVersionSepolia = "0x90000069"
 	genesisForkVersionGoerli  = "0x00001020"
 
-	genesisTimeMainnet int64 = 1606824023
-	genesisTimeSepolia int64 = 1655733600
-	genesisTimeGoerli  int64 = 1614588812
+	genesisTimeMainnet uint64 = 1606824023
+	genesisTimeSepolia uint64 = 1655733600
+	genesisTimeGoerli  uint64 = 1614588812
 )
 
 var (
@@ -132,7 +132,7 @@ func Main() {
 	log.Debug("debug logging enabled")
 
 	genesisForkVersionHex := ""
-	var genesisTime int64 = 0
+	var genesisTime uint64
 
 	switch {
 	case *useCustomGenesisForkVersion != "":
