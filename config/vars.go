@@ -6,11 +6,10 @@ import (
 	"github.com/flashbots/mev-boost/common"
 )
 
-// Version is set at build time
-const Version = "v1.7-dev"
-
-// Other settings
 var (
+	// Version is set at build time (must be a var, not a const!)
+	Version = "v1.7-dev"
+
 	// RFC3339Milli is a time format string based on time.RFC3339 but with millisecond precision
 	RFC3339Milli = "2006-01-02T15:04:05.999Z07:00"
 
