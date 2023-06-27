@@ -84,7 +84,9 @@ docker pull flashbots/mev-boost:v1.9a1
 To create a new version (with tag), follow all these steps! They are necessary to have the correct build version inside, and work with `go install`.
 
 * Update [`Version`](/config/vars.go) to final version to `v1.9`, and commit
-* Create a final tag: `git tag -s v1.9`
+* Create final tags, both semver and pep440:
+  * `git tag -s v1.9`
+  * `git tag -s v1.9.0`
 * Update the `stable` branch:
   * `git checkout stable`
   * `git merge tags/v1.9 --ff-only`
