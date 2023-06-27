@@ -141,30 +141,22 @@ func Main() {
 		genesisForkVersionHex = *useCustomGenesisForkVersion
 	case *sepolia:
 		genesisForkVersionHex = genesisForkVersionSepolia
+		genesisTime = genesisTimeSepolia
 	case *goerli:
 		genesisForkVersionHex = genesisForkVersionGoerli
+		genesisTime = genesisTimeGoerli
 	case *mainnet:
 		genesisForkVersionHex = genesisForkVersionMainnet
+		genesisTime = genesisTimeMainnet
 	default:
 		flag.Usage()
 		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -genesis-fork-version flags)")
 	}
 	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
 
-	switch {
-	case *useCustomGenesisTime != -1:
+	if *useCustomGenesisTime > -1 {
 		genesisTime = uint64(*useCustomGenesisTime)
-	case *sepolia:
-		genesisTime = genesisTimeSepolia
-	case *goerli:
-		genesisTime = genesisTimeGoerli
-	case *mainnet:
-		genesisTime = genesisTimeMainnet
-	default:
-		flag.Usage()
-		log.Fatal("please specify a genesis timestamp (eg. -mainnet / -sepolia / -goerli / -genesis-timestamp flags)")
 	}
-	log.Infof("using genesis timestamp: %d", genesisTime)
 
 	// For backwards compatibility with the -relays flag.
 	if *relayURLs != "" {
