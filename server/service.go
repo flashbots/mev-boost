@@ -16,9 +16,12 @@ import (
 	"time"
 
 	"github.com/attestantio/go-builder-client/api"
+	apiv1 "github.com/attestantio/go-builder-client/api/v1"
 	"github.com/attestantio/go-builder-client/spec"
+	apiv1bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
 	"github.com/attestantio/go-eth2-client/api/v1/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
@@ -48,8 +51,8 @@ type httpErrorResp struct {
 
 // AuctionTranscript is the bid and blinded block received from the relay send to the relay monitor
 type AuctionTranscript struct {
-	Bid        *spec.VersionedSignedBuilderBid // TODO: proper json marshalling and unmashalling
-	Acceptance *types.SignedBlindedBeaconBlock `json:"acceptance"`
+	Bid        *spec.VersionedSignedBuilderBid          // TODO: proper json marshalling and unmashalling
+	Acceptance *apiv1bellatrix.SignedBlindedBeaconBlock `json:"acceptance"`
 }
 
 type slotUID struct {
@@ -83,7 +86,7 @@ type BoostService struct {
 	relayCheck    bool
 	relayMinBid   types.U256Str
 
-	builderSigningDomain types.Domain
+	builderSigningDomain phase0.Domain
 	httpClientGetHeader  http.Client
 	httpClientGetPayload http.Client
 	httpClientRegVal     http.Client
@@ -102,7 +105,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		return nil, errNoRelays
 	}
 
-	builderSigningDomain, err := ComputeDomain(types.DomainTypeAppBuilder, opts.GenesisForkVersionHex, types.Root{}.String())
+	builderSigningDomain, err := ComputeDomain(ssz.DomainTypeAppBuilder, opts.GenesisForkVersionHex, phase0.Root{}.String())
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +210,7 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
-func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []types.SignedValidatorRegistration) {
+func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []apiv1.SignedValidatorRegistration) {
 	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("numRegistrations", len(payload))
 	for _, relayMonitor := range m.relayMonitors {
 		go func(relayMonitor *url.URL) {
@@ -259,7 +262,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log := m.log.WithField("method", "registerValidator")
 	log.Debug("registerValidator")
 
-	payload := []types.SignedValidatorRegistration{}
+	payload := []apiv1.SignedValidatorRegistration{}
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return

@@ -21,7 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/flashbots/go-boost-utils/bls"
-	boostTypes "github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/holiman/uint256"
 	"github.com/sirupsen/logrus"
@@ -140,15 +140,15 @@ func SendHTTPRequestWithRetries(ctx context.Context, client http.Client, method,
 }
 
 // ComputeDomain computes the signing domain
-func ComputeDomain(domainType boostTypes.DomainType, forkVersionHex, genesisValidatorsRootHex string) (domain boostTypes.Domain, err error) {
-	genesisValidatorsRoot := boostTypes.Root(common.HexToHash(genesisValidatorsRootHex))
+func ComputeDomain(domainType phase0.DomainType, forkVersionHex, genesisValidatorsRootHex string) (domain phase0.Domain, err error) {
+	genesisValidatorsRoot := phase0.Root(common.HexToHash(genesisValidatorsRootHex))
 	forkVersionBytes, err := hexutil.Decode(forkVersionHex)
 	if err != nil || len(forkVersionBytes) != 4 {
 		return domain, errInvalidForkVersion
 	}
 	var forkVersion [4]byte
 	copy(forkVersion[:], forkVersionBytes[:4])
-	return boostTypes.ComputeDomain(domainType, forkVersion, genesisValidatorsRoot), nil
+	return ssz.ComputeDomain(domainType, forkVersion, genesisValidatorsRoot), nil
 }
 
 // DecodeJSON reads JSON from io.Reader and decodes it into a struct
@@ -300,7 +300,7 @@ func parseBidInfo(bid *spec.VersionedSignedBuilderBid) (bidInfo, error) {
 	return bidInfo, nil
 }
 
-func checkRelaySignature(bid *spec.VersionedSignedBuilderBid, domain boostTypes.Domain, pubKey boostTypes.PublicKey) (bool, error) {
+func checkRelaySignature(bid *spec.VersionedSignedBuilderBid, domain phase0.Domain, pubKey phase0.BLSPubKey) (bool, error) {
 	root, err := bid.MessageHashTreeRoot()
 	if err != nil {
 		return false, err
@@ -309,7 +309,7 @@ func checkRelaySignature(bid *spec.VersionedSignedBuilderBid, domain boostTypes.
 	if err != nil {
 		return false, err
 	}
-	signingData := boostTypes.SigningData{Root: boostTypes.Root(root), Domain: domain}
+	signingData := phase0.SigningData{ObjectRoot: root, Domain: domain}
 	msg, err := signingData.HashTreeRoot()
 	if err != nil {
 		return false, err

@@ -13,6 +13,7 @@ import (
 	"github.com/attestantio/go-builder-client/api"
 	apibellatrix "github.com/attestantio/go-builder-client/api/bellatrix"
 	apicapella "github.com/attestantio/go-builder-client/api/capella"
+	apiv1 "github.com/attestantio/go-builder-client/api/v1"
 	"github.com/attestantio/go-builder-client/spec"
 	consensusspec "github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
@@ -20,7 +21,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
-	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/gorilla/mux"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
@@ -58,9 +59,8 @@ type mockRelay struct {
 	handlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
 
 	// Default responses placeholders, used if overrider does not exist
-	GetHeaderResponse           *spec.VersionedSignedBuilderBid
-	GetBellatrixPayloadResponse *types.GetPayloadResponse
-	GetCapellaPayloadResponse   *api.VersionedExecutionPayload
+	GetHeaderResponse  *spec.VersionedSignedBuilderBid
+	GetPayloadResponse *api.VersionedExecutionPayload
 
 	// Server section
 	Server        *httptest.Server
@@ -141,7 +141,7 @@ func (m *mockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, `{}`)
 }
 
-// By default, handleRegisterValidator returns a default types.SignedValidatorRegistration
+// By default, handleRegisterValidator returns a default apiv1.SignedValidatorRegistration
 func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -154,7 +154,7 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 
 // defaultHandleRegisterValidator returns the default handler for handleRegisterValidator
 func (m *mockRelay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.Request) {
-	payload := []types.SignedValidatorRegistration{}
+	payload := []apiv1.SignedValidatorRegistration{}
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -172,45 +172,45 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 		// Fill the payload with custom values.
 		message := &apibellatrix.BuilderBid{
 			Header: &bellatrix.ExecutionPayloadHeader{
-				BlockHash:  phase0.Hash32(_HexToHash(blockHash)),
-				ParentHash: phase0.Hash32(_HexToHash(parentHash)),
+				BlockHash:  _HexToHash(blockHash),
+				ParentHash: _HexToHash(parentHash),
 			},
 			Value:  uint256.NewInt(value),
-			Pubkey: phase0.BLSPubKey(_HexToPubkey(publicKey)),
+			Pubkey: _HexToPubkey(publicKey),
 		}
 
 		// Sign the message.
-		signature, err := types.SignMessage(message, types.DomainBuilder, m.secretKey)
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
 		require.NoError(m.t, err)
 
 		return &spec.VersionedSignedBuilderBid{
 			Version: consensusspec.DataVersionCapella,
 			Bellatrix: &apibellatrix.SignedBuilderBid{
 				Message:   message,
-				Signature: phase0.BLSSignature(signature),
+				Signature: signature,
 			},
 		}
 	case consensusspec.DataVersionCapella:
 		// Fill the payload with custom values.
 		message := &apicapella.BuilderBid{
 			Header: &capella.ExecutionPayloadHeader{
-				BlockHash:       phase0.Hash32(_HexToHash(blockHash)),
-				ParentHash:      phase0.Hash32(_HexToHash(parentHash)),
+				BlockHash:       _HexToHash(blockHash),
+				ParentHash:      _HexToHash(parentHash),
 				WithdrawalsRoot: phase0.Root{},
 			},
 			Value:  uint256.NewInt(value),
-			Pubkey: phase0.BLSPubKey(_HexToPubkey(publicKey)),
+			Pubkey: _HexToPubkey(publicKey),
 		}
 
 		// Sign the message.
-		signature, err := types.SignMessage(message, types.DomainBuilder, m.secretKey)
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
 		require.NoError(m.t, err)
 
 		return &spec.VersionedSignedBuilderBid{
 			Version: consensusspec.DataVersionCapella,
 			Capella: &apicapella.SignedBuilderBid{
 				Message:   message,
-				Signature: phase0.BLSSignature(signature),
+				Signature: signature,
 			},
 		}
 	case consensusspec.DataVersionAltair, consensusspec.DataVersionPhase0, consensusspec.DataVersionDeneb:
@@ -261,10 +261,10 @@ func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient s
 	return &api.VersionedExecutionPayload{
 		Version: consensusspec.DataVersionCapella,
 		Capella: &capella.ExecutionPayload{
-			ParentHash:   phase0.Hash32(_HexToHash(parentHash)),
-			BlockHash:    phase0.Hash32(_HexToHash(blockHash)),
+			ParentHash:   _HexToHash(parentHash),
+			BlockHash:    _HexToHash(blockHash),
 			BlockNumber:  blockNumber,
-			FeeRecipient: bellatrix.ExecutionAddress(_HexToAddress(feeRecipient)),
+			FeeRecipient: _HexToAddress(feeRecipient),
 			Withdrawals:  make([]*capella.Withdrawal, 0),
 		},
 	}
@@ -296,8 +296,8 @@ func (m *mockRelay) defaultHandleGetPayload(w http.ResponseWriter) {
 		12345,
 	)
 
-	if m.GetCapellaPayloadResponse != nil {
-		response = m.GetCapellaPayloadResponse
+	if m.GetPayloadResponse != nil {
+		response = m.GetPayloadResponse
 	}
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {

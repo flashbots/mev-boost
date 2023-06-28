@@ -94,8 +94,8 @@ github.com/fatih/color v1.13.0/go.mod h1:kLAiJbzzSOZDVNGyDpeOxJ47H46qBXwg5ILebYF
 github.com/fatih/structs v1.1.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=
 github.com/ferranbt/fastssz v0.1.3 h1:ZI+z3JH05h4kgmFXdHuR1aWYsgrg7o+Fw7/NCzM16Mo=
 github.com/ferranbt/fastssz v0.1.3/go.mod h1:0Y9TEd/9XuFlh7mskMPfXiI2Dkw4Ddg9EyXt1W7MRvE=
-github.com/flashbots/go-boost-utils v1.6.0 h1:XIcPDG6q0Tesh3kcCXyv61ncD/WVYOMCO2OVzPznvMA=
-github.com/flashbots/go-boost-utils v1.6.0/go.mod h1:fL9Jc738zFENkbn5HNnVzIfuRcvCO1djlT/ylyT34Zw=
+github.com/flashbots/go-boost-utils v1.7.1-0.20230625230411-8c44018f4777 h1:mnwpdE/JW74My5u3Ag1IMX8PgCa7aZwgFNPB20HN/DM=
+github.com/flashbots/go-boost-utils v1.7.1-0.20230625230411-8c44018f4777/go.mod h1:Rckma9iiHGuw4PQj/BFV1ddN13lUib4sTfF3QUY40Z8=
 github.com/flashbots/go-utils v0.4.8 h1:WDJXryrqShGq4HFe+p1kGjObXSqzT7Sy/+9YvFpr5tM=
 github.com/flashbots/go-utils v0.4.8/go.mod h1:dBmSv4Cpqij4xKP50bdisAvFIo4/EgsY97BMpVjPzr0=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=

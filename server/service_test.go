@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/attestantio/go-builder-client/api"
+	apiv1 "github.com/attestantio/go-builder-client/api/v1"
 	"github.com/attestantio/go-builder-client/spec"
 	apiv1capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	consensusspec "github.com/attestantio/go-eth2-client/spec"
@@ -22,6 +23,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	bellatrixutil "github.com/attestantio/go-eth2-client/util/bellatrix"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/holiman/uint256"
 	"github.com/prysmaticlabs/go-bitfield"
@@ -193,17 +195,17 @@ func TestStatus(t *testing.T) {
 
 func TestRegisterValidator(t *testing.T) {
 	path := "/eth/v1/builder/validators"
-	reg := types.SignedValidatorRegistration{
-		Message: &types.RegisterValidatorRequestMessage{
+	reg := apiv1.SignedValidatorRegistration{
+		Message: &apiv1.ValidatorRegistration{
 			FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
-			Timestamp:    1234356,
+			Timestamp:    time.Unix(1234356, 0),
 			Pubkey: _HexToPubkey(
 				"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"),
 		},
 		Signature: _HexToSignature(
 			"0x81510b571e22f89d1697545aac01c9ad0c1e7a3e778b3078bef524efae14990e58a6e960a152abd49de2e18d7fd3081c15d5c25867ccfad3d47beef6b39ac24b6b9fbf2cfa91c88f67aff750438a6841ec9e4a06a94ae41410c4f97b75ab284c"),
 	}
-	payload := []types.SignedValidatorRegistration{reg}
+	payload := []apiv1.SignedValidatorRegistration{reg}
 
 	t.Run("Normal function", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
@@ -257,7 +259,7 @@ func TestRegisterValidator(t *testing.T) {
 	})
 }
 
-func getHeaderPath(slot uint64, parentHash types.Hash, pubkey types.PublicKey) string {
+func getHeaderPath(slot uint64, parentHash phase0.Hash32, pubkey phase0.BLSPubKey) string {
 	return fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHash.String(), pubkey.String())
 }
 
@@ -313,7 +315,7 @@ func TestGetHeader(t *testing.T) {
 		)
 
 		// Simulate a different public key registered to mev-boost
-		pk := types.PublicKey{}
+		pk := phase0.BLSPubKey{}
 		backend.boost.relays[0].PublicKey = pk
 
 		rr := backend.request(t, http.MethodGet, path, nil)
@@ -379,7 +381,7 @@ func TestGetHeader(t *testing.T) {
 	t.Run("Invalid parent hash", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
 
-		invalidParentHashPath := getHeaderPath(1, types.Hash{}, pubkey)
+		invalidParentHashPath := getHeaderPath(1, phase0.Hash32{}, pubkey)
 		rr := backend.request(t, http.MethodGet, invalidParentHashPath, nil)
 		require.Equal(t, http.StatusNoContent, rr.Code)
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
@@ -537,199 +539,22 @@ func TestGetHeaderBids(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
 		// Value should be 12345 (min bid is 12345)
-		resp := new(types.GetHeaderResponse)
-		err := json.Unmarshal(rr.Body.Bytes(), resp)
-		require.NoError(t, err)
-		require.Equal(t, types.IntToU256(12345), resp.Data.Message.Value)
-	})
-}
-
-func TestGetHeaderCapellaBids(t *testing.T) {
-	hash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
-	pubkey := _HexToPubkey(
-		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
-	path := getHeaderPath(1, hash, pubkey)
-	require.Equal(t, "/eth/v1/builder/header/1/0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249", path)
-
-	t.Run("Use header with highest value", func(t *testing.T) {
-		// Create backend and register 3 relays.
-		backend := newTestBackend(t, 3, time.Second)
-
-		// First relay will return signed response with value 12345.
-		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
-			12345,
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionCapella,
-		)
-
-		// First relay will return signed response with value 12347.
-		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
-			12347,
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionCapella,
-		)
-
-		// First relay will return signed response with value 12346.
-		backend.relays[2].GetHeaderResponse = backend.relays[2].MakeGetHeaderResponse(
-			12346,
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionCapella,
-		)
-
-		// Run the request.
-		rr := backend.request(t, http.MethodGet, path, nil)
-
-		// Each relay must have received the request.
-		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
-		require.Equal(t, 1, backend.relays[2].GetRequestCount(path))
-
-		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
-
-		// Highest value should be 12347, i.e. second relay.
 		resp := new(spec.VersionedSignedBuilderBid)
-		err := json.Unmarshal(rr.Body.Bytes(), resp)
-		require.NoError(t, err)
-		value, err := resp.Value()
-		require.NoError(t, err)
-		require.Equal(t, uint256.NewInt(12347), value)
-	})
-
-	t.Run("Use header with lowest blockhash if same value", func(t *testing.T) {
-		// Create backend and register 3 relays.
-		backend := newTestBackend(t, 3, time.Second)
-
-		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
-			12345,
-			"0xa38385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionCapella,
-		)
-
-		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
-			12345,
-			"0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionCapella,
-		)
-
-		backend.relays[2].GetHeaderResponse = backend.relays[2].MakeGetHeaderResponse(
-			12345,
-			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionCapella,
-		)
-
-		// Run the request.
-		rr := backend.request(t, http.MethodGet, path, nil)
-
-		// Each relay must have received the request.
-		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
-		require.Equal(t, 1, backend.relays[2].GetRequestCount(path))
-
-		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
-
-		// Highest value should be 12347, i.e. second relay.
-		resp := new(spec.VersionedSignedBuilderBid)
-
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
 		require.NoError(t, err)
 		value, err := resp.Value()
 		require.NoError(t, err)
 		require.Equal(t, uint256.NewInt(12345), value)
-		blockHash, err := resp.BlockHash()
-		require.NoError(t, err)
-		require.Equal(t, "0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7", blockHash.String())
-	})
-
-	t.Run("Respect minimum bid cutoff", func(t *testing.T) {
-		// Create backend and register relay.
-		backend := newTestBackend(t, 1, time.Second)
-
-		// Relay will return signed response with value 12344.
-		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
-			12344,
-			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionCapella,
-		)
-
-		// Run the request.
-		rr := backend.request(t, http.MethodGet, path, nil)
-
-		// Each relay must have received the request.
-		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-
-		// Request should have no content (min bid is 12345)
-		require.Equal(t, http.StatusNoContent, rr.Code)
-	})
-
-	t.Run("Allow bids which meet minimum bid cutoff", func(t *testing.T) {
-		// Create backend and register relay.
-		backend := newTestBackend(t, 1, time.Second)
-
-		// First relay will return signed response with value 12345.
-		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
-			12345,
-			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionCapella,
-		)
-
-		// Run the request.
-		rr := backend.request(t, http.MethodGet, path, nil)
-
-		// Each relay must have received the request.
-		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-
-		// Value should be 12345 (min bid is 12345)
-		resp := new(types.GetHeaderResponse)
-		err := json.Unmarshal(rr.Body.Bytes(), resp)
-		require.NoError(t, err)
-		require.Equal(t, types.IntToU256(12345), resp.Data.Message.Value)
-	})
-
-	t.Run("Invalid relay signature", func(t *testing.T) {
-		backend := newTestBackend(t, 1, time.Second)
-
-		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
-			12345,
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionCapella,
-		)
-
-		// Scramble the signature
-		backend.relays[0].GetHeaderResponse.Capella.Signature = phase0.BLSSignature{}
-
-		rr := backend.request(t, http.MethodGet, path, nil)
-		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-
-		// Request should have no content
-		require.Equal(t, http.StatusNoContent, rr.Code)
 	})
 }
 
 func TestGetPayload(t *testing.T) {
 	path := "/eth/v1/builder/blinded_blocks"
 
-	blockHash := phase0.Hash32(_HexToHash("0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46"))
+	blockHash := _HexToHash("0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46")
 	payload := &apiv1capella.SignedBlindedBeaconBlock{
-		Signature: phase0.BLSSignature(_HexToSignature(
-			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9")),
+		Signature: _HexToSignature(
+			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9"),
 		Message: &apiv1capella.BlindedBeaconBlock{
 			Slot:          1,
 			ProposerIndex: 1,
@@ -750,10 +575,10 @@ func TestGetPayload(t *testing.T) {
 				Deposits:          []*phase0.Deposit{},
 				VoluntaryExits:    []*phase0.SignedVoluntaryExit{},
 				ExecutionPayloadHeader: &capella.ExecutionPayloadHeader{
-					ParentHash:   phase0.Hash32(_HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")),
+					ParentHash:   _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
 					BlockHash:    blockHash,
 					BlockNumber:  12345,
-					FeeRecipient: bellatrix.ExecutionAddress(_HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941")),
+					FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
 				},
 			},
 		},
@@ -779,15 +604,15 @@ func TestGetPayload(t *testing.T) {
 		}
 
 		// 1/2 failing responses are okay
-		backend.relays[0].GetCapellaPayloadResponse = resp
+		backend.relays[0].GetPayloadResponse = resp
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.GreaterOrEqual(t, backend.relays[1].GetRequestCount(path)+backend.relays[0].GetRequestCount(path), 1)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 		// 2/2 failing responses are okay
 		backend = newTestBackend(t, 2, time.Second)
-		backend.relays[0].GetCapellaPayloadResponse = resp
-		backend.relays[1].GetCapellaPayloadResponse = resp
+		backend.relays[0].GetPayloadResponse = resp
+		backend.relays[1].GetPayloadResponse = resp
 		rr = backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
@@ -877,7 +702,7 @@ func TestCheckRelays(t *testing.T) {
 }
 
 func TestEmptyTxRoot(t *testing.T) {
-	transactions := types.Transactions{}
+	transactions := bellatrixutil.ExecutionPayloadTransactions{Transactions: []bellatrix.Transaction{}}
 	txroot, _ := transactions.HashTreeRoot()
 	txRootHex := fmt.Sprintf("0x%x", txroot)
 	require.Equal(t, "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1", txRootHex)
@@ -906,7 +731,7 @@ func TestGetPayloadWithTestdata(t *testing.T) {
 					Withdrawals: make([]*capella.Withdrawal, 0),
 				},
 			}
-			backend.relays[0].GetCapellaPayloadResponse = &mockResp
+			backend.relays[0].GetPayloadResponse = &mockResp
 
 			rr := backend.request(t, http.MethodPost, path, signedBlindedBeaconBlock)
 			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
@@ -931,7 +756,7 @@ func TestGetPayloadCapella(t *testing.T) {
 	backend := newTestBackend(t, 1, time.Second)
 
 	// Prepare getPayload response
-	backend.relays[0].GetCapellaPayloadResponse = &api.VersionedExecutionPayload{
+	backend.relays[0].GetPayloadResponse = &api.VersionedExecutionPayload{
 		Version: consensusspec.DataVersionCapella,
 		Capella: blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock),
 	}
@@ -974,7 +799,7 @@ func TestGetPayloadToAllRelays(t *testing.T) {
 	require.Equal(t, 1, backend.relays[1].GetRequestCount(getHeaderPath))
 
 	// Prepare getPayload response
-	backend.relays[0].GetCapellaPayloadResponse = &api.VersionedExecutionPayload{
+	backend.relays[0].GetPayloadResponse = &api.VersionedExecutionPayload{
 		Version: consensusspec.DataVersionCapella,
 		Capella: blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock),
 	}
