@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	GenesisTimeMainnet = 1606824023
 	SlotTimeSecMainnet = 12
 )
 

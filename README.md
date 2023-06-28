@@ -211,14 +211,6 @@ Run MEV-Boost pointed at a Sepolia relay:
 ./mev-boost -sepolia -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
-## Zhejiang testnet
-
-Run MEV-Boost pointed at a Zhejiang relay:
-
-```
-./mev-boost -zhejiang -relay-check -relay URL-OF-TRUSTED-RELAY
-```
-
 ## `test-cli`
 
 `test-cli` is a utility to execute all proposer requests against MEV-Boost + relay. See also the [test-cli readme](cmd/test-cli/README.md).
