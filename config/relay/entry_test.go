@@ -1,10 +1,11 @@
-package server
+package relay_test
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,7 +33,7 @@ func TestParseRelaysURLs(t *testing.T) {
 		{
 			name:        "Relay URL without protocol scheme, without public key",
 			relayURL:    "foo.com",
-			expectedErr: ErrMissingRelayPubkey,
+			expectedErr: relay.ErrMissingRelayPubKey,
 		},
 		{
 			name:              "Relay URL without protocol scheme and with public key",
@@ -70,7 +71,7 @@ func TestParseRelaysURLs(t *testing.T) {
 		{
 			name:        "Relay URL with point-at-infinity public key",
 			relayURL:    "http://0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@foo.com",
-			expectedErr: ErrPointAtInfinityPubkey,
+			expectedErr: relay.ErrPointAtInfinityPubkey,
 		},
 		{
 			name:              "Relay URL with query arg",
@@ -83,16 +84,17 @@ func TestParseRelaysURLs(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			relayEntry, err := NewRelayEntry(tt.relayURL)
+			relayEntry, err := relay.NewRelayEntry(tt.relayURL)
 
 			// Check errors.
-			require.Equal(t, tt.expectedErr, err)
+			require.ErrorIs(t, err, tt.expectedErr)
 
 			// Now perform content assertions.
 			if tt.expectedErr == nil {
 				require.Equal(t, tt.expectedURI, relayEntry.GetURI(tt.path))
-				require.Equal(t, tt.expectedPublicKey, relayEntry.PublicKey.String())
+				require.Equal(t, tt.expectedPublicKey, relayEntry.PublicKey().String())
 				require.Equal(t, tt.expectedURL, relayEntry.String())
+				require.Equal(t, tt.expectedURL, relayEntry.RelayURL().String())
 			}
 		})
 	}

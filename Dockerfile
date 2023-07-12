@@ -9,7 +9,7 @@ COPY go.sum ./
 RUN go mod download
 
 ADD . .
-RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOOS=linux go build \
+RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
     -v \
     -ldflags "-w -s -X 'github.com/flashbots/mev-boost/config.Version=$VERSION'" \
@@ -19,5 +19,7 @@ FROM alpine
 WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /build/mev-boost /app/mev-boost
+# Set runner as a non existent user
+USER 65534:65534
 EXPOSE 18550
 ENTRYPOINT ["/app/mev-boost"]

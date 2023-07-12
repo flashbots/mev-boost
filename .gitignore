@@ -7,6 +7,7 @@
 
 # Test binary, built with `go test -c`
 *.test
+report.json
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
@@ -16,6 +17,9 @@
 
 # Ignore VI/Vim swapfiles
 .*.sw?
+
+# skaffold
+tags.json
 
 # IntelliJ
 .idea

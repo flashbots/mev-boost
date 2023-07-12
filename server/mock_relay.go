@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/gorilla/mux"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
@@ -39,12 +40,12 @@ var (
 // handler.
 type mockRelay struct {
 	// Used to panic if impossible error happens
-	t *testing.T
+	tb testing.TB
 
 	// KeyPair used to sign messages
 	secretKey  *bls.SecretKey
 	publicKey  *bls.PublicKey
-	RelayEntry RelayEntry
+	RelayEntry relay.Entry
 
 	// Used to count each Request made to the relay, either if it fails or not, for each method
 	mu           sync.Mutex
@@ -67,20 +68,43 @@ type mockRelay struct {
 
 // newMockRelay creates a mocked relay which implements the backend.BoostBackend interface
 // A secret key must be provided to sign default and custom response messages
-func newMockRelay(t *testing.T) *mockRelay {
-	t.Helper()
-	relay := &mockRelay{t: t, secretKey: mockRelaySecretKey, publicKey: mockRelayPublicKey, requestCount: make(map[string]int)}
+func newMockRelay(tb testing.TB, secretKey *bls.SecretKey, publicKey *bls.PublicKey) *mockRelay {
+	tb.Helper()
+
+	r := &mockRelay{
+		tb:           tb,
+		secretKey:    secretKey,
+		publicKey:    publicKey,
+		requestCount: make(map[string]int),
+	}
 
 	// Initialize server
-	relay.Server = httptest.NewServer(relay.getRouter())
+	r.Server = httptest.NewServer(r.getRouter())
 
 	// Create the RelayEntry with correct pubkey
-	url, err := url.Parse(relay.Server.URL)
-	require.NoError(t, err)
-	urlWithKey := fmt.Sprintf("%s://%s@%s", url.Scheme, hexutil.Encode(bls.PublicKeyToBytes(mockRelayPublicKey)), url.Host)
-	relay.RelayEntry, err = NewRelayEntry(urlWithKey)
-	require.NoError(t, err)
-	return relay
+	relayURL, err := url.Parse(r.Server.URL)
+	require.NoError(tb, err)
+
+	urlWithKey := fmt.Sprintf("%s://%s@%s", relayURL.Scheme, hexutil.Encode(bls.PublicKeyToBytes(publicKey)), relayURL.Host)
+	r.RelayEntry, err = relay.NewRelayEntry(urlWithKey)
+	require.NoError(tb, err)
+
+	return r
+}
+
+func staticMockRelay(tb testing.TB) *mockRelay {
+	tb.Helper()
+
+	return newMockRelay(tb, mockRelaySecretKey, mockRelayPublicKey)
+}
+
+func randomMockRelay(tb testing.TB) *mockRelay {
+	tb.Helper()
+
+	secretKey, publicKey, err := bls.GenerateNewKeypair()
+	require.NoError(tb, err)
+
+	return newMockRelay(tb, secretKey, publicKey)
 }
 
 // newTestMiddleware creates a middleware which increases the Request counter and creates a fake delay for the response
@@ -126,14 +150,14 @@ func (m *mockRelay) GetRequestCount(path string) int {
 }
 
 // By default, handleRoot returns the relay's status
-func (m *mockRelay) handleRoot(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) handleRoot(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{}`)
 }
 
 // By default, handleStatus returns the relay's status as http.StatusOK
-func (m *mockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{}`)
@@ -179,7 +203,7 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 
 		// Sign the message.
 		signature, err := types.SignMessage(message, types.DomainBuilder, m.secretKey)
-		require.NoError(m.t, err)
+		require.NoError(m.tb, err)
 
 		return &GetHeaderResponse{
 			Bellatrix: &types.GetHeaderResponse{
@@ -203,7 +227,7 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 
 		// Sign the message.
 		signature, err := types.SignMessage(message, types.DomainBuilder, m.secretKey)
-		require.NoError(m.t, err)
+		require.NoError(m.tb, err)
 
 		return &GetHeaderResponse{
 			Capella: &spec.VersionedSignedBuilderBid{

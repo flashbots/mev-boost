@@ -1,0 +1,55 @@
+include:
+- project: consensys/codefi/infrastructure/gitlab-templates
+  ref: v8.2.2
+  file: go/boilerplate-us.yml
+
+variables:
+  DOCKER_REGISTRY_USER: "robot$$staking+rw" # Gotta escape the dollar sign.
+  DOCKER_REGISTRY: "core-harbor.us-east-2.codefi.network"
+  DOCKER_REGISTRY_PASSWORD: "$STAKING_DOCKER_REGISTRY_PASSWORD"
+  IGNORE_FORMAT: "false"
+  SONARQUBE_ALLOW_FAILURE: "true"
+
+stages:
+  - compile
+  - format
+  - security
+  - test
+  - sonarqube
+  - build
+  - build_documentation
+  - scan
+  - push
+  - tag
+  - build_notify
+  - deploy
+  - deploy_documentation
+  - integration_tests
+  - teardown
+
+test:unit:
+  services:
+    - hello-world # just to overwrite the parent, which runs postgres db which we don't need...
+  variables:
+    GO_IMAGE: core-harbor.us-east-2.codefi.network/proxy_cache/library/golang:1.20
+  script:
+    - go install github.com/mfridman/tparse@v0.11.1
+    - go install gitlab.com/fgmarand/gocoverstats@latest
+    - set -euo pipefail && go test --json -v -race -timeout=60s -covermode atomic -coverprofile=coverage.out ./... | tee report.json | $GOPATH/bin/tparse -smallscreen
+    - set -euo pipefail && $GOPATH/bin/gocoverstats -v -percent -f coverage.out
+  coverage: '/\d+.\d+% of statements/'
+
+deploy_mr:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+
+teardown_mr:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+
+deploy_prod_master:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+      when: never

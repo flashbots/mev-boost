@@ -1,0 +1,10 @@
+{
+  "proposer_config": {
+    "0xa1d1ad0714035353258038e964ae9675dc0252ee22cea896825c01458e1807bfad2f9969338798548d9858a571f7425c": {
+      "fee_recipient": "0x50155530FCE8a85ec7055A5F8b2bE214B3DaeFd3",
+      "builder": {
+        "enabled": true,
+        "relays": [
+          "https://0x84f4b47474dfd6f2e0f4f05d9a056fbf8414e8c5a02e3363a29272262ee136c2bca0872b2f3cfa10e2017d52ce03a9d6@bloxroute.ethical.blxrbdn.com"
+        ],
+        "gas_limit": "12345654"

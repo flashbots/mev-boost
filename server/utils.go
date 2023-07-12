@@ -9,7 +9,6 @@ import (
 	"io"
 	"math/big"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	boostTypes "github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/sirupsen/logrus"
 )
 
@@ -153,18 +153,7 @@ func DecodeJSON(r io.Reader, dst any) error {
 	decoder := json.NewDecoder(r)
 	decoder.DisallowUnknownFields()
 
-	if err := decoder.Decode(dst); err != nil {
-		return err
-	}
-	return nil
-}
-
-// GetURI returns the full request URI with scheme, host, path and args.
-func GetURI(url *url.URL, path string) string {
-	u2 := *url
-	u2.User = nil
-	u2.Path = path
-	return u2.String()
+	return decoder.Decode(dst)
 }
 
 // bidResp are entries in the bids cache
@@ -172,7 +161,7 @@ type bidResp struct {
 	t         time.Time
 	response  GetHeaderResponse
 	blockHash string
-	relays    []RelayEntry
+	relays    relay.List
 }
 
 // bidRespKey is used as key for the bids cache
@@ -181,7 +170,7 @@ type bidRespKey struct {
 	blockHash string
 }
 
-func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
+func httpClientDisallowRedirects(_ *http.Request, _ []*http.Request) error {
 	return http.ErrUseLastResponse
 }
 

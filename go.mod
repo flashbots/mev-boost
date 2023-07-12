@@ -11,6 +11,7 @@ require (
 	github.com/holiman/uint256 v1.2.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
+	go.uber.org/goleak v1.1.11
 )
 
 require (

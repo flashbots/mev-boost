@@ -1,14 +1,21 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/flashbots/mev-boost/common"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/flashbots/mev-boost/config/rcm"
+	"github.com/flashbots/mev-boost/config/rcp"
+	"github.com/flashbots/mev-boost/config/relay"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
 )
@@ -44,8 +51,11 @@ var (
 	defaultTimeoutMsGetPayload        = common.GetEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
 	defaultTimeoutMsRegisterValidator = common.GetEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
 
-	relays        relayList
-	relayMonitors relayMonitorList
+	// is used when json rcp fetches configuration.
+	defaultTimeoutMsSyncConfig = common.GetEnvInt("CONFIG_SYNC_TIMEOUT_MS", 3000)
+
+	relays        = relay.NewRelaySet()
+	relayMonitors relay.MonitorList
 
 	// cli flags
 	printVersion = flag.Bool("version", false, "only print version")
@@ -55,7 +65,13 @@ var (
 	logService   = flag.String("log-service", defaultLogServiceTag, "add a 'service=...' tag to all log messages")
 	logNoVersion = flag.Bool("log-no-version", defaultDisableLogVersion, "disables adding the version to every log entry")
 
-	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
+	listenAddr = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
+
+	proposerConfigURL         = flag.String("proposer-config-url", "", "proposer config endpoint url")
+	proposerConfigFile        = flag.String("proposer-config-file", "", "proposer config file path")
+	proposerConfigRefresh     = flag.Bool("proposer-config-refresh-enabled", false, "periodically reload proposer config")
+	proposerConfigSyncTimeout = flag.Int("proposer-config-sync-timeout", defaultTimeoutMsSyncConfig, "proposer config sync timeout [ms]")
+
 	relayURLs        = flag.String("relays", defaultRelays, "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
 	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
 	relayMinBidEth   = flag.Float64("min-bid", defaultRelayMinBidEth, "minimum bid to accept from a relay [eth]")
@@ -76,6 +92,12 @@ var (
 )
 
 var log = logrus.NewEntry(logrus.New())
+
+var (
+	ErrRequiredOptionsAreNotProvided = errors.New("required options are not provided")
+	ErrMutuallyExclusiveOptions      = errors.New("mutually exclusive options provided")
+	ErrNoRelaysProvided              = errors.New("no relays provided")
+)
 
 // Main starts the mev-boost cli
 func Main() {
@@ -147,24 +169,28 @@ func Main() {
 	}
 	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
 
+	if err := checkProposerConfigOptions(); err != nil {
+		flag.Usage()
+		log.WithError(err).Fatal("invalid proposer options")
+	}
+
 	// For backwards compatibility with the -relays flag.
 	if *relayURLs != "" {
 		for _, relayURL := range strings.Split(*relayURLs, ",") {
-			err := relays.Set(strings.TrimSpace(relayURL))
+			err := relays.Set(relayURL)
 			if err != nil {
 				log.WithError(err).WithField("relay", relayURL).Fatal("Invalid relay URL")
 			}
 		}
 	}
 
-	if len(relays) == 0 {
-		flag.Usage()
-		log.Fatal("no relays specified")
+	relayConfigurator, err := createConfigurator()
+	if err != nil {
+		log.WithError(err).Fatal("cannot init relay configurator")
 	}
-	log.Infof("using %d relays", len(relays))
-	for index, relay := range relays {
-		log.Infof("relay #%d: %s", index+1, relay.String())
-	}
+
+	printRelaysList(relayConfigurator)
+	runConfigSyncerIfEnabled(relayConfigurator)
 
 	// For backwards compatibility with the -relay-monitors flag.
 	if *relayMonitorURLs != "" {
@@ -203,8 +229,8 @@ func Main() {
 	opts := server.BoostServiceOpts{
 		Log:                      log,
 		ListenAddr:               *listenAddr,
-		Relays:                   relays,
 		RelayMonitors:            relayMonitors,
+		RelayConfigurator:        relayConfigurator,
 		GenesisForkVersionHex:    genesisForkVersionHex,
 		RelayCheck:               *relayCheck,
 		RelayMinBid:              *relayMinBidWei,
@@ -224,4 +250,116 @@ func Main() {
 
 	log.Println("listening on", *listenAddr)
 	log.Fatal(service.StartHTTPServer())
+}
+
+func checkProposerConfigOptions() error {
+	const (
+		flagRelay              = "relay"
+		flagRelayURLs          = "relays"
+		flagProposerConfigURL  = "proposer-config-url"
+		flagProposerConfigFile = "proposer-config-file"
+	)
+
+	allowedOptions := map[string]string{
+		flagRelay:              relays.String(),
+		flagRelayURLs:          *relayURLs,
+		flagProposerConfigURL:  *proposerConfigURL,
+		flagProposerConfigFile: *proposerConfigFile,
+	}
+
+	providedOptions := make(map[string]string, len(allowedOptions))
+
+	addOptionIfNotEmpty := func(opt, val string) {
+		if _, ok := allowedOptions[opt]; ok && val != "" {
+			providedOptions[opt] = val
+		}
+	}
+
+	for opt, value := range allowedOptions {
+		addOptionIfNotEmpty(opt, value)
+	}
+
+	if len(providedOptions) < 1 {
+		return fmt.Errorf("%w: please specify %s",
+			ErrRequiredOptionsAreNotProvided, mapKeysToString(allowedOptions))
+	}
+
+	if len(providedOptions) > 1 {
+		return fmt.Errorf("%w: please specify %s",
+			ErrMutuallyExclusiveOptions, mapKeysToString(providedOptions))
+	}
+
+	return nil
+}
+
+func mapKeysToString(m map[string]string) string {
+	res := make([]string, 0, len(m))
+	for opt := range m {
+		res = append(res, opt)
+	}
+	sort.Strings(res)
+	return "-" + strings.Join(res, " or -")
+}
+
+func createConfigurator() (*rcm.Configurator, error) {
+	var registryCreator *rcm.RegistryCreator
+
+	switch {
+	case len(relays) > 0:
+		registryCreator = rcm.NewRegistryCreator(rcp.NewDefault(relays).FetchConfig)
+	case *proposerConfigFile != "":
+		registryCreator = rcm.NewRegistryCreator(rcp.NewFile(*proposerConfigFile).FetchConfig)
+	case *proposerConfigURL != "":
+		syncTimeout := time.Duration(*proposerConfigSyncTimeout) * time.Millisecond
+		c := &http.Client{Timeout: syncTimeout}
+		registryCreator = rcm.NewRegistryCreator(rcp.NewJSONAPI(c, *proposerConfigURL).FetchConfig)
+	}
+
+	relayConfigurator, err := rcm.New(registryCreator)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create relay configurator: %w", err)
+	}
+
+	if len(relayConfigurator.AllRelays()) == 0 {
+		return nil, ErrNoRelaysProvided
+	}
+
+	return relayConfigurator, nil
+}
+
+func printRelaysList(relayConfigurator *rcm.Configurator) {
+	relaysList := relayConfigurator.AllRelays().ToStringSlice()
+
+	log.Infof("using %d relays", len(relaysList))
+
+	for index, entry := range relaysList {
+		log.Infof("relay #%d: %s", index+1, entry)
+	}
+}
+
+func runConfigSyncerIfEnabled(relayConfigurator *rcm.Configurator) {
+	if *proposerConfigRefresh {
+		log.Infof("default proposer config sync interval is %.2f min", rcm.DefaultSyncInterval.Minutes())
+
+		// At the moment the sync job will run perpetually until the program is killed.
+		// Even thought the Syncer supports graceful shutdown via context cancellation,
+		// we cannot utilise it here as we don't have a cancellable context at the moment.
+		// If we use a cancellable context  here instead of context.Background(),
+		// it will just stop the synchronisation, yet won't stop the other running go-routines.
+		syncer := rcm.NewSyncer(relayConfigurator, rcm.SyncerWithOnSyncHandler(onSyncHandler))
+		go syncer.SyncConfig(context.Background())
+	}
+}
+
+// onSyncHandler runs every time when configuration is synced.
+//
+// We ignore the first time parameter, as the logger already has the time field.
+func onSyncHandler(_ time.Time, err error, relays relay.List) {
+	if err != nil {
+		log.WithError(err).Error("cannot sync configuration")
+
+		return
+	}
+
+	log.Infof("successfully synced relay configuration: %s", relays)
 }

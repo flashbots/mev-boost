@@ -1,0 +1,14 @@
+apiVersion: skaffold/v2beta7
+kind: Config
+metadata:
+  name: mev-boost
+build:
+  artifacts:
+    - image: core-harbor.us-east-2.codefi.network/staking/mev-boost
+      docker:
+        cacheFrom:
+          - core-harbor.us-east-2.codefi.network/staking/mev-boost
+        buildArgs:
+            VERSION: '{{.CI_COMMIT_TAG}}-{{.CI_COMMIT_SHORT_SHA}}'
+  local:
+    push: false

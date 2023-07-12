@@ -1,0 +1,100 @@
+@startuml
+
+class relay.Entry {
+  +RelayURL() *url.URL
+  +PublicKey() types.PublicKey
+  +String() string
+}
+
+class relay.List {
+  +ToStringSlice() []string 
+  String() string
+}
+
+relay.List "0..∞" --|> relay.Entry
+
+class relay.Set {
+  +Add(entry Entry)
+  +ToList() relay.List 
+  +ToStringSlice() []string 
+  +String() string
+}
+
+relay.Set --> relay.List
+
+class relay.Registry implements rcm.Registry {
+  +AllRelays() List
+  +RelaysForProposer(key ValidatorPublicKey) List 
+  +AddRelayForProposer(key ValidatorPublicKey, entry Entry)
+  +AddDisabledProposer(key ValidatorPublicKey)
+  +AddDefaultRelay(entry Entry)
+}
+
+interface rcm.ConfigProvider {
+  +FetchConfig() (*relay.Config, error) 
+}
+
+relay.Registry --> relay.Set
+
+class rcm.RegistryCreator {
+  +Create() (*relay.Registry, error)
+}
+
+rcm.RegistryCreator --> rcm.Registry 
+rcm.RegistryCreator o-- rcm.ConfigProvider
+
+
+class rcp.Default implements rcm.ConfigProvider {
+  #relays relay.List
+}
+
+class rcp.File implements rcm.ConfigProvider {
+  #filePath string
+}
+
+class rcp.JSONAPI implements rcm.ConfigProvider {
+  #providerURL string
+}
+
+/' note top of rcm.Registry 
+  Registry keeps a thread-save in-memory registry of all known relays.
+
+  It contains a mapping for all added validators and their corresponding relays.
+  It also has default fallback relays which are used when a provided validator has no relays.
+end note
+'/
+
+interface rcm.Registry {
+  +AllRelays() relay.List
+  +RelaysForProposer(key relay.ValidatorPublicKey) relay.List 
+}
+
+class rcm.Configurator {
+  #registryCreator rcm.RegistryCreator
+  #relayRegisty rcm.Registry
+
+  +SyncConfig() error
+  +AllRelays() List
+  +RelaysForProposer(key relay.ValidatorPublicKey) List 
+}
+
+/' note top of rcm.Configurator 
+  Configurator is a general implementation for an RCM.
+
+  It holds a thread-safe Relay Registry under the hood,
+  which holds both proposer and default relays.
+end note
+'/
+
+/' note left of rcm.Configurator::SyncConfig()
+  SyncConfig synchronises the Relay Registry with an RCP.
+
+  It returns an error if it cannot create the new Relay Registry.
+  It atomically replaces the content of currently used Relay Registry on success.
+end note
+'/
+
+rcm.Configurator o-- rcm.Registry
+rcm.Configurator o-- rcm.RegistryCreator
+
+@enduml
