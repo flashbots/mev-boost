@@ -213,7 +213,7 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 				Signature: signature,
 			},
 		}
-	case consensusspec.DataVersionAltair, consensusspec.DataVersionPhase0, consensusspec.DataVersionDeneb, consensusspec.DataVersionUnknown:
+	case consensusspec.DataVersionUnknown, consensusspec.DataVersionPhase0, consensusspec.DataVersionAltair, consensusspec.DataVersionDeneb:
 		return nil
 	}
 	return nil
