@@ -128,14 +128,14 @@ func (m *mockRelay) GetRequestCount(path string) int {
 }
 
 // By default, handleRoot returns the relay's status
-func (m *mockRelay) handleRoot(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) handleRoot(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{}`)
 }
 
 // By default, handleStatus returns the relay's status as http.StatusOK
-func (m *mockRelay) handleStatus(w http.ResponseWriter, req *http.Request) {
+func (m *mockRelay) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{}`)
@@ -213,7 +213,7 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 				Signature: signature,
 			},
 		}
-	case consensusspec.DataVersionAltair, consensusspec.DataVersionPhase0, consensusspec.DataVersionDeneb:
+	case consensusspec.DataVersionAltair, consensusspec.DataVersionPhase0, consensusspec.DataVersionDeneb, consensusspec.DataVersionUnknown:
 		return nil
 	}
 	return nil

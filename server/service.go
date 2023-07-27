@@ -245,13 +245,13 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []apiv1
 // 	}
 // }
 
-func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
+func (m *BoostService) handleRoot(w http.ResponseWriter, _ *http.Request) {
 	m.respondOK(w, nilResponse)
 }
 
 // handleStatus sends calls to the status endpoint of every relay.
 // It returns OK if at least one returned OK, and returns error otherwise.
-func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
+func (m *BoostService) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set(HeaderKeyVersion, config.Version)
 	if !m.relayCheck || m.CheckRelays() > 0 {
 		m.respondOK(w, nilResponse)
