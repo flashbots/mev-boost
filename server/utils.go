@@ -13,7 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/attestantio/go-builder-client/api"
 	"github.com/attestantio/go-builder-client/spec"
+	consensusspec "github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
@@ -311,4 +313,22 @@ func checkRelaySignature(bid *spec.VersionedSignedBuilderBid, domain phase0.Doma
 	}
 
 	return bls.VerifySignatureBytes(msg[:], sig[:], pubKey[:])
+}
+
+func getPayloadResponseIsEmpty(payload *api.VersionedSubmitBlindedBlockResponse) bool {
+	switch payload.Version {
+	case consensusspec.DataVersionCapella:
+		if payload.Capella == nil || payload.Capella.BlockHash == nilHash {
+			return true
+		}
+	case consensusspec.DataVersionDeneb:
+		if payload.Deneb == nil || payload.Deneb.ExecutionPayload == nil ||
+			payload.Deneb.ExecutionPayload.BlockHash == nilHash ||
+			payload.Deneb.BlobsBundle == nil || payload.Deneb.BlobsBundle.Blobs == nil {
+			return true
+		}
+	case consensusspec.DataVersionUnknown, consensusspec.DataVersionPhase0, consensusspec.DataVersionAltair, consensusspec.DataVersionBellatrix:
+		return true
+	}
+	return false
 }

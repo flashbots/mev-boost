@@ -15,13 +15,16 @@ import (
 	"time"
 
 	"github.com/attestantio/go-builder-client/api"
+	builderDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	apiv1 "github.com/attestantio/go-builder-client/api/v1"
 	"github.com/attestantio/go-builder-client/spec"
 	apiv1capella "github.com/attestantio/go-eth2-client/api/v1/capella"
+	apiv1deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	consensusspec "github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/capella"
+	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	bellatrixutil "github.com/attestantio/go-eth2-client/util/bellatrix"
 	"github.com/flashbots/go-boost-utils/types"
@@ -105,6 +108,42 @@ func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *apiv1capell
 		BlockHash:     header.BlockHash,
 		Transactions:  make([]bellatrix.Transaction, 0),
 		Withdrawals:   make([]*capella.Withdrawal, 0),
+	}
+}
+
+func blindedBlockContentsToBlockContentsDeneb(signedBlindedBlockContents *apiv1deneb.SignedBlindedBlockContents) *builderDeneb.ExecutionPayloadAndBlobsBundle {
+	header := signedBlindedBlockContents.SignedBlindedBlock.Message.Body.ExecutionPayloadHeader
+	commitments := make([]deneb.KzgCommitment, 0)
+	proofs := make([]deneb.KzgProof, 0)
+	blobs := make([]deneb.Blob, 0)
+	for _, blobSidecar := range signedBlindedBlockContents.SignedBlindedBlobSidecars {
+		commitments = append(commitments, blobSidecar.Message.KzgCommitment)
+		proofs = append(proofs, blobSidecar.Message.KzgProof)
+		blobs = append(blobs, deneb.Blob{})
+	}
+	return &builderDeneb.ExecutionPayloadAndBlobsBundle{
+		ExecutionPayload: &deneb.ExecutionPayload{
+			ParentHash:    header.ParentHash,
+			FeeRecipient:  header.FeeRecipient,
+			StateRoot:     header.StateRoot,
+			ReceiptsRoot:  header.ReceiptsRoot,
+			LogsBloom:     header.LogsBloom,
+			PrevRandao:    header.PrevRandao,
+			BlockNumber:   header.BlockNumber,
+			GasLimit:      header.GasLimit,
+			GasUsed:       header.GasUsed,
+			Timestamp:     header.Timestamp,
+			ExtraData:     header.ExtraData,
+			BaseFeePerGas: header.BaseFeePerGas,
+			BlockHash:     header.BlockHash,
+			Transactions:  make([]bellatrix.Transaction, 0),
+			Withdrawals:   make([]*capella.Withdrawal, 0),
+		},
+		BlobsBundle: &builderDeneb.BlobsBundle{
+			Commitments: commitments,
+			Proofs:      proofs,
+			Blobs:       blobs,
+		},
 	}
 }
 
@@ -290,6 +329,21 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
+	t.Run("Okay response from relay deneb", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+		resp := backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			consensusspec.DataVersionDeneb,
+		)
+		backend.relays[0].GetHeaderResponse = resp
+		rr := backend.request(t, http.MethodGet, path, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+	})
+
 	t.Run("Bad response from relays", func(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
 		resp := backend.relays[0].MakeGetHeaderResponse(
@@ -297,9 +351,9 @@ func TestGetHeader(t *testing.T) {
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
-		resp.Bellatrix.Message.Header.BlockHash = nilHash
+		resp.Capella.Message.Header.BlockHash = nilHash
 
 		// 1/2 failing responses are okay
 		backend.relays[0].GetHeaderResponse = resp
@@ -324,7 +378,7 @@ func TestGetHeader(t *testing.T) {
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
 
 		// Simulate a different public key registered to mev-boost
@@ -346,11 +400,11 @@ func TestGetHeader(t *testing.T) {
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			consensusspec.DataVersionBellatrix,
+			consensusspec.DataVersionCapella,
 		)
 
 		// Scramble the signature
-		backend.relays[0].GetHeaderResponse.Bellatrix.Signature = phase0.BLSSignature{}
+		backend.relays[0].GetHeaderResponse.Capella.Signature = phase0.BLSSignature{}
 
 		rr := backend.request(t, http.MethodGet, path, nil)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -603,7 +657,7 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
-		resp := new(api.VersionedExecutionPayload)
+		resp := new(api.VersionedSubmitBlindedBlockResponse)
 		err := json.Unmarshal(rr.Body.Bytes(), resp)
 		require.NoError(t, err)
 		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Capella.BlockHash)
@@ -611,7 +665,7 @@ func TestGetPayload(t *testing.T) {
 
 	t.Run("Bad response from relays", func(t *testing.T) {
 		backend := newTestBackend(t, 2, time.Second)
-		resp := &api.VersionedExecutionPayload{
+		resp := &api.VersionedSubmitBlindedBlockResponse{
 			Version: consensusspec.DataVersionCapella,
 			Capella: &capella.ExecutionPayload{Withdrawals: []*capella.Withdrawal{}},
 		}
@@ -737,7 +791,7 @@ func TestGetPayloadWithTestdata(t *testing.T) {
 			require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
 
 			backend := newTestBackend(t, 1, time.Second)
-			mockResp := api.VersionedExecutionPayload{
+			mockResp := api.VersionedSubmitBlindedBlockResponse{
 				Version: consensusspec.DataVersionCapella,
 				Capella: &capella.ExecutionPayload{
 					BlockHash:   signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
@@ -750,7 +804,7 @@ func TestGetPayloadWithTestdata(t *testing.T) {
 			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 			require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
-			resp := new(api.VersionedExecutionPayload)
+			resp := new(api.VersionedSubmitBlindedBlockResponse)
 			err = json.Unmarshal(rr.Body.Bytes(), resp)
 			require.NoError(t, err)
 			require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Capella.BlockHash)
@@ -769,7 +823,7 @@ func TestGetPayloadCapella(t *testing.T) {
 	backend := newTestBackend(t, 1, time.Second)
 
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = &api.VersionedExecutionPayload{
+	backend.relays[0].GetPayloadResponse = &api.VersionedSubmitBlindedBlockResponse{
 		Version: consensusspec.DataVersionCapella,
 		Capella: blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock),
 	}
@@ -780,10 +834,38 @@ func TestGetPayloadCapella(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 	require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
 
-	resp := new(api.VersionedExecutionPayload)
+	resp := new(api.VersionedSubmitBlindedBlockResponse)
 	err = json.Unmarshal(rr.Body.Bytes(), resp)
 	require.NoError(t, err)
 	require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Capella.BlockHash)
+}
+
+func TestGetPayloadDeneb(t *testing.T) {
+	// Load the signed blinded beacon block used for getPayload
+	jsonFile, err := os.Open("../testdata/signed-blinded-beacon-block-deneb.json")
+	require.NoError(t, err)
+	defer jsonFile.Close()
+	signedBlindedBlockContents := new(apiv1deneb.SignedBlindedBlockContents)
+	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBlockContents))
+
+	backend := newTestBackend(t, 1, time.Second)
+
+	// Prepare getPayload response
+	backend.relays[0].GetPayloadResponse = &api.VersionedSubmitBlindedBlockResponse{
+		Version: consensusspec.DataVersionDeneb,
+		Deneb:   blindedBlockContentsToBlockContentsDeneb(signedBlindedBlockContents),
+	}
+
+	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
+	getPayloadPath := "/eth/v1/builder/blinded_blocks"
+	rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBlockContents)
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
+
+	resp := new(api.VersionedSubmitBlindedBlockResponse)
+	err = json.Unmarshal(rr.Body.Bytes(), resp)
+	require.NoError(t, err)
+	require.Equal(t, signedBlindedBlockContents.SignedBlindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Deneb.ExecutionPayload.BlockHash)
 }
 
 func TestGetPayloadToAllRelays(t *testing.T) {
@@ -812,7 +894,7 @@ func TestGetPayloadToAllRelays(t *testing.T) {
 	require.Equal(t, 1, backend.relays[1].GetRequestCount(getHeaderPath))
 
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = &api.VersionedExecutionPayload{
+	backend.relays[0].GetPayloadResponse = &api.VersionedSubmitBlindedBlockResponse{
 		Version: consensusspec.DataVersionCapella,
 		Capella: blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock),
 	}

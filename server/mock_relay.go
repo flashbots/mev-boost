@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/attestantio/go-builder-client/api"
-	apibellatrix "github.com/attestantio/go-builder-client/api/bellatrix"
 	apicapella "github.com/attestantio/go-builder-client/api/capella"
+	apideneb "github.com/attestantio/go-builder-client/api/deneb"
 	apiv1 "github.com/attestantio/go-builder-client/api/v1"
 	"github.com/attestantio/go-builder-client/spec"
 	consensusspec "github.com/attestantio/go-eth2-client/spec"
-	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/capella"
+	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
@@ -60,7 +60,7 @@ type mockRelay struct {
 
 	// Default responses placeholders, used if overrider does not exist
 	GetHeaderResponse  *spec.VersionedSignedBuilderBid
-	GetPayloadResponse *api.VersionedExecutionPayload
+	GetPayloadResponse *api.VersionedSubmitBlindedBlockResponse
 
 	// Server section
 	Server        *httptest.Server
@@ -168,28 +168,6 @@ func (m *mockRelay) defaultHandleRegisterValidator(w http.ResponseWriter, req *h
 // method
 func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string, version consensusspec.DataVersion) *spec.VersionedSignedBuilderBid {
 	switch version {
-	case consensusspec.DataVersionBellatrix:
-		// Fill the payload with custom values.
-		message := &apibellatrix.BuilderBid{
-			Header: &bellatrix.ExecutionPayloadHeader{
-				BlockHash:  _HexToHash(blockHash),
-				ParentHash: _HexToHash(parentHash),
-			},
-			Value:  uint256.NewInt(value),
-			Pubkey: _HexToPubkey(publicKey),
-		}
-
-		// Sign the message.
-		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
-		require.NoError(m.t, err)
-
-		return &spec.VersionedSignedBuilderBid{
-			Version: consensusspec.DataVersionCapella,
-			Bellatrix: &apibellatrix.SignedBuilderBid{
-				Message:   message,
-				Signature: signature,
-			},
-		}
 	case consensusspec.DataVersionCapella:
 		// Fill the payload with custom values.
 		message := &apicapella.BuilderBid{
@@ -213,7 +191,31 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 				Signature: signature,
 			},
 		}
-	case consensusspec.DataVersionUnknown, consensusspec.DataVersionPhase0, consensusspec.DataVersionAltair, consensusspec.DataVersionDeneb:
+	case consensusspec.DataVersionDeneb:
+		message := &apideneb.BuilderBid{
+			Header: &deneb.ExecutionPayloadHeader{
+				BlockHash:       _HexToHash(blockHash),
+				ParentHash:      _HexToHash(parentHash),
+				WithdrawalsRoot: phase0.Root{},
+				BaseFeePerGas:   uint256.NewInt(0),
+			},
+			Value:              uint256.NewInt(value),
+			Pubkey:             _HexToPubkey(publicKey),
+			BlindedBlobsBundle: &apideneb.BlindedBlobsBundle{},
+		}
+
+		// Sign the message.
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
+		require.NoError(m.t, err)
+
+		return &spec.VersionedSignedBuilderBid{
+			Version: consensusspec.DataVersionDeneb,
+			Deneb: &apideneb.SignedBuilderBid{
+				Message:   message,
+				Signature: signature,
+			},
+		}
+	case consensusspec.DataVersionUnknown, consensusspec.DataVersionPhase0, consensusspec.DataVersionAltair, consensusspec.DataVersionBellatrix:
 		return nil
 	}
 	return nil
@@ -257,9 +259,9 @@ func (m *mockRelay) defaultHandleGetHeader(w http.ResponseWriter) {
 
 // MakeGetPayloadResponse is used to create the default or can be used to create a custom response to the getPayload
 // method
-func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64) *api.VersionedExecutionPayload {
-	return &api.VersionedExecutionPayload{
-		Version: consensusspec.DataVersionCapella,
+func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64, version consensusspec.DataVersion) *api.VersionedSubmitBlindedBlockResponse {
+	return &api.VersionedSubmitBlindedBlockResponse{
+		Version: version,
 		Capella: &capella.ExecutionPayload{
 			ParentHash:   _HexToHash(parentHash),
 			BlockHash:    _HexToHash(blockHash),
@@ -294,6 +296,7 @@ func (m *mockRelay) defaultHandleGetPayload(w http.ResponseWriter) {
 		"0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46",
 		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
 		12345,
+		consensusspec.DataVersionCapella,
 	)
 
 	if m.GetPayloadResponse != nil {
