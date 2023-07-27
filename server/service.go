@@ -441,7 +441,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
-			isZeroValue := bidInfo.value.String() == "0"
+			isZeroValue := bidInfo.value.IsZero()
 			isEmptyListTxRoot := bidInfo.txRoot.String() == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
 			if isZeroValue || isEmptyListTxRoot {
 				log.Warn("ignoring bid with 0 value")
@@ -450,7 +450,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			log.Debug("bid received")
 
 			// Skip if value (fee) is lower than the minimum bid
-			if bidInfo.value.ToBig().Cmp(m.relayMinBid.BigInt()) == -1 {
+			if bidInfo.value.CmpBig(m.relayMinBid.BigInt()) == -1 {
 				log.Debug("ignoring bid below min-bid value")
 				return
 			}
