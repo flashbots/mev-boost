@@ -90,5 +90,3 @@ require (
 )
 
 replace github.com/attestantio/go-builder-client => github.com/avalonche/go-builder-client v0.0.0-20230727154356-9a77badf0423
-
-replace github.com/attestantio/go-eth2-client => github.com/avalonche/go-eth2-client v0.0.0-20230727154722-91c9a241729e
