@@ -62,7 +62,6 @@ linters-settings:
       - shadow
   gomoddirectives:
      replace-allow-list:
-      - github.com/attestantio/go-eth2-client
       - github.com/attestantio/go-builder-client
 
 output:
