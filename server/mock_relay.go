@@ -105,7 +105,7 @@ func (m *mockRelay) newTestMiddleware(next http.Handler) http.Handler {
 	)
 }
 
-// getRouter registers all methods from the backend, apply the test middleware a,nd return the configured router
+// getRouter registers all methods from the backend, apply the test middleware and return the configured router
 func (m *mockRelay) getRouter() http.Handler {
 	// Create router.
 	r := mux.NewRouter()
