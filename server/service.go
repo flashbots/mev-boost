@@ -245,13 +245,13 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []apiv1
 // 	}
 // }
 
-func (m *BoostService) handleRoot(w http.ResponseWriter, req *http.Request) {
+func (m *BoostService) handleRoot(w http.ResponseWriter, _ *http.Request) {
 	m.respondOK(w, nilResponse)
 }
 
 // handleStatus sends calls to the status endpoint of every relay.
 // It returns OK if at least one returned OK, and returns error otherwise.
-func (m *BoostService) handleStatus(w http.ResponseWriter, req *http.Request) {
+func (m *BoostService) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set(HeaderKeyVersion, config.Version)
 	if !m.relayCheck || m.CheckRelays() > 0 {
 		m.respondOK(w, nilResponse)
@@ -441,7 +441,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				return
 			}
 
-			isZeroValue := bidInfo.value.String() == "0"
+			isZeroValue := bidInfo.value.IsZero()
 			isEmptyListTxRoot := bidInfo.txRoot.String() == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
 			if isZeroValue || isEmptyListTxRoot {
 				log.Warn("ignoring bid with 0 value")
@@ -450,7 +450,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			log.Debug("bid received")
 
 			// Skip if value (fee) is lower than the minimum bid
-			if bidInfo.value.ToBig().Cmp(m.relayMinBid.BigInt()) == -1 {
+			if bidInfo.value.CmpBig(m.relayMinBid.BigInt()) == -1 {
 				log.Debug("ignoring bid below min-bid value")
 				return
 			}

@@ -155,11 +155,7 @@ func ComputeDomain(domainType phase0.DomainType, forkVersionHex, genesisValidato
 func DecodeJSON(r io.Reader, dst any) error {
 	decoder := json.NewDecoder(r)
 	decoder.DisallowUnknownFields()
-
-	if err := decoder.Decode(dst); err != nil {
-		return err
-	}
-	return nil
+	return decoder.Decode(dst)
 }
 
 // GetURI returns the full request URI with scheme, host, path and args.
@@ -194,7 +190,7 @@ type bidInfo struct {
 	value       *uint256.Int
 }
 
-func httpClientDisallowRedirects(req *http.Request, via []*http.Request) error {
+func httpClientDisallowRedirects(_ *http.Request, _ []*http.Request) error {
 	return http.ErrUseLastResponse
 }
 
