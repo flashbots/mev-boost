@@ -53,7 +53,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
 	github.com/attestantio/go-builder-client v0.3.2-0.20230626105718-423f7ec4ad24
-	github.com/attestantio/go-eth2-client v0.18.0
+	github.com/attestantio/go-eth2-client v0.18.1-0.20230728160410-bc2888aaf7d7
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -84,5 +84,3 @@ require (
 )
 
 replace github.com/attestantio/go-builder-client => github.com/avalonche/go-builder-client v0.0.0-20230727154356-9a77badf0423
-
-replace github.com/attestantio/go-eth2-client => github.com/avalonche/go-eth2-client v0.0.0-20230727154722-91c9a241729e
