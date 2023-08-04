@@ -3,7 +3,7 @@ name: Linting
 on:
   push:
     branches:
-      - main
+      - develop
   pull_request:
 
 jobs:
