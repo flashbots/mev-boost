@@ -22,6 +22,7 @@ import (
 	"github.com/attestantio/go-eth2-client/api/v1/capella"
 	"github.com/attestantio/go-eth2-client/api/v1/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	denebutil "github.com/attestantio/go-eth2-client/util/deneb"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-boost-utils/utils"
@@ -651,26 +652,10 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	m.respondOK(w, result)
 }
 
-func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *deneb.SignedBlindedBlockContents, body []byte) {
-	if payload == nil || payload.SignedBlindedBlock == nil || payload.SignedBlindedBlobSidecars == nil {
-		log.WithField("body", string(body)).Error("missing parts of the request payload from the beacon-node")
-		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
-		return
-	}
-
+func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *deneb.SignedBlindedBlockContents) {
+	// no need to check if fields are nil as the json unmarshalling library does the nil check for us
 	blindedBlock := payload.SignedBlindedBlock
-	if blindedBlock.Message == nil || blindedBlock.Message.Body == nil || blindedBlock.Message.Body.ExecutionPayloadHeader == nil {
-		log.WithField("body", string(body)).Error("missing parts of the block from the beacon-node")
-		m.respondError(w, http.StatusBadRequest, "missing parts of the block")
-		return
-	}
-
 	blindedBlobs := payload.SignedBlindedBlobSidecars
-	if blindedBlobs == nil {
-		log.WithField("body", string(body)).Error("missing blobs bundle from the beacon-node")
-		m.respondError(w, http.StatusBadRequest, "missing blobs bundle")
-		return
-	}
 
 	// Get the slotUID for this slot
 	slotUID := ""
@@ -774,12 +759,46 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 			}
 
 			// Ensure that blobs are valid and matches the request
-			if len(blindedBlobs) != len(blobs.Blobs) {
+			if len(blindedBlobs) != len(blobs.Blobs) || len(blindedBlobs) != len(blobs.Commitments) || len(blindedBlobs) != len(blobs.Proofs) {
 				log.WithFields(logrus.Fields{
-					"requestBlobs":  len(blindedBlobs),
-					"responseBlobs": len(blobs.Blobs),
+					"requestBlobs": len(blindedBlobs),
 				}).Error("requestBlobs length does not equal responseBlobs length")
 				return
+			}
+
+			for i, blindedBlob := range blindedBlobs {
+				if blindedBlob.Message.KzgCommitment != blobs.Commitments[i] {
+					log.WithFields(logrus.Fields{
+						"requestBlobCommitment": blindedBlob.Message.KzgCommitment.String(),
+						"responseBlobCommiment": blobs.Commitments[i].String(),
+						"index":                 blindedBlob.Message.Index,
+					}).Error("requestBlobCommitment does not equal responseBlobCommiment")
+					return
+				}
+
+				if blindedBlob.Message.KzgProof != blobs.Proofs[i] {
+					log.WithFields(logrus.Fields{
+						"requestBlobProof":  blindedBlob.Message.KzgProof.String(),
+						"responseBlobProof": blobs.Proofs[i].String(),
+						"index":             blindedBlob.Message.Index,
+					}).Error("requestBlobProof does not equal responseBlobProof")
+					return
+				}
+
+				blobHelper := denebutil.BeaconBlockBlob{Blob: blobs.Blobs[i]}
+				blobRoot, err := blobHelper.HashTreeRoot()
+				if err != nil {
+					log.WithError(err).Error("error calculating blobRoot")
+					return
+				}
+				if blindedBlob.Message.BlobRoot != blobRoot {
+					log.WithFields(logrus.Fields{
+						"requestBlobRoot":  blindedBlob.Message.BlobRoot.String(),
+						"responseBlobRoot": fmt.Sprintf("%#x", blobRoot),
+						"index":            blindedBlob.Message.Index,
+					}).Error("requestBlobRoot does not equal responseBlobRoot")
+					return
+				}
 			}
 
 			// Lock before accessing the shared payload
@@ -836,7 +855,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		m.processCapellaPayload(w, req, log, payload, body)
 		return
 	}
-	m.processDenebPayload(w, req, log, payload, body)
+	m.processDenebPayload(w, req, log, payload)
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status

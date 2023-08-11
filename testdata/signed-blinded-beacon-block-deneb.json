@@ -314,7 +314,7 @@
         "slot": "12231583639632491026",
         "block_parent_root": "0x22de86edc38dc56c4255cba641c83251a2a2dcc7535e773c9a2fb2e8b73758a4",
         "proposer_index": "16148839969926959295",
-        "blob_root": "0x3c1820c62034fc45c10abc983dbce08de28f303192dea32371a902b3e6a1fc29",
+        "blob_root": "0xb7d05f875f140027ef5118a2247bbb84ce8f2f0f1123623085daf7960c329f5f",
         "kzg_commitment": "0x0748ac5c58e66b1fae24289f9014948876fbd78da88931bb6cbcd2e44a01bd07ab4f33e54ec9b9a2ada2e83c840dceb6",
         "kzg_proof": "0xc6e27a3ae80243ba7ea88eab107a0675020e0745d75ab6a1553691007a50f7f99f597693ac33ae3cea63bf0b90a734ff"
       },
@@ -327,7 +327,7 @@
         "slot": "12231583639632491026",
         "block_parent_root": "0x22de86edc38dc56c4255cba641c83251a2a2dcc7535e773c9a2fb2e8b73758a4",
         "proposer_index": "16148839969926959295",
-        "blob_root": "0x3c1820c62034fc45c10abc983dbce08de28f303192dea32371a902b3e6a1fc29",
+        "blob_root": "0xb7d05f875f140027ef5118a2247bbb84ce8f2f0f1123623085daf7960c329f5f",
         "kzg_commitment": "0x0748ac5c58e66b1fae24289f9014948876fbd78da88931bb6cbcd2e44a01bd07ab4f33e54ec9b9a2ada2e83c840dceb6",
         "kzg_proof": "0xc6e27a3ae80243ba7ea88eab107a0675020e0745d75ab6a1553691007a50f7f99f597693ac33ae3cea63bf0b90a734ff"
       },
