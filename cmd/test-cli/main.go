@@ -8,9 +8,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/attestantio/go-builder-client/api"
-	"github.com/attestantio/go-builder-client/spec"
-	"github.com/attestantio/go-eth2-client/api/v1/capella"
+	builderApi "github.com/attestantio/go-builder-client/api"
+	builderSpec "github.com/attestantio/go-builder-client/spec"
+	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
@@ -44,7 +44,7 @@ func doRegisterValidator(v validatorPrivateData, boostEndpoint string, builderSi
 	log.WithError(err).Info("Registered validator")
 }
 
-func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain phase0.Domain) spec.VersionedSignedBuilderBid {
+func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain phase0.Domain) builderSpec.VersionedSignedBuilderBid {
 	// Mergemock needs to call forkchoice update before getHeader, for non-mergemock beacon node this is a no-op
 	err := beaconNode.onGetHeader()
 	if err != nil {
@@ -71,7 +71,7 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 
 	uri := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s", boostEndpoint, currentBlock.Slot+1, currentBlockHash, v.Pk.String())
 
-	var getHeaderResp spec.VersionedSignedBuilderBid
+	var getHeaderResp builderSpec.VersionedSignedBuilderBid
 	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, uri, "test-cli", nil, nil, &getHeaderResp); err != nil {
 		log.WithError(err).WithField("currentBlockHash", currentBlockHash).Fatal("Could not get header")
 	}
@@ -95,12 +95,12 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain, proposerSigningDomain phase0.Domain) {
 	header := doGetHeader(v, boostEndpoint, beaconNode, engineEndpoint, builderSigningDomain)
 
-	blindedBeaconBlock := capella.BlindedBeaconBlock{
+	blindedBeaconBlock := eth2ApiV1Capella.BlindedBeaconBlock{
 		Slot:          0,
 		ProposerIndex: 0,
 		ParentRoot:    phase0.Root{},
 		StateRoot:     phase0.Root{},
-		Body: &capella.BlindedBeaconBlockBody{
+		Body: &eth2ApiV1Capella.BlindedBeaconBlockBody{
 			RANDAOReveal:           phase0.BLSSignature{},
 			ETH1Data:               &phase0.ETH1Data{},
 			Graffiti:               phase0.Hash32{},
@@ -119,11 +119,11 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 		log.WithError(err).Fatal("could not sign blinded beacon block")
 	}
 
-	payload := capella.SignedBlindedBeaconBlock{
+	payload := eth2ApiV1Capella.SignedBlindedBeaconBlock{
 		Message:   &blindedBeaconBlock,
 		Signature: signature,
 	}
-	var respPayload api.VersionedExecutionPayload
+	var respPayload builderApi.VersionedExecutionPayload
 	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/blinded_blocks", "test-cli", nil, payload, &respPayload); err != nil {
 		log.WithError(err).Fatal("could not get payload")
 	}

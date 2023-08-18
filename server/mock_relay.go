@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/attestantio/go-builder-client/api"
-	apicapella "github.com/attestantio/go-builder-client/api/capella"
-	apideneb "github.com/attestantio/go-builder-client/api/deneb"
-	apiv1 "github.com/attestantio/go-builder-client/api/v1"
-	"github.com/attestantio/go-builder-client/spec"
-	consensusspec "github.com/attestantio/go-eth2-client/spec"
+	builderApi "github.com/attestantio/go-builder-client/api"
+	builderApiCapella "github.com/attestantio/go-builder-client/api/capella"
+	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
+	builderSpec "github.com/attestantio/go-builder-client/spec"
+	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -59,8 +59,8 @@ type mockRelay struct {
 	handlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
 
 	// Default responses placeholders, used if overrider does not exist
-	GetHeaderResponse  *spec.VersionedSignedBuilderBid
-	GetPayloadResponse *api.VersionedSubmitBlindedBlockResponse
+	GetHeaderResponse  *builderSpec.VersionedSignedBuilderBid
+	GetPayloadResponse *builderApi.VersionedSubmitBlindedBlockResponse
 
 	// Server section
 	Server        *httptest.Server
@@ -141,7 +141,7 @@ func (m *mockRelay) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, `{}`)
 }
 
-// By default, handleRegisterValidator returns a default apiv1.SignedValidatorRegistration
+// By default, handleRegisterValidator returns a default builderApiV1.SignedValidatorRegistration
 func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -154,7 +154,7 @@ func (m *mockRelay) handleRegisterValidator(w http.ResponseWriter, req *http.Req
 
 // defaultHandleRegisterValidator returns the default handler for handleRegisterValidator
 func (m *mockRelay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.Request) {
-	payload := []apiv1.SignedValidatorRegistration{}
+	payload := []builderApiV1.SignedValidatorRegistration{}
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -166,11 +166,11 @@ func (m *mockRelay) defaultHandleRegisterValidator(w http.ResponseWriter, req *h
 
 // MakeGetHeaderResponse is used to create the default or can be used to create a custom response to the getHeader
 // method
-func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string, version consensusspec.DataVersion) *spec.VersionedSignedBuilderBid {
+func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string, version spec.DataVersion) *builderSpec.VersionedSignedBuilderBid {
 	switch version {
-	case consensusspec.DataVersionCapella:
+	case spec.DataVersionCapella:
 		// Fill the payload with custom values.
-		message := &apicapella.BuilderBid{
+		message := &builderApiCapella.BuilderBid{
 			Header: &capella.ExecutionPayloadHeader{
 				BlockHash:       _HexToHash(blockHash),
 				ParentHash:      _HexToHash(parentHash),
@@ -184,15 +184,15 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
 		require.NoError(m.t, err)
 
-		return &spec.VersionedSignedBuilderBid{
-			Version: consensusspec.DataVersionCapella,
-			Capella: &apicapella.SignedBuilderBid{
+		return &builderSpec.VersionedSignedBuilderBid{
+			Version: spec.DataVersionCapella,
+			Capella: &builderApiCapella.SignedBuilderBid{
 				Message:   message,
 				Signature: signature,
 			},
 		}
-	case consensusspec.DataVersionDeneb:
-		message := &apideneb.BuilderBid{
+	case spec.DataVersionDeneb:
+		message := &builderApiDeneb.BuilderBid{
 			Header: &deneb.ExecutionPayloadHeader{
 				BlockHash:       _HexToHash(blockHash),
 				ParentHash:      _HexToHash(parentHash),
@@ -201,21 +201,21 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 			},
 			Value:              uint256.NewInt(value),
 			Pubkey:             _HexToPubkey(publicKey),
-			BlindedBlobsBundle: &apideneb.BlindedBlobsBundle{},
+			BlindedBlobsBundle: &builderApiDeneb.BlindedBlobsBundle{},
 		}
 
 		// Sign the message.
 		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
 		require.NoError(m.t, err)
 
-		return &spec.VersionedSignedBuilderBid{
-			Version: consensusspec.DataVersionDeneb,
-			Deneb: &apideneb.SignedBuilderBid{
+		return &builderSpec.VersionedSignedBuilderBid{
+			Version: spec.DataVersionDeneb,
+			Deneb: &builderApiDeneb.SignedBuilderBid{
 				Message:   message,
 				Signature: signature,
 			},
 		}
-	case consensusspec.DataVersionUnknown, consensusspec.DataVersionPhase0, consensusspec.DataVersionAltair, consensusspec.DataVersionBellatrix:
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix:
 		return nil
 	}
 	return nil
@@ -245,7 +245,7 @@ func (m *mockRelay) defaultHandleGetHeader(w http.ResponseWriter) {
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-		consensusspec.DataVersionCapella,
+		spec.DataVersionCapella,
 	)
 	if m.GetHeaderResponse != nil {
 		response = m.GetHeaderResponse
@@ -259,8 +259,8 @@ func (m *mockRelay) defaultHandleGetHeader(w http.ResponseWriter) {
 
 // MakeGetPayloadResponse is used to create the default or can be used to create a custom response to the getPayload
 // method
-func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64, version consensusspec.DataVersion) *api.VersionedSubmitBlindedBlockResponse {
-	return &api.VersionedSubmitBlindedBlockResponse{
+func (m *mockRelay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64, version spec.DataVersion) *builderApi.VersionedSubmitBlindedBlockResponse {
+	return &builderApi.VersionedSubmitBlindedBlockResponse{
 		Version: version,
 		Capella: &capella.ExecutionPayload{
 			ParentHash:   _HexToHash(parentHash),
@@ -296,7 +296,7 @@ func (m *mockRelay) defaultHandleGetPayload(w http.ResponseWriter) {
 		"0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46",
 		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
 		12345,
-		consensusspec.DataVersionCapella,
+		spec.DataVersionCapella,
 	)
 
 	if m.GetPayloadResponse != nil {

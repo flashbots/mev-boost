@@ -15,14 +15,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/attestantio/go-builder-client/api"
-	apiv1 "github.com/attestantio/go-builder-client/api/v1"
-	"github.com/attestantio/go-builder-client/spec"
-	apiv1bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
-	"github.com/attestantio/go-eth2-client/api/v1/capella"
-	"github.com/attestantio/go-eth2-client/api/v1/deneb"
+	builderApi "github.com/attestantio/go-builder-client/api"
+	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
+	builderSpec "github.com/attestantio/go-builder-client/spec"
+	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
+	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
+	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	denebutil "github.com/attestantio/go-eth2-client/util/deneb"
+	eth2UtilDeneb "github.com/attestantio/go-eth2-client/util/deneb"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-boost-utils/utils"
@@ -54,8 +54,8 @@ type httpErrorResp struct {
 
 // AuctionTranscript is the bid and blinded block received from the relay send to the relay monitor
 type AuctionTranscript struct {
-	Bid        *spec.VersionedSignedBuilderBid          // TODO: proper json marshalling and unmashalling
-	Acceptance *apiv1bellatrix.SignedBlindedBeaconBlock `json:"acceptance"`
+	Bid        *builderSpec.VersionedSignedBuilderBid       // TODO: proper json marshalling and unmashalling
+	Acceptance *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock `json:"acceptance"`
 }
 
 type slotUID struct {
@@ -216,7 +216,7 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
-func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []apiv1.SignedValidatorRegistration) {
+func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []builderApiV1.SignedValidatorRegistration) {
 	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("numRegistrations", len(payload))
 	for _, relayMonitor := range m.relayMonitors {
 		go func(relayMonitor *url.URL) {
@@ -268,7 +268,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log := m.log.WithField("method", "registerValidator")
 	log.Debug("registerValidator")
 
-	payload := []apiv1.SignedValidatorRegistration{}
+	payload := []builderApiV1.SignedValidatorRegistration{}
 	if err := DecodeJSON(req.Body, &payload); err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -380,7 +380,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			path := fmt.Sprintf("/eth/v1/builder/header/%s/%s/%s", slot, parentHashHex, pubkey)
 			url := relay.GetURI(path)
 			log := log.WithField("url", url)
-			responsePayload := new(spec.VersionedSignedBuilderBid)
+			responsePayload := new(builderSpec.VersionedSignedBuilderBid)
 			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, ua, headers, nil, responsePayload)
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
@@ -515,7 +515,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.respondOK(w, &result.response)
 }
 
-func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *capella.SignedBlindedBeaconBlock, body []byte) {
+func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *eth2ApiV1Capella.SignedBlindedBeaconBlock, body []byte) {
 	if payload.Message == nil || payload.Message.Body == nil || payload.Message.Body.ExecutionPayloadHeader == nil {
 		log.WithField("body", string(body)).Error("missing parts of the request payload from the beacon-node")
 		m.respondError(w, http.StatusBadRequest, "missing parts of the payload")
@@ -562,7 +562,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 		log.Warn("bid found but no associated relays")
 	}
 
-	// send bid and signed block to relay monitor with capella payload
+	// send bid and signed block to relay monitor with eth2ApiV1Capella payload
 	// go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
 
 	// Add request headers
@@ -571,7 +571,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	// Prepare for requests
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	result := new(api.VersionedSubmitBlindedBlockResponse)
+	result := new(builderApi.VersionedSubmitBlindedBlockResponse)
 
 	// Prepare the request context, which will be cancelled after the first successful response from a relay
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
@@ -585,7 +585,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
 
-			responsePayload := new(api.VersionedSubmitBlindedBlockResponse)
+			responsePayload := new(builderApi.VersionedSubmitBlindedBlockResponse)
 			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, headers, payload, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
@@ -610,7 +610,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 			}
 
 			// Ensure the response blockhash matches the response block
-			calculatedBlockHash, err := utils.ComputeBlockHash(&api.VersionedExecutionPayload{
+			calculatedBlockHash, err := utils.ComputeBlockHash(&builderApi.VersionedExecutionPayload{
 				Version: responsePayload.Version,
 				Capella: responsePayload.Capella,
 			})
@@ -652,7 +652,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	m.respondOK(w, result)
 }
 
-func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *deneb.SignedBlindedBlockContents) {
+func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *eth2ApiV1Deneb.SignedBlindedBlockContents) {
 	// no need to check if fields are nil as the json unmarshalling library does the nil check for us
 	blindedBlock := payload.SignedBlindedBlock
 	blindedBlobs := payload.SignedBlindedBlobSidecars
@@ -703,7 +703,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 	// Prepare for requests
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	result := new(api.VersionedSubmitBlindedBlockResponse)
+	result := new(builderApi.VersionedSubmitBlindedBlockResponse)
 
 	// Prepare the request context, which will be cancelled after the first successful response from a relay
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
@@ -717,7 +717,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
 
-			responsePayload := new(api.VersionedSubmitBlindedBlockResponse)
+			responsePayload := new(builderApi.VersionedSubmitBlindedBlockResponse)
 			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, headers, payload, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
@@ -745,7 +745,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 			}
 
 			// Ensure the response blockhash matches the response block
-			calculatedBlockHash, err := utils.ComputeBlockHash(&api.VersionedExecutionPayload{
+			calculatedBlockHash, err := utils.ComputeBlockHash(&builderApi.VersionedExecutionPayload{
 				Version: responsePayload.Version,
 				Deneb:   payload,
 			})
@@ -785,7 +785,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 					return
 				}
 
-				blobHelper := denebutil.BeaconBlockBlob{Blob: blobs.Blobs[i]}
+				blobHelper := eth2UtilDeneb.BeaconBlockBlob{Blob: blobs.Blobs[i]}
 				blobRoot, err := blobHelper.HashTreeRoot()
 				if err != nil {
 					log.WithError(err).Error("error calculating blobRoot")
@@ -843,10 +843,10 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 
 	// Decode the body now
-	payload := new(deneb.SignedBlindedBlockContents)
+	payload := new(eth2ApiV1Deneb.SignedBlindedBlockContents)
 	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
 		log.Debug("could not decode Deneb request payload, attempting to decode body into Capella payload")
-		payload := new(capella.SignedBlindedBeaconBlock)
+		payload := new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
 		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
 			log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
 			m.respondError(w, http.StatusBadRequest, err.Error())
