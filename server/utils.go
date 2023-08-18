@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/attestantio/go-builder-client/api"
-	"github.com/attestantio/go-builder-client/spec"
-	consensusspec "github.com/attestantio/go-eth2-client/spec"
+	builderApi "github.com/attestantio/go-builder-client/api"
+	builderSpec "github.com/attestantio/go-builder-client/spec"
+	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
@@ -170,7 +170,7 @@ func GetURI(url *url.URL, path string) string {
 // bidResp are entries in the bids cache
 type bidResp struct {
 	t        time.Time
-	response spec.VersionedSignedBuilderBid
+	response builderSpec.VersionedSignedBuilderBid
 	bidInfo  bidInfo
 	relays   []RelayEntry
 }
@@ -261,7 +261,7 @@ func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.He
 	}, nil
 }
 
-func parseBidInfo(bid *spec.VersionedSignedBuilderBid) (bidInfo, error) {
+func parseBidInfo(bid *builderSpec.VersionedSignedBuilderBid) (bidInfo, error) {
 	blockHash, err := bid.BlockHash()
 	if err != nil {
 		return bidInfo{}, err
@@ -297,7 +297,7 @@ func parseBidInfo(bid *spec.VersionedSignedBuilderBid) (bidInfo, error) {
 	return bidInfo, nil
 }
 
-func checkRelaySignature(bid *spec.VersionedSignedBuilderBid, domain phase0.Domain, pubKey phase0.BLSPubKey) (bool, error) {
+func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phase0.Domain, pubKey phase0.BLSPubKey) (bool, error) {
 	root, err := bid.MessageHashTreeRoot()
 	if err != nil {
 		return false, err
@@ -315,19 +315,19 @@ func checkRelaySignature(bid *spec.VersionedSignedBuilderBid, domain phase0.Doma
 	return bls.VerifySignatureBytes(msg[:], sig[:], pubKey[:])
 }
 
-func getPayloadResponseIsEmpty(payload *api.VersionedSubmitBlindedBlockResponse) bool {
+func getPayloadResponseIsEmpty(payload *builderApi.VersionedSubmitBlindedBlockResponse) bool {
 	switch payload.Version {
-	case consensusspec.DataVersionCapella:
+	case spec.DataVersionCapella:
 		if payload.Capella == nil || payload.Capella.BlockHash == nilHash {
 			return true
 		}
-	case consensusspec.DataVersionDeneb:
+	case spec.DataVersionDeneb:
 		if payload.Deneb == nil || payload.Deneb.ExecutionPayload == nil ||
 			payload.Deneb.ExecutionPayload.BlockHash == nilHash ||
 			payload.Deneb.BlobsBundle == nil || payload.Deneb.BlobsBundle.Blobs == nil {
 			return true
 		}
-	case consensusspec.DataVersionUnknown, consensusspec.DataVersionPhase0, consensusspec.DataVersionAltair, consensusspec.DataVersionBellatrix:
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix:
 		return true
 	}
 	return false
