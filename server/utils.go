@@ -13,13 +13,10 @@ import (
 	"strings"
 	"time"
 
-	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
-	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/capella"
-	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -334,28 +331,4 @@ func getPayloadResponseIsEmpty(payload *builderApi.VersionedSubmitBlindedBlockRe
 		return true
 	}
 	return false
-}
-
-func getDenebBlockRoot(blindedBlock *eth2ApiV1Deneb.BlindedBeaconBlock, blockPayload *builderApiDeneb.ExecutionPayloadAndBlobsBundle) (phase0.Root, error) {
-	block := deneb.BeaconBlock{
-		Slot:          blindedBlock.Slot,
-		ProposerIndex: blindedBlock.ProposerIndex,
-		ParentRoot:    blindedBlock.ParentRoot,
-		StateRoot:     blindedBlock.StateRoot,
-		Body: &deneb.BeaconBlockBody{
-			BLSToExecutionChanges: blindedBlock.Body.BLSToExecutionChanges,
-			RANDAOReveal:          blindedBlock.Body.RANDAOReveal,
-			ETH1Data:              blindedBlock.Body.ETH1Data,
-			Graffiti:              blindedBlock.Body.Graffiti,
-			ProposerSlashings:     blindedBlock.Body.ProposerSlashings,
-			AttesterSlashings:     blindedBlock.Body.AttesterSlashings,
-			Attestations:          blindedBlock.Body.Attestations,
-			Deposits:              blindedBlock.Body.Deposits,
-			VoluntaryExits:        blindedBlock.Body.VoluntaryExits,
-			SyncAggregate:         blindedBlock.Body.SyncAggregate,
-			ExecutionPayload:      blockPayload.ExecutionPayload,
-			BlobKzgCommitments:    blockPayload.BlobsBundle.Commitments,
-		},
-	}
-	return block.HashTreeRoot()
 }
