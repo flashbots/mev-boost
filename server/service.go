@@ -744,25 +744,6 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 				return
 			}
 
-			// Ensure the response blockhash matches the response block
-			blockRoot, err := getDenebBlockRoot(blindedBlock.Message, responsePayload.Deneb)
-			if err != nil {
-				log.WithError(err).Error("could not calculate deneb beacon block root")
-				return
-			}
-			calculatedBlockHash, err := utils.ComputeBlockHash(&builderApi.VersionedExecutionPayload{
-				Version: responsePayload.Version,
-				Deneb:   payload,
-			}, &blockRoot)
-			if err != nil {
-				log.WithError(err).Error("could not calculate block hash")
-			} else if payload.BlockHash != calculatedBlockHash {
-				log.WithFields(logrus.Fields{
-					"calculatedBlockHash": calculatedBlockHash.String(),
-					"responseBlockHash":   payload.BlockHash.String(),
-				}).Error("responseBlockHash does not equal hash calculated from response block")
-			}
-
 			// Ensure that blobs are valid and matches the request
 			if len(blindedBlobs) != len(blobs.Blobs) || len(blindedBlobs) != len(blobs.Commitments) || len(blindedBlobs) != len(blobs.Proofs) {
 				log.WithFields(logrus.Fields{
