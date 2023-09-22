@@ -613,7 +613,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 			calculatedBlockHash, err := utils.ComputeBlockHash(&builderApi.VersionedExecutionPayload{
 				Version: responsePayload.Version,
 				Capella: responsePayload.Capella,
-			})
+			}, nil)
 			if err != nil {
 				log.WithError(err).Error("could not calculate block hash")
 			} else if responsePayload.Capella.BlockHash != calculatedBlockHash {
@@ -745,10 +745,15 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 			}
 
 			// Ensure the response blockhash matches the response block
+			blockRoot, err := getDenebBlockRoot(blindedBlock.Message, responsePayload.Deneb)
+			if err != nil {
+				log.WithError(err).Error("could not calculate deneb beacon block root")
+				return
+			}
 			calculatedBlockHash, err := utils.ComputeBlockHash(&builderApi.VersionedExecutionPayload{
 				Version: responsePayload.Version,
 				Deneb:   payload,
-			})
+			}, &blockRoot)
 			if err != nil {
 				log.WithError(err).Error("could not calculate block hash")
 			} else if payload.BlockHash != calculatedBlockHash {
