@@ -16,12 +16,9 @@ import (
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
 	"github.com/attestantio/go-eth2-client/spec"
-	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/mev-boost/config"
@@ -37,7 +34,6 @@ const (
 var (
 	errHTTPErrorResponse  = errors.New("HTTP error response")
 	errInvalidForkVersion = errors.New("invalid fork version")
-	errInvalidTransaction = errors.New("invalid transaction")
 	errMaxRetriesExceeded = errors.New("max retries exceeded")
 )
 
@@ -201,64 +197,6 @@ func weiBigIntToEthBigFloat(wei *big.Int) (ethValue *big.Float) {
 	fbalance.SetString(wei.String())
 	ethValue = new(big.Float).Quo(fbalance, big.NewFloat(1e18))
 	return
-}
-
-func ComputeBlockHash(payload *capella.ExecutionPayload) (phase0.Hash32, error) {
-	header, err := executionPayloadToBlockHeader(payload)
-	if err != nil {
-		return phase0.Hash32{}, err
-	}
-	return phase0.Hash32(header.Hash()), nil
-}
-
-func executionPayloadToBlockHeader(payload *capella.ExecutionPayload) (*types.Header, error) {
-	transactionData := make([]*types.Transaction, len(payload.Transactions))
-	for i, encTx := range payload.Transactions {
-		var tx types.Transaction
-
-		if err := tx.UnmarshalBinary(encTx); err != nil {
-			return nil, errInvalidTransaction
-		}
-		transactionData[i] = &tx
-	}
-
-	withdrawalData := make([]*types.Withdrawal, len(payload.Withdrawals))
-	for i, w := range payload.Withdrawals {
-		withdrawalData[i] = &types.Withdrawal{
-			Index:     uint64(w.Index),
-			Validator: uint64(w.ValidatorIndex),
-			Address:   common.Address(w.Address),
-			Amount:    uint64(w.Amount),
-		}
-	}
-	withdrawalsHash := types.DeriveSha(types.Withdrawals(withdrawalData), trie.NewStackTrie(nil))
-
-	// base fee per gas is stored little-endian but we need it
-	// big-endian for big.Int.
-	var baseFeePerGasBytes [32]byte
-	for i := 0; i < 32; i++ {
-		baseFeePerGasBytes[i] = payload.BaseFeePerGas[32-1-i]
-	}
-	baseFeePerGas := new(big.Int).SetBytes(baseFeePerGasBytes[:])
-
-	return &types.Header{
-		ParentHash:      common.Hash(payload.ParentHash),
-		UncleHash:       types.EmptyUncleHash,
-		Coinbase:        common.Address(payload.FeeRecipient),
-		Root:            payload.StateRoot,
-		TxHash:          types.DeriveSha(types.Transactions(transactionData), trie.NewStackTrie(nil)),
-		ReceiptHash:     payload.ReceiptsRoot,
-		Bloom:           payload.LogsBloom,
-		Difficulty:      common.Big0,
-		Number:          new(big.Int).SetUint64(payload.BlockNumber),
-		GasLimit:        payload.GasLimit,
-		GasUsed:         payload.GasUsed,
-		Time:            payload.Timestamp,
-		Extra:           payload.ExtraData,
-		MixDigest:       payload.PrevRandao,
-		BaseFee:         baseFeePerGas,
-		WithdrawalsHash: &withdrawalsHash,
-	}, nil
 }
 
 func parseBidInfo(bid *builderSpec.VersionedSignedBuilderBid) (bidInfo, error) {
