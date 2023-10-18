@@ -1,0 +1,32 @@
+name: E2E
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  run-local-testnet:
+    name: Kurtosis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Kurtosis
+        run: |
+          echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
+          sudo apt update
+          sudo apt install kurtosis-cli
+          kurtosis analytics disable
+          kurtosis engine restart
+  
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --platform linux/amd64 --tag mev-boost
+
+      - name: Run Kurtosis Eth2 Package
+        run: |
+          kurtosis run github.com/kurtosis-tech/ethereum-package@0.6.1 "$(cat ./.github/tests/mev.json)"
