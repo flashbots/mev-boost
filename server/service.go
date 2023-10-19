@@ -650,6 +650,9 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	log := m.log.WithField("method", "getPayload")
 	log.Debug("getPayload request starts")
 
+	m.respondError(w, http.StatusBadRequest, "")
+	return
+
 	// Read the body first, so we can log it later on error
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
