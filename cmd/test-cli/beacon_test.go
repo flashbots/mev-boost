@@ -7,7 +7,6 @@ import (
 )
 
 func TestBeacon(t *testing.T) {
-
 	t.Run("create beacon: BeaconNode", func(t *testing.T) {
 		isMergemock := false
 		beaconEndpoint := "http://localhost:5052"
