@@ -17,10 +17,12 @@ const (
 	genesisForkVersionMainnet = "0x00000000"
 	genesisForkVersionSepolia = "0x90000069"
 	genesisForkVersionGoerli  = "0x00001020"
+	genesisForkVersionHolesky = "0x01017000"
 
-	genesisTimeMainnet uint64 = 1606824023
-	genesisTimeSepolia uint64 = 1655733600
-	genesisTimeGoerli  uint64 = 1614588812
+	genesisTimeMainnet = 1606824023
+	genesisTimeSepolia = 1655733600
+	genesisTimeGoerli  = 1614588812
+	genesisTimeHolesky = 1630440000
 )
 
 var (
@@ -41,6 +43,7 @@ var (
 	defaultGenesisTime        = common.GetEnvInt("GENESIS_TIMESTAMP", -1)
 	defaultUseSepolia         = os.Getenv("SEPOLIA") != ""
 	defaultUseGoerli          = os.Getenv("GOERLI") != ""
+	defaultUseHolesky         = os.Getenv("HOLESKY") != ""
 
 	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
 	defaultTimeoutMsGetHeader         = common.GetEnvInt("RELAY_TIMEOUT_MS_GETHEADER", 950)   // timeout for getHeader requests
@@ -74,6 +77,7 @@ var (
 	mainnet = flag.Bool("mainnet", true, "use Mainnet")
 	sepolia = flag.Bool("sepolia", defaultUseSepolia, "use Sepolia")
 	goerli  = flag.Bool("goerli", defaultUseGoerli, "use Goerli")
+	holesky = flag.Bool("holesky", defaultUseHolesky, "use Holesky")
 
 	useCustomGenesisForkVersion = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
 	useCustomGenesisTime        = flag.Int("genesis-timestamp", defaultGenesisTime, "use a custom genesis timestamp (unix seconds)")
@@ -96,42 +100,11 @@ func Main() {
 		return
 	}
 
-	// setup logging
-	log.Logger.SetOutput(os.Stdout)
-	if *logJSON {
-		log.Logger.SetFormatter(&logrus.JSONFormatter{
-			TimestampFormat: config.RFC3339Milli,
-		})
-	} else {
-		log.Logger.SetFormatter(&logrus.TextFormatter{
-			FullTimestamp:   true,
-			TimestampFormat: config.RFC3339Milli,
-		})
+	err := setupLogging()
+	if err != nil {
+		flag.Usage()
+		log.WithError(err).Fatal("failed setting up logging")
 	}
-	if *logDebug {
-		*logLevel = "debug"
-	}
-	if *logLevel != "" {
-		lvl, err := logrus.ParseLevel(*logLevel)
-		if err != nil {
-			flag.Usage()
-			log.Fatalf("invalid loglevel: %s", *logLevel)
-		}
-		log.Logger.SetLevel(lvl)
-	}
-	if *logService != "" {
-		log = log.WithField("service", *logService)
-	}
-
-	// Add version to logs and say hello
-	addVersionToLogs := !*logNoVersion
-	if addVersionToLogs {
-		log = log.WithField("version", config.Version)
-		log.Infof("starting mev-boost")
-	} else {
-		log.Infof("starting mev-boost %s", config.Version)
-	}
-	log.Debug("debug logging enabled")
 
 	genesisForkVersionHex := ""
 	var genesisTime uint64
@@ -145,12 +118,15 @@ func Main() {
 	case *goerli:
 		genesisForkVersionHex = genesisForkVersionGoerli
 		genesisTime = genesisTimeGoerli
+	case *holesky:
+		genesisForkVersionHex = genesisForkVersionHolesky
+		genesisTime = genesisTimeHolesky
 	case *mainnet:
 		genesisForkVersionHex = genesisForkVersionMainnet
 		genesisTime = genesisTimeMainnet
 	default:
 		flag.Usage()
-		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -genesis-fork-version flags)")
+		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -holesky / -genesis-fork-version flags)")
 	}
 	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
 
@@ -236,4 +212,43 @@ func Main() {
 
 	log.Println("listening on", *listenAddr)
 	log.Fatal(service.StartHTTPServer())
+}
+
+func setupLogging() error {
+	// setup logging
+	log.Logger.SetOutput(os.Stdout)
+	if *logJSON {
+		log.Logger.SetFormatter(&logrus.JSONFormatter{
+			TimestampFormat: config.RFC3339Milli,
+		})
+	} else {
+		log.Logger.SetFormatter(&logrus.TextFormatter{
+			FullTimestamp:   true,
+			TimestampFormat: config.RFC3339Milli,
+		})
+	}
+	if *logDebug {
+		*logLevel = "debug"
+	}
+	if *logLevel != "" {
+		lvl, err := logrus.ParseLevel(*logLevel)
+		if err != nil {
+			return fmt.Errorf("invalid loglevel: %s", *logLevel)
+		}
+		log.Logger.SetLevel(lvl)
+	}
+	if *logService != "" {
+		log = log.WithField("service", *logService)
+	}
+
+	// Add version to logs and say hello
+	addVersionToLogs := !*logNoVersion
+	if addVersionToLogs {
+		log = log.WithField("version", config.Version)
+		log.Infof("starting mev-boost")
+	} else {
+		log.Infof("starting mev-boost %s", config.Version)
+	}
+	log.Debug("debug logging enabled")
+	return nil
 }
