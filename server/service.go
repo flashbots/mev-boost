@@ -22,7 +22,6 @@ import (
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	eth2UtilDeneb "github.com/attestantio/go-eth2-client/util/deneb"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-boost-utils/utils"
@@ -652,11 +651,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	m.respondOK(w, result)
 }
 
-func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *eth2ApiV1Deneb.SignedBlindedBlockContents) {
-	// no need to check if fields are nil as the json unmarshalling library does the nil check for us
-	blindedBlock := payload.SignedBlindedBlock
-	blindedBlobs := payload.SignedBlindedBlobSidecars
-
+func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, blindedBlock *eth2ApiV1Deneb.SignedBlindedBeaconBlock) {
 	// Get the slotUID for this slot
 	slotUID := ""
 	m.slotUIDLock.Lock()
@@ -718,7 +713,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 			log.Debug("calling getPayload")
 
 			responsePayload := new(builderApi.VersionedSubmitBlindedBlockResponse)
-			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, headers, payload, responsePayload, m.requestMaxRetries, log)
+			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, headers, blindedBlock, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
 					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
@@ -744,45 +739,22 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 				return
 			}
 
+			commitments := blindedBlock.Message.Body.BlobKzgCommitments
 			// Ensure that blobs are valid and matches the request
-			if len(blindedBlobs) != len(blobs.Blobs) || len(blindedBlobs) != len(blobs.Commitments) || len(blindedBlobs) != len(blobs.Proofs) {
+			if len(commitments) != len(blobs.Blobs) || len(commitments) != len(blobs.Commitments) || len(commitments) != len(blobs.Proofs) {
 				log.WithFields(logrus.Fields{
-					"requestBlobs": len(blindedBlobs),
-				}).Error("requestBlobs length does not equal responseBlobs length")
+					"requestBlobs": len(commitments),
+				}).Error("block KZG commitment length does not equal responseBlobs length")
 				return
 			}
 
-			for i, blindedBlob := range blindedBlobs {
-				if blindedBlob.Message.KzgCommitment != blobs.Commitments[i] {
+			for i, commitment := range commitments {
+				if commitment != blobs.Commitments[i] {
 					log.WithFields(logrus.Fields{
-						"requestBlobCommitment": blindedBlob.Message.KzgCommitment.String(),
+						"requestBlobCommitment": commitment.String(),
 						"responseBlobCommiment": blobs.Commitments[i].String(),
-						"index":                 blindedBlob.Message.Index,
+						"index":                 i,
 					}).Error("requestBlobCommitment does not equal responseBlobCommiment")
-					return
-				}
-
-				if blindedBlob.Message.KzgProof != blobs.Proofs[i] {
-					log.WithFields(logrus.Fields{
-						"requestBlobProof":  blindedBlob.Message.KzgProof.String(),
-						"responseBlobProof": blobs.Proofs[i].String(),
-						"index":             blindedBlob.Message.Index,
-					}).Error("requestBlobProof does not equal responseBlobProof")
-					return
-				}
-
-				blobHelper := eth2UtilDeneb.BeaconBlockBlob{Blob: blobs.Blobs[i]}
-				blobRoot, err := blobHelper.HashTreeRoot()
-				if err != nil {
-					log.WithError(err).Error("error calculating blobRoot")
-					return
-				}
-				if blindedBlob.Message.BlobRoot != blobRoot {
-					log.WithFields(logrus.Fields{
-						"requestBlobRoot":  blindedBlob.Message.BlobRoot.String(),
-						"responseBlobRoot": fmt.Sprintf("%#x", blobRoot),
-						"index":            blindedBlob.Message.Index,
-					}).Error("requestBlobRoot does not equal responseBlobRoot")
 					return
 				}
 			}
@@ -829,7 +801,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 
 	// Decode the body now
-	payload := new(eth2ApiV1Deneb.SignedBlindedBlockContents)
+	payload := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
 	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
 		log.Debug("could not decode Deneb request payload, attempting to decode body into Capella payload")
 		payload := new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
