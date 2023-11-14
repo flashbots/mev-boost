@@ -50,6 +50,7 @@ See also:
   - [Mainnet](#mainnet)
   - [Goerli testnet](#goerli-testnet)
   - [Sepolia testnet](#sepolia-testnet)
+  - [Holesky testnet](#holesky-testnet)
   - [`test-cli`](#test-cli)
   - [mev-boost cli arguments](#mev-boost-cli-arguments)
 - [API](#api)
@@ -211,6 +212,14 @@ Run MEV-Boost pointed at a Sepolia relay:
 ./mev-boost -sepolia -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
+## Holesky testnet
+
+Run MEV-Boost pointed at a Holesky relay:
+
+```
+./mev-boost -holesky -relay-check -relay URL-OF-TRUSTED-RELAY
+```
+
 ## `test-cli`
 
 `test-cli` is a utility to execute all proposer requests against MEV-Boost + relay. See also the [test-cli readme](cmd/test-cli/README.md).
@@ -231,6 +240,8 @@ Usage of mev-boost:
         use a custom genesis fork version
   -goerli
         use Goerli
+  -holesky
+        use Holesky
   -json
         log in JSON format instead of text
   -log-no-version
@@ -301,7 +312,6 @@ Example for setting a minimum bid value of 0.06 ETH:
     -relay $YOUR_RELAY_CHOICE_B \
     -relay $YOUR_RELAY_CHOICE_C
 ```
-
 
 ---
 
