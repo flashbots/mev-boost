@@ -199,9 +199,9 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 				WithdrawalsRoot: phase0.Root{},
 				BaseFeePerGas:   uint256.NewInt(0),
 			},
+			BlobKZGCommitments: make([]deneb.KZGCommitment, 0),
 			Value:              uint256.NewInt(value),
 			Pubkey:             _HexToPubkey(publicKey),
-			BlindedBlobsBundle: &builderApiDeneb.BlindedBlobsBundle{},
 		}
 
 		// Sign the message.

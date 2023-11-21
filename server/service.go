@@ -739,7 +739,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 				return
 			}
 
-			commitments := blindedBlock.Message.Body.BlobKzgCommitments
+			commitments := blindedBlock.Message.Body.BlobKZGCommitments
 			// Ensure that blobs are valid and matches the request
 			if len(commitments) != len(blobs.Blobs) || len(commitments) != len(blobs.Commitments) || len(commitments) != len(blobs.Proofs) {
 				log.WithFields(logrus.Fields{

@@ -111,16 +111,11 @@ func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *eth2ApiV1Ca
 	}
 }
 
-func blindedBlockContentsToBlockContentsDeneb(signedBlindedBlockContents *eth2ApiV1Deneb.SignedBlindedBlockContents) *builderApiDeneb.ExecutionPayloadAndBlobsBundle {
-	header := signedBlindedBlockContents.SignedBlindedBlock.Message.Body.ExecutionPayloadHeader
-	commitments := make([]deneb.KzgCommitment, 0)
-	proofs := make([]deneb.KzgProof, 0)
+func blindedBlockContentsToPayloadDeneb(signedBlindedBlockContents *eth2ApiV1Deneb.SignedBlindedBeaconBlock) *builderApiDeneb.ExecutionPayloadAndBlobsBundle {
+	header := signedBlindedBlockContents.Message.Body.ExecutionPayloadHeader
+	commitments := make([]deneb.KZGCommitment, 0)
+	proofs := make([]deneb.KZGProof, 0)
 	blobs := make([]deneb.Blob, 0)
-	for _, blobSidecar := range signedBlindedBlockContents.SignedBlindedBlobSidecars {
-		commitments = append(commitments, blobSidecar.Message.KzgCommitment)
-		proofs = append(proofs, blobSidecar.Message.KzgProof)
-		blobs = append(blobs, deneb.Blob{})
-	}
 	return &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
 		ExecutionPayload: &deneb.ExecutionPayload{
 			ParentHash:    header.ParentHash,
@@ -845,27 +840,27 @@ func TestGetPayloadDeneb(t *testing.T) {
 	jsonFile, err := os.Open("../testdata/signed-blinded-beacon-block-deneb.json")
 	require.NoError(t, err)
 	defer jsonFile.Close()
-	signedBlindedBlockContents := new(eth2ApiV1Deneb.SignedBlindedBlockContents)
-	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBlockContents))
+	signedBlindedBlock := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBlock))
 
 	backend := newTestBackend(t, 1, time.Second)
 
 	// Prepare getPayload response
 	backend.relays[0].GetPayloadResponse = &builderApi.VersionedSubmitBlindedBlockResponse{
 		Version: spec.DataVersionDeneb,
-		Deneb:   blindedBlockContentsToBlockContentsDeneb(signedBlindedBlockContents),
+		Deneb:   blindedBlockContentsToPayloadDeneb(signedBlindedBlock),
 	}
 
 	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
 	getPayloadPath := "/eth/v1/builder/blinded_blocks"
-	rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBlockContents)
+	rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBlock)
 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 	require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
 
 	resp := new(builderApi.VersionedSubmitBlindedBlockResponse)
 	err = json.Unmarshal(rr.Body.Bytes(), resp)
 	require.NoError(t, err)
-	require.Equal(t, signedBlindedBlockContents.SignedBlindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Deneb.ExecutionPayload.BlockHash)
+	require.Equal(t, signedBlindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Deneb.ExecutionPayload.BlockHash)
 }
 
 func TestGetPayloadToAllRelays(t *testing.T) {
