@@ -121,8 +121,8 @@ func TestGetPayloadResponseIsEmpty(t *testing.T) {
 				},
 				BlobsBundle: &builderApiDeneb.BlobsBundle{
 					Blobs:       make([]deneb.Blob, 0),
-					Commitments: make([]deneb.KzgCommitment, 0),
-					Proofs:      make([]deneb.KzgProof, 0),
+					Commitments: make([]deneb.KZGCommitment, 0),
+					Proofs:      make([]deneb.KZGProof, 0),
 				},
 			},
 		}
@@ -159,8 +159,8 @@ func TestGetPayloadResponseIsEmpty(t *testing.T) {
 			Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
 				BlobsBundle: &builderApiDeneb.BlobsBundle{
 					Blobs:       make([]deneb.Blob, 0),
-					Commitments: make([]deneb.KzgCommitment, 0),
-					Proofs:      make([]deneb.KzgProof, 0),
+					Commitments: make([]deneb.KZGCommitment, 0),
+					Proofs:      make([]deneb.KZGProof, 0),
 				},
 			},
 		}
