@@ -23,7 +23,7 @@ const (
 	genesisTimeMainnet = 1606824023
 	genesisTimeSepolia = 1655733600
 	genesisTimeGoerli  = 1614588812
-	genesisTimeHolesky = 1630440000
+	genesisTimeHolesky = 1695902400
 )
 
 var (
