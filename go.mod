@@ -56,8 +56,8 @@ require (
 require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
-	github.com/attestantio/go-builder-client v0.4.0
-	github.com/attestantio/go-eth2-client v0.19.5
+	github.com/attestantio/go-builder-client v0.4.2-0.20231122091430-0eafc4522bf2
+	github.com/attestantio/go-eth2-client v0.19.7-0.20231205092204-3087274ef2ac
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
