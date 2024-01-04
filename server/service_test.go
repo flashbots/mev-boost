@@ -113,9 +113,11 @@ func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *eth2ApiV1Ca
 
 func blindedBlockContentsToPayloadDeneb(signedBlindedBlockContents *eth2ApiV1Deneb.SignedBlindedBeaconBlock) *builderApiDeneb.ExecutionPayloadAndBlobsBundle {
 	header := signedBlindedBlockContents.Message.Body.ExecutionPayloadHeader
-	commitments := make([]deneb.KZGCommitment, 0)
-	proofs := make([]deneb.KZGProof, 0)
-	blobs := make([]deneb.Blob, 0)
+	numBlobs := len(signedBlindedBlockContents.Message.Body.BlobKZGCommitments)
+	commitments := make([]deneb.KZGCommitment, numBlobs)
+	copy(commitments, signedBlindedBlockContents.Message.Body.BlobKZGCommitments)
+	proofs := make([]deneb.KZGProof, numBlobs)
+	blobs := make([]deneb.Blob, numBlobs)
 	return &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
 		ExecutionPayload: &deneb.ExecutionPayload{
 			ParentHash:    header.ParentHash,
