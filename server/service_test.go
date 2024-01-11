@@ -225,7 +225,7 @@ func TestStatus(t *testing.T) {
 		rr := backend.request(t, http.MethodGet, path, nil)
 
 		require.Equal(t, http.StatusOK, rr.Code)
-		require.True(t, len(rr.Header().Get("X-MEVBoost-Version")) > 0)
+		require.Greater(t, len(rr.Header().Get("X-MEVBoost-Version")), 0) //nolint:testifylint
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
@@ -237,7 +237,7 @@ func TestStatus(t *testing.T) {
 		rr := backend.request(t, http.MethodGet, path, nil)
 
 		require.Equal(t, http.StatusServiceUnavailable, rr.Code)
-		require.True(t, len(rr.Header().Get("X-MEVBoost-Version")) > 0)
+		require.Greater(t, len(rr.Header().Get("X-MEVBoost-Version")), 0) //nolint:testifylint
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 	})
 }

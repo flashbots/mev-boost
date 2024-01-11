@@ -19,6 +19,7 @@ linters:
     - wrapcheck
     - wsl
     - musttag
+    - depguard
 
     #
     # Maybe fix later:

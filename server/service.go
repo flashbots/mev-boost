@@ -751,9 +751,9 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 			for i, commitment := range commitments {
 				if commitment != blobs.Commitments[i] {
 					log.WithFields(logrus.Fields{
-						"requestBlobCommitment": commitment.String(),
+						"requestBlobCommitment":  commitment.String(),
 						"responseBlobCommitment": blobs.Commitments[i].String(),
-						"index":                 i,
+						"index":                  i,
 					}).Error("requestBlobCommitment does not equal responseBlobCommitment")
 					return
 				}
