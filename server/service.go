@@ -652,11 +652,11 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 }
 
 func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, blindedBlock *eth2ApiV1Deneb.SignedBlindedBeaconBlock) {
-	// Get the slotUID for this slot
-	slotUID := ""
+	// Get the currentSlotUID for this slot
+	currentSlotUID := ""
 	m.slotUIDLock.Lock()
 	if m.slotUID.slot == uint64(blindedBlock.Message.Slot) {
-		slotUID = m.slotUID.uid.String()
+		currentSlotUID = m.slotUID.uid.String()
 	} else {
 		log.Warnf("latest slotUID is for slot %d rather than payload slot %d", m.slotUID.slot, blindedBlock.Message.Slot)
 	}
@@ -669,7 +669,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 		"slot":       blindedBlock.Message.Slot,
 		"blockHash":  blindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
 		"parentHash": blindedBlock.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
-		"slotUID":    slotUID,
+		"slotUID":    currentSlotUID,
 	})
 
 	// Log how late into the slot the request starts
@@ -693,7 +693,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 	}
 
 	// Add request headers
-	headers := map[string]string{HeaderKeySlotUID: slotUID}
+	headers := map[string]string{HeaderKeySlotUID: currentSlotUID}
 
 	// Prepare for requests
 	var wg sync.WaitGroup
@@ -734,7 +734,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 			// Ensure the response blockhash matches the request
 			if blindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash != payload.BlockHash {
 				log.WithFields(logrus.Fields{
-					"responseBlockHash": responsePayload.Capella.BlockHash.String(),
+					"responseBlockHash": payload.BlockHash.String(),
 				}).Error("requestBlockHash does not equal responseBlockHash")
 				return
 			}
