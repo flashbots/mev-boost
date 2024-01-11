@@ -7,7 +7,7 @@ require (
 	github.com/flashbots/go-boost-utils v1.7.1
 	github.com/flashbots/go-utils v0.5.0
 	github.com/google/uuid v1.5.0
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/holiman/uint256 v1.2.4
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7
 	github.com/sirupsen/logrus v1.9.3
