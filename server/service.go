@@ -53,7 +53,7 @@ type httpErrorResp struct {
 
 // AuctionTranscript is the bid and blinded block received from the relay send to the relay monitor
 type AuctionTranscript struct {
-	Bid        *builderSpec.VersionedSignedBuilderBid       // TODO: proper json marshalling and unmashalling
+	Bid        *builderSpec.VersionedSignedBuilderBid       // TODO: proper json marshalling and unmarshalling
 	Acceptance *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock `json:"acceptance"`
 }
 
@@ -687,7 +687,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 	originalBid := m.bids[bidKey]
 	m.bidsLock.Unlock()
 	if originalBid.response.IsEmpty() {
-		log.Error("no bid for this getPayload payload found. was getHeader called before?")
+		log.Error("no bid for this getPayload payload found, was getHeader called before?")
 	} else if len(originalBid.relays) == 0 {
 		log.Warn("bid found but no associated relays")
 	}
@@ -752,9 +752,9 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 				if commitment != blobs.Commitments[i] {
 					log.WithFields(logrus.Fields{
 						"requestBlobCommitment": commitment.String(),
-						"responseBlobCommiment": blobs.Commitments[i].String(),
+						"responseBlobCommitment": blobs.Commitments[i].String(),
 						"index":                 i,
-					}).Error("requestBlobCommitment does not equal responseBlobCommiment")
+					}).Error("requestBlobCommitment does not equal responseBlobCommitment")
 					return
 				}
 			}
