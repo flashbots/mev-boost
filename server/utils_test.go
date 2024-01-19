@@ -8,10 +8,14 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
+	builderApi "github.com/attestantio/go-builder-client/api"
+	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/capella"
+	"github.com/attestantio/go-eth2-client/spec/deneb"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/stretchr/testify/require"
 )
@@ -97,15 +101,100 @@ func TestWeiBigIntToEthBigFloat(t *testing.T) {
 	require.Equal(t, "0.000000000000000000", f.Text('f', 18))
 }
 
-func TestCapellaComputeBlockHash(t *testing.T) {
-	jsonFile, err := os.Open("../testdata/zhejiang-execution-payload-capella.json")
-	require.NoError(t, err)
-	defer jsonFile.Close()
+func TestGetPayloadResponseIsEmpty(t *testing.T) {
+	t.Run("Non-empty capella payload response", func(t *testing.T) {
+		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionCapella,
+			Capella: &capella.ExecutionPayload{
+				BlockHash: phase0.Hash32{0x1},
+			},
+		}
+		require.False(t, getPayloadResponseIsEmpty(payload))
+	})
 
-	payload := new(capella.ExecutionPayload)
-	require.NoError(t, DecodeJSON(jsonFile, payload))
+	t.Run("Non-empty deneb payload response", func(t *testing.T) {
+		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionDeneb,
+			Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+				ExecutionPayload: &deneb.ExecutionPayload{
+					BlockHash: phase0.Hash32{0x1},
+				},
+				BlobsBundle: &builderApiDeneb.BlobsBundle{
+					Blobs:       make([]deneb.Blob, 0),
+					Commitments: make([]deneb.KZGCommitment, 0),
+					Proofs:      make([]deneb.KZGProof, 0),
+				},
+			},
+		}
+		require.False(t, getPayloadResponseIsEmpty(payload))
+	})
 
-	hash, err := ComputeBlockHash(payload)
-	require.NoError(t, err)
-	require.Equal(t, "0x08751ea2076d3ecc606231495a90ba91a66a9b8fb1a2b76c333f1957a1c667c3", hash.String())
+	t.Run("Empty capella payload response", func(t *testing.T) {
+		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionCapella,
+		}
+		require.True(t, getPayloadResponseIsEmpty(payload))
+	})
+
+	t.Run("Nil block hash for capella payload response", func(t *testing.T) {
+		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionCapella,
+			Capella: &capella.ExecutionPayload{
+				BlockHash: nilHash,
+			},
+		}
+		require.True(t, getPayloadResponseIsEmpty(payload))
+	})
+
+	t.Run("Empty deneb payload response", func(t *testing.T) {
+		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionDeneb,
+		}
+		require.True(t, getPayloadResponseIsEmpty(payload))
+	})
+
+	t.Run("Empty deneb execution payload", func(t *testing.T) {
+		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionDeneb,
+			Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+				BlobsBundle: &builderApiDeneb.BlobsBundle{
+					Blobs:       make([]deneb.Blob, 0),
+					Commitments: make([]deneb.KZGCommitment, 0),
+					Proofs:      make([]deneb.KZGProof, 0),
+				},
+			},
+		}
+		require.True(t, getPayloadResponseIsEmpty(payload))
+	})
+
+	t.Run("Empty deneb blobs bundle", func(t *testing.T) {
+		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionDeneb,
+			Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+				ExecutionPayload: &deneb.ExecutionPayload{
+					BlockHash: phase0.Hash32{0x1},
+				},
+			},
+		}
+		require.True(t, getPayloadResponseIsEmpty(payload))
+	})
+
+	t.Run("Nil block hash for deneb payload response", func(t *testing.T) {
+		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionDeneb,
+			Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+				ExecutionPayload: &deneb.ExecutionPayload{
+					BlockHash: nilHash,
+				},
+			},
+		}
+		require.True(t, getPayloadResponseIsEmpty(payload))
+	})
+
+	t.Run("Unsupported payload version", func(t *testing.T) {
+		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionBellatrix,
+		}
+		require.True(t, getPayloadResponseIsEmpty(payload))
+	})
 }
