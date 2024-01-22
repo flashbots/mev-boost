@@ -102,99 +102,110 @@ func TestWeiBigIntToEthBigFloat(t *testing.T) {
 }
 
 func TestGetPayloadResponseIsEmpty(t *testing.T) {
-	t.Run("Non-empty capella payload response", func(t *testing.T) {
-		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
-			Version: spec.DataVersionCapella,
-			Capella: &capella.ExecutionPayload{
-				BlockHash: phase0.Hash32{0x1},
-			},
-		}
-		require.False(t, getPayloadResponseIsEmpty(payload))
-	})
-
-	t.Run("Non-empty deneb payload response", func(t *testing.T) {
-		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
-			Version: spec.DataVersionDeneb,
-			Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
-				ExecutionPayload: &deneb.ExecutionPayload{
-					BlockHash: phase0.Hash32{0x1},
-				},
-				BlobsBundle: &builderApiDeneb.BlobsBundle{
-					Blobs:       make([]deneb.Blob, 0),
-					Commitments: make([]deneb.KZGCommitment, 0),
-					Proofs:      make([]deneb.KZGProof, 0),
-				},
-			},
-		}
-		require.False(t, getPayloadResponseIsEmpty(payload))
-	})
-
-	t.Run("Empty capella payload response", func(t *testing.T) {
-		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
-			Version: spec.DataVersionCapella,
-		}
-		require.True(t, getPayloadResponseIsEmpty(payload))
-	})
-
-	t.Run("Nil block hash for capella payload response", func(t *testing.T) {
-		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
-			Version: spec.DataVersionCapella,
-			Capella: &capella.ExecutionPayload{
-				BlockHash: nilHash,
-			},
-		}
-		require.True(t, getPayloadResponseIsEmpty(payload))
-	})
-
-	t.Run("Empty deneb payload response", func(t *testing.T) {
-		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
-			Version: spec.DataVersionDeneb,
-		}
-		require.True(t, getPayloadResponseIsEmpty(payload))
-	})
-
-	t.Run("Empty deneb execution payload", func(t *testing.T) {
-		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
-			Version: spec.DataVersionDeneb,
-			Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
-				BlobsBundle: &builderApiDeneb.BlobsBundle{
-					Blobs:       make([]deneb.Blob, 0),
-					Commitments: make([]deneb.KZGCommitment, 0),
-					Proofs:      make([]deneb.KZGProof, 0),
-				},
-			},
-		}
-		require.True(t, getPayloadResponseIsEmpty(payload))
-	})
-
-	t.Run("Empty deneb blobs bundle", func(t *testing.T) {
-		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
-			Version: spec.DataVersionDeneb,
-			Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
-				ExecutionPayload: &deneb.ExecutionPayload{
+	testCases := []struct {
+		name     string
+		payload  *builderApi.VersionedSubmitBlindedBlockResponse
+		expected bool
+	}{
+		{
+			name: "Non-empty capella payload response",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionCapella,
+				Capella: &capella.ExecutionPayload{
 					BlockHash: phase0.Hash32{0x1},
 				},
 			},
-		}
-		require.True(t, getPayloadResponseIsEmpty(payload))
-	})
-
-	t.Run("Nil block hash for deneb payload response", func(t *testing.T) {
-		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
-			Version: spec.DataVersionDeneb,
-			Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
-				ExecutionPayload: &deneb.ExecutionPayload{
+			expected: false,
+		},
+		{
+			name: "Non-empty deneb payload response",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionDeneb,
+				Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+					ExecutionPayload: &deneb.ExecutionPayload{
+						BlockHash: phase0.Hash32{0x1},
+					},
+					BlobsBundle: &builderApiDeneb.BlobsBundle{
+						Blobs:       make([]deneb.Blob, 0),
+						Commitments: make([]deneb.KZGCommitment, 0),
+						Proofs:      make([]deneb.KZGProof, 0),
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Empty capella payload response",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionCapella,
+			},
+			expected: true,
+		},
+		{
+			name: "Nil block hash for capella payload response",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionCapella,
+				Capella: &capella.ExecutionPayload{
 					BlockHash: nilHash,
 				},
 			},
-		}
-		require.True(t, getPayloadResponseIsEmpty(payload))
-	})
+			expected: true,
+		},
+		{
+			name: "Empty deneb payload response",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionDeneb,
+			},
+			expected: true,
+		},
+		{
+			name: "Empty deneb execution payload",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionDeneb,
+				Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+					BlobsBundle: &builderApiDeneb.BlobsBundle{
+						Blobs:       make([]deneb.Blob, 0),
+						Commitments: make([]deneb.KZGCommitment, 0),
+						Proofs:      make([]deneb.KZGProof, 0),
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Empty deneb blobs bundle",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+					ExecutionPayload: &deneb.ExecutionPayload{
+						BlockHash: phase0.Hash32{0x1},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Nil block hash for deneb payload response",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+					ExecutionPayload: &deneb.ExecutionPayload{
+						BlockHash: nilHash,
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Unsupported payload version",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionBellatrix,
+			},
+			expected: true,
+		},
+	}
 
-	t.Run("Unsupported payload version", func(t *testing.T) {
-		payload := &builderApi.VersionedSubmitBlindedBlockResponse{
-			Version: spec.DataVersionBellatrix,
-		}
-		require.True(t, getPayloadResponseIsEmpty(payload))
-	})
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, getPayloadResponseIsEmpty(tt.payload))
+		})
+	}
 }

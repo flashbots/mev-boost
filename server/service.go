@@ -743,7 +743,10 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 			// Ensure that blobs are valid and matches the request
 			if len(commitments) != len(blobs.Blobs) || len(commitments) != len(blobs.Commitments) || len(commitments) != len(blobs.Proofs) {
 				log.WithFields(logrus.Fields{
-					"requestBlobs": len(commitments),
+					"requestBlobCommitments":  len(commitments),
+					"responseBlobs":           len(blobs.Blobs),
+					"responseBlobCommitments": len(blobs.Commitments),
+					"responseBlobProofs":      len(blobs.Proofs),
 				}).Error("block KZG commitment length does not equal responseBlobs length")
 				return
 			}
