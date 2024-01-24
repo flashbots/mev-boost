@@ -6,7 +6,7 @@ require (
 	github.com/ethereum/go-ethereum v1.13.10
 	github.com/flashbots/go-boost-utils v1.8.0
 	github.com/flashbots/go-utils v0.5.0
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/holiman/uint256 v1.2.4
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7
