@@ -207,7 +207,7 @@ func TestWebserverMaxHeaderSize(t *testing.T) {
 	backend.boost.listenAddr = addr
 	go func() {
 		err := backend.boost.StartHTTPServer()
-		require.NoError(t, err)
+		require.NoError(t, err) //nolint:testifylint
 	}()
 	time.Sleep(time.Millisecond * 100)
 	path := "http://" + addr + "?" + strings.Repeat("abc", 4000) // path with characters of size over 4kb
@@ -275,7 +275,7 @@ func TestRegisterValidator(t *testing.T) {
 		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
 
 		// Now make one relay return an error
-		backend.relays[0].overrideHandleRegisterValidator(func(w http.ResponseWriter, r *http.Request) {
+		backend.relays[0].overrideHandleRegisterValidator(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		})
 		rr = backend.request(t, http.MethodPost, path, payload)
@@ -284,7 +284,7 @@ func TestRegisterValidator(t *testing.T) {
 		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
 
 		// Now make both relays return an error - which should cause the request to fail
-		backend.relays[1].overrideHandleRegisterValidator(func(w http.ResponseWriter, r *http.Request) {
+		backend.relays[1].overrideHandleRegisterValidator(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		})
 		rr = backend.request(t, http.MethodPost, path, payload)
@@ -688,7 +688,7 @@ func TestGetPayload(t *testing.T) {
 		backend := newTestBackend(t, 1, 2*time.Second)
 
 		count := 0
-		backend.relays[0].handlerOverrideGetPayload = func(w http.ResponseWriter, r *http.Request) {
+		backend.relays[0].handlerOverrideGetPayload = func(w http.ResponseWriter, _ *http.Request) {
 			if count > 0 {
 				// success response on the second attempt
 				backend.relays[0].defaultHandleGetPayload(w)
@@ -709,7 +709,7 @@ func TestGetPayload(t *testing.T) {
 		count := 0
 		maxRetries := 5
 
-		backend.relays[0].handlerOverrideGetPayload = func(w http.ResponseWriter, r *http.Request) {
+		backend.relays[0].handlerOverrideGetPayload = func(w http.ResponseWriter, _ *http.Request) {
 			count++
 			if count > maxRetries {
 				// success response after max retry attempts
