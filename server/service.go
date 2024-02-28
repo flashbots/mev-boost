@@ -18,7 +18,6 @@ import (
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
-	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -49,12 +48,6 @@ var (
 type httpErrorResp struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
-}
-
-// AuctionTranscript is the bid and blinded block received from the relay send to the relay monitor
-type AuctionTranscript struct {
-	Bid        *builderSpec.VersionedSignedBuilderBid       // TODO: proper json marshalling and unmarshalling
-	Acceptance *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock `json:"acceptance"`
 }
 
 type slotUID struct {
@@ -230,22 +223,6 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []build
 		}(relayMonitor)
 	}
 }
-
-// func (m *BoostService) sendAuctionTranscriptToRelayMonitors(transcript *AuctionTranscript) {
-// 	log := m.log.WithField("method", "sendAuctionTranscriptToRelayMonitors")
-// 	for _, relayMonitor := range m.relayMonitors {
-// 		go func(relayMonitor *url.URL) {
-// 			url := GetURI(relayMonitor, pathAuctionTranscript)
-// 			log := log.WithField("url", url)
-// 			_, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodPost, url, UserAgent(""), nil, transcript, nil)
-// 			if err != nil {
-// 				log.WithError(err).Warn("error sending auction transcript to relay monitor")
-// 				return
-// 			}
-// 			log.Debug("sent auction transcript to relay monitor")
-// 		}(relayMonitor)
-// 	}
-// }
 
 func (m *BoostService) handleRoot(w http.ResponseWriter, _ *http.Request) {
 	m.respondOK(w, nilResponse)
@@ -560,9 +537,6 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 	} else if len(originalBid.relays) == 0 {
 		log.Warn("bid found but no associated relays")
 	}
-
-	// send bid and signed block to relay monitor with eth2ApiV1Capella payload
-	// go m.sendAuctionTranscriptToRelayMonitors(&AuctionTranscript{Bid: originalBid.response.Data, Acceptance: payload})
 
 	// Add request headers
 	headers := map[string]string{HeaderKeySlotUID: slotUID}
