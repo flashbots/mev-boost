@@ -36,7 +36,6 @@ func doRegisterValidator(v validatorPrivateData, boostEndpoint string, builderSi
 		log.WithError(err).Fatal("Could not prepare registration message")
 	}
 	_, err = server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/validators", "test-cli", nil, message, nil)
-
 	if err != nil {
 		log.WithError(err).Fatal("Validator registration not successful")
 	}

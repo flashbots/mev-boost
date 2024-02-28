@@ -31,6 +31,7 @@ linters:
     - ireturn
     - noctx
     - tagliatelle
+    - perfsprint
 
     #
     # Disabled because of generics:
