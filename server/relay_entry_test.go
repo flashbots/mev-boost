@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/flashbots/go-boost-utils/utils"
-
 	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/go-boost-utils/utils"
 	"github.com/stretchr/testify/require"
 )
 
