@@ -1,16 +1,12 @@
 package server
 
 import (
-	"bytes"
 	"net/url"
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/utils"
 )
-
-// The point-at-infinity is 48 zero bytes.
-var pointAtInfinityPubkey = [48]byte{}
 
 // RelayEntry represents a relay that mev-boost connects to.
 type RelayEntry struct {
@@ -53,7 +49,7 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 	}
 
 	// Check if the public key is the point-at-infinity.
-	if bytes.Equal(entry.PublicKey[:], pointAtInfinityPubkey[:]) {
+	if entry.PublicKey.IsInfinity() {
 		return entry, ErrPointAtInfinityPubkey
 	}
 
