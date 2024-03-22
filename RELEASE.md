@@ -43,7 +43,7 @@ curl localhost:18550/eth/v1/builder/status
 
 For example, creating a new release `v1.9`:
 
-1. Create a Github issue about the upcoming release ([example](https://github.com/flashbots/mev-boost/issues/524))
+1. Create a GitHub issue about the upcoming release ([example](https://github.com/flashbots/mev-boost/issues/524))
 2. Create a release branch: `release/v1.9` (note: use the target version as branch name, don't add the `-alpha` suffix)
 3. Tag an alpha version: `v1.9-alpha1`
 4. Test in testnets, iterate as needed, create more alpha versions if needed
@@ -95,10 +95,10 @@ To create a new version (with tag), follow all these steps! They are necessary t
 * Update the `develop` branch:
   * `git checkout develop`
   * `git merge tags/v1.9 --ff-only`
-* Update `Version` in `config/vars.go` to next patch with `dev` suffix (eg. `v1.10-dev`) and commit to `develop` branch
+* Update `Version` in `config/vars.go` to next patch with `dev` suffix (e.g. `v1.10-dev`) and commit to `develop` branch
 * Now push the `develop` and `stable` branches, as well as the tag: `git push origin develop stable --tags`
 
-Now check the Github CI actions for release activity: https://github.com/flashbots/mev-boost/actions
+Now check the GitHub CI actions for release activity: https://github.com/flashbots/mev-boost/actions
 * CI builds and pushes the Docker image, and prepares a new draft release in https://github.com/flashbots/mev-boost/releases
 * Open it and prepare the release:
   * generate the description
