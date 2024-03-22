@@ -35,7 +35,7 @@ var (
 	defaultLogLevel          = common.GetEnv("LOG_LEVEL", "info")
 	defaultListenAddr        = common.GetEnv("BOOST_LISTEN_ADDR", "localhost:18550")
 	defaultRelayCheck        = os.Getenv("RELAY_STARTUP_CHECK") != ""
-	defaultRelayMinBidEth    = common.GetEnvFloat64("MIN_BID_ETH", 0)
+	defaultRelayMinBidEth    = common.GetEnvFloat64("MIN_BID_ETH", 0.05)
 	defaultDisableLogVersion = os.Getenv("DISABLE_LOG_VERSION") == "1" // disables adding the version to every log entry
 	defaultDebug             = os.Getenv("DEBUG") != ""
 	defaultLogServiceTag     = os.Getenv("LOG_SERVICE_TAG")
