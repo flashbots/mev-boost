@@ -68,14 +68,12 @@ func TestHexToHash(t *testing.T) {
 			expectedPanic: true,
 			expectedHash:  nil,
 		},
-		/*
-			{
-				name:          "Should panic because of invalid hexadecimal input",
-				hex:           "foo",
-				expectedPanic: true,
-				expectedHash:  nil,
-			},
-		*/
+		{
+			name:          "Should panic because of invalid hexadecimal input",
+			hex:           "foo",
+			expectedPanic: true,
+			expectedHash:  nil,
+		},
 		{
 			name:          "Should not panic and convert hexadecimal input to hash",
 			hex:           common.Hash{0x01}.String(),
@@ -115,14 +113,12 @@ func TestHexToAddress(t *testing.T) {
 			expectedPanic:   true,
 			expectedAddress: nil,
 		},
-		/*
-			{
-				name:            "Should panic because of invalid hexadecimal input",
-				hex:             "foo",
-				expectedPanic:   true,
-				expectedAddress: nil,
-			},
-		*/
+		{
+			name:            "Should panic because of invalid hexadecimal input",
+			hex:             "foo",
+			expectedPanic:   true,
+			expectedAddress: nil,
+		},
 		{
 			name:            "Should not panic and convert hexadecimal input to address",
 			hex:             common.Address{0x01}.String(),
@@ -149,6 +145,15 @@ func TestHexToAddress(t *testing.T) {
 
 // Same as for TestHexToHash and TestHexToAddress.
 func TestHexToPublicKey(t *testing.T) {
+	publicKey := phase0.BLSPubKey{
+		0x82, 0xf6, 0xe7, 0xcc, 0x57, 0xa2, 0xce, 0x68,
+		0xec, 0x41, 0x32, 0x1b, 0xeb, 0xc5, 0x5b, 0xcb,
+		0x31, 0x94, 0x5f, 0xe6, 0x6a, 0x8e, 0x67, 0xeb,
+		0x82, 0x51, 0x42, 0x5f, 0xab, 0x4c, 0x6a, 0x38,
+		0xc1, 0x0c, 0x53, 0x21, 0x0a, 0xea, 0x97, 0x96,
+		0xdd, 0x0b, 0xa0, 0x44, 0x1b, 0x46, 0x76, 0x2a,
+	}
+
 	testCases := []struct {
 		name string
 		hex  string
@@ -162,19 +167,17 @@ func TestHexToPublicKey(t *testing.T) {
 			expectedPanic:     true,
 			expectedPublicKey: nil,
 		},
-		/*
-			{
-				name:              "Should panic because of invalid hexadecimal input",
-				hex:               "foo",
-				expectedPanic:     true,
-				expectedSignature: nil,
-			},
-		*/
+		{
+			name:              "Should panic because of invalid hexadecimal input",
+			hex:               "foo",
+			expectedPanic:     true,
+			expectedPublicKey: nil,
+		},
 		{
 			name:              "Should not panic and convert hexadecimal input to public key",
-			hex:               phase0.BLSPubKey{0x01}.String(),
+			hex:               publicKey.String(),
 			expectedPanic:     false,
-			expectedPublicKey: &phase0.BLSPubKey{0x01},
+			expectedPublicKey: &publicKey,
 		},
 	}
 
@@ -232,14 +235,12 @@ func TestHexToSignature(t *testing.T) {
 			expectedPanic:     true,
 			expectedSignature: nil,
 		},
-		/*
-			{
-				name:              "Should panic because of invalid hexadecimal input",
-				hex:               "foo",
-				expectedPanic:     true,
-				expectedSignature: nil,
-			},
-		*/
+		{
+			name:              "Should panic because of invalid hexadecimal input",
+			hex:               "foo",
+			expectedPanic:     true,
+			expectedSignature: nil,
+		},
 		{
 			name:              "Should not panic and convert hexadecimal input to signature",
 			hex:               hexutil.Encode(sigBytes),
