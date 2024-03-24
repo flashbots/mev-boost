@@ -1,0 +1,10 @@
+{
+    "mev_type": "mock",
+    "launch_additional_services": false,
+    "mev_params": {
+        "mev_boost_image": "mev-boost"
+    },
+    "network_params": {
+        "seconds_per_slot": 3
+    }
+}
