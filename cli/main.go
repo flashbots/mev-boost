@@ -179,6 +179,9 @@ func Main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed sanitizing min bid")
 	}
+	if relayMinBidWei.BigInt().Sign() > 0 {
+		log.Infof("Min bid set to %v wei", relayMinBidWei)
+	}
 
 	opts := server.BoostServiceOpts{
 		Log:                      log,
@@ -252,9 +255,6 @@ func sanitizeMinBid(minBid float64) (*types.U256Str, error) {
 	}
 	if minBid > 1000000.0 {
 		return nil, errors.New("minimum bid is too large, please ensure min-bid is denominated in Ethers")
-	}
-	if minBid > 0.0 {
-		log.Infof("Minimum bid: %v eth", minBid)
 	}
 	return common.FloatEthTo256Wei(minBid)
 }
