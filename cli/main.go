@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/mev-boost/common"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server"
@@ -174,21 +175,9 @@ func Main() {
 		}
 	}
 
-	if *relayMinBidEth < 0.0 {
-		log.Fatal("Please specify a non-negative minimum bid")
-	}
-
-	if *relayMinBidEth > 1000000.0 {
-		log.Fatal("Minimum bid is too large, please ensure min-bid is denominated in Ethers")
-	}
-
-	if *relayMinBidEth > 0.0 {
-		log.Infof("minimum bid: %v eth", *relayMinBidEth)
-	}
-
-	relayMinBidWei, err := common.FloatEthTo256Wei(*relayMinBidEth)
+	relayMinBidWei, err := sanitizeMinBid(*relayMinBidEth)
 	if err != nil {
-		log.WithError(err).Fatal("failed converting min bid")
+		log.WithError(err).Fatal("failed sanitizing min bid")
 	}
 
 	opts := server.BoostServiceOpts{
@@ -255,4 +244,17 @@ func setupLogging() error {
 	}
 	log.Debug("debug logging enabled")
 	return nil
+}
+
+func sanitizeMinBid(minBid float64) (*types.U256Str, error) {
+	if minBid < 0.0 {
+		log.Fatal("Please specify a non-negative minimum bid")
+	}
+	if minBid > 1000000.0 {
+		log.Fatal("Minimum bid is too large, please ensure min-bid is denominated in Ethers")
+	}
+	if minBid > 0.0 {
+		log.Infof("Minimum bid: %v eth", minBid)
+	}
+	return common.FloatEthTo256Wei(minBid)
 }
