@@ -157,7 +157,9 @@ func (m *Relay) handleRegisterValidator(w http.ResponseWriter, req *http.Request
 // defaultHandleRegisterValidator returns the default handler for handleRegisterValidator
 func (m *Relay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	payload := []builderApiV1.SignedValidatorRegistration{}
-	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+	decoder := json.NewDecoder(req.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&payload); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
