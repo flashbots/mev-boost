@@ -286,7 +286,7 @@ func (m *Relay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	m.DefaultHandleGetPayload(w)
 }
 
-// defaultHandleGetPayload returns the default handler for handleGetPayload
+// DefaultHandleGetPayload returns the default handler for handleGetPayload
 func (m *Relay) DefaultHandleGetPayload(w http.ResponseWriter) {
 	// By default, everything will be ok.
 	w.Header().Set("Content-Type", "application/json")
