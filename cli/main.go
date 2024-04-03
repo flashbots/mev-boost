@@ -180,7 +180,7 @@ func Main() {
 		log.WithError(err).Fatal("Failed sanitizing min bid")
 	}
 	if relayMinBidWei.BigInt().Sign() > 0 {
-		log.Infof("Min bid set to %v wei", relayMinBidWei)
+		log.Infof("Min bid set to %v eth (%v wei)", relayMinBidEth, relayMinBidWei)
 	}
 
 	opts := server.BoostServiceOpts{
