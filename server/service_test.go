@@ -689,7 +689,7 @@ func TestGetPayload(t *testing.T) {
 		backend := newTestBackend(t, 1, 2*time.Second)
 
 		count := 0
-		backend.relays[0].HandlerOverrideGetPayload = func(w http.ResponseWriter, _ *http.Request) {
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, _ *http.Request) {
 			if count > 0 {
 				// success response on the second attempt
 				backend.relays[0].DefaultHandleGetPayload(w)
@@ -699,7 +699,7 @@ func TestGetPayload(t *testing.T) {
 				require.NoError(t, err)
 			}
 			count++
-		}
+		})
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 	})
@@ -710,7 +710,7 @@ func TestGetPayload(t *testing.T) {
 		count := 0
 		maxRetries := 5
 
-		backend.relays[0].HandlerOverrideGetPayload = func(w http.ResponseWriter, _ *http.Request) {
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, _ *http.Request) {
 			count++
 			if count > maxRetries {
 				// success response after max retry attempts
@@ -720,7 +720,7 @@ func TestGetPayload(t *testing.T) {
 				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
 				require.NoError(t, err)
 			}
-		}
+		})
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, 5, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())

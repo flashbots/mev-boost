@@ -58,7 +58,7 @@ type Relay struct {
 	// Overriders
 	handlerOverrideRegisterValidator func(w http.ResponseWriter, req *http.Request)
 	handlerOverrideGetHeader         func(w http.ResponseWriter, req *http.Request)
-	HandlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
+	handlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
 
 	// Default responses placeholders, used if overrider does not exist
 	GetHeaderResponse  *builderSpec.VersionedSignedBuilderBid
@@ -279,8 +279,8 @@ func (m *Relay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	// Try to override default behavior is custom handler is specified.
-	if m.HandlerOverrideGetPayload != nil {
-		m.HandlerOverrideGetPayload(w, req)
+	if m.handlerOverrideGetPayload != nil {
+		m.handlerOverrideGetPayload(w, req)
 		return
 	}
 	m.DefaultHandleGetPayload(w)
@@ -316,4 +316,11 @@ func (m *Relay) OverrideHandleRegisterValidator(method func(w http.ResponseWrite
 	defer m.mu.Unlock()
 
 	m.handlerOverrideRegisterValidator = method
+}
+
+func (m *Relay) OverrideHandleGetPayload(method func(w http.ResponseWriter, req *http.Request)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.handlerOverrideGetPayload = method
 }
