@@ -249,12 +249,17 @@ func setupLogging() error {
 	return nil
 }
 
+var (
+	errNegativeBid = errors.New("please specify a non-negative minimum bid")
+	errLargeMinBid = errors.New("minimum bid is too large, please ensure min-bid is denominated in Ethers")
+)
+
 func sanitizeMinBid(minBid float64) (*types.U256Str, error) {
 	if minBid < 0.0 {
-		return nil, errors.New("please specify a non-negative minimum bid")
+		return nil, errNegativeBid
 	}
 	if minBid > 1000000.0 {
-		return nil, errors.New("minimum bid is too large, please ensure min-bid is denominated in Ethers")
+		return nil, errLargeMinBid
 	}
 	return common.FloatEthTo256Wei(minBid)
 }
