@@ -27,7 +27,8 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2UtilBellatrix "github.com/attestantio/go-eth2-client/util/bellatrix"
-	"github.com/flashbots/go-boost-utils/types"
+	"github.com/flashbots/mev-boost/server/mock"
+	"github.com/flashbots/mev-boost/server/types"
 	"github.com/holiman/uint256"
 	"github.com/prysmaticlabs/go-bitfield"
 	"github.com/stretchr/testify/require"
@@ -35,25 +36,25 @@ import (
 
 type testBackend struct {
 	boost  *BoostService
-	relays []*mockRelay
+	relays []*mock.Relay
 }
 
 // newTestBackend creates a new backend, initializes mock relays, registers them and return the instance
 func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *testBackend {
 	t.Helper()
 	backend := testBackend{
-		relays: make([]*mockRelay, numRelays),
+		relays: make([]*mock.Relay, numRelays),
 	}
 
-	relayEntries := make([]RelayEntry, numRelays)
+	relayEntries := make([]types.RelayEntry, numRelays)
 	for i := 0; i < numRelays; i++ {
 		// Create a mock relay
-		backend.relays[i] = newMockRelay(t)
+		backend.relays[i] = mock.NewRelay(t)
 		relayEntries[i] = backend.relays[i].RelayEntry
 	}
 
 	opts := BoostServiceOpts{
-		Log:                      testLog,
+		Log:                      mock.TestLog,
 		ListenAddr:               "localhost:12345",
 		Relays:                   relayEntries,
 		GenesisForkVersionHex:    "0x00000000",
@@ -147,9 +148,9 @@ func blindedBlockContentsToPayloadDeneb(signedBlindedBlockContents *eth2ApiV1Den
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
 		_, err := NewBoostService(BoostServiceOpts{
-			Log:                      testLog,
+			Log:                      mock.TestLog,
 			ListenAddr:               ":123",
-			Relays:                   []RelayEntry{},
+			Relays:                   []types.RelayEntry{},
 			RelayMonitors:            []*url.URL{},
 			GenesisForkVersionHex:    "0x00000000",
 			GenesisTime:              0,
@@ -246,12 +247,12 @@ func TestRegisterValidator(t *testing.T) {
 	path := "/eth/v1/builder/validators"
 	reg := builderApiV1.SignedValidatorRegistration{
 		Message: &builderApiV1.ValidatorRegistration{
-			FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+			FeeRecipient: mock.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
 			Timestamp:    time.Unix(1234356, 0),
-			Pubkey: _HexToPubkey(
+			Pubkey: mock.HexToPubkey(
 				"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"),
 		},
-		Signature: _HexToSignature(
+		Signature: mock.HexToSignature(
 			"0x81510b571e22f89d1697545aac01c9ad0c1e7a3e778b3078bef524efae14990e58a6e960a152abd49de2e18d7fd3081c15d5c25867ccfad3d47beef6b39ac24b6b9fbf2cfa91c88f67aff750438a6841ec9e4a06a94ae41410c4f97b75ab284c"),
 	}
 	payload := []builderApiV1.SignedValidatorRegistration{reg}
@@ -275,7 +276,7 @@ func TestRegisterValidator(t *testing.T) {
 		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
 
 		// Now make one relay return an error
-		backend.relays[0].overrideHandleRegisterValidator(func(w http.ResponseWriter, _ *http.Request) {
+		backend.relays[0].OverrideHandleRegisterValidator(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		})
 		rr = backend.request(t, http.MethodPost, path, payload)
@@ -284,7 +285,7 @@ func TestRegisterValidator(t *testing.T) {
 		require.Equal(t, 2, backend.relays[1].GetRequestCount(path))
 
 		// Now make both relays return an error - which should cause the request to fail
-		backend.relays[1].overrideHandleRegisterValidator(func(w http.ResponseWriter, _ *http.Request) {
+		backend.relays[1].OverrideHandleRegisterValidator(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 		})
 		rr = backend.request(t, http.MethodPost, path, payload)
@@ -313,8 +314,8 @@ func getHeaderPath(slot uint64, parentHash phase0.Hash32, pubkey phase0.BLSPubKe
 }
 
 func TestGetHeader(t *testing.T) {
-	hash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
-	pubkey := _HexToPubkey(
+	hash := mock.HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
+	pubkey := mock.HexToPubkey(
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
 	path := getHeaderPath(1, hash, pubkey)
 	require.Equal(t, "/eth/v1/builder/header/1/0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249", path)
@@ -453,8 +454,8 @@ func TestGetHeader(t *testing.T) {
 }
 
 func TestGetHeaderBids(t *testing.T) {
-	hash := _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
-	pubkey := _HexToPubkey(
+	hash := mock.HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
+	pubkey := mock.HexToPubkey(
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
 	path := getHeaderPath(2, hash, pubkey)
 	require.Equal(t, "/eth/v1/builder/header/2/0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249", path)
@@ -615,9 +616,9 @@ func TestGetHeaderBids(t *testing.T) {
 func TestGetPayload(t *testing.T) {
 	path := "/eth/v1/builder/blinded_blocks"
 
-	blockHash := _HexToHash("0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46")
+	blockHash := mock.HexToHash("0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46")
 	payload := &eth2ApiV1Capella.SignedBlindedBeaconBlock{
-		Signature: _HexToSignature(
+		Signature: mock.HexToSignature(
 			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9"),
 		Message: &eth2ApiV1Capella.BlindedBeaconBlock{
 			Slot:          1,
@@ -639,10 +640,10 @@ func TestGetPayload(t *testing.T) {
 				Deposits:          []*phase0.Deposit{},
 				VoluntaryExits:    []*phase0.SignedVoluntaryExit{},
 				ExecutionPayloadHeader: &capella.ExecutionPayloadHeader{
-					ParentHash:   _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+					ParentHash:   mock.HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
 					BlockHash:    blockHash,
 					BlockNumber:  12345,
-					FeeRecipient: _HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+					FeeRecipient: mock.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
 				},
 			},
 		},
@@ -688,17 +689,17 @@ func TestGetPayload(t *testing.T) {
 		backend := newTestBackend(t, 1, 2*time.Second)
 
 		count := 0
-		backend.relays[0].handlerOverrideGetPayload = func(w http.ResponseWriter, _ *http.Request) {
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, _ *http.Request) {
 			if count > 0 {
 				// success response on the second attempt
-				backend.relays[0].defaultHandleGetPayload(w)
+				backend.relays[0].DefaultHandleGetPayload(w)
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
 				require.NoError(t, err)
 			}
 			count++
-		}
+		})
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 	})
@@ -709,17 +710,17 @@ func TestGetPayload(t *testing.T) {
 		count := 0
 		maxRetries := 5
 
-		backend.relays[0].handlerOverrideGetPayload = func(w http.ResponseWriter, _ *http.Request) {
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, _ *http.Request) {
 			count++
 			if count > maxRetries {
 				// success response after max retry attempts
-				backend.relays[0].defaultHandleGetPayload(w)
+				backend.relays[0].DefaultHandleGetPayload(w)
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
 				require.NoError(t, err)
 			}
-		}
+		})
 		rr := backend.request(t, http.MethodPost, path, payload)
 		require.Equal(t, 5, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())

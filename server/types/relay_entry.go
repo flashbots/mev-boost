@@ -1,4 +1,4 @@
-package server
+package types
 
 import (
 	"net/url"
@@ -16,6 +16,14 @@ type RelayEntry struct {
 
 func (r *RelayEntry) String() string {
 	return r.URL.String()
+}
+
+// GetURI returns the full request URI with scheme, host, path and args.
+func GetURI(url *url.URL, path string) string {
+	u2 := *url
+	u2.User = nil
+	u2.Path = path
+	return u2.String()
 }
 
 // GetURI returns the full request URI with scheme, host, path and args for the relay.
