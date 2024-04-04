@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/attestantio/go-eth2-client/spec/electra"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiCapella "github.com/attestantio/go-builder-client/api/capella"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	builderApiElectra "github.com/attestantio/go-builder-client/api/electra"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
 	"github.com/attestantio/go-eth2-client/spec"
@@ -211,6 +213,31 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 		return &builderSpec.VersionedSignedBuilderBid{
 			Version: spec.DataVersionDeneb,
 			Deneb: &builderApiDeneb.SignedBuilderBid{
+				Message:   message,
+				Signature: signature,
+			},
+		}
+	case spec.DataVersionElectra:
+		message := &builderApiElectra.BuilderBid{
+			Header: &electra.ExecutionPayloadHeader{
+				BlockHash:       _HexToHash(blockHash),
+				ParentHash:      _HexToHash(parentHash),
+				WithdrawalsRoot: phase0.Root{},
+				BaseFeePerGas:   uint256.NewInt(0),
+				ExitsRoot:       phase0.Root{},
+			},
+			BlobKZGCommitments: make([]deneb.KZGCommitment, 0),
+			Value:              uint256.NewInt(value),
+			Pubkey:             _HexToPubkey(publicKey),
+		}
+
+		// Sign the message.
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
+		require.NoError(m.t, err)
+
+		return &builderSpec.VersionedSignedBuilderBid{
+			Version: spec.DataVersionElectra,
+			Electra: &builderApiElectra.SignedBuilderBid{
 				Message:   message,
 				Signature: signature,
 			},
