@@ -541,8 +541,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 
 	// Prepare for requests
 	var wg sync.WaitGroup
-	var mu sync.Mutex
-	result := new(builderApi.VersionedSubmitBlindedBlockResponse)
+	resultCh := make(chan *builderApi.VersionedSubmitBlindedBlockResponse, len(m.relays))
 
 	// Prepare the request context, which will be cancelled after the first successful response from a relay
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
@@ -606,26 +605,19 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 				}
 			}
 
-			// Lock before accessing the shared payload
-			mu.Lock()
-			defer mu.Unlock()
-
-			if requestCtx.Err() != nil { // request has been cancelled (or deadline exceeded)
-				return
-			}
-
-			// Received successful response. Now cancel other requests and return immediately
 			requestCtxCancel()
-			*result = *responsePayload
+			resultCh <- responsePayload
 			log.Info("received payload from relay")
 		}(relay)
 	}
 
 	// Wait for all requests to complete...
 	wg.Wait()
+	close(resultCh)
+	result := <-resultCh
 
 	// If no payload has been received from relay, log loudly about withholding!
-	if getPayloadResponseIsEmpty(result) {
+	if result == nil || getPayloadResponseIsEmpty(result) {
 		originRelays := types.RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
