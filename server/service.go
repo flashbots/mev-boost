@@ -343,12 +343,15 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		HeaderKeySlotUID: slotUID.String(),
 	}
 
-	// Prepare relay responses
-	result := bidResp{}                                 // the final response, containing the highest bid (if any)
-	relays := make(map[BlockHashHex][]types.RelayEntry) // relays that sent the bid for a specific blockHash
+	type response struct {
+		result   *builderSpec.VersionedSignedBuilderBid
+		bidInfo  *bidInfo
+		proposer types.RelayEntry
+		time     time.Time
+	}
+	responseCh := make(chan response, len(m.relays))
 
 	// Call the relays
-	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, relay := range m.relays {
 		wg.Add(1)
@@ -362,108 +365,52 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
 				return
-			}
-
-			if code == http.StatusNoContent {
+			} else if code == http.StatusNoContent {
 				log.Debug("no-content response")
 				return
 			}
 
-			// Skip if payload is empty
-			if responsePayload.IsEmpty() {
+			bidInfo := m.verifyBid(log, parentHashHex, responsePayload, relay.PublicKey)
+			if bidInfo == nil {
 				return
 			}
 
-			// Getting the bid info will check if there are missing fields in the response
-			bidInfo, err := parseBidInfo(responsePayload)
-			if err != nil {
-				log.WithError(err).Warn("error parsing bid info")
-				return
-			}
-
-			if bidInfo.blockHash == nilHash {
-				log.Warn("relay responded with empty block hash")
-				return
-			}
-
-			valueEth := weiBigIntToEthBigFloat(bidInfo.value.ToBig())
-			log = log.WithFields(logrus.Fields{
-				"blockNumber": bidInfo.blockNumber,
-				"blockHash":   bidInfo.blockHash.String(),
-				"txRoot":      bidInfo.txRoot.String(),
-				"value":       valueEth.Text('f', 18),
-			})
-
-			if relay.PublicKey.String() != bidInfo.pubkey.String() {
-				log.Errorf("bid pubkey mismatch. expected: %s - got: %s", relay.PublicKey.String(), bidInfo.pubkey.String())
-				return
-			}
-
-			// Verify the relay signature in the relay response
-			if !config.SkipRelaySignatureCheck {
-				ok, err := checkRelaySignature(responsePayload, m.builderSigningDomain, relay.PublicKey)
-				if err != nil {
-					log.WithError(err).Error("error verifying relay signature")
-					return
-				}
-				if !ok {
-					log.Error("failed to verify relay signature")
-					return
-				}
-			}
-
-			// Verify response coherence with proposer's input data
-			if bidInfo.parentHash.String() != parentHashHex {
-				log.WithFields(logrus.Fields{
-					"originalParentHash": parentHashHex,
-					"responseParentHash": bidInfo.parentHash.String(),
-				}).Error("proposer and relay parent hashes are not the same")
-				return
-			}
-
-			isZeroValue := bidInfo.value.IsZero()
-			isEmptyListTxRoot := bidInfo.txRoot.String() == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
-			if isZeroValue || isEmptyListTxRoot {
-				log.Warn("ignoring bid with 0 value")
-				return
-			}
-			log.Debug("bid received")
-
-			// Skip if value (fee) is lower than the minimum bid
-			if bidInfo.value.CmpBig(m.relayMinBid.BigInt()) == -1 {
-				log.Debug("ignoring bid below min-bid value")
-				return
-			}
-
-			mu.Lock()
-			defer mu.Unlock()
-
-			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
-			relays[BlockHashHex(bidInfo.blockHash.String())] = append(relays[BlockHashHex(bidInfo.blockHash.String())], relay)
-
-			// Compare the bid with already known top bid (if any)
-			if !result.response.IsEmpty() {
-				valueDiff := bidInfo.value.Cmp(result.bidInfo.value)
-				if valueDiff == -1 { // current bid is less profitable than already known one
-					return
-				} else if valueDiff == 0 { // current bid is equally profitable as already known one. Use hash as tiebreaker
-					previousBidBlockHash := result.bidInfo.blockHash
-					if bidInfo.blockHash.String() >= previousBidBlockHash.String() {
-						return
-					}
-				}
-			}
-
-			// Use this relay's response as mev-boost response because it's most profitable
-			log.Debug("new best bid")
-			result.response = *responsePayload
-			result.bidInfo = bidInfo
-			result.t = time.Now()
+			responseCh <- response{result: responsePayload, bidInfo: bidInfo, proposer: relay, time: time.Now()}
 		}(relay)
 	}
 
 	// Wait for all requests to complete...
 	wg.Wait()
+	close(responseCh)
+
+	// Prepare relay responses
+	result := bidResp{}                                 // the final response, containing the highest bid (if any)
+	relays := make(map[BlockHashHex][]types.RelayEntry) // relays that sent the bid for a specific blockHash
+
+	for resp := range responseCh {
+		bidInfo := resp.bidInfo
+		// Remember which relays delivered which bids (multiple relays might deliver the top bid)
+		relays[BlockHashHex(bidInfo.blockHash.String())] = append(relays[BlockHashHex(bidInfo.blockHash.String())], resp.proposer)
+
+		// Compare the bid with already known top bid (if any)
+		if !result.response.IsEmpty() {
+			valueDiff := bidInfo.value.Cmp(result.bidInfo.value)
+			if valueDiff == -1 { // current bid is less profitable than already known one
+				continue
+			} else if valueDiff == 0 { // current bid is equally profitable as already known one. Use hash as tiebreaker
+				previousBidBlockHash := result.bidInfo.blockHash
+				if bidInfo.blockHash.String() >= previousBidBlockHash.String() {
+					continue
+				}
+			}
+		}
+
+		// Use this relay's response as mev-boost response because it's most profitable
+		log.Debug("new best bid")
+		result.response = *resp.result
+		result.bidInfo = *bidInfo
+		result.t = resp.time
+	}
 
 	if result.response.IsEmpty() {
 		log.Info("no bid received")
@@ -490,6 +437,79 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	// Return the bid
 	m.respondOK(w, &result.response)
+}
+
+// verifyBid verifies that a bid was correctly constructed, signed and exceeds our minBid.
+// Returns nil if one or more of the validity conditions is not met.
+// TODO (MariusVanDerWijden): this can be turned into a function, making it easier to unit-test
+func (m *BoostService) verifyBid(log *logrus.Entry, parentHash string, responsePayload *builderSpec.VersionedSignedBuilderBid, pubKey phase0.BLSPubKey) *bidInfo {
+	// Skip if payload is empty
+	if responsePayload.IsEmpty() {
+		return nil
+	}
+
+	// Getting the bid info will check if there are missing fields in the response
+	bidInfo, err := parseBidInfo(responsePayload)
+	if err != nil {
+		log.WithError(err).Warn("error parsing bid info")
+		return nil
+	}
+
+	if bidInfo.blockHash == nilHash {
+		log.Warn("relay responded with empty block hash")
+		return nil
+	}
+
+	valueEth := weiBigIntToEthBigFloat(bidInfo.value.ToBig())
+	log = log.WithFields(logrus.Fields{
+		"blockNumber": bidInfo.blockNumber,
+		"blockHash":   bidInfo.blockHash.String(),
+		"txRoot":      bidInfo.txRoot.String(),
+		"value":       valueEth.Text('f', 18),
+	})
+
+	if pubKey.String() != bidInfo.pubkey.String() {
+		log.Errorf("bid pubkey mismatch. expected: %s - got: %s", pubKey.String(), bidInfo.pubkey.String())
+		return nil
+	}
+
+	// Verify the relay signature in the relay response
+	if !config.SkipRelaySignatureCheck {
+		ok, err := checkRelaySignature(responsePayload, m.builderSigningDomain, pubKey)
+		if err != nil {
+			log.WithError(err).Error("error verifying relay signature")
+			return nil
+		}
+		if !ok {
+			log.Error("failed to verify relay signature")
+			return nil
+		}
+	}
+
+	// Verify response coherence with proposer's input data
+	if bidInfo.parentHash.String() != parentHash {
+		log.WithFields(logrus.Fields{
+			"originalParentHash": parentHash,
+			"responseParentHash": bidInfo.parentHash.String(),
+		}).Error("proposer and relay parent hashes are not the same")
+		return nil
+	}
+
+	isZeroValue := bidInfo.value.IsZero()
+	isEmptyListTxRoot := bidInfo.txRoot.String() == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
+	if isZeroValue || isEmptyListTxRoot {
+		log.Warn("ignoring bid with 0 value")
+		return nil
+	}
+	log.Debug("bid received")
+
+	// Skip if value (fee) is lower than the minimum bid
+	if bidInfo.value.CmpBig(m.relayMinBid.BigInt()) == -1 {
+		log.Debug("ignoring bid below min-bid value")
+		return nil
+	}
+
+	return &bidInfo
 }
 
 func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, payload *eth2ApiV1Capella.SignedBlindedBeaconBlock, body []byte) {
