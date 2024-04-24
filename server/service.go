@@ -346,7 +346,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	headers := map[string]string{
 		HeaderKeySlotUID:          slotUID.String(),
 		HeaderStartTimeMsIntoSlot: fmt.Sprintf("%d", msIntoSlot),
-		HeaderStartTimeMsUnix:     fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
 	// Prepare relay responses
 	result := bidResp{}                                 // the final response, containing the highest bid (if any)
@@ -674,7 +673,6 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 	headers := map[string]string{
 		HeaderKeySlotUID:          currentSlotUID,
 		HeaderStartTimeMsIntoSlot: fmt.Sprintf("%d", msIntoSlot),
-		HeaderStartTimeMsUnix:     fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
 
 	// Prepare for requests
