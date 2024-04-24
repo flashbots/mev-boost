@@ -340,7 +340,8 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	// Add request headers
 	headers := map[string]string{
-		HeaderKeySlotUID: slotUID.String(),
+		HeaderKeySlotUID:          slotUID.String(),
+		HeaderStartTimeMsIntoSlot: fmt.Sprintf("%d", msIntoSlot),
 	}
 
 	// Prepare relay responses
@@ -668,7 +669,10 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 	}
 
 	// Add request headers
-	headers := map[string]string{HeaderKeySlotUID: currentSlotUID}
+	headers := map[string]string{
+		HeaderKeySlotUID:          currentSlotUID,
+		HeaderStartTimeMsIntoSlot: fmt.Sprintf("%d", msIntoSlot),
+	}
 
 	// Prepare for requests
 	var wg sync.WaitGroup
