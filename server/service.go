@@ -342,16 +342,16 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"slotTimeSec": config.SlotTimeSec,
 		"msIntoSlot":  msIntoSlot,
 	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, _slot)
-
+	// Add request headers
 	headers := map[string]string{
 		HeaderKeySlotUID:          slotUID.String(),
 		HeaderStartTimeMsIntoSlot: fmt.Sprintf("%d", msIntoSlot),
 		HeaderStartTimeMsUnix:     fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
-
+	// Prepare relay responses
 	result := bidResp{}                                 // the final response, containing the highest bid (if any)
 	relays := make(map[BlockHashHex][]types.RelayEntry) // relays that sent the bid for a specific blockHash
-
+	// Call the relays
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, relay := range m.relays {
@@ -465,7 +465,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			result.t = time.Now()
 		}(relay)
 	}
-
 	// Wait for all requests to complete...
 	wg.Wait()
 
@@ -475,6 +474,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	// Log result
 	valueEth := weiBigIntToEthBigFloat(result.bidInfo.value.ToBig())
 	result.relays = relays[BlockHashHex(result.bidInfo.blockHash.String())]
 	log.WithFields(logrus.Fields{
