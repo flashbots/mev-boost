@@ -257,6 +257,11 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		"ua":               ua,
 	})
 
+	// Add request headers
+	headers := map[string]string{
+		HeaderStartTimeMsUnix: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
+	}
+
 	relayRespCh := make(chan error, len(m.relays))
 
 	for _, relay := range m.relays {
@@ -264,7 +269,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			url := relay.GetURI(params.PathRegisterValidator)
 			log := log.WithField("url", url)
 
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, nil, payload, nil)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, headers, payload, nil)
 			relayRespCh <- err
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
@@ -342,6 +347,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	headers := map[string]string{
 		HeaderKeySlotUID:          slotUID.String(),
 		HeaderStartTimeMsIntoSlot: fmt.Sprintf("%d", msIntoSlot),
+		HeaderStartTimeMsUnix:     fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
 
 	// Prepare relay responses
@@ -672,6 +678,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 	headers := map[string]string{
 		HeaderKeySlotUID:          currentSlotUID,
 		HeaderStartTimeMsIntoSlot: fmt.Sprintf("%d", msIntoSlot),
+		HeaderStartTimeMsUnix:     fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
 
 	// Prepare for requests

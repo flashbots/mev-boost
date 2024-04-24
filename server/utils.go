@@ -29,6 +29,7 @@ import (
 const (
 	HeaderKeySlotUID          = "X-MEVBoost-SlotID"
 	HeaderKeyVersion          = "X-MEVBoost-Version"
+	HeaderStartTimeMsUnix     = "X-MEVBoost-StartTimeMSUnix"
 	HeaderStartTimeMsIntoSlot = "X-MEVBoost-StartTimeMSIntoSlot"
 )
 
