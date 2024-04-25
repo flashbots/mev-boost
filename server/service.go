@@ -259,7 +259,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 
 	// Add request headers
 	headers := map[string]string{
-		HeaderStartTimeMsUnix: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
+		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
 
 	relayRespCh := make(chan error, len(m.relays))
@@ -344,8 +344,8 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, _slot)
 	// Add request headers
 	headers := map[string]string{
-		HeaderKeySlotUID:          slotUID.String(),
-		HeaderStartTimeMsIntoSlot: fmt.Sprintf("%d", msIntoSlot),
+		HeaderKeySlotUID:      slotUID.String(),
+		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
 	// Prepare relay responses
 	result := bidResp{}                                 // the final response, containing the highest bid (if any)
@@ -671,8 +671,8 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 
 	// Add request headers
 	headers := map[string]string{
-		HeaderKeySlotUID:          currentSlotUID,
-		HeaderStartTimeMsIntoSlot: fmt.Sprintf("%d", msIntoSlot),
+		HeaderKeySlotUID:      currentSlotUID,
+		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
 
 	// Prepare for requests
