@@ -220,11 +220,11 @@ func (m *mockRelay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, p
 	case spec.DataVersionElectra:
 		message := &builderApiElectra.BuilderBid{
 			Header: &electra.ExecutionPayloadHeader{
-				BlockHash:            _HexToHash(blockHash),
-				ParentHash:           _HexToHash(parentHash),
-				WithdrawalsRoot:      phase0.Root{},
-				BaseFeePerGas:        uint256.NewInt(0),
-				WithdrawRequestsRoot: phase0.Root{},
+				BlockHash:              _HexToHash(blockHash),
+				ParentHash:             _HexToHash(parentHash),
+				WithdrawalsRoot:        phase0.Root{},
+				BaseFeePerGas:          uint256.NewInt(0),
+				WithdrawalRequestsRoot: phase0.Root{},
 			},
 			BlobKZGCommitments: make([]deneb.KZGCommitment, 0),
 			Value:              uint256.NewInt(value),
