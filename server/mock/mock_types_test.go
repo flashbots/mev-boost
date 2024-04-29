@@ -1,4 +1,4 @@
-package server
+package mock
 
 import (
 	"testing"
@@ -41,11 +41,11 @@ func TestHexToBytes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectedPanic {
 				require.Panics(t, func() {
-					_HexToBytes(tt.hex)
+					HexToBytes(tt.hex)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					actualBytes := _HexToBytes(tt.hex)
+					actualBytes := HexToBytes(tt.hex)
 					require.Equal(t, tt.expectedBytes, actualBytes)
 				})
 			}
@@ -68,14 +68,12 @@ func TestHexToHash(t *testing.T) {
 			expectedPanic: true,
 			expectedHash:  nil,
 		},
-		/*
-			{
-				name:          "Should panic because of invalid hexadecimal input",
-				hex:           "foo",
-				expectedPanic: true,
-				expectedHash:  nil,
-			},
-		*/
+		{
+			name:          "Should panic because of invalid hexadecimal input",
+			hex:           "foo",
+			expectedPanic: true,
+			expectedHash:  nil,
+		},
 		{
 			name:          "Should not panic and convert hexadecimal input to hash",
 			hex:           common.Hash{0x01}.String(),
@@ -88,11 +86,11 @@ func TestHexToHash(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectedPanic {
 				require.Panics(t, func() {
-					_HexToHash(tt.hex)
+					HexToHash(tt.hex)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					actualHash := _HexToHash(tt.hex)
+					actualHash := HexToHash(tt.hex)
 					require.Equal(t, *tt.expectedHash, actualHash)
 				})
 			}
@@ -115,14 +113,12 @@ func TestHexToAddress(t *testing.T) {
 			expectedPanic:   true,
 			expectedAddress: nil,
 		},
-		/*
-			{
-				name:            "Should panic because of invalid hexadecimal input",
-				hex:             "foo",
-				expectedPanic:   true,
-				expectedAddress: nil,
-			},
-		*/
+		{
+			name:            "Should panic because of invalid hexadecimal input",
+			hex:             "foo",
+			expectedPanic:   true,
+			expectedAddress: nil,
+		},
 		{
 			name:            "Should not panic and convert hexadecimal input to address",
 			hex:             common.Address{0x01}.String(),
@@ -135,11 +131,11 @@ func TestHexToAddress(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectedPanic {
 				require.Panics(t, func() {
-					_HexToAddress(tt.hex)
+					HexToAddress(tt.hex)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					actualAddress := _HexToAddress(tt.hex)
+					actualAddress := HexToAddress(tt.hex)
 					require.Equal(t, *tt.expectedAddress, actualAddress)
 				})
 			}
@@ -149,6 +145,15 @@ func TestHexToAddress(t *testing.T) {
 
 // Same as for TestHexToHash and TestHexToAddress.
 func TestHexToPublicKey(t *testing.T) {
+	publicKey := phase0.BLSPubKey{
+		0x82, 0xf6, 0xe7, 0xcc, 0x57, 0xa2, 0xce, 0x68,
+		0xec, 0x41, 0x32, 0x1b, 0xeb, 0xc5, 0x5b, 0xcb,
+		0x31, 0x94, 0x5f, 0xe6, 0x6a, 0x8e, 0x67, 0xeb,
+		0x82, 0x51, 0x42, 0x5f, 0xab, 0x4c, 0x6a, 0x38,
+		0xc1, 0x0c, 0x53, 0x21, 0x0a, 0xea, 0x97, 0x96,
+		0xdd, 0x0b, 0xa0, 0x44, 0x1b, 0x46, 0x76, 0x2a,
+	}
+
 	testCases := []struct {
 		name string
 		hex  string
@@ -162,19 +167,17 @@ func TestHexToPublicKey(t *testing.T) {
 			expectedPanic:     true,
 			expectedPublicKey: nil,
 		},
-		/*
-			{
-				name:              "Should panic because of invalid hexadecimal input",
-				hex:               "foo",
-				expectedPanic:     true,
-				expectedSignature: nil,
-			},
-		*/
+		{
+			name:              "Should panic because of invalid hexadecimal input",
+			hex:               "foo",
+			expectedPanic:     true,
+			expectedPublicKey: nil,
+		},
 		{
 			name:              "Should not panic and convert hexadecimal input to public key",
-			hex:               phase0.BLSPubKey{0x01}.String(),
+			hex:               publicKey.String(),
 			expectedPanic:     false,
-			expectedPublicKey: &phase0.BLSPubKey{0x01},
+			expectedPublicKey: &publicKey,
 		},
 	}
 
@@ -182,11 +185,11 @@ func TestHexToPublicKey(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectedPanic {
 				require.Panics(t, func() {
-					_HexToPubkey(tt.hex)
+					HexToPubkey(tt.hex)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					actualPublicKey := _HexToPubkey(tt.hex)
+					actualPublicKey := HexToPubkey(tt.hex)
 					require.Equal(t, *tt.expectedPublicKey, actualPublicKey)
 				})
 			}
@@ -204,10 +207,10 @@ func TestHexToSignature(t *testing.T) {
 
 	message := &builderApiCapella.BuilderBid{
 		Header: &capella.ExecutionPayloadHeader{
-			BlockHash: _HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+			BlockHash: HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
 		},
 		Value:  uint256.NewInt(12345),
-		Pubkey: _HexToPubkey(publicKey),
+		Pubkey: HexToPubkey(publicKey),
 	}
 	ssz, err := message.MarshalSSZ()
 	require.NoError(t, err)
@@ -232,14 +235,12 @@ func TestHexToSignature(t *testing.T) {
 			expectedPanic:     true,
 			expectedSignature: nil,
 		},
-		/*
-			{
-				name:              "Should panic because of invalid hexadecimal input",
-				hex:               "foo",
-				expectedPanic:     true,
-				expectedSignature: nil,
-			},
-		*/
+		{
+			name:              "Should panic because of invalid hexadecimal input",
+			hex:               "foo",
+			expectedPanic:     true,
+			expectedSignature: nil,
+		},
 		{
 			name:              "Should not panic and convert hexadecimal input to signature",
 			hex:               hexutil.Encode(sigBytes),
@@ -252,11 +253,11 @@ func TestHexToSignature(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.expectedPanic {
 				require.Panics(t, func() {
-					_HexToSignature(tt.hex)
+					HexToSignature(tt.hex)
 				})
 			} else {
 				require.NotPanics(t, func() {
-					actualSignature := _HexToSignature(tt.hex)
+					actualSignature := HexToSignature(tt.hex)
 					require.Equal(t, *tt.expectedSignature, actualSignature)
 				})
 			}

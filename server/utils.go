@@ -9,7 +9,6 @@ import (
 	"io"
 	"math/big"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/flashbots/mev-boost/server/types"
 	"github.com/holiman/uint256"
 	"github.com/sirupsen/logrus"
 )
@@ -155,20 +155,12 @@ func DecodeJSON(r io.Reader, dst any) error {
 	return decoder.Decode(dst)
 }
 
-// GetURI returns the full request URI with scheme, host, path and args.
-func GetURI(url *url.URL, path string) string {
-	u2 := *url
-	u2.User = nil
-	u2.Path = path
-	return u2.String()
-}
-
 // bidResp are entries in the bids cache
 type bidResp struct {
 	t        time.Time
 	response builderSpec.VersionedSignedBuilderBid
 	bidInfo  bidInfo
-	relays   []RelayEntry
+	relays   []types.RelayEntry
 }
 
 // bidRespKey is used as key for the bids cache

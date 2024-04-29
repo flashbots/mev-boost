@@ -23,10 +23,11 @@ import (
 	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/ssz"
-	"github.com/flashbots/go-boost-utils/types"
 	"github.com/flashbots/go-boost-utils/utils"
 	"github.com/flashbots/go-utils/httplogger"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/flashbots/mev-boost/server/params"
+	"github.com/flashbots/mev-boost/server/types"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -60,7 +61,7 @@ type slotUID struct {
 type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
-	Relays                []RelayEntry
+	Relays                []types.RelayEntry
 	RelayMonitors         []*url.URL
 	GenesisForkVersionHex string
 	GenesisTime           uint64
@@ -76,7 +77,7 @@ type BoostServiceOpts struct {
 // BoostService - the mev-boost service
 type BoostService struct {
 	listenAddr    string
-	relays        []RelayEntry
+	relays        []types.RelayEntry
 	relayMonitors []*url.URL
 	log           *logrus.Entry
 	srv           *http.Server
@@ -159,10 +160,10 @@ func (m *BoostService) getRouter() http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/", m.handleRoot)
 
-	r.HandleFunc(pathStatus, m.handleStatus).Methods(http.MethodGet)
-	r.HandleFunc(pathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
-	r.HandleFunc(pathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
-	r.HandleFunc(pathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(params.PathStatus, m.handleStatus).Methods(http.MethodGet)
+	r.HandleFunc(params.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
+	r.HandleFunc(params.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
+	r.HandleFunc(params.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
@@ -213,7 +214,7 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []build
 	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("numRegistrations", len(payload))
 	for _, relayMonitor := range m.relayMonitors {
 		go func(relayMonitor *url.URL) {
-			url := GetURI(relayMonitor, pathRegisterValidator)
+			url := types.GetURI(relayMonitor, params.PathRegisterValidator)
 			log = log.WithField("url", url)
 			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, "", nil, payload, nil)
 			if err != nil {
@@ -260,8 +261,8 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	relayRespCh := make(chan error, len(m.relays))
 
 	for _, relay := range m.relays {
-		go func(relay RelayEntry) {
-			url := relay.GetURI(pathRegisterValidator)
+		go func(relay types.RelayEntry) {
+			url := relay.GetURI(params.PathRegisterValidator)
 			log := log.WithField("url", url)
 
 			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, nil, payload, nil)
@@ -344,15 +345,15 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	// Prepare relay responses
-	result := bidResp{}                           // the final response, containing the highest bid (if any)
-	relays := make(map[BlockHashHex][]RelayEntry) // relays that sent the bid for a specific blockHash
+	result := bidResp{}                                 // the final response, containing the highest bid (if any)
+	relays := make(map[BlockHashHex][]types.RelayEntry) // relays that sent the bid for a specific blockHash
 
 	// Call the relays
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, relay := range m.relays {
 		wg.Add(1)
-		go func(relay RelayEntry) {
+		go func(relay types.RelayEntry) {
 			defer wg.Done()
 			path := fmt.Sprintf("/eth/v1/builder/header/%s/%s/%s", slot, parentHashHex, pubkey)
 			url := relay.GetURI(path)
@@ -479,7 +480,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"blockNumber": result.bidInfo.blockNumber,
 		"txRoot":      result.bidInfo.txRoot.String(),
 		"value":       valueEth.Text('f', 18),
-		"relays":      strings.Join(RelayEntriesToStrings(result.relays), ", "),
+		"relays":      strings.Join(types.RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
 	// Remember the bid, for future logging in case of withholding
@@ -553,9 +554,9 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 
 	for _, relay := range m.relays {
 		wg.Add(1)
-		go func(relay RelayEntry) {
+		go func(relay types.RelayEntry) {
 			defer wg.Done()
-			url := relay.GetURI(pathGetPayload)
+			url := relay.GetURI(params.PathGetPayload)
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
 
@@ -617,7 +618,7 @@ func (m *BoostService) processCapellaPayload(w http.ResponseWriter, req *http.Re
 
 	// If no payload has been received from relay, log loudly about withholding!
 	if result.Capella == nil || result.Capella.BlockHash == nilHash {
-		originRelays := RelayEntriesToStrings(originalBid.relays)
+		originRelays := types.RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
@@ -681,9 +682,9 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 
 	for _, relay := range m.relays {
 		wg.Add(1)
-		go func(relay RelayEntry) {
+		go func(relay types.RelayEntry) {
 			defer wg.Done()
-			url := relay.GetURI(pathGetPayload)
+			url := relay.GetURI(params.PathGetPayload)
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
 
@@ -757,7 +758,7 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 
 	// If no payload has been received from relay, log loudly about withholding!
 	if getPayloadResponseIsEmpty(result) {
-		originRelays := RelayEntriesToStrings(originalBid.relays)
+		originRelays := types.RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
@@ -947,9 +948,9 @@ func (m *BoostService) CheckRelays() int {
 	for _, r := range m.relays {
 		wg.Add(1)
 
-		go func(relay RelayEntry) {
+		go func(relay types.RelayEntry) {
 			defer wg.Done()
-			url := relay.GetURI(pathStatus)
+			url := relay.GetURI(params.PathStatus)
 			log := m.log.WithField("url", url)
 			log.Debug("checking relay status")
 
