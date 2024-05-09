@@ -822,9 +822,9 @@ func (m *BoostService) processElectraPayload(w http.ResponseWriter, req *http.Re
 
 	for _, relay := range m.relays {
 		wg.Add(1)
-		go func(relay RelayEntry) {
+		go func(relay types.RelayEntry) {
 			defer wg.Done()
-			url := relay.GetURI(pathGetPayload)
+			url := relay.GetURI(params.PathGetPayload)
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
 
@@ -898,7 +898,7 @@ func (m *BoostService) processElectraPayload(w http.ResponseWriter, req *http.Re
 
 	// If no payload has been received from relay, log loudly about withholding!
 	if getPayloadResponseIsEmpty(result) {
-		originRelays := RelayEntriesToStrings(originalBid.relays)
+		originRelays := types.RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return

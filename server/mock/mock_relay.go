@@ -224,15 +224,15 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 	case spec.DataVersionElectra:
 		message := &builderApiElectra.BuilderBid{
 			Header: &electra.ExecutionPayloadHeader{
-				BlockHash:              _HexToHash(blockHash),
-				ParentHash:             _HexToHash(parentHash),
+				BlockHash:              HexToHash(blockHash),
+				ParentHash:             HexToHash(parentHash),
 				WithdrawalsRoot:        phase0.Root{},
 				BaseFeePerGas:          uint256.NewInt(0),
 				WithdrawalRequestsRoot: phase0.Root{},
 			},
 			BlobKZGCommitments: make([]deneb.KZGCommitment, 0),
 			Value:              uint256.NewInt(value),
-			Pubkey:             _HexToPubkey(publicKey),
+			Pubkey:             HexToPubkey(publicKey),
 		}
 
 		// Sign the message.
