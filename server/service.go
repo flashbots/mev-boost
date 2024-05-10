@@ -257,6 +257,11 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		"ua":               ua,
 	})
 
+	// Add request headers
+	headers := map[string]string{
+		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
+	}
+
 	relayRespCh := make(chan error, len(m.relays))
 
 	for _, relay := range m.relays {
@@ -264,7 +269,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			url := relay.GetURI(params.PathRegisterValidator)
 			log := log.WithField("url", url)
 
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, nil, payload, nil)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, headers, payload, nil)
 			relayRespCh <- err
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
@@ -337,16 +342,14 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"slotTimeSec": config.SlotTimeSec,
 		"msIntoSlot":  msIntoSlot,
 	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, _slot)
-
 	// Add request headers
 	headers := map[string]string{
-		HeaderKeySlotUID: slotUID.String(),
+		HeaderKeySlotUID:      slotUID.String(),
+		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
-
 	// Prepare relay responses
 	result := bidResp{}                                 // the final response, containing the highest bid (if any)
 	relays := make(map[BlockHashHex][]types.RelayEntry) // relays that sent the bid for a specific blockHash
-
 	// Call the relays
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -461,7 +464,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			result.t = time.Now()
 		}(relay)
 	}
-
 	// Wait for all requests to complete...
 	wg.Wait()
 
@@ -668,7 +670,10 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 	}
 
 	// Add request headers
-	headers := map[string]string{HeaderKeySlotUID: currentSlotUID}
+	headers := map[string]string{
+		HeaderKeySlotUID:      currentSlotUID,
+		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
+	}
 
 	// Prepare for requests
 	var wg sync.WaitGroup
