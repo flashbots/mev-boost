@@ -16,8 +16,8 @@ github.com/ajg/form v1.5.1/go.mod h1:uL1WgH+h2mgNtvBq0339dVnzXdBETtL2LeUXaIv25UY
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/attestantio/go-builder-client v0.4.6-0.20240508205504-2210689d2f24 h1:KXWQwsxrrJD1G7rp+18uESZ0BSPmUdady46iAfCgwDY=
 github.com/attestantio/go-builder-client v0.4.6-0.20240508205504-2210689d2f24/go.mod h1:bs7HF4beRWCjcvKsHH8nEl3aDzrTqeUjXOfqpfrYTJQ=
-github.com/attestantio/go-eth2-client v0.21.4-0.20240508205406-66fbb02e3c16 h1:gwMEOhFdbmCJy5olyRtGPmM4RoIXo6v2HkbKt7YpPr4=
-github.com/attestantio/go-eth2-client v0.21.4-0.20240508205406-66fbb02e3c16/go.mod h1:Ht9tN0WlhpgIWWO7Hqfi3/nq2rUGQv/zCd/BMI93a84=
+github.com/attestantio/go-eth2-client v0.21.4-0.20240517101940-c13fd7112c55 h1:3HjnisE8nFHBhf20H4ya9Q+4HvX1bbV8lCM6LJLLcg0=
+github.com/attestantio/go-eth2-client v0.21.4-0.20240517101940-c13fd7112c55/go.mod h1:RssbJ8txdfZ+O7cIjOKCvizcTWHzgPuJNByrwtQ6tBQ=
 github.com/aymerick/raymond v2.0.3-0.20180322193309-b565731e1464+incompatible/go.mod h1:osfaiScAUVup+UC9Nfq76eWqDhXlp+4UYaA8uhTBO6g=
 github.com/benbjohnson/clock v1.3.0 h1:ip6w0uFQkncKQ979AypyG0ER7mqUSBdKLOgAle/AT8A=
 github.com/benbjohnson/clock v1.3.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
