@@ -12,6 +12,7 @@ require (
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20210809151128-385d8c5e3fb7
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
+	github.com/urfave/cli/v3 v3.0.0-alpha9
 )
 
 require (
@@ -50,6 +51,7 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/supranational/blst v0.3.11 // indirect
+	github.com/xrash/smetrics v0.0.0-20240312152122-5f08fbb34913 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
