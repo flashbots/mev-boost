@@ -52,10 +52,10 @@ func main() {
 }
 
 // Main starts the mev-boost cli
-func Main(ctx context.Context, cmd *cli.Command) error {
+func Main(_ context.Context, cmd *cli.Command) error {
 	// Only print the version if the flag is set
 	if cmd.IsSet(versionFlag.Name) {
-		fmt.Printf("mev-boost %s\n", config.Version)
+		log.Infof("mev-boost %s\n", config.Version)
 		return nil
 	}
 
