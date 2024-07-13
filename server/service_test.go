@@ -114,6 +114,8 @@ func blindedBlockContentsToPayloadDeneb(signedBlindedBlockContents *eth2ApiV1Den
 			BlockHash:     header.BlockHash,
 			Transactions:  make([]bellatrix.Transaction, 0),
 			Withdrawals:   make([]*capella.Withdrawal, 0),
+			BlobGasUsed:   header.BlobGasUsed,
+			ExcessBlobGas: header.ExcessBlobGas,
 		},
 		BlobsBundle: &builderApiDeneb.BlobsBundle{
 			Commitments: commitments,
@@ -689,7 +691,7 @@ func TestGetPayload(t *testing.T) {
 	})
 
 	t.Run("Error after max retries are reached", func(t *testing.T) {
-		backend := newTestBackend(t, 1, 0)
+		backend := newTestBackend(t, 1, time.Second)
 
 		count := 0
 		maxRetries := 5
