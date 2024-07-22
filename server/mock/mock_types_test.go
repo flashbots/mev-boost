@@ -3,9 +3,9 @@ package mock
 import (
 	"testing"
 
-	builderApiCapella "github.com/attestantio/go-builder-client/api/capella"
+	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
-	"github.com/attestantio/go-eth2-client/spec/capella"
+	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -205,9 +205,10 @@ func TestHexToSignature(t *testing.T) {
 
 	publicKey := hexutil.Encode(bls.PublicKeyToBytes(blsPublicKey))
 
-	message := &builderApiCapella.BuilderBid{
-		Header: &capella.ExecutionPayloadHeader{
-			BlockHash: HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+	message := &builderApiDeneb.BuilderBid{
+		Header: &deneb.ExecutionPayloadHeader{
+			BlockHash:     HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+			BaseFeePerGas: uint256.NewInt(0),
 		},
 		Value:  uint256.NewInt(12345),
 		Pubkey: HexToPubkey(publicKey),

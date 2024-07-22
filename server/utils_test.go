@@ -13,7 +13,6 @@ import (
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	"github.com/attestantio/go-eth2-client/spec"
-	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/mev-boost/config"
@@ -108,16 +107,6 @@ func TestGetPayloadResponseIsEmpty(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "Non-empty capella payload response",
-			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
-				Version: spec.DataVersionCapella,
-				Capella: &capella.ExecutionPayload{
-					BlockHash: phase0.Hash32{0x1},
-				},
-			},
-			expected: false,
-		},
-		{
 			name: "Non-empty deneb payload response",
 			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
 				Version: spec.DataVersionDeneb,
@@ -133,23 +122,6 @@ func TestGetPayloadResponseIsEmpty(t *testing.T) {
 				},
 			},
 			expected: false,
-		},
-		{
-			name: "Empty capella payload response",
-			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
-				Version: spec.DataVersionCapella,
-			},
-			expected: true,
-		},
-		{
-			name: "Nil block hash for capella payload response",
-			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
-				Version: spec.DataVersionCapella,
-				Capella: &capella.ExecutionPayload{
-					BlockHash: nilHash,
-				},
-			},
-			expected: true,
 		},
 		{
 			name: "Empty deneb payload response",
