@@ -116,15 +116,16 @@ var (
 		Category: GenesisCategory,
 	}
 	// Relay
-	relaysFlag = &cli.StringFlag{
+	relaysFlag = &cli.StringSliceFlag{
 		Name:     "relay",
 		Aliases:  []string{"relays"},
 		Sources:  cli.EnvVars("RELAYS"),
 		Usage:    "relay urls - single entry or comma-separated list (scheme://pubkey@host)",
 		Category: RelayCategory,
 	}
-	relayMonitorFlag = &cli.StringFlag{
+	relayMonitorFlag = &cli.StringSliceFlag{
 		Name:     "relay-monitors",
+		Aliases:  []string{"relay-monitor"},
 		Sources:  cli.EnvVars("RELAY_MONITORS"),
 		Usage:    "relay monitor urls - single entry or comma-separated list (scheme://host)",
 		Category: RelayCategory,

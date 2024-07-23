@@ -104,10 +104,12 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 		monitors relayMonitorList
 	)
 	if cmd.IsSet(relaysFlag.Name) {
-		urls := cmd.String(relaysFlag.Name)
-		for _, url := range strings.Split(urls, ",") {
-			if err := relays.Set(strings.TrimSpace(url)); err != nil {
-				log.WithError(err).WithField("relay", url).Fatal("Invalid relay URL")
+		relayURLs := cmd.StringSlice(relaysFlag.Name)
+		for _, urls := range relayURLs {
+			for _, url := range strings.Split(urls, ",") {
+				if err := relays.Set(strings.TrimSpace(url)); err != nil {
+					log.WithError(err).WithField("relay", url).Fatal("Invalid relay URL")
+				}
 			}
 		}
 	}
@@ -122,10 +124,12 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 
 	// For backwards compatibility with the -relay-monitors flag.
 	if cmd.IsSet(relayMonitorFlag.Name) {
-		urls := cmd.String(relayMonitorFlag.Name)
-		for _, url := range strings.Split(urls, ",") {
-			if err := monitors.Set(strings.TrimSpace(url)); err != nil {
-				log.WithError(err).WithField("relayMonitor", url).Fatal("Invalid relay monitor URL")
+		monitorURLs := cmd.StringSlice(relayMonitorFlag.Name)
+		for _, urls := range monitorURLs {
+			for _, url := range strings.Split(urls, ",") {
+				if err := monitors.Set(strings.TrimSpace(url)); err != nil {
+					log.WithError(err).WithField("relayMonitor", url).Fatal("Invalid relay monitor URL")
+				}
 			}
 		}
 	}
