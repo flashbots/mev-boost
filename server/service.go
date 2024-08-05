@@ -268,11 +268,10 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			log := log.WithField("url", url)
 
 			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, headers, payload, nil)
-			relayRespCh <- err
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
-				return
 			}
+			relayRespCh <- err
 		}(relay)
 	}
 
@@ -540,18 +539,20 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 	}
 
 	// Prepare for requests
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	result := new(builderApi.VersionedSubmitBlindedBlockResponse)
+	resultCh := make(chan *builderApi.VersionedSubmitBlindedBlockResponse, len(m.relays))
+	var received atomic.Bool
+	go func() {
+		// Make sure we receive a response within the timeout
+		time.Sleep(m.httpClientGetPayload.Timeout)
+		resultCh <- nil
+	}()
 
 	// Prepare the request context, which will be cancelled after the first successful response from a relay
 	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
 	defer requestCtxCancel()
 
 	for _, relay := range m.relays {
-		wg.Add(1)
 		go func(relay types.RelayEntry) {
-			defer wg.Done()
 			url := relay.GetURI(params.PathGetPayload)
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
@@ -606,26 +607,21 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 				}
 			}
 
-			// Lock before accessing the shared payload
-			mu.Lock()
-			defer mu.Unlock()
-
-			if requestCtx.Err() != nil { // request has been cancelled (or deadline exceeded)
-				return
-			}
-
-			// Received successful response. Now cancel other requests and return immediately
 			requestCtxCancel()
-			*result = *responsePayload
-			log.Info("received payload from relay")
+			if received.CompareAndSwap(false, true) {
+				resultCh <- responsePayload
+				log.Info("received payload from relay")
+			} else {
+				log.Trace("Discarding response, already received a correct response")
+			}
 		}(relay)
 	}
 
-	// Wait for all requests to complete...
-	wg.Wait()
+	// Wait for the first request to complete
+	result := <-resultCh
 
 	// If no payload has been received from relay, log loudly about withholding!
-	if getPayloadResponseIsEmpty(result) {
+	if result == nil || getPayloadResponseIsEmpty(result) {
 		originRelays := types.RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
