@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server"
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -30,127 +32,89 @@ const (
 var (
 	// errors
 	errInvalidLoglevel = errors.New("invalid loglevel")
+	errNegativeBid     = errors.New("please specify a non-negative minimum bid")
+	errLargeMinBid     = errors.New("minimum bid is too large, please ensure min-bid is denominated in Ethers")
 
-	// defaults
-	defaultLogJSON           = os.Getenv("LOG_JSON") != ""
-	defaultLogLevel          = common.GetEnv("LOG_LEVEL", "info")
-	defaultListenAddr        = common.GetEnv("BOOST_LISTEN_ADDR", "localhost:18550")
-	defaultRelayCheck        = os.Getenv("RELAY_STARTUP_CHECK") != ""
-	defaultRelayMinBidEth    = common.GetEnvFloat64("MIN_BID_ETH", 0)
-	defaultDisableLogVersion = os.Getenv("DISABLE_LOG_VERSION") == "1" // disables adding the version to every log entry
-	defaultDebug             = os.Getenv("DEBUG") != ""
-	defaultLogServiceTag     = os.Getenv("LOG_SERVICE_TAG")
-	defaultRelays            = os.Getenv("RELAYS")
-	defaultRelayMonitors     = os.Getenv("RELAY_MONITORS")
-	defaultMaxRetries        = common.GetEnvInt("REQUEST_MAX_RETRIES", 5)
-
-	defaultGenesisForkVersion = common.GetEnv("GENESIS_FORK_VERSION", "")
-	defaultGenesisTime        = common.GetEnvInt("GENESIS_TIMESTAMP", -1)
-	defaultUseSepolia         = os.Getenv("SEPOLIA") != ""
-	defaultUseGoerli          = os.Getenv("GOERLI") != ""
-	defaultUseHolesky         = os.Getenv("HOLESKY") != ""
-
-	// mev-boost relay request timeouts (see also https://github.com/flashbots/mev-boost/issues/287)
-	defaultTimeoutMsGetHeader         = common.GetEnvInt("RELAY_TIMEOUT_MS_GETHEADER", 950)   // timeout for getHeader requests
-	defaultTimeoutMsGetPayload        = common.GetEnvInt("RELAY_TIMEOUT_MS_GETPAYLOAD", 4000) // timeout for getPayload requests
-	defaultTimeoutMsRegisterValidator = common.GetEnvInt("RELAY_TIMEOUT_MS_REGVAL", 3000)     // timeout for registerValidator requests
-
-	relays        relayList
-	relayMonitors relayMonitorList
-
-	// cli flags
-	printVersion = flag.Bool("version", false, "only print version")
-	logJSON      = flag.Bool("json", defaultLogJSON, "log in JSON format instead of text")
-	logLevel     = flag.String("loglevel", defaultLogLevel, "minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic")
-	logDebug     = flag.Bool("debug", defaultDebug, "shorthand for '-loglevel debug'")
-	logService   = flag.String("log-service", defaultLogServiceTag, "add a 'service=...' tag to all log messages")
-	logNoVersion = flag.Bool("log-no-version", defaultDisableLogVersion, "disables adding the version to every log entry")
-
-	listenAddr       = flag.String("addr", defaultListenAddr, "listen-address for mev-boost server")
-	relayURLs        = flag.String("relays", defaultRelays, "relay urls - single entry or comma-separated list (scheme://pubkey@host)")
-	relayCheck       = flag.Bool("relay-check", defaultRelayCheck, "check relay status on startup and on the status API call")
-	relayMinBidEth   = flag.Float64("min-bid", defaultRelayMinBidEth, "minimum bid to accept from a relay [eth]")
-	relayMonitorURLs = flag.String("relay-monitors", defaultRelayMonitors, "relay monitor urls - single entry or comma-separated list (scheme://host)")
-
-	relayTimeoutMsGetHeader  = flag.Int("request-timeout-getheader", defaultTimeoutMsGetHeader, "timeout for getHeader requests to the relay [ms]")
-	relayTimeoutMsGetPayload = flag.Int("request-timeout-getpayload", defaultTimeoutMsGetPayload, "timeout for getPayload requests to the relay [ms]")
-	relayTimeoutMsRegVal     = flag.Int("request-timeout-regval", defaultTimeoutMsRegisterValidator, "timeout for registerValidator requests [ms]")
-
-	relayRequestMaxRetries = flag.Int("request-max-retries", defaultMaxRetries, "maximum number of retries for a relay get payload request")
-
-	// helpers
-	mainnet = flag.Bool("mainnet", true, "use Mainnet")
-	sepolia = flag.Bool("sepolia", defaultUseSepolia, "use Sepolia")
-	goerli  = flag.Bool("goerli", defaultUseGoerli, "use Goerli")
-	holesky = flag.Bool("holesky", defaultUseHolesky, "use Holesky")
-
-	useCustomGenesisForkVersion = flag.String("genesis-fork-version", defaultGenesisForkVersion, "use a custom genesis fork version")
-	useCustomGenesisTime        = flag.Int("genesis-timestamp", defaultGenesisTime, "use a custom genesis timestamp (unix seconds)")
+	log = logrus.NewEntry(logrus.New())
 )
 
-var log = logrus.NewEntry(logrus.New())
-
-// Main starts the mev-boost cli
 func Main() {
-	// process repeatable flags
-	flag.Var(&relays, "relay", "a single relay, can be specified multiple times")
-	flag.Var(&relayMonitors, "relay-monitor", "a single relay monitor, can be specified multiple times")
-
-	// parse flags and get started
-	flag.Parse()
-
-	// perhaps only print the version
-	if *printVersion {
-		fmt.Printf("mev-boost %s\n", config.Version) //nolint
-		return
+	cmd := &cli.Command{
+		Name:   "mev-boost",
+		Usage:  "mev-boost implementation, see help for more info",
+		Action: start,
+		Flags:  flags,
 	}
 
-	err := setupLogging()
-	if err != nil {
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// start starts the mev-boost cli
+func start(_ context.Context, cmd *cli.Command) error {
+	// Only print the version if the flag is set
+	if cmd.IsSet(versionFlag.Name) {
+		log.Infof("mev-boost %s\n", config.Version)
+		return nil
+	}
+
+	if err := setupLogging(cmd); err != nil {
 		flag.Usage()
 		log.WithError(err).Fatal("failed setting up logging")
 	}
 
-	genesisForkVersionHex := ""
-	var genesisTime uint64
+	var (
+		genesisForkVersion, genesisTime      = setupGenesis(cmd)
+		relays, monitors, minBid, relayCheck = setupRelays(cmd)
+		listenAddr                           = cmd.String(addrFlag.Name)
+	)
 
-	switch {
-	case *useCustomGenesisForkVersion != "":
-		genesisForkVersionHex = *useCustomGenesisForkVersion
-	case *sepolia:
-		genesisForkVersionHex = genesisForkVersionSepolia
-		genesisTime = genesisTimeSepolia
-	case *goerli:
-		genesisForkVersionHex = genesisForkVersionGoerli
-		genesisTime = genesisTimeGoerli
-	case *holesky:
-		genesisForkVersionHex = genesisForkVersionHolesky
-		genesisTime = genesisTimeHolesky
-	case *mainnet:
-		genesisForkVersionHex = genesisForkVersionMainnet
-		genesisTime = genesisTimeMainnet
-	default:
-		flag.Usage()
-		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -holesky / -genesis-fork-version flags)")
+	opts := server.BoostServiceOpts{
+		Log:                      log,
+		ListenAddr:               listenAddr,
+		Relays:                   relays,
+		RelayMonitors:            monitors,
+		GenesisForkVersionHex:    genesisForkVersion,
+		GenesisTime:              genesisTime,
+		RelayCheck:               relayCheck,
+		RelayMinBid:              minBid,
+		RequestTimeoutGetHeader:  time.Duration(cmd.Int(timeoutGetHeaderFlag.Name)) * time.Millisecond,
+		RequestTimeoutGetPayload: time.Duration(cmd.Int(timeoutGetPayloadFlag.Name)) * time.Millisecond,
+		RequestTimeoutRegVal:     time.Duration(cmd.Int(timeoutRegValFlag.Name)) * time.Millisecond,
+		RequestMaxRetries:        int(cmd.Int(maxRetriesFlag.Name)),
 	}
-	log.Infof("using genesis fork version: %s", genesisForkVersionHex)
-
-	if *useCustomGenesisTime > -1 {
-		genesisTime = uint64(*useCustomGenesisTime)
+	service, err := server.NewBoostService(opts)
+	if err != nil {
+		log.WithError(err).Fatal("failed creating the server")
 	}
 
+	if relayCheck && service.CheckRelays() == 0 {
+		log.Error("no relay passed the health-check!")
+	}
+
+	log.Infof("Listening on %v", listenAddr)
+	return service.StartHTTPServer()
+}
+
+func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, bool) {
 	// For backwards compatibility with the -relays flag.
-	if *relayURLs != "" {
-		for _, relayURL := range strings.Split(*relayURLs, ",") {
-			err := relays.Set(strings.TrimSpace(relayURL))
-			if err != nil {
-				log.WithError(err).WithField("relay", relayURL).Fatal("Invalid relay URL")
+	var (
+		relays   relayList
+		monitors relayMonitorList
+	)
+	if cmd.IsSet(relaysFlag.Name) {
+		relayURLs := cmd.StringSlice(relaysFlag.Name)
+		for _, urls := range relayURLs {
+			for _, url := range strings.Split(urls, ",") {
+				if err := relays.Set(strings.TrimSpace(url)); err != nil {
+					log.WithError(err).WithField("relay", url).Fatal("Invalid relay URL")
+				}
 			}
 		}
 	}
 
 	if len(relays) == 0 {
-		flag.Usage()
 		log.Fatal("no relays specified")
 	}
 	log.Infof("using %d relays", len(relays))
@@ -159,61 +123,68 @@ func Main() {
 	}
 
 	// For backwards compatibility with the -relay-monitors flag.
-	if *relayMonitorURLs != "" {
-		for _, relayMonitorURL := range strings.Split(*relayMonitorURLs, ",") {
-			err := relayMonitors.Set(strings.TrimSpace(relayMonitorURL))
-			if err != nil {
-				log.WithError(err).WithField("relayMonitor", relayMonitorURL).Fatal("Invalid relay monitor URL")
+	if cmd.IsSet(relayMonitorFlag.Name) {
+		monitorURLs := cmd.StringSlice(relayMonitorFlag.Name)
+		for _, urls := range monitorURLs {
+			for _, url := range strings.Split(urls, ",") {
+				if err := monitors.Set(strings.TrimSpace(url)); err != nil {
+					log.WithError(err).WithField("relayMonitor", url).Fatal("Invalid relay monitor URL")
+				}
 			}
 		}
 	}
 
-	if len(relayMonitors) > 0 {
-		log.Infof("using %d relay monitors", len(relayMonitors))
-		for index, relayMonitor := range relayMonitors {
+	if len(monitors) > 0 {
+		log.Infof("using %d relay monitors", len(monitors))
+		for index, relayMonitor := range monitors {
 			log.Infof("relay-monitor #%d: %s", index+1, relayMonitor.String())
 		}
 	}
 
-	relayMinBidWei, err := sanitizeMinBid(*relayMinBidEth)
+	relayMinBidWei, err := sanitizeMinBid(cmd.Float(minBidFlag.Name))
 	if err != nil {
 		log.WithError(err).Fatal("Failed sanitizing min bid")
 	}
 	if relayMinBidWei.BigInt().Sign() > 0 {
-		log.Infof("Min bid set to %v eth (%v wei)", relayMinBidEth, relayMinBidWei)
+		log.Infof("Min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
-
-	opts := server.BoostServiceOpts{
-		Log:                      log,
-		ListenAddr:               *listenAddr,
-		Relays:                   relays,
-		RelayMonitors:            relayMonitors,
-		GenesisForkVersionHex:    genesisForkVersionHex,
-		GenesisTime:              genesisTime,
-		RelayCheck:               *relayCheck,
-		RelayMinBid:              *relayMinBidWei,
-		RequestTimeoutGetHeader:  time.Duration(*relayTimeoutMsGetHeader) * time.Millisecond,
-		RequestTimeoutGetPayload: time.Duration(*relayTimeoutMsGetPayload) * time.Millisecond,
-		RequestTimeoutRegVal:     time.Duration(*relayTimeoutMsRegVal) * time.Millisecond,
-		RequestMaxRetries:        *relayRequestMaxRetries,
-	}
-	service, err := server.NewBoostService(opts)
-	if err != nil {
-		log.WithError(err).Fatal("failed creating the server")
-	}
-
-	if *relayCheck && service.CheckRelays() == 0 {
-		log.Error("no relay passed the health-check!")
-	}
-
-	log.Println("listening on", *listenAddr)
-	log.Fatal(service.StartHTTPServer())
+	return relays, monitors, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
 }
 
-func setupLogging() error {
+func setupGenesis(cmd *cli.Command) (string, uint64) {
+	var (
+		genesisForkVersion string
+		genesisTime        uint64
+	)
+
+	switch {
+	case cmd.Bool(customGenesisForkFlag.Name):
+		genesisForkVersion = cmd.String(customGenesisForkFlag.Name)
+	case cmd.Bool(sepoliaFlag.Name):
+		genesisForkVersion = genesisForkVersionSepolia
+		genesisTime = genesisTimeSepolia
+	case cmd.Bool(holeskyFlag.Name):
+		genesisForkVersion = genesisForkVersionHolesky
+		genesisTime = genesisTimeHolesky
+	case cmd.Bool(mainnetFlag.Name):
+		genesisForkVersion = genesisForkVersionMainnet
+		genesisTime = genesisTimeMainnet
+	default:
+		flag.Usage()
+		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -holesky / -genesis-fork-version flags)")
+	}
+
+	if cmd.IsSet(customGenesisTimeFlag.Name) {
+		genesisTime = cmd.Uint(customGenesisTimeFlag.Name)
+	}
+	log.Infof("using genesis fork version: %s time: %d", genesisForkVersion, genesisTime)
+	return genesisForkVersion, genesisTime
+}
+
+func setupLogging(cmd *cli.Command) error {
 	// setup logging
 	log.Logger.SetOutput(os.Stdout)
-	if *logJSON {
+	if cmd.IsSet(jsonFlag.Name) {
 		log.Logger.SetFormatter(&logrus.JSONFormatter{
 			TimestampFormat: config.RFC3339Milli,
 		})
@@ -223,36 +194,31 @@ func setupLogging() error {
 			TimestampFormat: config.RFC3339Milli,
 		})
 	}
-	if *logDebug {
-		*logLevel = "debug"
+
+	logLevel := cmd.String(logLevelFlag.Name)
+	if cmd.IsSet(debugFlag.Name) {
+		logLevel = "debug"
 	}
-	if *logLevel != "" {
-		lvl, err := logrus.ParseLevel(*logLevel)
-		if err != nil {
-			return fmt.Errorf("%w: %s", errInvalidLoglevel, *logLevel)
-		}
-		log.Logger.SetLevel(lvl)
+	lvl, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		return fmt.Errorf("%w: %s", errInvalidLoglevel, logLevel)
 	}
-	if *logService != "" {
-		log = log.WithField("service", *logService)
+	log.Logger.SetLevel(lvl)
+
+	if cmd.IsSet(logServiceFlag.Name) {
+		log = log.WithField("service", cmd.String(logServiceFlag.Name))
 	}
 
 	// Add version to logs and say hello
-	addVersionToLogs := !*logNoVersion
-	if addVersionToLogs {
+	if cmd.Bool(logNoVersionFlag.Name) {
+		log.Infof("starting mev-boost %s", config.Version)
+	} else {
 		log = log.WithField("version", config.Version)
 		log.Infof("starting mev-boost")
-	} else {
-		log.Infof("starting mev-boost %s", config.Version)
 	}
 	log.Debug("debug logging enabled")
 	return nil
 }
-
-var (
-	errNegativeBid = errors.New("please specify a non-negative minimum bid")
-	errLargeMinBid = errors.New("minimum bid is too large, please ensure min-bid is denominated in Ethers")
-)
 
 func sanitizeMinBid(minBid float64) (*types.U256Str, error) {
 	if minBid < 0.0 {
