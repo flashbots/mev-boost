@@ -40,7 +40,7 @@ var (
 	// General
 	addrFlag = &cli.StringFlag{
 		Name:     "addr",
-		Sources:  cli.EnvVars("LOG_LEVEL"),
+		Sources:  cli.EnvVars("BOOST_LISTEN_ADDR"),
 		Value:    "localhost:18550",
 		Usage:    "listen-address for mev-boost server",
 		Category: GeneralCategory,
