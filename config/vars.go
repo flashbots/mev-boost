@@ -8,7 +8,7 @@ import (
 
 var (
 	// Version is set at build time (must be a var, not a const!)
-	Version = "v1.8-dev"
+	Version = "v1.8-rc1"
 
 	// RFC3339Milli is a time format string based on time.RFC3339 but with millisecond precision
 	RFC3339Milli = "2006-01-02T15:04:05.999Z07:00"
