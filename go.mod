@@ -3,7 +3,7 @@ module github.com/flashbots/mev-boost
 go 1.21
 
 require (
-	github.com/ethereum/go-ethereum v1.14.7
+	github.com/ethereum/go-ethereum v1.14.8
 	github.com/flashbots/go-boost-utils v1.8.1
 	github.com/flashbots/go-utils v0.5.0
 	github.com/google/uuid v1.6.0
@@ -56,7 +56,7 @@ require (
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
-	google.golang.org/protobuf v1.33.0 // indirect
+	google.golang.org/protobuf v1.34.2 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
@@ -65,7 +65,7 @@ require (
 	github.com/attestantio/go-builder-client v0.4.5
 	github.com/attestantio/go-eth2-client v0.21.7
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
