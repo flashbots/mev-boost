@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"net/url"
 	"strings"
 
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/flashbots/go-boost-utils/utils"
 	"github.com/flashbots/mev-boost/server/types"
 )
 
@@ -65,5 +68,36 @@ func (rm *relayMonitorList) Set(value string) error {
 		return errDuplicateEntry
 	}
 	*rm = append(*rm, relayMonitor)
+	return nil
+}
+
+type privilegedBuilderList []phase0.BLSPubKey
+
+func (pb *privilegedBuilderList) String() string {
+	privilegedBuilders := []string{}
+	for _, privilegedBuilder := range *pb {
+		privilegedBuilders = append(privilegedBuilders, privilegedBuilder.String())
+	}
+	return strings.Join(privilegedBuilders, ",")
+}
+
+func (pb *privilegedBuilderList) Contains(privilegedBuilder phase0.BLSPubKey) bool {
+	for _, entry := range *pb {
+		if bytes.Equal(entry[:], privilegedBuilder[:]) {
+			return true
+		}
+	}
+	return false
+}
+
+func (pb *privilegedBuilderList) Set(value string) error {
+	privilegedBuilder, err := utils.HexToPubkey(value)
+	if err != nil {
+		return err
+	}
+	if pb.Contains(privilegedBuilder) {
+		return errDuplicateEntry
+	}
+	*pb = append(*pb, privilegedBuilder)
 	return nil
 }

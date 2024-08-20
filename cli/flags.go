@@ -34,6 +34,7 @@ var flags = []cli.Flag{
 	timeoutGetPayloadFlag,
 	timeoutRegValFlag,
 	maxRetriesFlag,
+	privilegedBuildersFlag,
 }
 
 var (
@@ -169,6 +170,12 @@ var (
 		Sources:  cli.EnvVars("REQUEST_MAX_RETRIES"),
 		Usage:    "maximum number of retries for a relay get payload request",
 		Value:    5,
+		Category: RelayCategory,
+	}
+	privilegedBuildersFlag = &cli.StringSliceFlag{
+		Name:     "privileged-builder",
+		Sources:  cli.EnvVars("PRIVILEGED_BUILDER"),
+		Usage:    "relay username/pubkey  - single entry or comma-separated list",
 		Category: RelayCategory,
 	}
 )
