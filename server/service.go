@@ -267,6 +267,10 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			url := relay.GetURI(params.PathRegisterValidator)
 			log := log.WithField("url", url)
 
+			if strings.Contains(url, "titan") {
+				headers["x-preferences"] = `{"censoring": true, "trusted_builders": ["Titan"]}`
+			}
+
 			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, headers, payload, nil)
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
