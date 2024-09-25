@@ -345,6 +345,10 @@ sequenceDiagram
     mev_boost-->>consensus: submitBlindedBlock response
 ```
 
+# Metrics
+
+Optionally the `-prometheus-port=9000` flag can be passed to expose prometheus metrics on specified port
+
 # Maintainers
 
 - [@metachris](https://github.com/metachris)
