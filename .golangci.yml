@@ -62,7 +62,7 @@ linters-settings:
     enable-all: true
     disable:
       - fieldalignment
-      - shadientow
+      - shadow
   gomoddirectives:
     replace-allow-list:
       - github.com/attestantio/go-builder-client
