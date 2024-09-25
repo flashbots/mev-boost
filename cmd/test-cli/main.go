@@ -10,7 +10,7 @@ import (
 
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
-	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
+	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	"github.com/attestantio/go-eth2-client/spec/altair"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common"
@@ -75,12 +75,12 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 		log.WithError(err).WithField("currentBlockHash", currentBlockHash).Fatal("Could not get header")
 	}
 
-	if getHeaderResp.Capella.Message == nil {
+	if getHeaderResp.Deneb.Message == nil {
 		log.Fatal("Did not receive correct header")
 	}
-	log.WithField("header", *getHeaderResp.Capella.Message).Info("Got header from boost")
+	log.WithField("header", *getHeaderResp.Deneb.Message).Info("Got header from boost")
 
-	ok, err := ssz.VerifySignature(getHeaderResp.Capella.Message, builderSigningDomain, getHeaderResp.Capella.Message.Pubkey[:], getHeaderResp.Capella.Signature[:])
+	ok, err := ssz.VerifySignature(getHeaderResp.Deneb.Message, builderSigningDomain, getHeaderResp.Deneb.Message.Pubkey[:], getHeaderResp.Deneb.Signature[:])
 	if err != nil {
 		log.WithError(err).Fatal("Could not verify builder bid signature")
 	}
@@ -94,12 +94,12 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain, proposerSigningDomain phase0.Domain) {
 	header := doGetHeader(v, boostEndpoint, beaconNode, engineEndpoint, builderSigningDomain)
 
-	blindedBeaconBlock := eth2ApiV1Capella.BlindedBeaconBlock{
+	blindedBeaconBlock := eth2ApiV1Deneb.BlindedBeaconBlock{
 		Slot:          0,
 		ProposerIndex: 0,
 		ParentRoot:    phase0.Root{},
 		StateRoot:     phase0.Root{},
-		Body: &eth2ApiV1Capella.BlindedBeaconBlockBody{
+		Body: &eth2ApiV1Deneb.BlindedBeaconBlockBody{
 			RANDAOReveal:           phase0.BLSSignature{},
 			ETH1Data:               &phase0.ETH1Data{},
 			Graffiti:               phase0.Hash32{},
@@ -109,7 +109,7 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 			Deposits:               []*phase0.Deposit{},
 			VoluntaryExits:         []*phase0.SignedVoluntaryExit{},
 			SyncAggregate:          &altair.SyncAggregate{},
-			ExecutionPayloadHeader: header.Capella.Message.Header,
+			ExecutionPayloadHeader: header.Deneb.Message.Header,
 		},
 	}
 
@@ -118,7 +118,7 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 		log.WithError(err).Fatal("could not sign blinded beacon block")
 	}
 
-	payload := eth2ApiV1Capella.SignedBlindedBeaconBlock{
+	payload := eth2ApiV1Deneb.SignedBlindedBeaconBlock{
 		Message:   &blindedBeaconBlock,
 		Signature: signature,
 	}

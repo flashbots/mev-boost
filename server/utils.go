@@ -27,8 +27,9 @@ import (
 )
 
 const (
-	HeaderKeySlotUID = "X-MEVBoost-SlotID"
-	HeaderKeyVersion = "X-MEVBoost-Version"
+	HeaderKeySlotUID      = "X-MEVBoost-SlotID"
+	HeaderKeyVersion      = "X-MEVBoost-Version"
+	HeaderStartTimeUnixMS = "X-MEVBoost-StartTimeUnixMS"
 )
 
 var (
@@ -247,10 +248,6 @@ func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phas
 
 func getPayloadResponseIsEmpty(payload *builderApi.VersionedSubmitBlindedBlockResponse) bool {
 	switch payload.Version {
-	case spec.DataVersionCapella:
-		if payload.Capella == nil || payload.Capella.BlockHash == nilHash {
-			return true
-		}
 	case spec.DataVersionDeneb:
 		if payload.Deneb == nil || payload.Deneb.ExecutionPayload == nil ||
 			payload.Deneb.ExecutionPayload.BlockHash == nilHash ||
@@ -263,7 +260,7 @@ func getPayloadResponseIsEmpty(payload *builderApi.VersionedSubmitBlindedBlockRe
 			payload.Electra.BlobsBundle == nil {
 			return true
 		}
-	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix:
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix, spec.DataVersionCapella:
 		return true
 	}
 	return false

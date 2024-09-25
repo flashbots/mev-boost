@@ -24,7 +24,7 @@ v:
 .PHONY: build
 build:
 	@go version
-	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o mev-boost
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o mev-boost ./cmd/mev-boost
 
 .PHONY: build-testcli
 build-testcli:

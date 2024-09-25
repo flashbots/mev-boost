@@ -11,7 +11,6 @@ import (
 	"time"
 
 	builderApi "github.com/attestantio/go-builder-client/api"
-	builderApiCapella "github.com/attestantio/go-builder-client/api/capella"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	builderApiElectra "github.com/attestantio/go-builder-client/api/electra"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
@@ -174,29 +173,6 @@ func (m *Relay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.
 // method
 func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string, version spec.DataVersion) *builderSpec.VersionedSignedBuilderBid {
 	switch version {
-	case spec.DataVersionCapella:
-		// Fill the payload with custom values.
-		message := &builderApiCapella.BuilderBid{
-			Header: &capella.ExecutionPayloadHeader{
-				BlockHash:       HexToHash(blockHash),
-				ParentHash:      HexToHash(parentHash),
-				WithdrawalsRoot: phase0.Root{},
-			},
-			Value:  uint256.NewInt(value),
-			Pubkey: HexToPubkey(publicKey),
-		}
-
-		// Sign the message.
-		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
-		require.NoError(m.t, err)
-
-		return &builderSpec.VersionedSignedBuilderBid{
-			Version: spec.DataVersionCapella,
-			Capella: &builderApiCapella.SignedBuilderBid{
-				Message:   message,
-				Signature: signature,
-			},
-		}
 	case spec.DataVersionDeneb:
 		message := &builderApiDeneb.BuilderBid{
 			Header: &deneb.ExecutionPayloadHeader{
@@ -246,7 +222,7 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 				Signature: signature,
 			},
 		}
-	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix:
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix, spec.DataVersionCapella:
 		return nil
 	}
 	return nil
@@ -276,7 +252,7 @@ func (m *Relay) defaultHandleGetHeader(w http.ResponseWriter) {
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
 		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-		spec.DataVersionCapella,
+		spec.DataVersionDeneb,
 	)
 	if m.GetHeaderResponse != nil {
 		response = m.GetHeaderResponse
@@ -293,12 +269,20 @@ func (m *Relay) defaultHandleGetHeader(w http.ResponseWriter) {
 func (m *Relay) MakeGetPayloadResponse(parentHash, blockHash, feeRecipient string, blockNumber uint64, version spec.DataVersion) *builderApi.VersionedSubmitBlindedBlockResponse {
 	return &builderApi.VersionedSubmitBlindedBlockResponse{
 		Version: version,
-		Capella: &capella.ExecutionPayload{
-			ParentHash:   HexToHash(parentHash),
-			BlockHash:    HexToHash(blockHash),
-			BlockNumber:  blockNumber,
-			FeeRecipient: HexToAddress(feeRecipient),
-			Withdrawals:  make([]*capella.Withdrawal, 0),
+		Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+			ExecutionPayload: &deneb.ExecutionPayload{
+				ParentHash:    HexToHash(parentHash),
+				BlockHash:     HexToHash(blockHash),
+				BlockNumber:   blockNumber,
+				FeeRecipient:  HexToAddress(feeRecipient),
+				BaseFeePerGas: uint256.NewInt(0),
+				Withdrawals:   make([]*capella.Withdrawal, 0),
+			},
+			BlobsBundle: &builderApiDeneb.BlobsBundle{
+				Blobs:       make([]deneb.Blob, 0),
+				Commitments: make([]deneb.KZGCommitment, 0),
+				Proofs:      make([]deneb.KZGProof, 0),
+			},
 		},
 	}
 }
@@ -327,7 +311,7 @@ func (m *Relay) DefaultHandleGetPayload(w http.ResponseWriter) {
 		"0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46",
 		"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
 		12345,
-		spec.DataVersionCapella,
+		spec.DataVersionDeneb,
 	)
 
 	if m.GetPayloadResponse != nil {
