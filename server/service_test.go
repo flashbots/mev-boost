@@ -187,6 +187,7 @@ func TestWebserverMaxHeaderSize(t *testing.T) {
 	addr := "localhost:1234"
 	backend.boost.listenAddr = addr
 	go func() {
+		t.Helper()
 		err := backend.boost.StartHTTPServer()
 		require.NoError(t, err)
 	}()
