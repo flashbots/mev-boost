@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/ethereum/go-ethereum v1.14.9
-	github.com/flashbots/go-boost-utils v1.8.2-0.20240925192624-22f090f9547b
+	github.com/flashbots/go-boost-utils v1.8.2-0.20240925223941-58709124077d
 	github.com/flashbots/go-utils v0.5.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -62,8 +62,8 @@ require (
 
 require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
-	github.com/attestantio/go-builder-client v0.5.1-0.20240804084948-e06dcb494024
-	github.com/attestantio/go-eth2-client v0.21.11-0.20240803084815-07eba3e76a14
+	github.com/attestantio/go-builder-client v0.5.1-0.20240925223414-5da8987dd6f3
+	github.com/attestantio/go-eth2-client v0.21.12-0.20240925220056-393fff117304
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
