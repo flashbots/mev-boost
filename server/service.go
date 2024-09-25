@@ -709,8 +709,8 @@ func (m *BoostService) processElectraPayload(w http.ResponseWriter, req *http.Re
 				return
 			}
 
-			payload := responsePayload.Electra.ExecutionPayload
-			blobs := responsePayload.Electra.BlobsBundle
+			payload := responsePayload.Deneb.ExecutionPayload
+			blobs := responsePayload.Deneb.BlobsBundle
 
 			// Ensure the response blockhash matches the request
 			if blindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash != payload.BlockHash {

@@ -12,13 +12,11 @@ import (
 
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
-	builderApiElectra "github.com/attestantio/go-builder-client/api/electra"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/deneb"
-	"github.com/attestantio/go-eth2-client/spec/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
@@ -198,13 +196,12 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 			},
 		}
 	case spec.DataVersionElectra:
-		message := &builderApiElectra.BuilderBid{
-			Header: &electra.ExecutionPayloadHeader{
-				BlockHash:              HexToHash(blockHash),
-				ParentHash:             HexToHash(parentHash),
-				WithdrawalsRoot:        phase0.Root{},
-				BaseFeePerGas:          uint256.NewInt(0),
-				WithdrawalRequestsRoot: phase0.Root{},
+		message := &builderApiDeneb.BuilderBid{
+			Header: &deneb.ExecutionPayloadHeader{
+				BlockHash:       HexToHash(blockHash),
+				ParentHash:      HexToHash(parentHash),
+				WithdrawalsRoot: phase0.Root{},
+				BaseFeePerGas:   uint256.NewInt(0),
 			},
 			BlobKZGCommitments: make([]deneb.KZGCommitment, 0),
 			Value:              uint256.NewInt(value),
@@ -217,7 +214,7 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 
 		return &builderSpec.VersionedSignedBuilderBid{
 			Version: spec.DataVersionElectra,
-			Electra: &builderApiElectra.SignedBuilderBid{
+			Electra: &builderApiDeneb.SignedBuilderBid{
 				Message:   message,
 				Signature: signature,
 			},
