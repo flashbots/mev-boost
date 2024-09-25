@@ -187,9 +187,8 @@ func TestWebserverMaxHeaderSize(t *testing.T) {
 	addr := "localhost:1234"
 	backend.boost.listenAddr = addr
 	go func() {
-		t.Helper()
 		err := backend.boost.StartHTTPServer()
-		require.NoError(t, err)
+		require.NoError(t, err) //nolint:testifylint
 	}()
 	time.Sleep(time.Millisecond * 100)
 	path := "http://" + addr + "?" + strings.Repeat("abc", 4000) // path with characters of size over 4kb
