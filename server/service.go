@@ -27,6 +27,8 @@ import (
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -37,6 +39,7 @@ var (
 	errInvalidPubkey             = errors.New("invalid pubkey")
 	errNoSuccessfulRelayResponse = errors.New("no successful relay response")
 	errServerAlreadyRunning      = errors.New("server already running")
+	errNilPrometheusRegistry     = errors.New("nil prometheus registry")
 )
 
 var (
@@ -69,6 +72,8 @@ type BoostServiceOpts struct {
 	RequestTimeoutGetPayload time.Duration
 	RequestTimeoutRegVal     time.Duration
 	RequestMaxRetries        int
+	PrometheusListenAddr     int
+	PrometheusRegistry       *prometheus.Registry
 }
 
 // BoostService - the mev-boost service
@@ -93,6 +98,9 @@ type BoostService struct {
 
 	slotUID     *slotUID
 	slotUIDLock sync.Mutex
+
+	prometheusListenAddr int
+	prometheusRegistry   *prometheus.Registry
 }
 
 // NewBoostService created a new BoostService
@@ -130,7 +138,9 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 			Timeout:       opts.RequestTimeoutRegVal,
 			CheckRedirect: httpClientDisallowRedirects,
 		},
-		requestMaxRetries: opts.RequestMaxRetries,
+		requestMaxRetries:    opts.RequestMaxRetries,
+		prometheusListenAddr: opts.PrometheusListenAddr,
+		prometheusRegistry:   opts.PrometheusRegistry,
 	}, nil
 }
 
@@ -192,6 +202,22 @@ func (m *BoostService) StartHTTPServer() error {
 		return nil
 	}
 	return err
+}
+
+// StartMetricsServer starts the HTTP server for exporting open-metrics
+func (m *BoostService) StartMetricsServer() error {
+	if m.prometheusRegistry == nil {
+		return errNilPrometheusRegistry
+	}
+	serveMux := http.NewServeMux()
+	serveMux.Handle("/metrics", promhttp.HandlerFor(m.prometheusRegistry, promhttp.HandlerOpts{
+		ErrorLog:          m.log,
+		EnableOpenMetrics: true,
+	}))
+	return http.ListenAndServe(
+		fmt.Sprintf(":%d", m.prometheusListenAddr),
+		serveMux,
+	)
 }
 
 func (m *BoostService) startBidCacheCleanupTask() {

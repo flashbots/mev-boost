@@ -34,6 +34,7 @@ var flags = []cli.Flag{
 	timeoutGetPayloadFlag,
 	timeoutRegValFlag,
 	maxRetriesFlag,
+	prometheusListenAddr,
 }
 
 var (
@@ -81,6 +82,12 @@ var (
 		Name:     "log-no-version",
 		Sources:  cli.EnvVars("DISABLE_LOG_VERSION"),
 		Usage:    "disables adding the version to every log entry",
+		Category: LoggingCategory,
+	}
+	prometheusListenAddr = &cli.IntFlag{
+		Name:     "prometheus-port",
+		Sources:  cli.EnvVars("PROMETHEUS_PORT"),
+		Usage:    "when set to a valid http port, will export runtime metrics to a prometheus server on that port",
 		Category: LoggingCategory,
 	}
 	// Genesis Flags
