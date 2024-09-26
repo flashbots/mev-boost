@@ -106,7 +106,7 @@ Ensure you are downloading the most updated MEV-Boost release. Releases are avai
 clone the repository and build it:
 
 ```bash
-# By default, the develop branch includes ongoing merged PRs a future release.
+# By default, the develop branch includes ongoing merged PRs for a future release.
 git clone https://github.com/flashbots/mev-boost.git
 cd mev-boost
 

@@ -29,9 +29,9 @@ the team will work on a fix.
 
 ## Bug Bounty Program
 
-To incentive bug reports, there is a bug bounty program. You can receive a
+To incentivize bug reports, there is a bug bounty program. You can receive a
 bounty (up to $25k USD) depending on the bug's severity. Severity is based on
-impact and likelihood. If a bug is high impact but low likelihood, it will have
+impact and likelihood. If a bug has a high impact but low likelihood, it will have
 a lower severity than a bug with a high impact and high likelihood.
 
 | Severity |     Maximum | Example                                                                |
