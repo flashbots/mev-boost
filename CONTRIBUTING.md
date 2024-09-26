@@ -37,7 +37,7 @@ test-cli is a utility to run through all the proposer requests against mev-boost
 
 Mergemock is fully integrated: https://github.com/protolambda/mergemock
 
-Make sure you've setup and built mergemock first, refer to its [README](https://github.com/flashbots/mergemock#quick-start) but here's a quick setup guide:
+Make sure you've setup and built mergemock first, refer to its [README](https://github.com/protolambda/mergemock/blob/master/README.md) but here's a quick setup guide:
 
 ```bash
 git clone https://github.com/protolambda/mergemock.git
