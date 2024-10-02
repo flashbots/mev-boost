@@ -65,9 +65,9 @@ func start(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var (
-		genesisForkVersion, genesisTime      = setupGenesis(cmd)
-		relays, monitors, minBid, relayCheck = setupRelays(cmd)
-		listenAddr                           = cmd.String(addrFlag.Name)
+		genesisForkVersion, genesisTime                  = setupGenesis(cmd)
+		relays, monitors, privileged, minBid, relayCheck = setupRelays(cmd)
+		listenAddr                                       = cmd.String(addrFlag.Name)
 	)
 
 	opts := server.BoostServiceOpts{
@@ -75,6 +75,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 		ListenAddr:               listenAddr,
 		Relays:                   relays,
 		RelayMonitors:            monitors,
+		PrivilegedBuilders:       privileged,
 		GenesisForkVersionHex:    genesisForkVersion,
 		GenesisTime:              genesisTime,
 		RelayCheck:               relayCheck,
@@ -97,11 +98,12 @@ func start(_ context.Context, cmd *cli.Command) error {
 	return service.StartHTTPServer()
 }
 
-func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, bool) {
+func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, privilegedBuilderList, types.U256Str, bool) {
 	// For backwards compatibility with the -relays flag.
 	var (
-		relays   relayList
-		monitors relayMonitorList
+		relays     relayList
+		monitors   relayMonitorList
+		privileged privilegedBuilderList
 	)
 	if cmd.IsSet(relaysFlag.Name) {
 		relayURLs := cmd.StringSlice(relaysFlag.Name)
@@ -117,9 +119,20 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 	if len(relays) == 0 {
 		log.Fatal("no relays specified")
 	}
+
+	if cmd.IsSet(privilegedBuildersFlag.Name) {
+		privilegedBuilders := cmd.StringSlice(privilegedBuildersFlag.Name)
+		for _, builder := range privilegedBuilders {
+			if err := privileged.Set(builder); err != nil {
+				log.WithError(err).WithField("privilegedBuilder", builder).Fatal("Invalid privileged builder")
+			}
+		}
+	}
+
 	log.Infof("using %d relays", len(relays))
 	for index, relay := range relays {
-		log.Infof("relay #%d: %s", index+1, relay.String())
+		isPrivileged := privileged.Contains(relay.PublicKey)
+		log.Infof("relay #%d: %s, privileged %t", index+1, relay.String(), isPrivileged)
 	}
 
 	// For backwards compatibility with the -relay-monitors flag.
@@ -148,7 +161,8 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 	if relayMinBidWei.BigInt().Sign() > 0 {
 		log.Infof("Min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
-	return relays, monitors, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
+
+	return relays, monitors, privileged, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
 }
 
 func setupGenesis(cmd *cli.Command) (string, uint64) {
