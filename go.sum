@@ -7,8 +7,8 @@ github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkT
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/attestantio/go-builder-client v0.4.5 h1:L11DGcQbMMNNYLJyme2aLeruNK3lXZ7M9QzvpoMPNPs=
 github.com/attestantio/go-builder-client v0.4.5/go.mod h1:ZMmatuguvfy/JRHF8eFUy9RQgkHzdslCCVMofiywRkE=
-github.com/attestantio/go-eth2-client v0.21.7 h1:tdTJWiOJUCDmYSDt5C8D8+N5Hxfos0yLp+iVT7tKWMk=
-github.com/attestantio/go-eth2-client v0.21.7/go.mod h1:d7ZPNrMX8jLfIgML5u7QZxFo2AukLM+5m08iMaLdqb8=
+github.com/attestantio/go-eth2-client v0.21.11 h1:0ZYP69O8rJz41055WOf3n1C1NA4jNh2iME/NuTVfgmQ=
+github.com/attestantio/go-eth2-client v0.21.11/go.mod h1:d7ZPNrMX8jLfIgML5u7QZxFo2AukLM+5m08iMaLdqb8=
 github.com/benbjohnson/clock v1.3.0 h1:ip6w0uFQkncKQ979AypyG0ER7mqUSBdKLOgAle/AT8A=
 github.com/benbjohnson/clock v1.3.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
