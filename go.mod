@@ -63,7 +63,7 @@ require (
 require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/attestantio/go-builder-client v0.5.1-0.20240925223414-5da8987dd6f3
-	github.com/attestantio/go-eth2-client v0.21.12-0.20240925220056-393fff117304
+	github.com/attestantio/go-eth2-client v0.21.12-0.20241006200801-8fa702e3a895
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
