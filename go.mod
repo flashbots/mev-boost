@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/ethereum/go-ethereum v1.14.9
-	github.com/flashbots/go-boost-utils v1.8.2-0.20240925223941-58709124077d
+	github.com/flashbots/go-boost-utils v1.8.2-0.20241014201857-55b15840e530
 	github.com/flashbots/go-utils v0.5.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -90,9 +90,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-// Remove this when Jim merges pk910's PR.
-replace github.com/attestantio/go-eth2-client => github.com/pk910/go-eth2-client v0.0.0-20240923174943-8d64565c83ca
-
-// Remove this when Jim merge's jtraglia's PR.
-replace github.com/attestantio/go-builder-client => github.com/jtraglia/go-builder-client v0.4.6-0.20240925183257-4d86495441b5

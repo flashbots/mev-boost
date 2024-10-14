@@ -20,6 +20,7 @@ import (
 	builderSpec "github.com/attestantio/go-builder-client/spec"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
+	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-utils/httplogger"
@@ -569,6 +570,12 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 				return
 			}
 
+			if responsePayload.Version != spec.DataVersionDeneb {
+				log.WithFields(logrus.Fields{
+					"version": responsePayload.Version,
+				}).Error("response version was not deneb")
+				return
+			}
 			if getPayloadResponseIsEmpty(responsePayload) {
 				log.Error("response with empty data!")
 				return
@@ -704,6 +711,12 @@ func (m *BoostService) processElectraPayload(w http.ResponseWriter, req *http.Re
 				return
 			}
 
+			if responsePayload.Version != spec.DataVersionElectra {
+				log.WithFields(logrus.Fields{
+					"version": responsePayload.Version,
+				}).Error("response version was not electra")
+				return
+			}
 			if getPayloadResponseIsEmpty(responsePayload) {
 				log.Error("response with empty data!")
 				return
@@ -785,19 +798,21 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 
 	// Decode the body now
-	payload := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+	payload := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+	log.Debug("attempting to decode body into Deneb payload")
 	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-		log.Debug("could not decode Electra request payload, attempting to decode body into Deneb payload")
-		payload := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+		log.Debug("could not decode Deneb request payload, attempting to decode body into Electra payload")
+		payload := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
 		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-			log.Debug("could not decode Deneb request payload, attempting to decode body into Capella payload")
+			log.Debug("could not decode Electra request payload")
 			log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
 			m.respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		m.processDenebPayload(w, req, log, payload)
+		m.processElectraPayload(w, req, log, payload)
+		return
 	}
-	m.processElectraPayload(w, req, log, payload)
+	m.processDenebPayload(w, req, log, payload)
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status
