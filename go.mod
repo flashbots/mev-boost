@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/ethereum/go-ethereum v1.14.9
-	github.com/flashbots/go-boost-utils v1.8.2-0.20241014201857-55b15840e530
+	github.com/flashbots/go-boost-utils v1.8.2-0.20241014214143-c3fca3d69760
 	github.com/flashbots/go-utils v0.5.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -90,3 +90,9 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// Remove when go-eth2-client is updated.
+replace github.com/attestantio/go-eth2-client => github.com/jtraglia/go-eth2-client v0.21.5-0.20241014213529-c8e71ddfccc4
+
+// Remove when go-builder-client is updated.
+replace github.com/attestantio/go-builder-client => github.com/jtraglia/go-builder-client v0.4.6-0.20241014193815-df58bba2ab54

@@ -798,21 +798,21 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 
 	// Decode the body now
-	payload := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
-	log.Debug("attempting to decode body into Deneb payload")
+	payload := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+	log.Debug("attempting to decode body into Electra payload")
 	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-		log.Debug("could not decode Deneb request payload, attempting to decode body into Electra payload")
-		payload := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+		log.Debug("could not decode Electra request payload, attempting to decode body into Deneb payload")
+		payload := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
 		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-			log.Debug("could not decode Electra request payload")
+			log.Debug("could not decode Deneb request payload")
 			log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
 			m.respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		m.processElectraPayload(w, req, log, payload)
+		m.processDenebPayload(w, req, log, payload)
 		return
 	}
-	m.processDenebPayload(w, req, log, payload)
+	m.processElectraPayload(w, req, log, payload)
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status
