@@ -62,7 +62,7 @@ require (
 
 require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
-	github.com/attestantio/go-builder-client v0.5.1-0.20240925223414-5da8987dd6f3
+	github.com/attestantio/go-builder-client v0.5.1-0.20241014215920-ba44f1de4249
 	github.com/attestantio/go-eth2-client v0.21.12-0.20241014214053-759b0ace2e43
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
@@ -90,6 +90,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-// Remove when go-builder-client is updated.
-replace github.com/attestantio/go-builder-client => github.com/jtraglia/go-builder-client v0.4.6-0.20241014193815-df58bba2ab54

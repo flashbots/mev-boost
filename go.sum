@@ -5,6 +5,8 @@ github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9
 github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjCM7NQbSmF7WI=
 github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkThDcMsQicp4xDukwJYI=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
+github.com/attestantio/go-builder-client v0.5.1-0.20241014215920-ba44f1de4249 h1:y01TZYnM3DDb3nkqA3VaoiqKuWWAgLIfrm63XOQJsFc=
+github.com/attestantio/go-builder-client v0.5.1-0.20241014215920-ba44f1de4249/go.mod h1:X31JAUL4q6cY/OGClpBQcwFN7FBixt6Wjrqy7RrlhEc=
 github.com/attestantio/go-eth2-client v0.21.12-0.20241014214053-759b0ace2e43 h1:Xvkj/3ilNuZgoGnxu/uiXmCDmKjBE0ruygTHZIU1JFs=
 github.com/attestantio/go-eth2-client v0.21.12-0.20241014214053-759b0ace2e43/go.mod h1:vy5jU/uDZ2+RcVzq5BfnG+bQ3/6uu9DGwCrGsPtjJ1A=
 github.com/benbjohnson/clock v1.3.0 h1:ip6w0uFQkncKQ979AypyG0ER7mqUSBdKLOgAle/AT8A=
@@ -132,8 +134,6 @@ github.com/huandu/go-clone/generic v1.6.0/go.mod h1:xgd9ZebcMsBWWcBx5mVMCoqMX24g
 github.com/jessevdk/go-flags v0.0.0-20141203071132-1679536dcc89/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jrick/logrotate v1.0.0/go.mod h1:LNinyqDIJnpAur+b8yyulnQw/wDuN1+BYKlTRt3OuAQ=
-github.com/jtraglia/go-builder-client v0.4.6-0.20241014193815-df58bba2ab54 h1:ip/ONBWDWPCGWNGrMXD2vvZH/ABjw5wKfcQ8z7a8MWo=
-github.com/jtraglia/go-builder-client v0.4.6-0.20241014193815-df58bba2ab54/go.mod h1:UkqMh+CHZh63XDx3GdBLijRdFQu2Hyqh3n71V4G10Ws=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/kkdai/bstream v0.0.0-20161212061736-f391b8402d23/go.mod h1:J+Gs4SYgM6CZQHDETBtE9HaSEkGmuNXF86RwHhHUvq4=
