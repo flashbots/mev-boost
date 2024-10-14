@@ -254,6 +254,12 @@ func getPayloadResponseIsEmpty(payload *builderApi.VersionedSubmitBlindedBlockRe
 			payload.Deneb.BlobsBundle == nil {
 			return true
 		}
+	case spec.DataVersionElectra:
+		if payload.Electra == nil || payload.Electra.ExecutionPayload == nil ||
+			payload.Electra.ExecutionPayload.BlockHash == nilHash ||
+			payload.Electra.BlobsBundle == nil {
+			return true
+		}
 	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix, spec.DataVersionCapella:
 		return true
 	}

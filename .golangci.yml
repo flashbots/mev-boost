@@ -63,6 +63,10 @@ linters-settings:
     disable:
       - fieldalignment
       - shadow
+  gomoddirectives:
+    replace-allow-list:
+      - github.com/attestantio/go-builder-client
+      - github.com/attestantio/go-eth2-client
 
 output:
   print-issued-lines: true
