@@ -66,7 +66,7 @@ git push origin --tags
 docker pull flashbots/mev-boost:v1.9a1
 ```
 
-## Ask node operators to test this RC (on Goerli or Sepolia or Holesky)
+## Ask node operators to test this RC (on Sepolia or Holesky)
 
 * Reach out to node operators to help test this release
 * Collect their sign-off for the release

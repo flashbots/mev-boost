@@ -77,7 +77,7 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          args: release --skip-publish --config .goreleaser-build.yaml --rm-dist
+          args: release --skip=publish --config .goreleaser-build.yaml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload

@@ -98,7 +98,7 @@ var (
 	}
 	mainnetFlag = &cli.BoolFlag{
 		Name:     "mainnet",
-		Sources:  cli.EnvVars("GENESIS_FORK_VERSION"),
+		Sources:  cli.EnvVars("MAINNET"),
 		Usage:    "use Mainnet",
 		Value:    true,
 		Category: GenesisCategory,

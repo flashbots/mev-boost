@@ -6,7 +6,7 @@ Please start by reading our [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Set up
 
-Install a few dev dependencies for `make lint`: https://github.com/flashbots/mev-boost/blob/go122/.github/workflows/lint.yml#L29-L37
+Install a few dev dependencies for `make lint`: https://github.com/flashbots/mev-boost/blob/develop/.github/workflows/lint.yml#L29-L37
 
 Look at the [README for instructions to install the dependencies and build `mev-boost`](README.md#installing)
 
