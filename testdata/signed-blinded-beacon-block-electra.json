@@ -1,0 +1,72 @@
+{
+  "message": {
+    "slot": "252288",
+    "proposer_index": "4295",
+    "parent_root": "0x9a8eef2096477e645150fee1a2ce13190382179a0ea843f31173715a1a14e074",
+    "state_root": "0x4c033e0b4a34c0eb8e0caba126fae3ed303a83254fe39f8daaa673125f4042cc",
+    "body": {
+      "randao_reveal": "0xa7a74e03d8ef909abc75b9452d167e15869180fb4b19db79a1136b510495f02d6ae480ee4ad6a2a9e41af866a9a54c681601a3a1dee30f676e93e6c6b3eb3e880c2cb8d32bd730ca9e7def92877c70da09bfc52a531f1be15619c8a3bb38bdf6",
+      "eth1_data": {
+        "deposit_root": "0x0cacd599c9cdcee8398b40ef045baf2c137bed4d2b02a465a0414b04015f861d",
+        "deposit_count": "216773",
+        "block_hash": "0xd75a680056c50b4e339eda2f91ccd33badc5d59feab830526e342c5ec68d8dce"
+      },
+      "graffiti": "0x6c69676874686f7573652d6e65746865726d696e642d33000000000000000000",
+      "proposer_slashings": [],
+      "attester_slashings": [],
+      "attestations": [
+        {
+          "aggregation_bits": "0xf8fbff9093195acfebcff69cdfef71fbd9eaf19777f7dfb1f9233faf08be7e463a675cefef2d9e03",
+          "data": {
+            "slot": "252287",
+            "index": "0",
+            "beacon_block_root": "0x9a8eef2096477e645150fee1a2ce13190382179a0ea843f31173715a1a14e074",
+            "source": {
+              "epoch": "7682",
+              "root": "0x83900465836d88fbd48a829ca207db86e32aa7797966df1b0c886128c72a1a0b"
+            },
+            "target": {
+              "epoch": "7883",
+              "root": "0x6e20c4503b853781327d750ee818651e5493b04f5ea0f2699725eecb1e0c3ddf"
+            }
+          },
+          "signature": "0xb8fb8248ce16152eb41f88803445ef64c33da86de7bfd398b12e745a449013f9454c38b42a658291e344e3eb11d1c3ec03d692b9ed299aff0f599ea9145596b5195d11ff49f83a573519616c8b76c9459a1ed5f869e1c5c6bad176adbd3b689c",
+          "committee_bits": "0x0300000000000000"
+        }
+      ],
+      "deposits": [],
+      "voluntary_exits": [],
+      "sync_aggregate": {
+        "sync_committee_bits": "0xde98bcde844ff76e87b94cfff1cbcc3dfbf93fdf3ee9b994764fafe484f762eb1562e7fa28e96f5d7a887bff689ffb932d5eff467e668d137bc565d37e3fa7fd",
+        "sync_committee_signature": "0x93a611fb577d17674242e42de06958513013b0cb07d1f284e993ed7d63ac43bbc234e54a886ca9cb979e76eabeeb6ee603556234b7d661bdb7a7ac98813028faf8060e5e9271d4f25de199ce5e2ecc2a6762a49c41bf366b1c4c54bc185c62f9"
+      },
+      "execution_payload_header": {
+        "parent_hash": "0x98b62322edaa4d91ecc0847fe2f7debc89dec5e808d7e369aa9b535543227f60",
+        "fee_recipient": "0xf97e180c050e5ab072211ad2c213eb5aee4df134",
+        "state_root": "0x3b6b594d5cbe7ff4c8bdca04f080c57a18fffdaf1c8e700e69b86f7425ed8d73",
+        "receipts_root": "0x04deb4be6955e1a300123be48007597f67e4229f8ce70f4f10388de6fd3fa267",
+        "logs_bloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+        "prev_randao": "0x83612b3de54001f74bf36234e373c1fca95dab5e4645bc3faf7108345cf82e34",
+        "block_number": "220275",
+        "gas_limit": "30000000",
+        "gas_used": "84000",
+        "timestamp": "1732296378",
+        "extra_data": "0x4e65746865726d696e64",
+        "base_fee_per_gas": "7",
+        "block_hash": "0xb65b77e52407ff25f7fcd3f455c991ae67be1bc10cb7ec992a659698cf88870f",
+        "transactions_root": "0xb1fcd304d8ba402be6e76346395ea7641fbb4c83663b697a0e88ab115d859d3f",
+        "withdrawals_root": "0x792930bbd5baac43bcc798ee49aa8185ef76bb3b44ba62b91d86ae569e4bb535",
+        "blob_gas_used": "0",
+        "excess_blob_gas": "0"
+      },
+      "bls_to_execution_changes": [],
+      "blob_kzg_commitments": [],
+      "execution_requests": {
+        "deposits": [],
+        "withdrawals": [],
+        "consolidations": []
+      }
+    }
+  },
+  "signature": "0x94cd72a70a0b424f68145115a9a52f6c8557fb40ec8b67c26cbb9b324b72756624a59e8bbe11b78acbbb8e9c606035d10c0dab9a3f4177d7e6954f8ea1863d0b0b00007fb420b4b4cf52e065bda0ad32af0d3a71bd6938180bab6dd1af754d2f"
+}
