@@ -158,7 +158,7 @@ func setupGenesis(cmd *cli.Command) (string, uint64) {
 	)
 
 	switch {
-	case cmd.Bool(customGenesisForkFlag.Name):
+	case cmd.IsSet(customGenesisForkFlag.Name):
 		genesisForkVersion = cmd.String(customGenesisForkFlag.Name)
 	case cmd.Bool(sepoliaFlag.Name):
 		genesisForkVersion = genesisForkVersionSepolia
