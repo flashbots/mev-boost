@@ -230,7 +230,7 @@ func (m *BoostService) handleRoot(w http.ResponseWriter, _ *http.Request) {
 // handleStatus sends calls to the status endpoint of every relay.
 // It returns OK if at least one returned OK, and returns error otherwise.
 func (m *BoostService) handleStatus(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set(HeaderKeyVersion, config.Version)
+	w.Header().Set(HeaderKeyVersion, config.Version) //nolint:canonicalheader // we use a non-canonical header
 	if !m.relayCheck || m.CheckRelays() > 0 {
 		m.respondOK(w, nilResponse)
 	} else {
