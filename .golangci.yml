@@ -9,11 +9,10 @@ linters:
     - gocritic
     - godot
     - godox
-    - gomnd
     - lll
+    - mnd
     - nlreturn
     - nonamedreturns
-    - nosnakecase
     - paralleltest
     - testpackage
     - varnamelen
@@ -40,20 +39,19 @@ linters:
     - contextcheck
     - rowserrcheck
     - sqlclosecheck
-    - structcheck
     - wastedassign
 
     #
     # Disabled because deprecated:
     #
-    - deadcode
-    - exhaustivestruct
-    - golint
-    - ifshort
-    - interfacer
-    - maligned
-    - scopelint
-    - varcheck
+    - copyloopvar
+
+    #
+    # Disabled due to versioning:
+    #
+    - intrange
+    - exportloopref
+
 
 linters-settings:
   gofumpt:

@@ -46,7 +46,7 @@ func TestSendHTTPRequestUserAgent(t *testing.T) {
 	customUA := "test-user-agent"
 	expectedUA := fmt.Sprintf("mev-boost/%s %s", config.Version, customUA)
 	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		require.Equal(t, expectedUA, r.Header.Get("User-Agent"))
+		require.Equal(t, expectedUA, r.Header.Get("User-Agent")) //nolint:testifylint // if we fail here the test has failed
 		done <- true
 	}))
 	code, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, ts.URL, UserAgent(customUA), nil, nil, nil)
@@ -58,7 +58,7 @@ func TestSendHTTPRequestUserAgent(t *testing.T) {
 	// Test without custom UA
 	expectedUA = fmt.Sprintf("mev-boost/%s", config.Version)
 	ts = httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		require.Equal(t, expectedUA, r.Header.Get("User-Agent"))
+		require.Equal(t, expectedUA, r.Header.Get("User-Agent")) //nolint:testifylint  // if we fail here the test has failed
 		done <- true
 	}))
 	code, err = SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, nil, nil)
@@ -77,7 +77,7 @@ func TestSendHTTPRequestGzip(t *testing.T) {
 	require.NoError(t, zw.Close())
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "gzip", r.Header.Get("Accept-Encoding"))
+		require.Equal(t, "gzip", r.Header.Get("Accept-Encoding")) //nolint:testifylint // if this fails the test is invalid
 		w.Header().Set("Content-Encoding", "gzip")
 		_, _ = w.Write(buf.Bytes())
 	}))

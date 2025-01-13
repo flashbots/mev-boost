@@ -28,3 +28,8 @@
 /README.internal.md
 /validator_data.json
 /build/
+
+# Environemnt variable files
+.env*
+!.env.example
+
