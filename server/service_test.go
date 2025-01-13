@@ -242,7 +242,7 @@ func TestStatus(t *testing.T) {
 		rr := backend.request(t, http.MethodGet, path, nil)
 
 		require.Equal(t, http.StatusOK, rr.Code)
-		require.NotEmpty(t, rr.Header().Get("X-MEVBoost-Version")) //nolint:canonicalheader // we use a non-canonical header
+		require.NotEmpty(t, rr.Header().Get("X-MEVBoost-Version"))
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
@@ -254,7 +254,7 @@ func TestStatus(t *testing.T) {
 		rr := backend.request(t, http.MethodGet, path, nil)
 
 		require.Equal(t, http.StatusServiceUnavailable, rr.Code)
-		require.NotEmpty(t, rr.Header().Get("X-MEVBoost-Version")) //nolint:canonicalheader // we use a non-canonical header
+		require.NotEmpty(t, rr.Header().Get("X-MEVBoost-Version"))
 		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
 	})
 }
