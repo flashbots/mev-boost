@@ -1,6 +1,8 @@
 linters:
   enable-all: true
   disable:
+    - canonicalheader
+    - depguard
     - dupl
     - exhaustruct
     - funlen
@@ -11,6 +13,7 @@ linters:
     - godox
     - lll
     - mnd
+    - musttag
     - nlreturn
     - nonamedreturns
     - paralleltest
@@ -18,8 +21,6 @@ linters:
     - varnamelen
     - wrapcheck
     - wsl
-    - musttag
-    - depguard
 
     #
     # Maybe fix later:
