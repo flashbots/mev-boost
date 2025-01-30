@@ -27,13 +27,13 @@ jobs:
           git diff-index --quiet HEAD
 
       - name: Install gofumpt
-        run: go install mvdan.cc/gofumpt@v0.6.0
+        run: go install mvdan.cc/gofumpt@v0.7.0
 
       - name: Install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@v0.5.1
 
       - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.63.4
 
       - name: Lint
         run: make lint
