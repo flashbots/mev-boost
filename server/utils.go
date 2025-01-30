@@ -164,12 +164,6 @@ type bidResp struct {
 	relays   []types.RelayEntry
 }
 
-// bidRespKey is used as key for the bids cache
-type bidRespKey struct {
-	slot      uint64
-	blockHash string
-}
-
 // bidInfo is used to store bid response fields for logging and validation
 type bidInfo struct {
 	blockHash   phase0.Hash32

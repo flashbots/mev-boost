@@ -90,7 +90,7 @@ type BoostService struct {
 	httpClientRegVal     http.Client
 	requestMaxRetries    int
 
-	bids     map[bidRespKey]bidResp // keeping track of bids, to log the originating relay on withholding
+	bids     map[string]bidResp // keeping track of bids, to log the originating relay on withholding
 	bidsLock sync.Mutex
 
 	slotUID     *slotUID
@@ -116,7 +116,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		relayCheck:    opts.RelayCheck,
 		relayMinBid:   opts.RelayMinBid,
 		genesisTime:   opts.GenesisTime,
-		bids:          make(map[bidRespKey]bidResp),
+		bids:          make(map[string]bidResp),
 		slotUID:       &slotUID{},
 
 		builderSigningDomain: builderSigningDomain,
@@ -484,13 +484,16 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}).Info("best bid")
 
 	// Remember the bid, for future logging in case of withholding
-	bidKey := bidRespKey{slot: _slot, blockHash: result.bidInfo.blockHash.String()}
 	m.bidsLock.Lock()
-	m.bids[bidKey] = result
+	m.bids[bidKey(_slot, result.bidInfo.blockHash)] = result
 	m.bidsLock.Unlock()
 
 	// Return the bid
 	m.respondOK(w, &result.response)
+}
+
+func bidKey(slot uint64, blockHash phase0.Hash32) string {
+	return fmt.Sprintf("%v%v", slot, blockHash)
 }
 
 func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Request, log *logrus.Entry, blindedBlock *eth2ApiV1Deneb.SignedBlindedBeaconBlock) {
@@ -524,9 +527,8 @@ func (m *BoostService) processDenebPayload(w http.ResponseWriter, req *http.Requ
 	}).Infof("submitBlindedBlock request start - %d milliseconds into slot %d", msIntoSlot, blindedBlock.Message.Slot)
 
 	// Get the bid!
-	bidKey := bidRespKey{slot: uint64(blindedBlock.Message.Slot), blockHash: blindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
 	m.bidsLock.Lock()
-	originalBid := m.bids[bidKey]
+	originalBid := m.bids[bidKey(uint64(blindedBlock.Message.Slot), blindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash)]
 	m.bidsLock.Unlock()
 	if originalBid.response.IsEmpty() {
 		log.Error("no bid for this getPayload payload found, was getHeader called before?")
@@ -670,9 +672,8 @@ func (m *BoostService) processElectraPayload(w http.ResponseWriter, req *http.Re
 	}).Infof("submitBlindedBlock request start - %d milliseconds into slot %d", msIntoSlot, blindedBlock.Message.Slot)
 
 	// Get the bid!
-	bidKey := bidRespKey{slot: uint64(blindedBlock.Message.Slot), blockHash: blindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash.String()}
 	m.bidsLock.Lock()
-	originalBid := m.bids[bidKey]
+	originalBid := m.bids[bidKey(uint64(blindedBlock.Message.Slot), blindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash)]
 	m.bidsLock.Unlock()
 	if originalBid.response.IsEmpty() {
 		log.Error("no bid for this getPayload payload found, was getHeader called before?")
