@@ -17,7 +17,6 @@ import (
 
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
-	builderSpec "github.com/attestantio/go-builder-client/spec"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
 	"github.com/attestantio/go-eth2-client/spec"
@@ -292,12 +291,19 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 
 // handleGetHeader requests bids from the relays
 func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request) {
-	vars := mux.Vars(req)
-	slot := vars["slot"]
-	parentHashHex := vars["parent_hash"]
-	pubkey := vars["pubkey"]
+	var (
+		vars          = mux.Vars(req)
+		parentHashHex = vars["parent_hash"]
+		pubkey        = vars["pubkey"]
+		ua            = UserAgent(req.Header.Get("User-Agent"))
+	)
 
-	ua := UserAgent(req.Header.Get("User-Agent"))
+	slot, err := strconv.ParseUint(vars["slot"], 10, 64)
+	if err != nil {
+		m.respondError(w, http.StatusBadRequest, errInvalidSlot.Error())
+		return
+	}
+
 	log := m.log.WithFields(logrus.Fields{
 		"method":     "getHeader",
 		"slot":       slot,
@@ -307,164 +313,12 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	})
 	log.Debug("getHeader")
 
-	_slot, err := strconv.ParseUint(slot, 10, 64)
+	// Query the relays for the header
+	result, err := m.getHeader(log, ua, slot, pubkey, parentHashHex)
 	if err != nil {
-		m.respondError(w, http.StatusBadRequest, errInvalidSlot.Error())
+		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	if len(pubkey) != 98 {
-		m.respondError(w, http.StatusBadRequest, errInvalidPubkey.Error())
-		return
-	}
-
-	if len(parentHashHex) != 66 {
-		m.respondError(w, http.StatusBadRequest, errInvalidHash.Error())
-		return
-	}
-
-	// Make sure we have a uid for this slot
-	m.slotUIDLock.Lock()
-	if m.slotUID.slot < _slot {
-		m.slotUID.slot = _slot
-		m.slotUID.uid = uuid.New()
-	}
-	slotUID := m.slotUID.uid
-	m.slotUIDLock.Unlock()
-	log = log.WithField("slotUID", slotUID)
-
-	// Log how late into the slot the request starts
-	slotStartTimestamp := m.genesisTime + _slot*config.SlotTimeSec
-	msIntoSlot := uint64(time.Now().UTC().UnixMilli()) - slotStartTimestamp*1000
-	log.WithFields(logrus.Fields{
-		"genesisTime": m.genesisTime,
-		"slotTimeSec": config.SlotTimeSec,
-		"msIntoSlot":  msIntoSlot,
-	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, _slot)
-	// Add request headers
-	headers := map[string]string{
-		HeaderKeySlotUID:      slotUID.String(),
-		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
-	}
-	// Prepare relay responses
-	result := bidResp{}                                 // the final response, containing the highest bid (if any)
-	relays := make(map[BlockHashHex][]types.RelayEntry) // relays that sent the bid for a specific blockHash
-	// Call the relays
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	for _, relay := range m.relays {
-		wg.Add(1)
-		go func(relay types.RelayEntry) {
-			defer wg.Done()
-			path := fmt.Sprintf("/eth/v1/builder/header/%s/%s/%s", slot, parentHashHex, pubkey)
-			url := relay.GetURI(path)
-			log := log.WithField("url", url)
-			responsePayload := new(builderSpec.VersionedSignedBuilderBid)
-			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, ua, headers, nil, responsePayload)
-			if err != nil {
-				log.WithError(err).Warn("error making request to relay")
-				return
-			}
-
-			if code == http.StatusNoContent {
-				log.Debug("no-content response")
-				return
-			}
-
-			// Skip if payload is empty
-			if responsePayload.IsEmpty() {
-				return
-			}
-
-			// Getting the bid info will check if there are missing fields in the response
-			bidInfo, err := parseBidInfo(responsePayload)
-			if err != nil {
-				log.WithError(err).Warn("error parsing bid info")
-				return
-			}
-
-			if bidInfo.blockHash == nilHash {
-				log.Warn("relay responded with empty block hash")
-				return
-			}
-
-			valueEth := weiBigIntToEthBigFloat(bidInfo.value.ToBig())
-			log = log.WithFields(logrus.Fields{
-				"blockNumber": bidInfo.blockNumber,
-				"blockHash":   bidInfo.blockHash.String(),
-				"txRoot":      bidInfo.txRoot.String(),
-				"value":       valueEth.Text('f', 18),
-			})
-
-			if relay.PublicKey.String() != bidInfo.pubkey.String() {
-				log.Errorf("bid pubkey mismatch. expected: %s - got: %s", relay.PublicKey.String(), bidInfo.pubkey.String())
-				return
-			}
-
-			// Verify the relay signature in the relay response
-			if !config.SkipRelaySignatureCheck {
-				ok, err := checkRelaySignature(responsePayload, m.builderSigningDomain, relay.PublicKey)
-				if err != nil {
-					log.WithError(err).Error("error verifying relay signature")
-					return
-				}
-				if !ok {
-					log.Error("failed to verify relay signature")
-					return
-				}
-			}
-
-			// Verify response coherence with proposer's input data
-			if bidInfo.parentHash.String() != parentHashHex {
-				log.WithFields(logrus.Fields{
-					"originalParentHash": parentHashHex,
-					"responseParentHash": bidInfo.parentHash.String(),
-				}).Error("proposer and relay parent hashes are not the same")
-				return
-			}
-
-			isZeroValue := bidInfo.value.IsZero()
-			isEmptyListTxRoot := bidInfo.txRoot.String() == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
-			if isZeroValue || isEmptyListTxRoot {
-				log.Warn("ignoring bid with 0 value")
-				return
-			}
-			log.Debug("bid received")
-
-			// Skip if value (fee) is lower than the minimum bid
-			if bidInfo.value.CmpBig(m.relayMinBid.BigInt()) == -1 {
-				log.Debug("ignoring bid below min-bid value")
-				return
-			}
-
-			mu.Lock()
-			defer mu.Unlock()
-
-			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
-			relays[BlockHashHex(bidInfo.blockHash.String())] = append(relays[BlockHashHex(bidInfo.blockHash.String())], relay)
-
-			// Compare the bid with already known top bid (if any)
-			if !result.response.IsEmpty() {
-				valueDiff := bidInfo.value.Cmp(result.bidInfo.value)
-				if valueDiff == -1 { // current bid is less profitable than already known one
-					return
-				} else if valueDiff == 0 { // current bid is equally profitable as already known one. Use hash as tiebreaker
-					previousBidBlockHash := result.bidInfo.blockHash
-					if bidInfo.blockHash.String() >= previousBidBlockHash.String() {
-						return
-					}
-				}
-			}
-
-			// Use this relay's response as mev-boost response because it's most profitable
-			log.Debug("new best bid")
-			result.response = *responsePayload
-			result.bidInfo = bidInfo
-			result.t = time.Now()
-		}(relay)
-	}
-	// Wait for all requests to complete...
-	wg.Wait()
 
 	if result.response.IsEmpty() {
 		log.Info("no bid received")
@@ -472,9 +326,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	// Remember the bid, for future logging in case of withholding
+	m.bidsLock.Lock()
+	m.bids[bidKey(slot, result.bidInfo.blockHash)] = result
+	m.bidsLock.Unlock()
+
 	// Log result
 	valueEth := weiBigIntToEthBigFloat(result.bidInfo.value.ToBig())
-	result.relays = relays[BlockHashHex(result.bidInfo.blockHash.String())]
 	log.WithFields(logrus.Fields{
 		"blockHash":   result.bidInfo.blockHash.String(),
 		"blockNumber": result.bidInfo.blockNumber,
@@ -482,11 +340,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"value":       valueEth.Text('f', 18),
 		"relays":      strings.Join(types.RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
-
-	// Remember the bid, for future logging in case of withholding
-	m.bidsLock.Lock()
-	m.bids[bidKey(_slot, result.bidInfo.blockHash)] = result
-	m.bidsLock.Unlock()
 
 	// Return the bid
 	m.respondOK(w, &result.response)
