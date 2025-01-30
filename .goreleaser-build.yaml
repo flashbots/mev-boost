@@ -22,3 +22,9 @@ builds:
     goarch:
       - amd64
       - arm64
+      - riscv64
+    ignore:
+      - goos: darwin
+        goarch: riscv64
+      - goos: windows
+        goarch: riscv64
