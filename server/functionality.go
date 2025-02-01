@@ -182,6 +182,33 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, _slot uint64, 
 	return result, nil
 }
 
+type Payload interface {
+	*eth2ApiV1Deneb.SignedBlindedBeaconBlock |
+		*eth2ApiV1Electra.SignedBlindedBeaconBlock
+}
+
+func prepareLogger[P Payload](log *logrus.Entry, payload P, userAgent UserAgent, slotUID string) *logrus.Entry {
+	switch block := any(payload).(type) {
+	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
+		return log.WithFields(logrus.Fields{
+			"ua":         userAgent,
+			"slot":       block.Message.Slot,
+			"blockHash":  block.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
+			"parentHash": block.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
+			"slotUID":    slotUID,
+		})
+	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
+		return log.WithFields(logrus.Fields{
+			"ua":         userAgent,
+			"slot":       block.Message.Slot,
+			"blockHash":  block.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
+			"parentHash": block.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
+			"slotUID":    slotUID,
+		})
+	}
+	return nil
+}
+
 func (m *BoostService) processDenebPayload(log *logrus.Entry, ua UserAgent, blindedBlock *eth2ApiV1Deneb.SignedBlindedBeaconBlock) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
 	// Get the currentSlotUID for this slot
 	currentSlotUID := ""
@@ -194,13 +221,7 @@ func (m *BoostService) processDenebPayload(log *logrus.Entry, ua UserAgent, blin
 	m.slotUIDLock.Unlock()
 
 	// Prepare logger
-	log = log.WithFields(logrus.Fields{
-		"ua":         ua,
-		"slot":       blindedBlock.Message.Slot,
-		"blockHash":  blindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
-		"parentHash": blindedBlock.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
-		"slotUID":    currentSlotUID,
-	})
+	log = prepareLogger[*eth2ApiV1Deneb.SignedBlindedBeaconBlock](log, blindedBlock, ua, currentSlotUID)
 
 	// Log how late into the slot the request starts
 	slotStartTimestamp := m.genesisTime + uint64(blindedBlock.Message.Slot)*config.SlotTimeSec
@@ -330,13 +351,7 @@ func (m *BoostService) processElectraPayload(log *logrus.Entry, ua UserAgent, bl
 	m.slotUIDLock.Unlock()
 
 	// Prepare logger
-	log = log.WithFields(logrus.Fields{
-		"ua":         ua,
-		"slot":       blindedBlock.Message.Slot,
-		"blockHash":  blindedBlock.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
-		"parentHash": blindedBlock.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
-		"slotUID":    currentSlotUID,
-	})
+	log = prepareLogger[*eth2ApiV1Electra.SignedBlindedBeaconBlock](log, blindedBlock, ua, currentSlotUID)
 
 	// Log how late into the slot the request starts
 	slotStartTimestamp := m.genesisTime + uint64(blindedBlock.Message.Slot)*config.SlotTimeSec
