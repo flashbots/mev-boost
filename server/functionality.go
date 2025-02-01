@@ -232,6 +232,14 @@ func blockHash[P Payload](payload P) phase0.Hash32 {
 	return nilHash
 }
 
+var (
+	errInvalidVersion   = errors.New("invalid version")
+	errEmptyPayload     = errors.New("empty payload")
+	errInvalidBlockhash = errors.New("invalid blockhash")
+	errInvalidKZGLength = errors.New("invalid KZG commitments length")
+	errInvalidKZG       = errors.New("invalid KZG commitment")
+)
+
 func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi.VersionedSubmitBlindedBlockResponse) error {
 	// Step 1: verify version
 	switch any(payload).(type) {
@@ -240,21 +248,21 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 			log.WithFields(logrus.Fields{
 				"version": response.Version,
 			}).Error("response version was not deneb")
-			return errors.New("invalid version")
+			return errInvalidVersion
 		}
 	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
 		if response.Version != spec.DataVersionElectra {
 			log.WithFields(logrus.Fields{
 				"version": response.Version,
 			}).Error("response version was not electra")
-			return errors.New("invalid version")
+			return errInvalidVersion
 		}
 	}
 
 	// Step 2: verify payload is not empty
 	if getPayloadResponseIsEmpty(response) {
 		log.Error("response with empty data!")
-		return errors.New("empty payload")
+		return errEmptyPayload
 	}
 
 	// TODO(MariusVanDerWijden): make this generic once
@@ -278,7 +286,7 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 		log.WithFields(logrus.Fields{
 			"responseBlockHash": executionPayload.String(),
 		}).Error("requestBlockHash does not equal responseBlockHash")
-		return errors.New("invalid blockhash")
+		return errInvalidBlockhash
 	}
 
 	// Step 4: Verify KZG commitments
@@ -297,7 +305,7 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 			"responseBlobCommitments": len(blobs.Commitments),
 			"responseBlobProofs":      len(blobs.Proofs),
 		}).Error("block KZG commitment length does not equal responseBlobs length")
-		return errors.New("invalid KZG commitments length")
+		return errInvalidKZGLength
 	}
 
 	for i, commitment := range commitments {
@@ -307,7 +315,7 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 				"responseBlobCommitment": blobs.Commitments[i].String(),
 				"index":                  i,
 			}).Error("requestBlobCommitment does not equal responseBlobCommitment")
-			return errors.New("invalid KZG commitment")
+			return errInvalidKZG
 		}
 	}
 	return nil
@@ -325,7 +333,7 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 	// Get the currentSlotUID for this slot
 	currentSlotUID := ""
 	m.slotUIDLock.Lock()
-	if m.slotUID.slot == uint64(slot) {
+	if m.slotUID.slot == slot {
 		currentSlotUID = m.slotUID.uid.String()
 	} else {
 		log.Warnf("latest slotUID is for slot %d rather than payload slot %d", m.slotUID.slot, slot)
@@ -336,7 +344,7 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 	log = prepareLogger[P](log, blindedBlock, ua, currentSlotUID)
 
 	// Log how late into the slot the request starts
-	slotStartTimestamp := m.genesisTime + uint64(slot)*config.SlotTimeSec
+	slotStartTimestamp := m.genesisTime + slot*config.SlotTimeSec
 	msIntoSlot := uint64(time.Now().UTC().UnixMilli()) - slotStartTimestamp*1000
 	log.WithFields(logrus.Fields{
 		"genesisTime": m.genesisTime,
@@ -346,7 +354,7 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 
 	// Get the bid!
 	m.bidsLock.Lock()
-	originalBid := m.bids[bidKey(uint64(slot), blockHash)]
+	originalBid := m.bids[bidKey(slot, blockHash)]
 	m.bidsLock.Unlock()
 	if originalBid.response.IsEmpty() {
 		log.Error("no bid for this getPayload payload found, was getHeader called before?")
