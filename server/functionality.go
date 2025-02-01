@@ -178,6 +178,9 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 			return err
 		}
 	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
+		if err := verifyBlockhash(log, payload, response.Electra.ExecutionPayload.BlockHash); err != nil {
+			return err
+		}
 		if err := verifyKZGCommitments(log, response.Electra.BlobsBundle, block.Message.Body.BlobKZGCommitments); err != nil {
 			return err
 		}
