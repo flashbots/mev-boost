@@ -344,10 +344,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.respondOK(w, &result.response)
 }
 
-func bidKey(slot uint64, blockHash phase0.Hash32) string {
-	return fmt.Sprintf("%v%v", slot, blockHash)
-}
-
 func (m *BoostService) respondPayload(w http.ResponseWriter, log *logrus.Entry, result *builderApi.VersionedSubmitBlindedBlockResponse, originalBid bidResp) {
 	// If no payload has been received from relay, log loudly about withholding!
 	if result == nil || getPayloadResponseIsEmpty(result) {
@@ -386,11 +382,11 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			return
 		}
 
-		result, originalBid := m.processDenebPayload(log, userAgent, payload)
+		result, originalBid := processPayload[*eth2ApiV1Deneb.SignedBlindedBeaconBlock](m, log, userAgent, payload)
 		m.respondPayload(w, log, result, originalBid)
 		return
 	}
-	result, originalBid := m.processElectraPayload(log, userAgent, payload)
+	result, originalBid := processPayload[*eth2ApiV1Electra.SignedBlindedBeaconBlock](m, log, userAgent, payload)
 	m.respondPayload(w, log, result, originalBid)
 }
 
