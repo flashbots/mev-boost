@@ -18,6 +18,7 @@ import (
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
+	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
 	"github.com/attestantio/go-eth2-client/spec"
@@ -89,6 +90,27 @@ func (be *testBackend) request(t *testing.T, method, path string, payload any) *
 	rr := httptest.NewRecorder()
 	be.boost.getRouter().ServeHTTP(rr, req)
 	return rr
+}
+
+func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *eth2ApiV1Capella.SignedBlindedBeaconBlock) *capella.ExecutionPayload {
+	header := signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader
+	return &capella.ExecutionPayload{
+		ParentHash:    header.ParentHash,
+		FeeRecipient:  header.FeeRecipient,
+		StateRoot:     header.StateRoot,
+		ReceiptsRoot:  header.ReceiptsRoot,
+		LogsBloom:     header.LogsBloom,
+		PrevRandao:    header.PrevRandao,
+		BlockNumber:   header.BlockNumber,
+		GasLimit:      header.GasLimit,
+		GasUsed:       header.GasUsed,
+		Timestamp:     header.Timestamp,
+		ExtraData:     header.ExtraData,
+		BaseFeePerGas: header.BaseFeePerGas,
+		BlockHash:     header.BlockHash,
+		Transactions:  make([]bellatrix.Transaction, 0),
+		Withdrawals:   make([]*capella.Withdrawal, 0),
+	}
 }
 
 func blindedBlockContentsToPayloadDeneb(signedBlindedBlockContents *eth2ApiV1Deneb.SignedBlindedBeaconBlock) *builderApiDeneb.ExecutionPayloadAndBlobsBundle {
@@ -793,6 +815,62 @@ func TestEmptyTxRoot(t *testing.T) {
 	txroot, _ := transactions.HashTreeRoot()
 	txRootHex := fmt.Sprintf("0x%x", txroot)
 	require.Equal(t, "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1", txRootHex)
+}
+
+func TestGetPayloadWithTestdata(t *testing.T) {
+	path := "/eth/v1/builder/blinded_blocks"
+	testPayloadsFiles := []string{
+		"../testdata/signed-blinded-beacon-block-capella.json",
+	}
+	for _, fn := range testPayloadsFiles {
+		t.Run(fn, func(t *testing.T) {
+			jsonFile, err := os.Open(fn)
+			require.NoError(t, err)
+			defer jsonFile.Close()
+			signedBlindedBeaconBlock := new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
+			require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
+			backend := newTestBackend(t, 1, time.Second)
+			mockResp := builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionCapella,
+				Capella: &capella.ExecutionPayload{
+					BlockHash:   signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
+					Withdrawals: make([]*capella.Withdrawal, 0),
+				},
+			}
+			backend.relays[0].GetPayloadResponse = &mockResp
+			rr := backend.request(t, http.MethodPost, path, signedBlindedBeaconBlock)
+			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+			require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+			resp := new(builderApi.VersionedSubmitBlindedBlockResponse)
+			err = json.Unmarshal(rr.Body.Bytes(), resp)
+			require.NoError(t, err)
+			require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Capella.BlockHash)
+		})
+	}
+}
+
+func TestGetPayloadCapella(t *testing.T) {
+	// Load the signed blinded beacon block used for getPayload
+	jsonFile, err := os.Open("../testdata/signed-blinded-beacon-block-capella.json")
+	require.NoError(t, err)
+	defer jsonFile.Close()
+	signedBlindedBeaconBlock := new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
+	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
+	backend := newTestBackend(t, 1, time.Second)
+	// Prepare getPayload response
+	backend.relays[0].GetPayloadResponse = &builderApi.VersionedSubmitBlindedBlockResponse{
+		Version: spec.DataVersionCapella,
+		Capella: blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock),
+	}
+	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
+	getPayloadPath := "/eth/v1/builder/blinded_blocks"
+	rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBeaconBlock)
+	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
+	resp := new(builderApi.VersionedSubmitBlindedBlockResponse)
+	err = json.Unmarshal(rr.Body.Bytes(), resp)
+	require.NoError(t, err)
+	require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Capella.BlockHash)
 }
 
 func TestGetPayloadDeneb(t *testing.T) {

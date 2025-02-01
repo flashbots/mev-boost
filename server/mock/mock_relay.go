@@ -11,6 +11,7 @@ import (
 	"time"
 
 	builderApi "github.com/attestantio/go-builder-client/api"
+	builderApiCapella "github.com/attestantio/go-builder-client/api/capella"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	builderApiElectra "github.com/attestantio/go-builder-client/api/electra"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
@@ -173,6 +174,27 @@ func (m *Relay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.
 // method
 func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string, version spec.DataVersion) *builderSpec.VersionedSignedBuilderBid {
 	switch version {
+	case spec.DataVersionCapella:
+		// Fill the payload with custom values.
+		message := &builderApiCapella.BuilderBid{
+			Header: &capella.ExecutionPayloadHeader{
+				BlockHash:       HexToHash(blockHash),
+				ParentHash:      HexToHash(parentHash),
+				WithdrawalsRoot: phase0.Root{},
+			},
+			Value:  uint256.NewInt(value),
+			Pubkey: HexToPubkey(publicKey),
+		}
+		// Sign the message.
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
+		require.NoError(m.t, err)
+		return &builderSpec.VersionedSignedBuilderBid{
+			Version: spec.DataVersionCapella,
+			Capella: &builderApiCapella.SignedBuilderBid{
+				Message:   message,
+				Signature: signature,
+			},
+		}
 	case spec.DataVersionDeneb:
 		message := &builderApiDeneb.BuilderBid{
 			Header: &deneb.ExecutionPayloadHeader{
@@ -222,7 +244,7 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 				Signature: signature,
 			},
 		}
-	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix, spec.DataVersionCapella:
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix:
 		return nil
 	}
 	return nil

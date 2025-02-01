@@ -17,6 +17,7 @@ import (
 
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
+	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -369,25 +370,54 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// Read user agent for logging
 	userAgent := UserAgent(req.Header.Get("User-Agent"))
 
-	// Decode the body now
-	payload := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
-	log.Debug("attempting to decode body into Electra payload")
-	if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-		log.Debug("could not decode Electra request payload, attempting to decode body into Deneb payload")
-		payload := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
-		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-			log.Debug("could not decode Deneb request payload")
-			log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
-			m.respondError(w, http.StatusBadRequest, err.Error())
-			return
-		}
+	// New forks need to be added at the front of this array.
+	// The ordering of the array conveys precedence of the decoders.
+	//nolint: forcetypeassert
+	decoders := []struct {
+		fork      string
+		payload   any
+		processor func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp)
+	}{
+		{
+			fork:    "Electra",
+			payload: new(eth2ApiV1Electra.SignedBlindedBeaconBlock),
+			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+				return processPayload[*eth2ApiV1Electra.SignedBlindedBeaconBlock](m, log, userAgent, payload.(*eth2ApiV1Electra.SignedBlindedBeaconBlock))
+			},
+		},
+		{
+			fork:    "Deneb",
+			payload: new(eth2ApiV1Deneb.SignedBlindedBeaconBlock),
+			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+				return processPayload[*eth2ApiV1Deneb.SignedBlindedBeaconBlock](m, log, userAgent, payload.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock))
+			},
+		},
+		{
+			fork:    "Capella",
+			payload: new(eth2ApiV1Capella.SignedBlindedBeaconBlock),
+			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+				return processPayload[*eth2ApiV1Capella.SignedBlindedBeaconBlock](m, log, userAgent, payload.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
+			},
+		},
+	}
 
-		result, originalBid := processPayload[*eth2ApiV1Deneb.SignedBlindedBeaconBlock](m, log, userAgent, payload)
+	// Decode the body now
+	for _, decoder := range decoders {
+		payload := decoder.payload
+		// decode
+		log.Debugf("attempting to decode body into %v payload", decoder.fork)
+		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
+			log.Debugf("could not decode %v request payload", decoder.fork)
+			continue
+		}
+		// process
+		result, originalBid := decoder.processor(payload)
 		m.respondPayload(w, log, result, originalBid)
 		return
 	}
-	result, originalBid := processPayload[*eth2ApiV1Electra.SignedBlindedBeaconBlock](m, log, userAgent, payload)
-	m.respondPayload(w, log, result, originalBid)
+	// no decoder was able to decode the body, log error
+	log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
+	m.respondError(w, http.StatusBadRequest, "could not decode body")
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status
