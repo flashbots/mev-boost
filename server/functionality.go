@@ -41,8 +41,8 @@ var (
 
 func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent, blindedBlock P) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
 	var (
-		slot      = slot[P](blindedBlock)
-		blockHash = blockHash[P](blindedBlock)
+		slot      = slot(blindedBlock)
+		blockHash = blockHash(blindedBlock)
 	)
 	// Get the currentSlotUID for this slot
 	currentSlotUID := ""
@@ -55,7 +55,7 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 	m.slotUIDLock.Unlock()
 
 	// Prepare logger
-	log = prepareLogger[P](log, blindedBlock, ua, currentSlotUID)
+	log = prepareLogger(log, blindedBlock, ua, currentSlotUID)
 
 	// Log how late into the slot the request starts
 	slotStartTimestamp := m.genesisTime + slot*config.SlotTimeSec
@@ -112,7 +112,7 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 				return
 			}
 
-			if err := verifyPayload[P](blindedBlock, log, responsePayload); err != nil {
+			if err := verifyPayload(blindedBlock, log, responsePayload); err != nil {
 				return
 			}
 
@@ -167,11 +167,11 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 	// Step 3: verify post-conditions
 	switch block := any(payload).(type) {
 	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
-		if err := verifyBlockhash[P](log, payload, response.Capella.BlockHash); err != nil {
+		if err := verifyBlockhash(log, payload, response.Capella.BlockHash); err != nil {
 			return err
 		}
 	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
-		if err := verifyBlockhash[P](log, payload, response.Deneb.ExecutionPayload.BlockHash); err != nil {
+		if err := verifyBlockhash(log, payload, response.Deneb.ExecutionPayload.BlockHash); err != nil {
 			return err
 		}
 		if err := verifyKZGCommitments(log, response.Deneb.BlobsBundle, block.Message.Body.BlobKZGCommitments); err != nil {
@@ -186,7 +186,7 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 }
 
 func verifyBlockhash[P Payload](log *logrus.Entry, payload P, executionPayloadHash phase0.Hash32) error {
-	if blockHash[P](payload) != executionPayloadHash {
+	if blockHash(payload) != executionPayloadHash {
 		log.WithFields(logrus.Fields{
 			"responseBlockHash": executionPayloadHash.String(),
 		}).Error("requestBlockHash does not equal responseBlockHash")
