@@ -169,7 +169,7 @@ func TestGetPayloadResponseIsEmpty(t *testing.T) {
 		{
 			name: "Unsupported payload version",
 			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
-				Version: spec.DataVersionBellatrix,
+				Version: spec.DataVersionAltair,
 			},
 			expected: true,
 		},
