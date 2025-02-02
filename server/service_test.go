@@ -30,6 +30,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2UtilBellatrix "github.com/attestantio/go-eth2-client/util/bellatrix"
 	"github.com/flashbots/mev-boost/server/mock"
+	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/holiman/uint256"
 	"github.com/prysmaticlabs/go-bitfield"
@@ -562,8 +563,7 @@ func TestGetHeaderBids(t *testing.T) {
 }
 
 func TestGetPayload(t *testing.T) {
-	path := "/eth/v1/builder/blinded_blocks"
-
+	path := params.PathGetPayload
 	blockHash := mock.HexToHash("0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46")
 	payload := &eth2ApiV1Deneb.SignedBlindedBeaconBlock{
 		Signature: mock.HexToSignature(
@@ -891,10 +891,9 @@ func TestGetPayloadForks(t *testing.T) {
 			// Prepare getPayload response
 			backend.relays[0].GetPayloadResponse = tt.getResponse(signedBlindedBeaconBlock)
 			// call getPayload, ensure it's only called on relay 0 (origin of the bid)
-			getPayloadPath := "/eth/v1/builder/blinded_blocks"
-			rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBeaconBlock)
+			rr := backend.request(t, http.MethodPost, params.PathGetPayload, signedBlindedBeaconBlock)
 			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
-			require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
+			require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayload))
 			resp := new(builderApi.VersionedSubmitBlindedBlockResponse)
 			err = json.Unmarshal(rr.Body.Bytes(), resp)
 			require.NoError(t, err)
@@ -933,9 +932,8 @@ func TestGetPayloadToAllRelays(t *testing.T) {
 	backend.relays[0].GetPayloadResponse = blindBlockToBlockResponse(signedBlindedBeaconBlock)
 
 	// call getPayload, ensure it's called to all relays
-	getPayloadPath := "/eth/v1/builder/blinded_blocks"
-	rr = backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBeaconBlock)
+	rr = backend.request(t, http.MethodPost, params.PathGetPayload, signedBlindedBeaconBlock)
 	require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
-	require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
-	require.Equal(t, 1, backend.relays[1].GetRequestCount(getPayloadPath))
+	require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayload))
+	require.Equal(t, 1, backend.relays[1].GetRequestCount(params.PathGetPayload))
 }
