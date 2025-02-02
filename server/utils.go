@@ -211,15 +211,14 @@ func parseBidInfo(bid *builderSpec.VersionedSignedBuilderBid) (bidInfo, error) {
 	if err != nil {
 		return bidInfo{}, err
 	}
-	bidInfo := bidInfo{
+	return bidInfo{
 		blockHash:   blockHash,
 		parentHash:  parentHash,
 		pubkey:      pubkey,
 		blockNumber: blockNumber,
 		txRoot:      txRoot,
 		value:       value,
-	}
-	return bidInfo, nil
+	}, nil
 }
 
 func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phase0.Domain, pubKey phase0.BLSPubKey) (bool, error) {
