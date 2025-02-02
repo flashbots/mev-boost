@@ -383,28 +383,28 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			fork:    "Electra",
 			payload: new(eth2ApiV1Electra.SignedBlindedBeaconBlock),
 			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
-				return processPayload[*eth2ApiV1Electra.SignedBlindedBeaconBlock](m, log, userAgent, payload.(*eth2ApiV1Electra.SignedBlindedBeaconBlock))
+				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Electra.SignedBlindedBeaconBlock))
 			},
 		},
 		{
 			fork:    "Deneb",
 			payload: new(eth2ApiV1Deneb.SignedBlindedBeaconBlock),
 			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
-				return processPayload[*eth2ApiV1Deneb.SignedBlindedBeaconBlock](m, log, userAgent, payload.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock))
+				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock))
 			},
 		},
 		{
 			fork:    "Capella",
 			payload: new(eth2ApiV1Capella.SignedBlindedBeaconBlock),
 			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
-				return processPayload[*eth2ApiV1Capella.SignedBlindedBeaconBlock](m, log, userAgent, payload.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
+				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
 			},
 		},
 		{
 			fork:    "Bellatrix",
 			payload: new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock),
 			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
-				return processPayload[*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock](m, log, userAgent, payload.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock))
+				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock))
 			},
 		},
 	}
