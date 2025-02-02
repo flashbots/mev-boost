@@ -242,6 +242,10 @@ func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phas
 
 func getPayloadResponseIsEmpty(payload *builderApi.VersionedSubmitBlindedBlockResponse) bool {
 	switch payload.Version {
+	case spec.DataVersionBellatrix:
+		if payload.Bellatrix == nil || payload.Bellatrix.BlockHash == nilHash {
+			return true
+		}
 	case spec.DataVersionCapella:
 		if payload.Capella == nil || payload.Capella.BlockHash == nilHash {
 			return true
@@ -258,7 +262,7 @@ func getPayloadResponseIsEmpty(payload *builderApi.VersionedSubmitBlindedBlockRe
 			payload.Electra.BlobsBundle == nil {
 			return true
 		}
-	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix:
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
 		return true
 	}
 	return false

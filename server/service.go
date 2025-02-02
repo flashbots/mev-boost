@@ -17,6 +17,7 @@ import (
 
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
+	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
@@ -397,6 +398,13 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 			payload: new(eth2ApiV1Capella.SignedBlindedBeaconBlock),
 			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
 				return processPayload[*eth2ApiV1Capella.SignedBlindedBeaconBlock](m, log, userAgent, payload.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
+			},
+		},
+		{
+			fork:    "Bellatrix",
+			payload: new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock),
+			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+				return processPayload[*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock](m, log, userAgent, payload.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock))
 			},
 		},
 	}

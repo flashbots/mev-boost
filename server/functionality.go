@@ -12,6 +12,7 @@ import (
 	builderApi "github.com/attestantio/go-builder-client/api"
 	denebApi "github.com/attestantio/go-builder-client/api/deneb"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
+	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
@@ -26,7 +27,8 @@ import (
 )
 
 type Payload interface {
-	*eth2ApiV1Capella.SignedBlindedBeaconBlock |
+	*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock |
+		*eth2ApiV1Capella.SignedBlindedBeaconBlock |
 		*eth2ApiV1Deneb.SignedBlindedBeaconBlock |
 		*eth2ApiV1Electra.SignedBlindedBeaconBlock
 }
@@ -135,6 +137,13 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi.VersionedSubmitBlindedBlockResponse) error {
 	// Step 1: verify version
 	switch any(payload).(type) {
+	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
+		if response.Version != spec.DataVersionBellatrix {
+			log.WithFields(logrus.Fields{
+				"version": response.Version,
+			}).Error("response version was not bellatrix")
+			return errInvalidVersion
+		}
 	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
 		if response.Version != spec.DataVersionCapella {
 			log.WithFields(logrus.Fields{
@@ -166,6 +175,10 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 
 	// Step 3: verify post-conditions
 	switch block := any(payload).(type) {
+	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
+		if err := verifyBlockhash(log, payload, response.Bellatrix.BlockHash); err != nil {
+			return err
+		}
 	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
 		if err := verifyBlockhash(log, payload, response.Capella.BlockHash); err != nil {
 			return err
@@ -225,6 +238,14 @@ func verifyKZGCommitments(log *logrus.Entry, blobs *denebApi.BlobsBundle, commit
 
 func prepareLogger[P Payload](log *logrus.Entry, payload P, userAgent UserAgent, slotUID string) *logrus.Entry {
 	switch block := any(payload).(type) {
+	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
+		return log.WithFields(logrus.Fields{
+			"ua":         userAgent,
+			"slot":       block.Message.Slot,
+			"blockHash":  block.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
+			"parentHash": block.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
+			"slotUID":    slotUID,
+		})
 	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
 		return log.WithFields(logrus.Fields{
 			"ua":         userAgent,
@@ -255,6 +276,8 @@ func prepareLogger[P Payload](log *logrus.Entry, payload P, userAgent UserAgent,
 
 func slot[P Payload](payload P) uint64 {
 	switch block := any(payload).(type) {
+	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
+		return uint64(block.Message.Slot)
 	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
 		return uint64(block.Message.Slot)
 	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
@@ -267,6 +290,8 @@ func slot[P Payload](payload P) uint64 {
 
 func blockHash[P Payload](payload P) phase0.Hash32 {
 	switch block := any(payload).(type) {
+	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
+		return block.Message.Body.ExecutionPayloadHeader.BlockHash
 	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
 		return block.Message.Body.ExecutionPayloadHeader.BlockHash
 	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
