@@ -857,6 +857,7 @@ func denebHeader(header *deneb.ExecutionPayloadHeader, kzgCommitments []deneb.KZ
 }
 
 func TestGetPayloadForks(t *testing.T) {
+	//nolint: forcetypeassert,thelper
 	tests := []struct {
 		fork              string
 		signedBeaconBlock any
