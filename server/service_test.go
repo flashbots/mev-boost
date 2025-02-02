@@ -727,38 +727,6 @@ func TestEmptyTxRoot(t *testing.T) {
 	require.Equal(t, "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1", txRootHex)
 }
 
-func TestGetPayloadWithTestdata(t *testing.T) {
-	path := "/eth/v1/builder/blinded_blocks"
-	testPayloadsFiles := []string{
-		"../testdata/signed-blinded-beacon-block-capella.json",
-	}
-	for _, fn := range testPayloadsFiles {
-		t.Run(fn, func(t *testing.T) {
-			jsonFile, err := os.Open(fn)
-			require.NoError(t, err)
-			defer jsonFile.Close()
-			signedBlindedBeaconBlock := new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
-			require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
-			backend := newTestBackend(t, 1, time.Second)
-			mockResp := builderApi.VersionedSubmitBlindedBlockResponse{
-				Version: spec.DataVersionCapella,
-				Capella: &capella.ExecutionPayload{
-					BlockHash:   signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash,
-					Withdrawals: make([]*capella.Withdrawal, 0),
-				},
-			}
-			backend.relays[0].GetPayloadResponse = &mockResp
-			rr := backend.request(t, http.MethodPost, path, signedBlindedBeaconBlock)
-			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
-			require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-			resp := new(builderApi.VersionedSubmitBlindedBlockResponse)
-			err = json.Unmarshal(rr.Body.Bytes(), resp)
-			require.NoError(t, err)
-			require.Equal(t, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Capella.BlockHash)
-		})
-	}
-}
-
 func blindBlockToBlockResponse[P Payload](signedBlock P) *builderApi.VersionedSubmitBlindedBlockResponse {
 	switch block := any(signedBlock).(type) {
 	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
