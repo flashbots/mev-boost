@@ -93,117 +93,6 @@ func (be *testBackend) request(t *testing.T, method, path string, payload any) *
 	return rr
 }
 
-func blindedBlockToExecutionPayloadBellatrix(signedBlindedBeaconBlock *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock) *bellatrix.ExecutionPayload {
-	header := signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader
-	return &bellatrix.ExecutionPayload{
-		ParentHash:    header.ParentHash,
-		FeeRecipient:  header.FeeRecipient,
-		StateRoot:     header.StateRoot,
-		ReceiptsRoot:  header.ReceiptsRoot,
-		LogsBloom:     header.LogsBloom,
-		PrevRandao:    header.PrevRandao,
-		BlockNumber:   header.BlockNumber,
-		GasLimit:      header.GasLimit,
-		GasUsed:       header.GasUsed,
-		Timestamp:     header.Timestamp,
-		ExtraData:     header.ExtraData,
-		BaseFeePerGas: header.BaseFeePerGas,
-		BlockHash:     header.BlockHash,
-		Transactions:  make([]bellatrix.Transaction, 0),
-	}
-}
-
-func blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock *eth2ApiV1Capella.SignedBlindedBeaconBlock) *capella.ExecutionPayload {
-	header := signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader
-	return &capella.ExecutionPayload{
-		ParentHash:    header.ParentHash,
-		FeeRecipient:  header.FeeRecipient,
-		StateRoot:     header.StateRoot,
-		ReceiptsRoot:  header.ReceiptsRoot,
-		LogsBloom:     header.LogsBloom,
-		PrevRandao:    header.PrevRandao,
-		BlockNumber:   header.BlockNumber,
-		GasLimit:      header.GasLimit,
-		GasUsed:       header.GasUsed,
-		Timestamp:     header.Timestamp,
-		ExtraData:     header.ExtraData,
-		BaseFeePerGas: header.BaseFeePerGas,
-		BlockHash:     header.BlockHash,
-		Transactions:  make([]bellatrix.Transaction, 0),
-		Withdrawals:   make([]*capella.Withdrawal, 0),
-	}
-}
-
-func blindedBlockContentsToPayloadDeneb(signedBlindedBlockContents *eth2ApiV1Deneb.SignedBlindedBeaconBlock) *builderApiDeneb.ExecutionPayloadAndBlobsBundle {
-	header := signedBlindedBlockContents.Message.Body.ExecutionPayloadHeader
-	numBlobs := len(signedBlindedBlockContents.Message.Body.BlobKZGCommitments)
-	commitments := make([]deneb.KZGCommitment, numBlobs)
-	copy(commitments, signedBlindedBlockContents.Message.Body.BlobKZGCommitments)
-	proofs := make([]deneb.KZGProof, numBlobs)
-	blobs := make([]deneb.Blob, numBlobs)
-	return &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
-		ExecutionPayload: &deneb.ExecutionPayload{
-			ParentHash:    header.ParentHash,
-			FeeRecipient:  header.FeeRecipient,
-			StateRoot:     header.StateRoot,
-			ReceiptsRoot:  header.ReceiptsRoot,
-			LogsBloom:     header.LogsBloom,
-			PrevRandao:    header.PrevRandao,
-			BlockNumber:   header.BlockNumber,
-			GasLimit:      header.GasLimit,
-			GasUsed:       header.GasUsed,
-			Timestamp:     header.Timestamp,
-			ExtraData:     header.ExtraData,
-			BaseFeePerGas: header.BaseFeePerGas,
-			BlockHash:     header.BlockHash,
-			Transactions:  make([]bellatrix.Transaction, 0),
-			Withdrawals:   make([]*capella.Withdrawal, 0),
-			BlobGasUsed:   header.BlobGasUsed,
-			ExcessBlobGas: header.ExcessBlobGas,
-		},
-		BlobsBundle: &builderApiDeneb.BlobsBundle{
-			Commitments: commitments,
-			Proofs:      proofs,
-			Blobs:       blobs,
-		},
-	}
-}
-
-func blindedBlockContentsToPayloadElectra(signedBlindedBlockContents *eth2ApiV1Electra.SignedBlindedBeaconBlock) *builderApiDeneb.ExecutionPayloadAndBlobsBundle {
-	header := signedBlindedBlockContents.Message.Body.ExecutionPayloadHeader
-	numBlobs := len(signedBlindedBlockContents.Message.Body.BlobKZGCommitments)
-	commitments := make([]deneb.KZGCommitment, numBlobs)
-	copy(commitments, signedBlindedBlockContents.Message.Body.BlobKZGCommitments)
-	proofs := make([]deneb.KZGProof, numBlobs)
-	blobs := make([]deneb.Blob, numBlobs)
-	return &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
-		ExecutionPayload: &deneb.ExecutionPayload{
-			ParentHash:    header.ParentHash,
-			FeeRecipient:  header.FeeRecipient,
-			StateRoot:     header.StateRoot,
-			ReceiptsRoot:  header.ReceiptsRoot,
-			LogsBloom:     header.LogsBloom,
-			PrevRandao:    header.PrevRandao,
-			BlockNumber:   header.BlockNumber,
-			GasLimit:      header.GasLimit,
-			GasUsed:       header.GasUsed,
-			Timestamp:     header.Timestamp,
-			ExtraData:     header.ExtraData,
-			BaseFeePerGas: header.BaseFeePerGas,
-			BlockHash:     header.BlockHash,
-			Transactions:  make([]bellatrix.Transaction, 0),
-			Withdrawals:   make([]*capella.Withdrawal, 0),
-			BlobGasUsed:   header.BlobGasUsed,
-			ExcessBlobGas: header.ExcessBlobGas,
-		},
-		BlobsBundle: &builderApiDeneb.BlobsBundle{
-			Commitments: commitments,
-			Proofs:      proofs,
-			Blobs:       blobs,
-		},
-	}
-}
-
 func TestNewBoostServiceErrors(t *testing.T) {
 	t.Run("errors when no relays", func(t *testing.T) {
 		_, err := NewBoostService(BoostServiceOpts{
@@ -870,6 +759,182 @@ func TestGetPayloadWithTestdata(t *testing.T) {
 	}
 }
 
+func blindBlockToBlockResponse[P Payload](signedBlock P) *builderApi.VersionedSubmitBlindedBlockResponse {
+	switch block := any(signedBlock).(type) {
+	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
+		header := block.Message.Body.ExecutionPayloadHeader
+		return &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionBellatrix,
+			Bellatrix: &bellatrix.ExecutionPayload{
+				ParentHash:    header.ParentHash,
+				FeeRecipient:  header.FeeRecipient,
+				StateRoot:     header.StateRoot,
+				ReceiptsRoot:  header.ReceiptsRoot,
+				LogsBloom:     header.LogsBloom,
+				PrevRandao:    header.PrevRandao,
+				BlockNumber:   header.BlockNumber,
+				GasLimit:      header.GasLimit,
+				GasUsed:       header.GasUsed,
+				Timestamp:     header.Timestamp,
+				ExtraData:     header.ExtraData,
+				BaseFeePerGas: header.BaseFeePerGas,
+				BlockHash:     header.BlockHash,
+				Transactions:  make([]bellatrix.Transaction, 0),
+			},
+		}
+	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
+		header := block.Message.Body.ExecutionPayloadHeader
+		return &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionCapella,
+			Capella: &capella.ExecutionPayload{
+				ParentHash:    header.ParentHash,
+				FeeRecipient:  header.FeeRecipient,
+				StateRoot:     header.StateRoot,
+				ReceiptsRoot:  header.ReceiptsRoot,
+				LogsBloom:     header.LogsBloom,
+				PrevRandao:    header.PrevRandao,
+				BlockNumber:   header.BlockNumber,
+				GasLimit:      header.GasLimit,
+				GasUsed:       header.GasUsed,
+				Timestamp:     header.Timestamp,
+				ExtraData:     header.ExtraData,
+				BaseFeePerGas: header.BaseFeePerGas,
+				BlockHash:     header.BlockHash,
+				Transactions:  make([]bellatrix.Transaction, 0),
+				Withdrawals:   make([]*capella.Withdrawal, 0),
+			},
+		}
+	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
+		header := block.Message.Body.ExecutionPayloadHeader
+		commitments := block.Message.Body.BlobKZGCommitments
+		return &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionDeneb,
+			Deneb:   denebHeader(header, commitments),
+		}
+	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
+		header := block.Message.Body.ExecutionPayloadHeader
+		commitments := block.Message.Body.BlobKZGCommitments
+		return &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionElectra,
+			Electra: denebHeader(header, commitments),
+		}
+	}
+	return nil
+}
+
+func denebHeader(header *deneb.ExecutionPayloadHeader, kzgCommitments []deneb.KZGCommitment) *builderApiDeneb.ExecutionPayloadAndBlobsBundle {
+	numBlobs := len(kzgCommitments)
+	commitments := make([]deneb.KZGCommitment, numBlobs)
+	copy(commitments, kzgCommitments)
+	proofs := make([]deneb.KZGProof, numBlobs)
+	blobs := make([]deneb.Blob, numBlobs)
+	return &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+		ExecutionPayload: &deneb.ExecutionPayload{
+			ParentHash:    header.ParentHash,
+			FeeRecipient:  header.FeeRecipient,
+			StateRoot:     header.StateRoot,
+			ReceiptsRoot:  header.ReceiptsRoot,
+			LogsBloom:     header.LogsBloom,
+			PrevRandao:    header.PrevRandao,
+			BlockNumber:   header.BlockNumber,
+			GasLimit:      header.GasLimit,
+			GasUsed:       header.GasUsed,
+			Timestamp:     header.Timestamp,
+			ExtraData:     header.ExtraData,
+			BaseFeePerGas: header.BaseFeePerGas,
+			BlockHash:     header.BlockHash,
+			Transactions:  make([]bellatrix.Transaction, 0),
+			Withdrawals:   make([]*capella.Withdrawal, 0),
+			BlobGasUsed:   header.BlobGasUsed,
+			ExcessBlobGas: header.ExcessBlobGas,
+		},
+		BlobsBundle: &builderApiDeneb.BlobsBundle{
+			Commitments: commitments,
+			Proofs:      proofs,
+			Blobs:       blobs,
+		},
+	}
+}
+
+func TestGetPayloadForks(t *testing.T) {
+	tests := []struct {
+		fork              string
+		signedBeaconBlock any
+		getResponse       func(payload any) *builderApi.VersionedSubmitBlindedBlockResponse
+		verifyPostState   func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse)
+	}{
+		{
+			fork:              "bellatrix",
+			signedBeaconBlock: new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock),
+			getResponse: func(payload any) *builderApi.VersionedSubmitBlindedBlockResponse {
+				return blindBlockToBlockResponse(payload.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock))
+			},
+			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
+				hash := blockHash(block.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock))
+				require.Equal(t, hash, resp.Bellatrix.BlockHash)
+			},
+		},
+		{
+			fork:              "capella",
+			signedBeaconBlock: new(eth2ApiV1Capella.SignedBlindedBeaconBlock),
+			getResponse: func(payload any) *builderApi.VersionedSubmitBlindedBlockResponse {
+				return blindBlockToBlockResponse(payload.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
+			},
+			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
+				hash := blockHash(block.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
+				require.Equal(t, hash, resp.Capella.BlockHash)
+			},
+		},
+		{
+			fork:              "deneb",
+			signedBeaconBlock: new(eth2ApiV1Deneb.SignedBlindedBeaconBlock),
+			getResponse: func(payload any) *builderApi.VersionedSubmitBlindedBlockResponse {
+				return blindBlockToBlockResponse(payload.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock))
+			},
+			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
+				hash := blockHash(block.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock))
+				require.Equal(t, hash, resp.Deneb.ExecutionPayload.BlockHash)
+			},
+		},
+		{
+			fork:              "electra",
+			signedBeaconBlock: new(eth2ApiV1Electra.SignedBlindedBeaconBlock),
+			getResponse: func(payload any) *builderApi.VersionedSubmitBlindedBlockResponse {
+				return blindBlockToBlockResponse(payload.(*eth2ApiV1Electra.SignedBlindedBeaconBlock))
+			},
+			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
+				hash := blockHash(block.(*eth2ApiV1Electra.SignedBlindedBeaconBlock))
+				require.Equal(t, hash, resp.Electra.ExecutionPayload.BlockHash)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%v/%v", t.Name(), tt.fork), func(t *testing.T) {
+			// Load the signed blinded beacon block used for getPayload
+			path := fmt.Sprintf("../testdata/signed-blinded-beacon-block-%v.json", tt.fork)
+			jsonFile, err := os.Open(path)
+			require.NoError(t, err)
+			defer jsonFile.Close()
+			signedBlindedBeaconBlock := tt.signedBeaconBlock
+			require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
+			backend := newTestBackend(t, 1, time.Second)
+			// Prepare getPayload response
+			backend.relays[0].GetPayloadResponse = tt.getResponse(signedBlindedBeaconBlock)
+			// call getPayload, ensure it's only called on relay 0 (origin of the bid)
+			getPayloadPath := "/eth/v1/builder/blinded_blocks"
+			rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBeaconBlock)
+			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+			require.Equal(t, 1, backend.relays[0].GetRequestCount(getPayloadPath))
+			resp := new(builderApi.VersionedSubmitBlindedBlockResponse)
+			err = json.Unmarshal(rr.Body.Bytes(), resp)
+			require.NoError(t, err)
+			// verify post state
+			tt.verifyPostState(t, signedBlindedBeaconBlock, resp)
+		})
+	}
+}
+
 func TestGetPayloadBellatrix(t *testing.T) {
 	// Load the signed blinded beacon block used for getPayload
 	jsonFile, err := os.Open("../testdata/signed-blinded-beacon-block-bellatrix.json")
@@ -879,10 +944,7 @@ func TestGetPayloadBellatrix(t *testing.T) {
 	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
 	backend := newTestBackend(t, 1, time.Second)
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = &builderApi.VersionedSubmitBlindedBlockResponse{
-		Version:   spec.DataVersionBellatrix,
-		Bellatrix: blindedBlockToExecutionPayloadBellatrix(signedBlindedBeaconBlock),
-	}
+	backend.relays[0].GetPayloadResponse = blindBlockToBlockResponse(signedBlindedBeaconBlock)
 	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
 	getPayloadPath := "/eth/v1/builder/blinded_blocks"
 	rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBeaconBlock)
@@ -903,10 +965,7 @@ func TestGetPayloadCapella(t *testing.T) {
 	require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
 	backend := newTestBackend(t, 1, time.Second)
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = &builderApi.VersionedSubmitBlindedBlockResponse{
-		Version: spec.DataVersionCapella,
-		Capella: blindedBlockToExecutionPayloadCapella(signedBlindedBeaconBlock),
-	}
+	backend.relays[0].GetPayloadResponse = blindBlockToBlockResponse(signedBlindedBeaconBlock)
 	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
 	getPayloadPath := "/eth/v1/builder/blinded_blocks"
 	rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBeaconBlock)
@@ -929,11 +988,7 @@ func TestGetPayloadDeneb(t *testing.T) {
 	backend := newTestBackend(t, 1, time.Second)
 
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = &builderApi.VersionedSubmitBlindedBlockResponse{
-		Version: spec.DataVersionDeneb,
-		Deneb:   blindedBlockContentsToPayloadDeneb(signedBlindedBlock),
-	}
-
+	backend.relays[0].GetPayloadResponse = blindBlockToBlockResponse(signedBlindedBlock)
 	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
 	getPayloadPath := "/eth/v1/builder/blinded_blocks"
 	rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBlock)
@@ -957,11 +1012,7 @@ func TestGetPayloadElectra(t *testing.T) {
 	backend := newTestBackend(t, 1, time.Second)
 
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = &builderApi.VersionedSubmitBlindedBlockResponse{
-		Version: spec.DataVersionElectra,
-		Electra: blindedBlockContentsToPayloadElectra(signedBlindedBlock),
-	}
-
+	backend.relays[0].GetPayloadResponse = blindBlockToBlockResponse(signedBlindedBlock)
 	// call getPayload, ensure it's only called on relay 0 (origin of the bid)
 	getPayloadPath := "/eth/v1/builder/blinded_blocks"
 	rr := backend.request(t, http.MethodPost, getPayloadPath, signedBlindedBlock)
@@ -1000,10 +1051,7 @@ func TestGetPayloadToAllRelays(t *testing.T) {
 	require.Equal(t, 1, backend.relays[1].GetRequestCount(getHeaderPath))
 
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = &builderApi.VersionedSubmitBlindedBlockResponse{
-		Version: spec.DataVersionDeneb,
-		Deneb:   blindedBlockContentsToPayloadDeneb(signedBlindedBeaconBlock),
-	}
+	backend.relays[0].GetPayloadResponse = blindBlockToBlockResponse(signedBlindedBeaconBlock)
 
 	// call getPayload, ensure it's called to all relays
 	getPayloadPath := "/eth/v1/builder/blinded_blocks"
