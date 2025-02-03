@@ -219,16 +219,16 @@ func verifyKZGCommitments(log *logrus.Entry, blobs *denebApi.BlobsBundle, commit
 			"responseBlobs":           len(blobs.Blobs),
 			"responseBlobCommitments": len(blobs.Commitments),
 			"responseBlobProofs":      len(blobs.Proofs),
-		}).Error("block KZG commitment length does not equal responseBlobs length")
+		}).Error("different lengths for blobs/commitments/proofs")
 		return errInvalidKZGLength
 	}
 
 	for i, commitment := range commitments {
 		if commitment != blobs.Commitments[i] {
 			log.WithFields(logrus.Fields{
+				"index":                  i,
 				"requestBlobCommitment":  commitment.String(),
 				"responseBlobCommitment": blobs.Commitments[i].String(),
-				"index":                  i,
 			}).Error("requestBlobCommitment does not equal responseBlobCommitment")
 			return errInvalidKZG
 		}
