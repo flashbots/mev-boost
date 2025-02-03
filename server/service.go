@@ -240,7 +240,7 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-// handleRegisterValidator - returns 200 if at least one relay returns 200, else 502
+// handleRegisterValidator returns StatusOK if at least one relay returns StatusOK, else StatusBadGateway
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "registerValidator")
 	log.Debug("registerValidator")
@@ -347,6 +347,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.respondOK(w, &result.response)
 }
 
+// respondPayload responds to the proposer with the payload
 func (m *BoostService) respondPayload(w http.ResponseWriter, log *logrus.Entry, result *builderApi.VersionedSubmitBlindedBlockResponse, originalBid bidResp) {
 	// If no payload has been received from relay, log loudly about withholding!
 	if result == nil || getPayloadResponseIsEmpty(result) {
@@ -358,6 +359,7 @@ func (m *BoostService) respondPayload(w http.ResponseWriter, log *logrus.Entry, 
 	m.respondOK(w, result)
 }
 
+// handleGetPayload requests the payload from the relays
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "getPayload")
 	log.Debug("getPayload request starts")
@@ -369,42 +371,46 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
 	// Read user agent for logging
 	userAgent := UserAgent(req.Header.Get("User-Agent"))
 
 	// New forks need to be added at the front of this array.
 	// The ordering of the array conveys precedence of the decoders.
-	//nolint: forcetypeassert
 	decoders := []struct {
 		fork      string
 		payload   any
 		processor func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp)
 	}{
 		{
-			fork:    "Electra",
+			fork:    "electra",
 			payload: new(eth2ApiV1Electra.SignedBlindedBeaconBlock),
 			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+				//nolint: forcetypeassert
 				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Electra.SignedBlindedBeaconBlock))
 			},
 		},
 		{
-			fork:    "Deneb",
+			fork:    "deneb",
 			payload: new(eth2ApiV1Deneb.SignedBlindedBeaconBlock),
 			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+				//nolint: forcetypeassert
 				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock))
 			},
 		},
 		{
-			fork:    "Capella",
+			fork:    "capella",
 			payload: new(eth2ApiV1Capella.SignedBlindedBeaconBlock),
 			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+				//nolint: forcetypeassert
 				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
 			},
 		},
 		{
-			fork:    "Bellatrix",
+			fork:    "bellatrix",
 			payload: new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock),
 			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+				//nolint: forcetypeassert
 				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock))
 			},
 		},
@@ -413,18 +419,19 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// Decode the body now
 	for _, decoder := range decoders {
 		payload := decoder.payload
-		// decode
+		// Try to decode the payload
 		log.Debugf("attempting to decode body into %v payload", decoder.fork)
 		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
 			log.Debugf("could not decode %v request payload", decoder.fork)
 			continue
 		}
-		// process
+		// Decoding was successful, process the payload
 		result, originalBid := decoder.processor(payload)
 		m.respondPayload(w, log, result, originalBid)
 		return
 	}
-	// no decoder was able to decode the body, log error
+
+	// No decoder was able to decode the body, log error
 	log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
 	m.respondError(w, http.StatusBadRequest, "could not decode body")
 }
