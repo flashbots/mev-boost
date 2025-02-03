@@ -727,8 +727,8 @@ func TestEmptyTxRoot(t *testing.T) {
 	require.Equal(t, "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1", txRootHex)
 }
 
-func blindBlockToBlockResponse[P Payload](signedBlock P) *builderApi.VersionedSubmitBlindedBlockResponse {
-	switch block := any(signedBlock).(type) {
+func blindedBlockToBlockResponse(signedBlock any) *builderApi.VersionedSubmitBlindedBlockResponse {
+	switch block := signedBlock.(type) {
 	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
 		header := block.Message.Body.ExecutionPayloadHeader
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
@@ -829,15 +829,11 @@ func TestGetPayloadForks(t *testing.T) {
 	tests := []struct {
 		fork              string
 		signedBeaconBlock any
-		getResponse       func(payload any) *builderApi.VersionedSubmitBlindedBlockResponse
 		verifyPostState   func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse)
 	}{
 		{
 			fork:              "bellatrix",
 			signedBeaconBlock: new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock),
-			getResponse: func(payload any) *builderApi.VersionedSubmitBlindedBlockResponse {
-				return blindBlockToBlockResponse(payload.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock))
-			},
 			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
 				hash := blockHash(block.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock))
 				require.Equal(t, hash, resp.Bellatrix.BlockHash)
@@ -846,9 +842,6 @@ func TestGetPayloadForks(t *testing.T) {
 		{
 			fork:              "capella",
 			signedBeaconBlock: new(eth2ApiV1Capella.SignedBlindedBeaconBlock),
-			getResponse: func(payload any) *builderApi.VersionedSubmitBlindedBlockResponse {
-				return blindBlockToBlockResponse(payload.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
-			},
 			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
 				hash := blockHash(block.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
 				require.Equal(t, hash, resp.Capella.BlockHash)
@@ -857,9 +850,6 @@ func TestGetPayloadForks(t *testing.T) {
 		{
 			fork:              "deneb",
 			signedBeaconBlock: new(eth2ApiV1Deneb.SignedBlindedBeaconBlock),
-			getResponse: func(payload any) *builderApi.VersionedSubmitBlindedBlockResponse {
-				return blindBlockToBlockResponse(payload.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock))
-			},
 			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
 				hash := blockHash(block.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock))
 				require.Equal(t, hash, resp.Deneb.ExecutionPayload.BlockHash)
@@ -868,9 +858,6 @@ func TestGetPayloadForks(t *testing.T) {
 		{
 			fork:              "electra",
 			signedBeaconBlock: new(eth2ApiV1Electra.SignedBlindedBeaconBlock),
-			getResponse: func(payload any) *builderApi.VersionedSubmitBlindedBlockResponse {
-				return blindBlockToBlockResponse(payload.(*eth2ApiV1Electra.SignedBlindedBeaconBlock))
-			},
 			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
 				hash := blockHash(block.(*eth2ApiV1Electra.SignedBlindedBeaconBlock))
 				require.Equal(t, hash, resp.Electra.ExecutionPayload.BlockHash)
@@ -889,7 +876,7 @@ func TestGetPayloadForks(t *testing.T) {
 			require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
 			backend := newTestBackend(t, 1, time.Second)
 			// Prepare getPayload response
-			backend.relays[0].GetPayloadResponse = tt.getResponse(signedBlindedBeaconBlock)
+			backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(signedBlindedBeaconBlock)
 			// call getPayload, ensure it's only called on relay 0 (origin of the bid)
 			rr := backend.request(t, http.MethodPost, params.PathGetPayload, signedBlindedBeaconBlock)
 			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
@@ -929,7 +916,7 @@ func TestGetPayloadToAllRelays(t *testing.T) {
 	require.Equal(t, 1, backend.relays[1].GetRequestCount(getHeaderPath))
 
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = blindBlockToBlockResponse(signedBlindedBeaconBlock)
+	backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(signedBlindedBeaconBlock)
 
 	// call getPayload, ensure it's called to all relays
 	rr = backend.request(t, http.MethodPost, params.PathGetPayload, signedBlindedBeaconBlock)
