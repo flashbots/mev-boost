@@ -41,11 +41,13 @@ var (
 	errInvalidKZG       = errors.New("invalid KZG commitment")
 )
 
+// processPayload requests the payload (execution payload, blobs bundle, etc) from the relays
 func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent, blindedBlock P) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
 	var (
 		slot      = slot(blindedBlock)
 		blockHash = blockHash(blindedBlock)
 	)
+
 	// Get the currentSlotUID for this slot
 	currentSlotUID := ""
 	m.slotUIDLock.Lock()
@@ -107,7 +109,8 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, headers, blindedBlock, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
-					log.Info("request was cancelled") // this is expected, if payload has already been received by another relay
+					// This is expected if the payload has already been received by another relay
+					log.Info("request was cancelled")
 				} else {
 					log.WithError(err).Error("error making request to relay")
 				}
@@ -134,8 +137,9 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 	return result, originalBid
 }
 
+// verifyPayload checks that the payload is valid
 func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi.VersionedSubmitBlindedBlockResponse) error {
-	// Step 1: verify version
+	// Verify version
 	switch any(payload).(type) {
 	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
 		if response.Version != spec.DataVersionBellatrix {
@@ -167,31 +171,31 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 		}
 	}
 
-	// Step 2: verify payload is not empty
+	// Verify payload is not empty
 	if getPayloadResponseIsEmpty(response) {
 		log.Error("response with empty data!")
 		return errEmptyPayload
 	}
 
-	// Step 3: verify post-conditions
+	// Verify post-conditions
 	switch block := any(payload).(type) {
 	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
-		if err := verifyBlockhash(log, payload, response.Bellatrix.BlockHash); err != nil {
+		if err := verifyBlockHash(log, payload, response.Bellatrix.BlockHash); err != nil {
 			return err
 		}
 	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
-		if err := verifyBlockhash(log, payload, response.Capella.BlockHash); err != nil {
+		if err := verifyBlockHash(log, payload, response.Capella.BlockHash); err != nil {
 			return err
 		}
 	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
-		if err := verifyBlockhash(log, payload, response.Deneb.ExecutionPayload.BlockHash); err != nil {
+		if err := verifyBlockHash(log, payload, response.Deneb.ExecutionPayload.BlockHash); err != nil {
 			return err
 		}
 		if err := verifyKZGCommitments(log, response.Deneb.BlobsBundle, block.Message.Body.BlobKZGCommitments); err != nil {
 			return err
 		}
 	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
-		if err := verifyBlockhash(log, payload, response.Electra.ExecutionPayload.BlockHash); err != nil {
+		if err := verifyBlockHash(log, payload, response.Electra.ExecutionPayload.BlockHash); err != nil {
 			return err
 		}
 		if err := verifyKZGCommitments(log, response.Electra.BlobsBundle, block.Message.Body.BlobKZGCommitments); err != nil {
@@ -201,7 +205,8 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 	return nil
 }
 
-func verifyBlockhash[P Payload](log *logrus.Entry, payload P, executionPayloadHash phase0.Hash32) error {
+// verifyBlockHash checks that the block hash is correct
+func verifyBlockHash[P Payload](log *logrus.Entry, payload P, executionPayloadHash phase0.Hash32) error {
 	if blockHash(payload) != executionPayloadHash {
 		log.WithFields(logrus.Fields{
 			"responseBlockHash": executionPayloadHash.String(),
@@ -211,6 +216,7 @@ func verifyBlockhash[P Payload](log *logrus.Entry, payload P, executionPayloadHa
 	return nil
 }
 
+// verifyKZGCommitments checks that blobs bundle is valid
 func verifyKZGCommitments(log *logrus.Entry, blobs *denebApi.BlobsBundle, commitments []deneb.KZGCommitment) error {
 	// Ensure that blobs are valid and matches the request
 	if len(commitments) != len(blobs.Blobs) || len(commitments) != len(blobs.Commitments) || len(commitments) != len(blobs.Proofs) {
@@ -236,6 +242,7 @@ func verifyKZGCommitments(log *logrus.Entry, blobs *denebApi.BlobsBundle, commit
 	return nil
 }
 
+// prepareLogger adds relevant fields to the logger
 func prepareLogger[P Payload](log *logrus.Entry, payload P, userAgent UserAgent, slotUID string) *logrus.Entry {
 	switch block := any(payload).(type) {
 	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
@@ -274,6 +281,7 @@ func prepareLogger[P Payload](log *logrus.Entry, payload P, userAgent UserAgent,
 	return nil
 }
 
+// slot returns the block's slot
 func slot[P Payload](payload P) phase0.Slot {
 	switch block := any(payload).(type) {
 	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
@@ -288,6 +296,7 @@ func slot[P Payload](payload P) phase0.Slot {
 	return 0
 }
 
+// blockHash returns the block's hash
 func blockHash[P Payload](payload P) phase0.Hash32 {
 	switch block := any(payload).(type) {
 	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
@@ -359,7 +368,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 		go func(relay types.RelayEntry) {
 			defer wg.Done()
 
-			// Determine what URL to use
+			// Build the request URL
 			url := relay.GetURI(fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHashHex, pubkey))
 			log := log.WithField("url", url)
 
