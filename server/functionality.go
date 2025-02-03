@@ -302,15 +302,17 @@ func blockHash[P Payload](payload P) phase0.Hash32 {
 	return nilHash
 }
 
+// bidKey makes a map key for a specific bid
 func bidKey(slot phase0.Slot, blockHash phase0.Hash32) string {
 	return fmt.Sprintf("%v%v", slot, blockHash)
 }
 
+// getHeader requests a bid from each relay and returns the most profitable one
 func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Slot, pubkey, parentHashHex string) (bidResp, error) {
+	// Ensure arguments are valid
 	if len(pubkey) != 98 {
 		return bidResp{}, errInvalidPubkey
 	}
-
 	if len(parentHashHex) != 66 {
 		return bidResp{}, errInvalidHash
 	}
@@ -333,57 +335,65 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 		"slotTimeSec": config.SlotTimeSec,
 		"msIntoSlot":  msIntoSlot,
 	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, slot)
+
 	// Add request headers
 	headers := map[string]string{
 		HeaderKeySlotUID:      slotUID.String(),
 		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
-	// Prepare relay responses
-	var (
-		result = bidResp{}                                 // the final response, containing the highest bid (if any)
-		relays = make(map[BlockHashHex][]types.RelayEntry) // relays that sent the bid for a specific blockHash
 
+	var (
 		mu sync.Mutex
 		wg sync.WaitGroup
+
+		// The final response, containing the highest bid (if any)
+		result = bidResp{}
+
+		// Relays that sent the bid for a specific blockHash
+		relays = make(map[BlockHashHex][]types.RelayEntry)
 	)
 
-	// Call the relays
+	// Request a bid from each relay
 	for _, relay := range m.relays {
 		wg.Add(1)
 		go func(relay types.RelayEntry) {
 			defer wg.Done()
-			path := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHashHex, pubkey)
-			url := relay.GetURI(path)
+
+			// Determine what URL to use
+			url := relay.GetURI(fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHashHex, pubkey))
 			log := log.WithField("url", url)
-			responsePayload := new(builderSpec.VersionedSignedBuilderBid)
-			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, ua, headers, nil, responsePayload)
+
+			// Send the get bid request to the relay
+			bid := new(builderSpec.VersionedSignedBuilderBid)
+			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, ua, headers, nil, bid)
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
 				return
 			}
-
 			if code == http.StatusNoContent {
 				log.Debug("no-content response")
 				return
 			}
 
-			// Skip if payload is empty
-			if responsePayload.IsEmpty() {
+			// Skip if bid is empty
+			if bid.IsEmpty() {
 				return
 			}
 
 			// Getting the bid info will check if there are missing fields in the response
-			bidInfo, err := parseBidInfo(responsePayload)
+			bidInfo, err := parseBidInfo(bid)
 			if err != nil {
 				log.WithError(err).Warn("error parsing bid info")
 				return
 			}
 
+			// Ignore bids with an empty block
 			if bidInfo.blockHash == nilHash {
 				log.Warn("relay responded with empty block hash")
 				return
 			}
 
+			// Add some info about the bid to the logger
 			valueEth := weiBigIntToEthBigFloat(bidInfo.value.ToBig())
 			log = log.WithFields(logrus.Fields{
 				"blockNumber": bidInfo.blockNumber,
@@ -392,6 +402,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 				"value":       valueEth.Text('f', 18),
 			})
 
+			// Ensure the bid uses the correct public key
 			if relay.PublicKey.String() != bidInfo.pubkey.String() {
 				log.Errorf("bid pubkey mismatch. expected: %s - got: %s", relay.PublicKey.String(), bidInfo.pubkey.String())
 				return
@@ -399,7 +410,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 
 			// Verify the relay signature in the relay response
 			if !config.SkipRelaySignatureCheck {
-				ok, err := checkRelaySignature(responsePayload, m.builderSigningDomain, relay.PublicKey)
+				ok, err := checkRelaySignature(bid, m.builderSigningDomain, relay.PublicKey)
 				if err != nil {
 					log.WithError(err).Error("error verifying relay signature")
 					return
@@ -419,15 +430,17 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 				return
 			}
 
+			// Ignore bids with 0 value
 			isZeroValue := bidInfo.value.IsZero()
 			isEmptyListTxRoot := bidInfo.txRoot.String() == "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1"
 			if isZeroValue || isEmptyListTxRoot {
 				log.Warn("ignoring bid with 0 value")
 				return
 			}
+
 			log.Debug("bid received")
 
-			// Skip if value (fee) is lower than the minimum bid
+			// Skip if value is lower than the minimum bid
 			if bidInfo.value.CmpBig(m.relayMinBid.BigInt()) == -1 {
 				log.Debug("ignoring bid below min-bid value")
 				return
@@ -442,9 +455,12 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 			// Compare the bid with already known top bid (if any)
 			if !result.response.IsEmpty() {
 				valueDiff := bidInfo.value.Cmp(result.bidInfo.value)
-				if valueDiff == -1 { // current bid is less profitable than already known one
+				if valueDiff == -1 {
+					// The current bid is less profitable than already known one
 					return
-				} else if valueDiff == 0 { // current bid is equally profitable as already known one. Use hash as tiebreaker
+				} else if valueDiff == 0 {
+					// The current bid is equally profitable as already known one
+					// Use hash as tiebreaker
 					previousBidBlockHash := result.bidInfo.blockHash
 					if bidInfo.blockHash.String() >= previousBidBlockHash.String() {
 						return
@@ -454,15 +470,14 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 
 			// Use this relay's response as mev-boost response because it's most profitable
 			log.Debug("new best bid")
-			result.response = *responsePayload
+			result.response = *bid
 			result.bidInfo = bidInfo
 			result.t = time.Now()
 		}(relay)
 	}
-	// Wait for all requests to complete...
 	wg.Wait()
 
-	// Set the winning relay before returning
+	// Set the winning relays before returning
 	result.relays = relays[BlockHashHex(result.bidInfo.blockHash.String())]
 	return result, nil
 }
