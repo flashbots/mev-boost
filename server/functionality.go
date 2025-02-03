@@ -306,7 +306,7 @@ func bidKey(slot phase0.Slot, blockHash phase0.Hash32) string {
 	return fmt.Sprintf("%v%v", slot, blockHash)
 }
 
-func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, _slot phase0.Slot, pubkey, parentHashHex string) (bidResp, error) {
+func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Slot, pubkey, parentHashHex string) (bidResp, error) {
 	if len(pubkey) != 98 {
 		return bidResp{}, errInvalidPubkey
 	}
@@ -317,8 +317,8 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, _slot phase0.S
 
 	// Make sure we have a uid for this slot
 	m.slotUIDLock.Lock()
-	if m.slotUID.slot < _slot {
-		m.slotUID.slot = _slot
+	if m.slotUID.slot < slot {
+		m.slotUID.slot = slot
 		m.slotUID.uid = uuid.New()
 	}
 	slotUID := m.slotUID.uid
@@ -326,13 +326,13 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, _slot phase0.S
 	log = log.WithField("slotUID", slotUID)
 
 	// Log how late into the slot the request starts
-	slotStartTimestamp := m.genesisTime + uint64(_slot)*config.SlotTimeSec
+	slotStartTimestamp := m.genesisTime + uint64(slot)*config.SlotTimeSec
 	msIntoSlot := uint64(time.Now().UTC().UnixMilli()) - slotStartTimestamp*1000
 	log.WithFields(logrus.Fields{
 		"genesisTime": m.genesisTime,
 		"slotTimeSec": config.SlotTimeSec,
 		"msIntoSlot":  msIntoSlot,
-	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, _slot)
+	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, slot)
 	// Add request headers
 	headers := map[string]string{
 		HeaderKeySlotUID:      slotUID.String(),
@@ -352,7 +352,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, _slot phase0.S
 		wg.Add(1)
 		go func(relay types.RelayEntry) {
 			defer wg.Done()
-			path := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", _slot, parentHashHex, pubkey)
+			path := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHashHex, pubkey)
 			url := relay.GetURI(path)
 			log := log.WithField("url", url)
 			responsePayload := new(builderSpec.VersionedSignedBuilderBid)
