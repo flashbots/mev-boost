@@ -777,23 +777,24 @@ func blindedBlockToBlockResponse(signedBlock any) *builderApi.VersionedSubmitBli
 		commitments := block.Message.Body.BlobKZGCommitments
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionDeneb,
-			Deneb:   denebHeader(header, commitments),
+			Deneb:   denebExecutionPayloadAndBlobsBundle(header, commitments),
 		}
 	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
 		header := block.Message.Body.ExecutionPayloadHeader
 		commitments := block.Message.Body.BlobKZGCommitments
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionElectra,
-			Electra: denebHeader(header, commitments),
+			Electra: denebExecutionPayloadAndBlobsBundle(header, commitments),
 		}
 	}
 	return nil
 }
 
-func denebHeader(header *deneb.ExecutionPayloadHeader, kzgCommitments []deneb.KZGCommitment) *builderApiDeneb.ExecutionPayloadAndBlobsBundle {
+func denebExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, kzgCommitments []deneb.KZGCommitment) *builderApiDeneb.ExecutionPayloadAndBlobsBundle {
 	numBlobs := len(kzgCommitments)
 	commitments := make([]deneb.KZGCommitment, numBlobs)
 	copy(commitments, kzgCommitments)
+	// For testing, proofs and blobs are not populated
 	proofs := make([]deneb.KZGProof, numBlobs)
 	blobs := make([]deneb.Blob, numBlobs)
 	return &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
