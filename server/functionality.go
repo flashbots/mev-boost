@@ -60,7 +60,7 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 	log = prepareLogger(log, blindedBlock, ua, currentSlotUID)
 
 	// Log how late into the slot the request starts
-	slotStartTimestamp := m.genesisTime + slot*config.SlotTimeSec
+	slotStartTimestamp := m.genesisTime + uint64(slot)*config.SlotTimeSec
 	msIntoSlot := uint64(time.Now().UTC().UnixMilli()) - slotStartTimestamp*1000
 	log.WithFields(logrus.Fields{
 		"genesisTime": m.genesisTime,
@@ -274,16 +274,16 @@ func prepareLogger[P Payload](log *logrus.Entry, payload P, userAgent UserAgent,
 	return nil
 }
 
-func slot[P Payload](payload P) uint64 {
+func slot[P Payload](payload P) phase0.Slot {
 	switch block := any(payload).(type) {
 	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
-		return uint64(block.Message.Slot)
+		return block.Message.Slot
 	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
-		return uint64(block.Message.Slot)
+		return block.Message.Slot
 	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
-		return uint64(block.Message.Slot)
+		return block.Message.Slot
 	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
-		return uint64(block.Message.Slot)
+		return block.Message.Slot
 	}
 	return 0
 }
@@ -302,11 +302,11 @@ func blockHash[P Payload](payload P) phase0.Hash32 {
 	return nilHash
 }
 
-func bidKey(slot uint64, blockHash phase0.Hash32) string {
+func bidKey(slot phase0.Slot, blockHash phase0.Hash32) string {
 	return fmt.Sprintf("%v%v", slot, blockHash)
 }
 
-func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, _slot uint64, pubkey, parentHashHex string) (bidResp, error) {
+func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, _slot phase0.Slot, pubkey, parentHashHex string) (bidResp, error) {
 	if len(pubkey) != 98 {
 		return bidResp{}, errInvalidPubkey
 	}
@@ -326,7 +326,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, _slot uint64, 
 	log = log.WithField("slotUID", slotUID)
 
 	// Log how late into the slot the request starts
-	slotStartTimestamp := m.genesisTime + _slot*config.SlotTimeSec
+	slotStartTimestamp := m.genesisTime + uint64(_slot)*config.SlotTimeSec
 	msIntoSlot := uint64(time.Now().UTC().UnixMilli()) - slotStartTimestamp*1000
 	log.WithFields(logrus.Fields{
 		"genesisTime": m.genesisTime,

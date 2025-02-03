@@ -52,7 +52,7 @@ type httpErrorResp struct {
 }
 
 type slotUID struct {
-	slot uint64
+	slot phase0.Slot
 	uid  uuid.UUID
 }
 
@@ -299,11 +299,12 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		ua            = UserAgent(req.Header.Get("User-Agent"))
 	)
 
-	slot, err := strconv.ParseUint(vars["slot"], 10, 64)
+	slotValue, err := strconv.ParseUint(vars["slot"], 10, 64)
 	if err != nil {
 		m.respondError(w, http.StatusBadRequest, errInvalidSlot.Error())
 		return
 	}
+	slot := phase0.Slot(slotValue)
 
 	log := m.log.WithFields(logrus.Fields{
 		"method":     "getHeader",
