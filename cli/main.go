@@ -93,7 +93,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 		log.Error("no relay passed the health-check!")
 	}
 
-	log.Infof("Listening on %v", listenAddr)
+	log.Infof("listening on %v", listenAddr)
 	return service.StartHTTPServer()
 }
 
@@ -108,7 +108,7 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 		for _, urls := range relayURLs {
 			for _, url := range strings.Split(urls, ",") {
 				if err := relays.Set(strings.TrimSpace(url)); err != nil {
-					log.WithError(err).WithField("relay", url).Fatal("Invalid relay URL")
+					log.WithError(err).WithField("relay", url).Fatal("invalid relay URL")
 				}
 			}
 		}
@@ -128,7 +128,7 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 		for _, urls := range monitorURLs {
 			for _, url := range strings.Split(urls, ",") {
 				if err := monitors.Set(strings.TrimSpace(url)); err != nil {
-					log.WithError(err).WithField("relayMonitor", url).Fatal("Invalid relay monitor URL")
+					log.WithError(err).WithField("relayMonitor", url).Fatal("invalid relay monitor URL")
 				}
 			}
 		}
@@ -143,10 +143,10 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 
 	relayMinBidWei, err := sanitizeMinBid(cmd.Float(minBidFlag.Name))
 	if err != nil {
-		log.WithError(err).Fatal("Failed sanitizing min bid")
+		log.WithError(err).Fatal("failed sanitizing min bid")
 	}
 	if relayMinBidWei.BigInt().Sign() > 0 {
-		log.Infof("Min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
+		log.Infof("min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
 	return relays, monitors, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
 }

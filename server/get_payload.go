@@ -123,7 +123,7 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 				resultCh <- responsePayload
 				log.Info("received payload from relay")
 			} else {
-				log.Trace("Discarding response, already received a correct response")
+				log.Trace("discarding response, already received a correct response")
 			}
 		}(relay)
 	}

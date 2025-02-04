@@ -141,7 +141,7 @@ func (m *BoostService) respondError(w http.ResponseWriter, code int, message str
 	w.WriteHeader(code)
 	resp := httpErrorResp{code, message}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		m.log.WithField("response", resp).WithError(err).Error("Couldn't write error response")
+		m.log.WithField("response", resp).WithError(err).Error("could not write error response")
 		http.Error(w, "", http.StatusInternalServerError)
 	}
 }
@@ -150,7 +150,7 @@ func (m *BoostService) respondOK(w http.ResponseWriter, response any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		m.log.WithField("response", response).WithError(err).Error("Couldn't write OK response")
+		m.log.WithField("response", response).WithError(err).Error("could not write OK response")
 		http.Error(w, "", http.StatusInternalServerError)
 	}
 }
