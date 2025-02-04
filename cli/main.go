@@ -68,6 +68,8 @@ func start(_ context.Context, cmd *cli.Command) error {
 		genesisForkVersion, genesisTime      = setupGenesis(cmd)
 		relays, monitors, minBid, relayCheck = setupRelays(cmd)
 		listenAddr                           = cmd.String(addrFlag.Name)
+		metricsEnabled                       = cmd.Bool(metricsFlag.Name)
+		metricsAddr                          = cmd.String(metricsAddrFlag.Name)
 	)
 
 	opts := server.BoostServiceOpts{
@@ -83,6 +85,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 		RequestTimeoutGetPayload: time.Duration(cmd.Int(timeoutGetPayloadFlag.Name)) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(cmd.Int(timeoutRegValFlag.Name)) * time.Millisecond,
 		RequestMaxRetries:        int(cmd.Int(maxRetriesFlag.Name)),
+		MetricsAddr:              metricsAddr,
 	}
 	service, err := server.NewBoostService(opts)
 	if err != nil {
@@ -93,7 +96,16 @@ func start(_ context.Context, cmd *cli.Command) error {
 		log.Error("no relay passed the health-check!")
 	}
 
-	log.Infof("Listening on %v", listenAddr)
+	if metricsEnabled {
+		go func() {
+			log.Infof("metrics server listening on %v", opts.MetricsAddr)
+			if err := service.StartMetricsServer(); err != nil {
+				log.WithError(err).Error("metrics server exited with error")
+			}
+		}()
+	}
+
+	log.Infof("listening on %v", listenAddr)
 	return service.StartHTTPServer()
 }
 
@@ -146,7 +158,7 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 		log.WithError(err).Fatal("Failed sanitizing min bid")
 	}
 	if relayMinBidWei.BigInt().Sign() > 0 {
-		log.Infof("Min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
+		log.Infof("min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
 	return relays, monitors, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
 }

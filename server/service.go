@@ -29,6 +29,9 @@ import (
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -71,6 +74,8 @@ type BoostServiceOpts struct {
 	RequestTimeoutGetPayload time.Duration
 	RequestTimeoutRegVal     time.Duration
 	RequestMaxRetries        int
+
+	MetricsAddr string
 }
 
 // BoostService - the mev-boost service
@@ -95,6 +100,8 @@ type BoostService struct {
 
 	slotUID     *slotUID
 	slotUIDLock sync.Mutex
+
+	metricsAddr string
 }
 
 // NewBoostService created a new BoostService
@@ -133,6 +140,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 			CheckRedirect: httpClientDisallowRedirects,
 		},
 		requestMaxRetries: opts.RequestMaxRetries,
+		metricsAddr:       opts.MetricsAddr,
 	}, nil
 }
 
@@ -194,6 +202,24 @@ func (m *BoostService) StartHTTPServer() error {
 		return nil
 	}
 	return err
+}
+
+// StartMetricsServer starts the HTTP server for exporting open-metrics
+func (m *BoostService) StartMetricsServer() error {
+	prometheusRegistry := prometheus.NewRegistry()
+	if err := prometheusRegistry.Register(collectors.NewGoCollector()); err != nil {
+		m.log.WithError(err).Error("failed to register metrics for GoCollector")
+	}
+	if err := prometheusRegistry.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
+		m.log.WithError(err).Error("failed to register ProcessCollector")
+	}
+
+	serveMux := http.NewServeMux()
+	serveMux.Handle("/metrics", promhttp.HandlerFor(prometheusRegistry, promhttp.HandlerOpts{
+		ErrorLog:          m.log,
+		EnableOpenMetrics: true,
+	}))
+	return http.ListenAndServe(m.metricsAddr, serveMux)
 }
 
 func (m *BoostService) startBidCacheCleanupTask() {
