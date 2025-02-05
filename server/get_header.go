@@ -81,7 +81,17 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			}
 
 			// Send the get bid request to the relay
+			// Request SSZ first
+			req.Header.Set("Accept", "application/octet-stream")
 			resp, err := m.httpClientGetHeader.Do(req)
+			if err != nil {
+				// The relay will return NotAcceptable if it doesn't support SSZ
+				if resp.StatusCode == http.StatusNotAcceptable {
+					// Try again, but request JSON
+					req.Header.Set("Accept", "application/json")
+					resp, err = m.httpClientGetHeader.Do(req)
+				}
+			}
 			if err != nil {
 				log.WithError(err).Warn("error calling getHeader on relay")
 				return
