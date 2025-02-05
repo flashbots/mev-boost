@@ -130,17 +130,17 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				return
 			}
 
-			// Get the optional version, used with SSZ decoding
-			ethConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
-			log = log.WithField("ethConsensusVersion", ethConsensusVersion)
-
 			// Get the response's content type
 			respContentType := resp.Header.Get("Content-Type")
 			log = log.WithField("respContentType", respContentType)
 
+			// Get the optional version, used with SSZ decoding
+			ethConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
+			log = log.WithField("ethConsensusVersion", ethConsensusVersion)
+
 			// Decode bid
 			bid := new(builderSpec.VersionedSignedBuilderBid)
-			err = decodeBid(respBytes, ethConsensusVersion, respContentType, bid)
+			err = decodeBid(respBytes, respContentType, ethConsensusVersion, bid)
 			if err != nil {
 				log.WithError(err).Warn("error decoding bid")
 				return
@@ -253,8 +253,8 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 	return result, nil
 }
 
-// decodeBid decodes a bid by SSZ if ethConsensusVersion is valid, otherwise JSON
-func decodeBid(respBytes []byte, ethConsensusVersion, respContentType string, bid *builderSpec.VersionedSignedBuilderBid) error {
+// decodeBid decodes a bid by SSZ or JSON, depending on the provided respContentType
+func decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bid *builderSpec.VersionedSignedBuilderBid) error {
 	switch respContentType {
 	case "application/octet-stream":
 		if ethConsensusVersion != "" {
