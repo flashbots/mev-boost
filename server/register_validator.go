@@ -26,6 +26,7 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, requestURL, bytes.NewReader(regBytes))
 			if err != nil {
 				log.WithError(err).Warn("error creating new request")
+				respErrCh <- err
 				return
 			}
 
