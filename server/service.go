@@ -208,13 +208,13 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
-func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payloadBytes []byte) {
-	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("registrationsLen", len(payloadBytes))
+func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(regBytes []byte) {
+	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("registrationsLen", len(regBytes))
 	for _, relayMonitor := range m.relayMonitors {
 		go func(relayMonitor *url.URL) {
 			url := types.GetURI(relayMonitor, params.PathRegisterValidator)
 			log = log.WithField("url", url)
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url.String(), "", nil, payloadBytes, nil)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url.String(), "", nil, regBytes, nil)
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay monitor")
 				return
@@ -256,8 +256,8 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
 
-	// Read the body bytes
-	bodyBytes, err := io.ReadAll(req.Body)
+	// Read the validator registrations
+	regBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		m.respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -271,7 +271,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			// Build the new request
 			relayReq := req.Clone(req.Context())
 			relayReq.URL = relay.GetURI(params.PathRegisterValidator)
-			relayReq.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			relayReq.Body = io.NopCloser(bytes.NewReader(regBytes))
 			for key, value := range headers {
 				relayReq.Header.Set(key, value)
 			}
@@ -297,7 +297,8 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		}(relay)
 	}
 
-	go m.sendValidatorRegistrationsToRelayMonitors(bodyBytes)
+	// Send the registrations to relay monitors, if configured
+	go m.sendValidatorRegistrationsToRelayMonitors(regBytes)
 
 	// Return OK if any relay responds OK
 	for range m.relays {
