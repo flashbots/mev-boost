@@ -80,14 +80,13 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				req.Header[key] = values
 			}
 
-			// Send the get bid request to the relay
-			// Request SSZ first
+			// Send the get bid request to the relay. Request SSZ first.
 			req.Header.Set("Accept", "application/octet-stream")
 			resp, err := m.httpClientGetHeader.Do(req)
 			if err != nil {
-				// The relay will return NotAcceptable if it doesn't support SSZ
+				// The relay will return NotAcceptable if it does not support SSZ
 				if resp.StatusCode == http.StatusNotAcceptable {
-					// Try again, but request JSON
+					// Try again, but request JSON instead
 					req.Header.Set("Accept", "application/json")
 					resp, err = m.httpClientGetHeader.Do(req)
 				}
@@ -97,13 +96,6 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				return
 			}
 			defer resp.Body.Close()
-
-			// Get the resp body content
-			respBytes, err := io.ReadAll(resp.Body)
-			if err != nil {
-				log.WithError(err).Warn("error reading response body")
-				return
-			}
 
 			// Check if no header is available
 			if resp.StatusCode == http.StatusNoContent {
@@ -115,6 +107,13 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			if resp.StatusCode != http.StatusOK {
 				err = fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
 				log.WithError(err).Warn("error status code")
+				return
+			}
+
+			// Get the resp body content
+			respBytes, err := io.ReadAll(resp.Body)
+			if err != nil {
+				log.WithError(err).Warn("error reading response body")
 				return
 			}
 
