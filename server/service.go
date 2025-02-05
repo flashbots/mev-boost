@@ -21,6 +21,7 @@ import (
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
+	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-utils/httplogger"
@@ -338,9 +339,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.bids[bidKey(slot, result.bidInfo.blockHash)] = result
 	m.bidsLock.Unlock()
 
+	// How should we respond to the client
+	acceptFromClient := req.Header.Get("Accept")
+
 	// Log result
 	valueEth := weiBigIntToEthBigFloat(result.bidInfo.value.ToBig())
 	log.WithFields(logrus.Fields{
+		"acceptType":  acceptFromClient,
 		"blockHash":   result.bidInfo.blockHash.String(),
 		"blockNumber": result.bidInfo.blockNumber,
 		"txRoot":      result.bidInfo.txRoot.String(),
@@ -349,7 +354,44 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}).Info("best bid")
 
 	// Return the bid
-	m.respondOK(w, &result.response)
+	switch acceptFromClient {
+	case "application/octet-stream":
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.WriteHeader(http.StatusOK)
+
+		// Serialize the response
+		var sszData []byte
+		switch result.response.Version {
+		case spec.DataVersionBellatrix:
+			sszData, err = result.response.Bellatrix.MarshalSSZ()
+		case spec.DataVersionCapella:
+			sszData, err = result.response.Capella.MarshalSSZ()
+		case spec.DataVersionDeneb:
+			sszData, err = result.response.Deneb.MarshalSSZ()
+		case spec.DataVersionElectra:
+			sszData, err = result.response.Electra.MarshalSSZ()
+		case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+			err = errInvalidForkVersion
+		}
+		if err != nil {
+			m.log.WithError(err).Error("error serializing response as SSZ")
+			http.Error(w, "failed to serialize response", http.StatusInternalServerError)
+			return
+		}
+
+		// Write SSZ data
+		if _, err := w.Write(sszData); err != nil {
+			m.log.WithError(err).Error("error writing SSZ response")
+			http.Error(w, "failed to write response", http.StatusInternalServerError)
+		}
+	default:
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(&result.response); err != nil {
+			m.log.WithField("response", result.response).WithError(err).Error("could not write OK response")
+			http.Error(w, "", http.StatusInternalServerError)
+		}
+	}
 }
 
 // respondPayload responds to the proposer with the payload

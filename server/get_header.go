@@ -254,7 +254,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 }
 
 // decodeBid decodes a bid by SSZ if ethConsensusVersion is valid, otherwise JSON
-func decodeBid(respBytes []byte, ethConsensusVersion string, respContentType string, bid *builderSpec.VersionedSignedBuilderBid) error {
+func decodeBid(respBytes []byte, ethConsensusVersion, respContentType string, bid *builderSpec.VersionedSignedBuilderBid) error {
 	switch respContentType {
 	case "application/octet-stream":
 		if ethConsensusVersion != "" {
