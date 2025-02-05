@@ -209,22 +209,6 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
-func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []builderApiV1.SignedValidatorRegistration) {
-	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("numRegistrations", len(payload))
-	for _, relayMonitor := range m.relayMonitors {
-		go func(relayMonitor *url.URL) {
-			url := types.GetURI(relayMonitor, params.PathRegisterValidator)
-			log = log.WithField("url", url)
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, "", nil, payload, nil)
-			if err != nil {
-				log.WithError(err).Warn("error calling registerValidator on relay monitor")
-				return
-			}
-			log.Debug("sent validator registrations to relay monitor")
-		}(relayMonitor)
-	}
-}
-
 func (m *BoostService) handleRoot(w http.ResponseWriter, _ *http.Request) {
 	m.respondOK(w, nilResponse)
 }
@@ -276,8 +260,6 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			relayRespCh <- err
 		}(relay)
 	}
-
-	go m.sendValidatorRegistrationsToRelayMonitors(payload)
 
 	for i := 0; i < len(m.relays); i++ {
 		respErr := <-relayRespCh
