@@ -107,7 +107,6 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 				// Check if the relay supports SSZ requests
 				if resp.StatusCode != http.StatusNotAcceptable {
-					resp.Body.Close()
 					// The relay didn't complain about the accept value.
 					// This means we should try processing the response.
 					log.Debug("response indicated SSZ is accepted")
@@ -117,6 +116,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				// The response status was NotAcceptable.
 				// This means we should try again with JSON.
 				log.Debug("response indicated SSZ is not accepted")
+				resp.Body.Close()
 				fallthrough
 			default:
 				log.Debug("requesting header in JSON")
