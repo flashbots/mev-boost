@@ -80,16 +80,29 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				req.Header[key] = values
 			}
 
-			// Send the get bid request to the relay. Request SSZ first.
-			req.Header.Set("Accept", "application/octet-stream")
-			resp, err := m.httpClientGetHeader.Do(req)
-			if err != nil {
-				// The relay will return NotAcceptable if it does not support SSZ
-				if resp.StatusCode == http.StatusNotAcceptable {
-					// Try again, but request JSON instead
-					req.Header.Set("Accept", "application/json")
-					resp, err = m.httpClientGetHeader.Do(req)
+			// Send the get bid request to the relay.
+			// Try what the client requests first.
+			// If no accept type is specified, request JSON.
+			var resp *http.Response
+			acceptFromClient := req.Header.Get("Accept")
+			switch acceptFromClient {
+			case "application/octet-stream":
+				log.Debug("requesting header in SSZ")
+				req.Header.Set("Accept", "application/octet-stream")
+				resp, err = m.httpClientGetHeader.Do(req)
+				if resp.StatusCode != http.StatusNotAcceptable {
+					// The relay didn't complain about the accept value.
+					// This means we should try processing the response.
+					log.Debug("response indicated SSZ is not accepted")
+					break
 				}
+				// The response status was NotAcceptable.
+				// This means we should try again with JSON.
+				fallthrough
+			default:
+				log.Debug("requesting header in JSON")
+				req.Header.Set("Accept", "application/json")
+				resp, err = m.httpClientGetHeader.Do(req)
 			}
 			if err != nil {
 				log.WithError(err).Warn("error calling getHeader on relay")
