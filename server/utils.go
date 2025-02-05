@@ -50,6 +50,9 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 
 	if payload == nil {
 		req, err = http.NewRequestWithContext(ctx, method, url, nil)
+		if err != nil {
+			return 0, fmt.Errorf("could not prepare request: %w", err)
+		}
 	} else {
 		payloadBytes, err2 := json.Marshal(payload)
 		if err2 != nil {
@@ -59,14 +62,11 @@ func SendHTTPRequest(ctx context.Context, client http.Client, method, url string
 		if err != nil {
 			return 0, fmt.Errorf("could not prepare request: %w", err)
 		}
-		// Set headers
+		// Set Content-Type header
 		req.Header.Add("Content-Type", "application/json")
 	}
-	if err != nil {
-		return 0, fmt.Errorf("could not prepare request: %w", err)
-	}
 
-	// Set user agent header
+	// Set User-Agent header
 	req.Header.Set("User-Agent", strings.TrimSpace(fmt.Sprintf("mev-boost/%s %s", config.Version, userAgent)))
 
 	// Set other headers
