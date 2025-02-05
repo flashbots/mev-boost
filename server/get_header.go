@@ -9,6 +9,10 @@ import (
 	"sync"
 	"time"
 
+	builderApiBellatrix "github.com/attestantio/go-builder-client/api/bellatrix"
+	builderApiCapella "github.com/attestantio/go-builder-client/api/capella"
+	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	builderApiElectra "github.com/attestantio/go-builder-client/api/electra"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
@@ -80,6 +84,10 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				req.Header[key] = values
 			}
 
+			// Get the optional version, used with SSZ decoding
+			ethConsensusVersion := header.Get("Eth-Consensus-Version")
+			log = log.WithField("ethConsensusVersion", ethConsensusVersion)
+
 			// Send the get bid request to the relay. Try what the client
 			// accepts (either SSZ or JSON) first. If no accept type is specified,
 			// request JSON. We cannot request SSZ if the client does not, because
@@ -135,10 +143,6 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			// Get the response's content type
 			respContentType := resp.Header.Get("Content-Type")
 			log = log.WithField("respContentType", respContentType)
-
-			// Get the optional version, used with SSZ decoding
-			ethConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
-			log = log.WithField("ethConsensusVersion", ethConsensusVersion)
 
 			// Decode bid
 			bid := new(builderSpec.VersionedSignedBuilderBid)
@@ -264,15 +268,19 @@ func decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bi
 			switch ethConsensusVersion {
 			case "bellatrix":
 				bid.Version = spec.DataVersionBellatrix
+				bid.Bellatrix = new(builderApiBellatrix.SignedBuilderBid)
 				return bid.Bellatrix.UnmarshalSSZ(respBytes)
 			case "capella":
 				bid.Version = spec.DataVersionCapella
+				bid.Capella = new(builderApiCapella.SignedBuilderBid)
 				return bid.Capella.UnmarshalSSZ(respBytes)
 			case "deneb":
 				bid.Version = spec.DataVersionDeneb
+				bid.Deneb = new(builderApiDeneb.SignedBuilderBid)
 				return bid.Deneb.UnmarshalSSZ(respBytes)
 			case "electra":
 				bid.Version = spec.DataVersionElectra
+				bid.Electra = new(builderApiElectra.SignedBuilderBid)
 				return bid.Electra.UnmarshalSSZ(respBytes)
 			default:
 				return errInvalidForkVersion

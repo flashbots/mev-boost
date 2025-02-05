@@ -202,6 +202,7 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 				ParentHash:      HexToHash(parentHash),
 				WithdrawalsRoot: phase0.Root{},
 				BaseFeePerGas:   uint256.NewInt(0),
+				ExtraData:       make([]byte, 0),
 			},
 			BlobKZGCommitments: make([]deneb.KZGCommitment, 0),
 			Value:              uint256.NewInt(value),
@@ -288,7 +289,6 @@ func (m *Relay) defaultHandleGetHeader(w http.ResponseWriter, req *http.Request)
 		}
 
 		// Write the version and data
-		w.Header().Set("Eth-Consensus-Version", "deneb")
 		_, err = w.Write(sszData)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
