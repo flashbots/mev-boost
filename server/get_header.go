@@ -104,10 +104,10 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 					log.WithError(err).Warn("error sending request")
 					return
 				}
-				defer resp.Body.Close()
 
 				// Check if the relay supports SSZ requests
 				if resp.StatusCode != http.StatusNotAcceptable {
+					resp.Body.Close()
 					// The relay didn't complain about the accept value.
 					// This means we should try processing the response.
 					log.Debug("response indicated SSZ is accepted")
@@ -121,12 +121,12 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			default:
 				log.Debug("requesting header in JSON")
 				resp, err = doRequest("application/json")
-				defer resp.Body.Close()
 			}
 			if err != nil {
 				log.WithError(err).Warn("error calling getHeader on relay")
 				return
 			}
+			defer resp.Body.Close()
 
 			// Check if no header is available
 			if resp.StatusCode == http.StatusNoContent {
