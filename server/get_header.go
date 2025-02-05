@@ -132,11 +132,15 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 			// Get the optional version, used with SSZ decoding
 			ethConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
-			log = log.WithField("eth-consensus-version", ethConsensusVersion)
+			log = log.WithField("ethConsensusVersion", ethConsensusVersion)
+
+			// Get the response's content type
+			respContentType := resp.Header.Get("Content-Type")
+			log = log.WithField("respContentType", respContentType)
 
 			// Decode bid
 			bid := new(builderSpec.VersionedSignedBuilderBid)
-			err = decodeBid(respBytes, ethConsensusVersion, bid)
+			err = decodeBid(respBytes, ethConsensusVersion, respContentType, bid)
 			if err != nil {
 				log.WithError(err).Warn("error decoding bid")
 				return
@@ -250,27 +254,33 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 }
 
 // decodeBid decodes a bid by SSZ if ethConsensusVersion is valid, otherwise JSON
-func decodeBid(respBytes []byte, ethConsensusVersion string, bid *builderSpec.VersionedSignedBuilderBid) error {
-	if ethConsensusVersion != "" {
-		// Do SSZ decoding
-		switch ethConsensusVersion {
-		case "bellatrix":
-			bid.Version = spec.DataVersionBellatrix
-			return bid.Bellatrix.UnmarshalSSZ(respBytes)
-		case "capella":
-			bid.Version = spec.DataVersionCapella
-			return bid.Capella.UnmarshalSSZ(respBytes)
-		case "deneb":
-			bid.Version = spec.DataVersionDeneb
-			return bid.Deneb.UnmarshalSSZ(respBytes)
-		case "electra":
-			bid.Version = spec.DataVersionElectra
-			return bid.Electra.UnmarshalSSZ(respBytes)
-		default:
-			return errInvalidForkVersion
+func decodeBid(respBytes []byte, ethConsensusVersion string, respContentType string, bid *builderSpec.VersionedSignedBuilderBid) error {
+	switch respContentType {
+	case "application/octet-stream":
+		if ethConsensusVersion != "" {
+			// Do SSZ decoding
+			switch ethConsensusVersion {
+			case "bellatrix":
+				bid.Version = spec.DataVersionBellatrix
+				return bid.Bellatrix.UnmarshalSSZ(respBytes)
+			case "capella":
+				bid.Version = spec.DataVersionCapella
+				return bid.Capella.UnmarshalSSZ(respBytes)
+			case "deneb":
+				bid.Version = spec.DataVersionDeneb
+				return bid.Deneb.UnmarshalSSZ(respBytes)
+			case "electra":
+				bid.Version = spec.DataVersionElectra
+				return bid.Electra.UnmarshalSSZ(respBytes)
+			default:
+				return errInvalidForkVersion
+			}
+		} else {
+			return types.ErrMissingEthConsensusVersion
 		}
-	} else {
+	case "application/json":
 		// Do JSON decoding
 		return json.Unmarshal(respBytes, bid)
 	}
+	return types.ErrInvalidContentType
 }
