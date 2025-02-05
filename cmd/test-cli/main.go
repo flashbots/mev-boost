@@ -25,22 +25,22 @@ func doGenerateValidator(filePath string, gasLimit uint64, feeRecipient string) 
 	v := newRandomValidator(gasLimit, feeRecipient)
 	err := v.SaveValidator(filePath)
 	if err != nil {
-		log.WithError(err).Fatal("Could not save validator data")
+		log.WithError(err).Fatal("could not save validator data")
 	}
-	log.WithField("file", filePath).Info("Saved validator data")
+	log.WithField("file", filePath).Info("saved validator data")
 }
 
 func doRegisterValidator(v validatorPrivateData, boostEndpoint string, builderSigningDomain phase0.Domain) {
 	message, err := v.PrepareRegistrationMessage(builderSigningDomain)
 	if err != nil {
-		log.WithError(err).Fatal("Could not prepare registration message")
+		log.WithError(err).Fatal("could not prepare registration message")
 	}
 	_, err = server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodPost, boostEndpoint+"/eth/v1/builder/validators", "test-cli", nil, message, nil)
 	if err != nil {
-		log.WithError(err).Fatal("Validator registration not successful")
+		log.WithError(err).Fatal("validator registration not successful")
 	}
 
-	log.WithError(err).Info("Registered validator")
+	log.WithError(err).Info("registered validator")
 }
 
 func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon, engineEndpoint string, builderSigningDomain phase0.Domain) builderSpec.VersionedSignedBuilderBid {
@@ -72,20 +72,20 @@ func doGetHeader(v validatorPrivateData, boostEndpoint string, beaconNode Beacon
 
 	var getHeaderResp builderSpec.VersionedSignedBuilderBid
 	if _, err := server.SendHTTPRequest(context.TODO(), *http.DefaultClient, http.MethodGet, uri, "test-cli", nil, nil, &getHeaderResp); err != nil {
-		log.WithError(err).WithField("currentBlockHash", currentBlockHash).Fatal("Could not get header")
+		log.WithError(err).WithField("currentBlockHash", currentBlockHash).Fatal("could not get header")
 	}
 
 	if getHeaderResp.Deneb.Message == nil {
-		log.Fatal("Did not receive correct header")
+		log.Fatal("did not receive correct header")
 	}
-	log.WithField("header", *getHeaderResp.Deneb.Message).Info("Got header from boost")
+	log.WithField("header", *getHeaderResp.Deneb.Message).Info("got header from boost")
 
 	ok, err := ssz.VerifySignature(getHeaderResp.Deneb.Message, builderSigningDomain, getHeaderResp.Deneb.Message.Pubkey[:], getHeaderResp.Deneb.Signature[:])
 	if err != nil {
-		log.WithError(err).Fatal("Could not verify builder bid signature")
+		log.WithError(err).Fatal("could not verify builder bid signature")
 	}
 	if !ok {
-		log.Fatal("Incorrect builder bid signature")
+		log.Fatal("incorrect builder bid signature")
 	}
 
 	return getHeaderResp
@@ -128,7 +128,7 @@ func doGetPayload(v validatorPrivateData, boostEndpoint string, beaconNode Beaco
 	}
 
 	if respPayload.IsEmpty() {
-		log.Fatal("Did not receive correct payload")
+		log.Fatal("did not receive correct payload")
 	}
 	log.WithField("payload", respPayload).Info("got payload from mev-boost")
 }
@@ -242,7 +242,7 @@ func main() {
 		}
 		doGetPayload(mustLoadValidator(validatorDataFile), boostEndpoint, createBeacon(isMergemock, beaconEndpoint, engineEndpoint), engineEndpoint, builderSigningDomain, proposerSigningDomain)
 	default:
-		log.Info("Expected generate|register|getHeader|getPayload subcommand")
+		log.Info("expected generate|register|getHeader|getPayload subcommand")
 		os.Exit(1)
 	}
 }
