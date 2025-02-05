@@ -80,9 +80,10 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				req.Header[key] = values
 			}
 
-			// Send the get bid request to the relay.
-			// Try what the client requests first.
-			// If no accept type is specified, request JSON.
+			// Send the get bid request to the relay. Try what the client
+			// accepts (either SSZ or JSON) first. If no accept type is specified,
+			// request JSON. We cannot request SSZ if the client does not, because
+			// the appropriate Eth-Consensus-Version header value is not known.
 			var resp *http.Response
 			acceptFromClient := req.Header.Get("Accept")
 			switch acceptFromClient {
