@@ -339,7 +339,6 @@ func TestGetHeader(t *testing.T) {
 		require.EqualValues(t, *resp.Deneb, *bid)
 
 		rr.Body.Bytes()
-
 	})
 
 	t.Run("Bad response from relays", func(t *testing.T) {
