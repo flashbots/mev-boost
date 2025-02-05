@@ -259,30 +259,62 @@ func (m *Relay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 		m.handlerOverrideGetHeader(w, req)
 		return
 	}
-	m.defaultHandleGetHeader(w)
+	m.defaultHandleGetHeader(w, req)
 }
 
 // defaultHandleGetHeader returns the default handler for handleGetHeader
-func (m *Relay) defaultHandleGetHeader(w http.ResponseWriter) {
-	// By default, everything will be ok.
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+func (m *Relay) defaultHandleGetHeader(w http.ResponseWriter, req *http.Request) {
+	if req.Header.Get("Accept") == "application/octet-stream" {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.WriteHeader(http.StatusOK)
 
-	// Build the default response.
-	response := m.MakeGetHeaderResponse(
-		12345,
-		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-		spec.DataVersionDeneb,
-	)
-	if m.GetHeaderResponse != nil {
-		response = m.GetHeaderResponse
-	}
+		// Build the default response.
+		response := m.MakeGetHeaderResponse(
+			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			spec.DataVersionDeneb,
+		)
+		if m.GetHeaderResponse != nil {
+			response = m.GetHeaderResponse
+		}
 
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		// Encode response to SSZ
+		sszData, err := response.Deneb.MarshalSSZ()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Write the version and data
+		w.Header().Set("Eth-Consensus-Version", "deneb")
+		_, err = w.Write(sszData)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// By default, return JSON
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		// Build the default response.
+		response := m.MakeGetHeaderResponse(
+			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			spec.DataVersionDeneb,
+		)
+		if m.GetHeaderResponse != nil {
+			response = m.GetHeaderResponse
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
