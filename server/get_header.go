@@ -2,12 +2,15 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
 
 	builderSpec "github.com/attestantio/go-builder-client/spec"
+	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server/types"
@@ -16,7 +19,7 @@ import (
 )
 
 // getHeader requests a bid from each relay and returns the most profitable one
-func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Slot, pubkey, parentHashHex string) (bidResp, error) {
+func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, parentHashHex string, header http.Header) (bidResp, error) {
 	// Ensure arguments are valid
 	if len(pubkey) != 98 {
 		return bidResp{}, errInvalidPubkey
@@ -44,12 +47,6 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 		"msIntoSlot":  msIntoSlot,
 	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, slot)
 
-	// Add request headers
-	headers := map[string]string{
-		HeaderKeySlotUID:      slotUID.String(),
-		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
-	}
-
 	var (
 		mu sync.Mutex
 		wg sync.WaitGroup
@@ -71,15 +68,55 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 			url := relay.GetURI(fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHashHex, pubkey))
 			log := log.WithField("url", url)
 
-			// Send the get bid request to the relay
-			bid := new(builderSpec.VersionedSignedBuilderBid)
-			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, ua, headers, nil, bid)
+			// Build the new request
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 			if err != nil {
-				log.WithError(err).Warn("error making request to relay")
+				log.WithError(err).Warn("error creating new request")
 				return
 			}
-			if code == http.StatusNoContent {
+
+			// Extend the request header with our values
+			for key, values := range header {
+				req.Header[key] = values
+			}
+
+			// Send the get bid request to the relay
+			resp, err := m.httpClientGetHeader.Do(req)
+			if err != nil {
+				log.WithError(err).Warn("error calling getHeader on relay")
+				return
+			}
+			defer resp.Body.Close()
+
+			// Get the resp body content
+			respBytes, err := io.ReadAll(resp.Body)
+			if err != nil {
+				log.WithError(err).Warn("error reading response body")
+				return
+			}
+
+			// Check if no header is available
+			if resp.StatusCode == http.StatusNoContent {
 				log.Debug("no-content response")
+				return
+			}
+
+			// Check that the response was successful
+			if resp.StatusCode != http.StatusOK {
+				err = fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
+				log.WithError(err).Warn("error status code")
+				return
+			}
+
+			// Get the optional version, used with SSZ decoding
+			ethConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
+			log = log.WithField("eth-consensus-version", ethConsensusVersion)
+
+			// Decode bid
+			bid := new(builderSpec.VersionedSignedBuilderBid)
+			err = decodeBid(respBytes, ethConsensusVersion, bid)
+			if err != nil {
+				log.WithError(err).Warn("error decoding bid")
 				return
 			}
 
@@ -188,4 +225,30 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 	// Set the winning relays before returning
 	result.relays = relays[BlockHashHex(result.bidInfo.blockHash.String())]
 	return result, nil
+}
+
+// decodeBid decodes a bid by SSZ if ethConsensusVersion is valid, otherwise JSON
+func decodeBid(respBytes []byte, ethConsensusVersion string, bid *builderSpec.VersionedSignedBuilderBid) error {
+	if ethConsensusVersion != "" {
+		// Do SSZ decoding
+		switch ethConsensusVersion {
+		case "bellatrix":
+			bid.Version = spec.DataVersionBellatrix
+			return bid.Bellatrix.UnmarshalSSZ(respBytes)
+		case "capella":
+			bid.Version = spec.DataVersionCapella
+			return bid.Capella.UnmarshalSSZ(respBytes)
+		case "deneb":
+			bid.Version = spec.DataVersionDeneb
+			return bid.Deneb.UnmarshalSSZ(respBytes)
+		case "electra":
+			bid.Version = spec.DataVersionElectra
+			return bid.Electra.UnmarshalSSZ(respBytes)
+		default:
+			return errInvalidForkVersion
+		}
+	} else {
+		// Do JSON decoding
+		return json.Unmarshal(respBytes, bid)
+	}
 }

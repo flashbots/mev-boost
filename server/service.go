@@ -315,8 +315,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	})
 	log.Debug("getHeader")
 
+	// Additional header fields
+	header := req.Header
+	header.Set("User-Agent", wrapUserAgent(ua))
+	header.Set(HeaderStartTimeUnixMS, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
+
 	// Query the relays for the header
-	result, err := m.getHeader(log, ua, slot, pubkey, parentHashHex)
+	result, err := m.getHeader(log, slot, pubkey, parentHashHex, header)
 	if err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return

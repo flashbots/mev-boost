@@ -30,6 +30,7 @@ linters:
     - goconst
     - gosec
     - ireturn
+    - maintidx
     - noctx
     - tagliatelle
     - perfsprint
