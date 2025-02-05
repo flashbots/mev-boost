@@ -208,22 +208,6 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
-func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(regBytes []byte) {
-	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("registrationsLen", len(regBytes))
-	for _, relayMonitor := range m.relayMonitors {
-		go func(relayMonitor *url.URL) {
-			url := types.GetURI(relayMonitor, params.PathRegisterValidator)
-			log = log.WithField("url", url)
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url.String(), "", nil, regBytes, nil)
-			if err != nil {
-				log.WithError(err).Warn("error calling registerValidator on relay monitor")
-				return
-			}
-			log.Debug("sent validator registrations to relay monitor")
-		}(relayMonitor)
-	}
-}
-
 func (m *BoostService) handleRoot(w http.ResponseWriter, _ *http.Request) {
 	m.respondOK(w, nilResponse)
 }
@@ -251,10 +235,9 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log = log.WithFields(logrus.Fields{"ua": ua})
 
 	// Additional header fields
-	headers := map[string]string{
-		"User-Agent":          wrapUserAgent(ua),
-		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
-	}
+	header := req.Header
+	header.Set("User-Agent", wrapUserAgent(ua))
+	header.Set(HeaderStartTimeUnixMS, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
 
 	// Read the validator registrations
 	regBytes, err := io.ReadAll(req.Body)
@@ -264,56 +247,18 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	}
 	req.Body.Close()
 
-	// Forward request to each relay
-	respErrCh := make(chan error, len(m.relays))
-	for _, relay := range m.relays {
-		go func(relay types.RelayEntry) {
-			// Build the new request
-			relayReq := req.Clone(req.Context())
-			relayReq.URL = relay.GetURI(params.PathRegisterValidator)
-			relayReq.Body = io.NopCloser(bytes.NewReader(regBytes))
-			for key, value := range headers {
-				relayReq.Header.Set(key, value)
-			}
-
-			// Create a new logger with this request URL
-			log := log.WithField("url", relayReq.URL)
-
-			// Send the request
-			resp, err := m.httpClientGetHeader.Do(relayReq)
-			if err != nil {
-				log.WithError(err).Warn("error calling registerValidator on relay")
-				respErrCh <- err
-				return
-			}
-			resp.Body.Close()
-
-			// Check if response is successful
-			if resp.StatusCode == http.StatusOK {
-				respErrCh <- nil
-			} else {
-				respErrCh <- fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
-			}
-		}(relay)
-	}
-
 	// Send the registrations to relay monitors, if configured
-	go m.sendValidatorRegistrationsToRelayMonitors(regBytes)
+	go m.sendValidatorRegistrationsToRelayMonitors(log, regBytes, header)
 
-	// Return OK if any relay responds OK
-	for range m.relays {
-		respErr := <-respErrCh
-		if respErr == nil {
-			w.WriteHeader(http.StatusOK)
-			// Goroutines are independent, so if there are a lot of configured
-			// relays and the first one responds OK, this will continue to send
-			// validator registrations to the other relays.
-			return
-		}
+	// Send the registrations to each relay
+	err = m.registerValidator(log, regBytes, header)
+	if err == nil {
+		// One of the relays responded OK
+		m.respondOK(w, nilResponse)
+	} else {
+		// None of the relays responded OK
+		m.respondError(w, http.StatusBadGateway, err.Error())
 	}
-
-	// None of the relays responded OK
-	m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 }
 
 // handleGetHeader requests bids from the relays
