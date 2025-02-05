@@ -16,7 +16,6 @@ import (
 	"time"
 
 	builderApi "github.com/attestantio/go-builder-client/api"
-	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
@@ -224,51 +223,77 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-// handleRegisterValidator returns StatusOK if at least one relay returns StatusOK, else StatusBadGateway
+// handleRegisterValidator returns StatusOK if at least one relay returns StatusOK, else StatusBadGateway.
+// This forwards the message from the node to relays with minimal overhead. The registrations will maintain their
+// original encoding (SSZ or JSON) from the node.
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "registerValidator")
-	log.Debug("registerValidator")
+	log.Debug("handling request")
 
-	payload := []builderApiV1.SignedValidatorRegistration{}
-	if err := DecodeJSON(req.Body, &payload); err != nil {
-		m.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
+	// Get the user agent
 	ua := UserAgent(req.Header.Get("User-Agent"))
-	log = log.WithFields(logrus.Fields{
-		"numRegistrations": len(payload),
-		"ua":               ua,
-	})
+	log = log.WithFields(logrus.Fields{"ua": ua})
 
-	// Add request headers
+	// Additional header fields
 	headers := map[string]string{
+		"User-Agent":          wrapUserAgent(ua),
 		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
 
-	relayRespCh := make(chan error, len(m.relays))
+	// Read the body bytes
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		m.respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	req.Body.Close()
 
+	// Forward request to each relay
+	respErrCh := make(chan error, len(m.relays))
 	for _, relay := range m.relays {
 		go func(relay types.RelayEntry) {
-			url := relay.GetURI(params.PathRegisterValidator)
-			log := log.WithField("url", url)
+			// Build the new request
+			relayReq := req.Clone(req.Context())
+			relayReq.URL = relay.GetURI(params.PathRegisterValidator)
+			relayReq.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+			for key, value := range headers {
+				relayReq.Header.Set(key, value)
+			}
 
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, headers, payload, nil)
+			// Create a new logger with this request URL
+			log := log.WithField("url", relayReq.URL)
+
+			// Send the request
+			resp, err := m.httpClientGetHeader.Do(relayReq)
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
+				respErrCh <- err
+				return
 			}
-			relayRespCh <- err
+			resp.Body.Close()
+
+			// Check if response is successful
+			if resp.StatusCode == http.StatusOK {
+				respErrCh <- nil
+			} else {
+				respErrCh <- fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
+			}
 		}(relay)
 	}
 
-	for i := 0; i < len(m.relays); i++ {
-		respErr := <-relayRespCh
+	// Return OK if any relay responds OK
+	for range m.relays {
+		respErr := <-respErrCh
 		if respErr == nil {
-			m.respondOK(w, nilResponse)
+			w.WriteHeader(http.StatusOK)
+			// Goroutines are independent, so if there are a lot of configured
+			// relays and the first one responds OK, this will continue to send
+			// validator registrations to the other relays.
 			return
 		}
 	}
 
+	// None of the relays responded OK
 	m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 }
 
@@ -432,7 +457,7 @@ func (m *BoostService) CheckRelays() int {
 			log := m.log.WithField("url", url)
 			log.Debug("checking relay status")
 
-			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil, nil)
+			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url.String(), "", nil, nil, nil)
 			if err != nil {
 				log.WithError(err).Error("relay status error - request failed")
 				return

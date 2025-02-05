@@ -102,7 +102,7 @@ func TestParseRelaysURLs(t *testing.T) {
 
 			// Now perform content assertions.
 			if tt.expectedErr == nil {
-				require.Equal(t, tt.expectedURI, relayEntry.GetURI(tt.path))
+				require.Equal(t, tt.expectedURI, relayEntry.GetURI(tt.path).String())
 				require.Equal(t, tt.expectedPublicKey, relayEntry.PublicKey.String())
 				require.Equal(t, tt.expectedURL, relayEntry.String())
 			}

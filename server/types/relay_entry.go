@@ -19,15 +19,15 @@ func (r *RelayEntry) String() string {
 }
 
 // GetURI returns the full request URI with scheme, host, path and args.
-func GetURI(url *url.URL, path string) string {
+func GetURI(url *url.URL, path string) *url.URL {
 	u2 := *url
 	u2.User = nil
 	u2.Path = path
-	return u2.String()
+	return &u2
 }
 
 // GetURI returns the full request URI with scheme, host, path and args for the relay.
-func (r *RelayEntry) GetURI(path string) string {
+func (r *RelayEntry) GetURI(path string) *url.URL {
 	return GetURI(r.URL, path)
 }
 

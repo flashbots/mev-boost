@@ -103,7 +103,7 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 			log.Debug("calling getPayload")
 
 			responsePayload := new(builderApi.VersionedSubmitBlindedBlockResponse)
-			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, headers, blindedBlock, responsePayload, m.requestMaxRetries, log)
+			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url.String(), ua, headers, blindedBlock, responsePayload, m.requestMaxRetries, log)
 			if err != nil {
 				if errors.Is(requestCtx.Err(), context.Canceled) {
 					// This is expected if the payload has already been received by another relay

@@ -73,7 +73,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, ua UserAgent, slot phase0.Sl
 
 			// Send the get bid request to the relay
 			bid := new(builderSpec.VersionedSignedBuilderBid)
-			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, ua, headers, nil, bid)
+			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url.String(), ua, headers, nil, bid)
 			if err != nil {
 				log.WithError(err).Warn("error making request to relay")
 				return
