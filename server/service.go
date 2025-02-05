@@ -208,6 +208,22 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
+func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payloadBytes []byte) {
+	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("registrationsLen", len(payloadBytes))
+	for _, relayMonitor := range m.relayMonitors {
+		go func(relayMonitor *url.URL) {
+			url := types.GetURI(relayMonitor, params.PathRegisterValidator)
+			log = log.WithField("url", url)
+			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url.String(), "", nil, payloadBytes, nil)
+			if err != nil {
+				log.WithError(err).Warn("error calling registerValidator on relay monitor")
+				return
+			}
+			log.Debug("sent validator registrations to relay monitor")
+		}(relayMonitor)
+	}
+}
+
 func (m *BoostService) handleRoot(w http.ResponseWriter, _ *http.Request) {
 	m.respondOK(w, nilResponse)
 }
@@ -280,6 +296,8 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 			}
 		}(relay)
 	}
+
+	go m.sendValidatorRegistrationsToRelayMonitors(bodyBytes)
 
 	// Return OK if any relay responds OK
 	for range m.relays {
