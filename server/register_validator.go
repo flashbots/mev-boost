@@ -23,7 +23,7 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 			log := log.WithField("url", requestURL)
 
 			// Build the new request
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, requestURL.String(), bytes.NewReader(regBytes))
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, requestURL, bytes.NewReader(regBytes))
 			if err != nil {
 				log.WithError(err).Warn("error creating new request")
 				return
@@ -76,7 +76,7 @@ func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(log *logrus.Ent
 			log := log.WithField("url", requestURL)
 
 			// Build the new request
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, requestURL.String(), bytes.NewReader(regBytes))
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, requestURL, bytes.NewReader(regBytes))
 			if err != nil {
 				log.WithError(err).Warn("error creating new request")
 				return
