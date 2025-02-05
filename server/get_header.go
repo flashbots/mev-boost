@@ -80,36 +80,32 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				req.Header[key] = values
 			}
 
-			// Send the get bid request to the relay.
-			// Try what the client requests first.
-			// If no accept type is specified, request JSON.
+			// Send the get bid request to the relay. Start by requesting SSZ from
+			// the relay, even if the client requested JSON. We will return the
+			// best bid to the client in whichever format the client requested.
 			var resp *http.Response
-			acceptFromClient := req.Header.Get("Accept")
-			switch acceptFromClient {
-			case "application/octet-stream":
-				log.Debug("requesting header in SSZ")
-				req.Header.Set("Accept", "application/octet-stream")
-				resp, err = m.httpClientGetHeader.Do(req)
-				if resp.StatusCode != http.StatusNotAcceptable {
-					// The relay didn't complain about the accept value.
-					// This means we should try processing the response.
-					log.Debug("response indicated SSZ is accepted")
-					break
-				}
-				// The response status was NotAcceptable.
-				// This means we should try again with JSON.
-				log.Debug("response indicated SSZ is not accepted")
-				fallthrough
-			default:
-				log.Debug("requesting header in JSON")
-				req.Header.Set("Accept", "application/json")
-				resp, err = m.httpClientGetHeader.Do(req)
-			}
+			log.Debug("requesting header in SSZ")
+			req.Header.Set("Accept", "application/octet-stream")
+			resp, err = m.httpClientGetHeader.Do(req)
 			if err != nil {
-				log.WithError(err).Warn("error calling getHeader on relay")
+				log.WithError(err).WithField("encoding", "ssz").Warn("error calling getHeader on relay")
 				return
 			}
 			defer resp.Body.Close()
+
+			// If the relay does not support SSZ, try again with JSON
+			if resp.StatusCode == http.StatusNotAcceptable {
+				resp.Body.Close()
+				log.Debug("response indicated SSZ is not accepted")
+				log.Debug("requesting header in JSON")
+				req.Header.Set("Accept", "application/json")
+				resp, err = m.httpClientGetHeader.Do(req)
+				if err != nil {
+					log.WithError(err).WithField("encoding", "json").Warn("error calling getHeader on relay")
+					return
+				}
+				defer resp.Body.Close()
+			}
 
 			// Check if no header is available
 			if resp.StatusCode == http.StatusNoContent {
