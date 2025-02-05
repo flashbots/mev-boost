@@ -101,7 +101,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				log.Debug("requesting header in SSZ")
 				resp, err = doRequest("application/octet-stream")
 				if err != nil {
-					log.WithError(err).Warn("error sending request")
+					log.WithError(err).Warn("error calling getHeader on relay")
 					return
 				}
 
