@@ -6,11 +6,6 @@ import (
 	"strings"
 )
 
-const (
-	MediaTypeJSON        = "application/json"
-	MediaTypeOctetStream = "application/octet-stream"
-)
-
 // AcceptEntry represents a parsed Accept header entry with q-weight.
 type AcceptEntry struct {
 	MediaType string

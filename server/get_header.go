@@ -240,7 +240,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 // decodeBid decodes a bid by SSZ or JSON, depending on the provided respContentType
 func decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bid *builderSpec.VersionedSignedBuilderBid) error {
 	switch respContentType {
-	case "application/octet-stream":
+	case MediaTypeOctetStream:
 		if ethConsensusVersion != "" {
 			// Do SSZ decoding
 			switch ethConsensusVersion {
@@ -266,7 +266,7 @@ func decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bi
 		} else {
 			return types.ErrMissingEthConsensusVersion
 		}
-	case "application/json":
+	case MediaTypeJSON:
 		// Do JSON decoding
 		return json.Unmarshal(respBytes, bid)
 	}
