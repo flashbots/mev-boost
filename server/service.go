@@ -356,65 +356,65 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"relays":      strings.Join(types.RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
-	// A function which responds in the JSON encoding
-	respondJSON := func() {
-		w.Header().Set("Content-Type", MediaTypeJSON)
-		w.WriteHeader(http.StatusOK)
+	// Define map of supported handlers
+	supportedMediaTypeHandlers := map[string]func(){
+		MediaTypeJSON: func() {
+			w.Header().Set("Content-Type", MediaTypeJSON)
+			w.WriteHeader(http.StatusOK)
 
-		// Serialize and write the data
-		if err := json.NewEncoder(w).Encode(&result.response); err != nil {
-			m.log.WithField("response", result.response).WithError(err).Error("could not write OK response")
-			http.Error(w, "", http.StatusInternalServerError)
-		}
+			// Serialize and write the data
+			if err := json.NewEncoder(w).Encode(&result.response); err != nil {
+				m.log.WithField("response", result.response).WithError(err).Error("could not write OK response")
+				http.Error(w, "", http.StatusInternalServerError)
+			}
+		},
+		MediaTypeOctetStream: func() {
+			w.Header().Set("Content-Type", MediaTypeOctetStream)
+			w.WriteHeader(http.StatusOK)
+
+			// Serialize the response
+			var sszData []byte
+			switch result.response.Version {
+			case spec.DataVersionBellatrix:
+				sszData, err = result.response.Bellatrix.MarshalSSZ()
+			case spec.DataVersionCapella:
+				sszData, err = result.response.Capella.MarshalSSZ()
+			case spec.DataVersionDeneb:
+				sszData, err = result.response.Deneb.MarshalSSZ()
+			case spec.DataVersionElectra:
+				sszData, err = result.response.Electra.MarshalSSZ()
+			case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+				err = errInvalidForkVersion
+			}
+			if err != nil {
+				m.log.WithError(err).Error("error serializing response as SSZ")
+				http.Error(w, "failed to serialize response", http.StatusInternalServerError)
+				return
+			}
+
+			// Write SSZ data
+			if _, err := w.Write(sszData); err != nil {
+				m.log.WithError(err).Error("error writing SSZ response")
+				http.Error(w, "failed to write response", http.StatusInternalServerError)
+			}
+		},
 	}
 
-	// A function which responds in the SSZ encoding
-	respondSSZ := func() {
-		w.Header().Set("Content-Type", MediaTypeOctetStream)
-		w.WriteHeader(http.StatusOK)
-
-		// Serialize the response
-		var sszData []byte
-		switch result.response.Version {
-		case spec.DataVersionBellatrix:
-			sszData, err = result.response.Bellatrix.MarshalSSZ()
-		case spec.DataVersionCapella:
-			sszData, err = result.response.Capella.MarshalSSZ()
-		case spec.DataVersionDeneb:
-			sszData, err = result.response.Deneb.MarshalSSZ()
-		case spec.DataVersionElectra:
-			sszData, err = result.response.Electra.MarshalSSZ()
-		case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
-			err = errInvalidForkVersion
-		}
-		if err != nil {
-			m.log.WithError(err).Error("error serializing response as SSZ")
-			http.Error(w, "failed to serialize response", http.StatusInternalServerError)
-			return
-		}
-
-		// Write SSZ data
-		if _, err := w.Write(sszData); err != nil {
-			m.log.WithError(err).Error("error writing SSZ response")
-			http.Error(w, "failed to write response", http.StatusInternalServerError)
-		}
+	// Generate slice of supported media types
+	var supportedMediaTypes []string
+	for mediaType := range supportedMediaTypeHandlers {
+		supportedMediaTypes = append(supportedMediaTypes, mediaType)
 	}
 
-	// Return the bid. We iterate over the client's acceptable
-	// media types in order of highest to lowest quality.
-	for _, accept := range clientAccepts {
-		switch accept.MediaType {
-		case MediaTypeJSON:
-			respondJSON()
-			return
-		case MediaTypeOctetStream:
-			respondSSZ()
-			return
-		}
+	// Given the client's acceptable media types, respond with the highest quality one
+	preferredContentType := SelectHighestQualityValueMediaType(clientAccepts, supportedMediaTypes, MediaTypeJSON)
+	if mediaTypeHandler, ok := supportedMediaTypeHandlers[preferredContentType]; ok {
+		mediaTypeHandler()
+	} else {
+		// This should never happen, but just in case.
+		message := fmt.Sprintf("unsupported media type: %s", preferredContentType)
+		m.respondError(w, http.StatusNotAcceptable, message)
 	}
-
-	// If the accept value is unknown, respond with JSON
-	respondJSON()
 }
 
 // respondPayload responds to the proposer with the payload
