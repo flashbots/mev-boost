@@ -76,52 +76,22 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			url := relay.GetURI(fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHashHex, pubkey))
 			log := log.WithField("url", url)
 
-			// A method for sending the request with a specific accept header value
-			doRequest := func(accept string) (*http.Response, error) {
-				req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
-				if err != nil {
-					log.WithError(err).Warn("error creating new request")
-					return nil, err
-				}
-				for key, values := range header {
-					req.Header[key] = values
-				}
-				req.Header.Set("Accept", accept)
-				return m.httpClientGetHeader.Do(req)
+			// Make a new request
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+			if err != nil {
+				log.WithError(err).Warn("error creating new request")
+				return
 			}
 
-			// Send the get bid request to the relay. Try what the client
-			// accepts (either SSZ or JSON) first. If no accept type is specified,
-			// request JSON. We cannot request SSZ if the client does not, because
-			// the appropriate Eth-Consensus-Version header value is not known.
-			var err error
-			var resp *http.Response
-			switch header.Get("Accept") {
-			case "application/octet-stream":
-				log.Debug("requesting header in SSZ")
-				resp, err = doRequest("application/octet-stream")
-				if err != nil {
-					log.WithError(err).Warn("error calling getHeader on relay")
-					return
-				}
-
-				// Check if the relay supports SSZ requests
-				if resp.StatusCode != http.StatusNotAcceptable {
-					// The relay didn't complain about the accept value.
-					// This means we should try processing the response.
-					log.Debug("response indicated SSZ is accepted")
-					break
-				}
-
-				// The response status was NotAcceptable.
-				// This means we should try again with JSON.
-				log.Debug("response indicated SSZ is not accepted")
-				resp.Body.Close()
-				fallthrough
-			default:
-				log.Debug("requesting header in JSON")
-				resp, err = doRequest("application/json")
+			// Add headers from the request to this request.
+			// This includes Accept and Eth-Consensus-Version, if provided.
+			for key, values := range header {
+				req.Header[key] = values
 			}
+
+			// Send the request
+			log.Debug("requesting header")
+			resp, err := m.httpClientGetHeader.Do(req)
 			if err != nil {
 				log.WithError(err).Warn("error calling getHeader on relay")
 				return
