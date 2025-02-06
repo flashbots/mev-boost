@@ -38,6 +38,7 @@ var (
 	errInvalidSlot               = errors.New("invalid slot")
 	errInvalidHash               = errors.New("invalid hash")
 	errInvalidPubkey             = errors.New("invalid pubkey")
+	errUnknownAcceptValue        = errors.New("unknown accept value")
 	errNoSuccessfulRelayResponse = errors.New("no successful relay response")
 	errServerAlreadyRunning      = errors.New("server already running")
 )
@@ -300,6 +301,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		ua            = UserAgent(req.Header.Get("User-Agent"))
 	)
 
+	// Parse the slot
 	slotValue, err := strconv.ParseUint(vars["slot"], 10, 64)
 	if err != nil {
 		m.respondError(w, http.StatusBadRequest, errInvalidSlot.Error())
@@ -307,6 +309,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 	slot := phase0.Slot(slotValue)
 
+	//
 	log := m.log.WithFields(logrus.Fields{
 		"method":     "getHeader",
 		"slot":       slot,
@@ -314,7 +317,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"pubkey":     pubkey,
 		"ua":         ua,
 	})
-	log.Debug("getHeader")
+	log.Debug("handling request")
 
 	// Additional header fields
 	header := req.Header
@@ -328,6 +331,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	// Bail if none of the relays returned a bid
 	if result.response.IsEmpty() {
 		log.Info("no bid received")
 		w.WriteHeader(http.StatusNoContent)
@@ -340,12 +344,12 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.bidsLock.Unlock()
 
 	// How should we respond to the client
-	acceptFromClient := req.Header.Get("Accept")
+	clientAccepts := ParseAcceptHeader(req.Header.Get("Accept"))
+	log.Debug("clientAccepts", clientAccepts)
 
 	// Log result
 	valueEth := weiBigIntToEthBigFloat(result.bidInfo.value.ToBig())
 	log.WithFields(logrus.Fields{
-		"acceptType":  acceptFromClient,
 		"blockHash":   result.bidInfo.blockHash.String(),
 		"blockNumber": result.bidInfo.blockNumber,
 		"txRoot":      result.bidInfo.txRoot.String(),
@@ -354,44 +358,56 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}).Info("best bid")
 
 	// Return the bid
-	switch acceptFromClient {
-	case "application/octet-stream":
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.WriteHeader(http.StatusOK)
+	for _, accept := range clientAccepts {
+		if accept.MediaType == MediaTypeOctetStream {
+			w.Header().Set("Content-Type", MediaTypeOctetStream)
+			w.WriteHeader(http.StatusOK)
 
-		// Serialize the response
-		var sszData []byte
-		switch result.response.Version {
-		case spec.DataVersionBellatrix:
-			sszData, err = result.response.Bellatrix.MarshalSSZ()
-		case spec.DataVersionCapella:
-			sszData, err = result.response.Capella.MarshalSSZ()
-		case spec.DataVersionDeneb:
-			sszData, err = result.response.Deneb.MarshalSSZ()
-		case spec.DataVersionElectra:
-			sszData, err = result.response.Electra.MarshalSSZ()
-		case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
-			err = errInvalidForkVersion
-		}
-		if err != nil {
-			m.log.WithError(err).Error("error serializing response as SSZ")
-			http.Error(w, "failed to serialize response", http.StatusInternalServerError)
+			// Serialize the response
+			var sszData []byte
+			switch result.response.Version {
+			case spec.DataVersionBellatrix:
+				sszData, err = result.response.Bellatrix.MarshalSSZ()
+			case spec.DataVersionCapella:
+				sszData, err = result.response.Capella.MarshalSSZ()
+			case spec.DataVersionDeneb:
+				sszData, err = result.response.Deneb.MarshalSSZ()
+			case spec.DataVersionElectra:
+				sszData, err = result.response.Electra.MarshalSSZ()
+			case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+				err = errInvalidForkVersion
+			}
+			if err != nil {
+				m.log.WithError(err).Error("error serializing response as SSZ")
+				http.Error(w, "failed to serialize response", http.StatusInternalServerError)
+				return
+			}
+
+			// Write SSZ data
+			if _, err := w.Write(sszData); err != nil {
+				m.log.WithError(err).Error("error writing SSZ response")
+				http.Error(w, "failed to write response", http.StatusInternalServerError)
+			}
+
+			// We're done here, return
+			return
+		} else if accept.MediaType == MediaTypeJSON {
+			w.Header().Set("Content-Type", MediaTypeJSON)
+			w.WriteHeader(http.StatusOK)
+
+			// Serialize and write the data
+			if err := json.NewEncoder(w).Encode(&result.response); err != nil {
+				m.log.WithField("response", result.response).WithError(err).Error("could not write OK response")
+				http.Error(w, "", http.StatusInternalServerError)
+			}
+
+			// We're done here, return
 			return
 		}
-
-		// Write SSZ data
-		if _, err := w.Write(sszData); err != nil {
-			m.log.WithError(err).Error("error writing SSZ response")
-			http.Error(w, "failed to write response", http.StatusInternalServerError)
-		}
-	default:
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(&result.response); err != nil {
-			m.log.WithField("response", result.response).WithError(err).Error("could not write OK response")
-			http.Error(w, "", http.StatusInternalServerError)
-		}
 	}
+
+	// If this is reached, none of the client's accept values were valid
+	m.respondError(w, http.StatusNotAcceptable, errUnknownAcceptValue.Error())
 }
 
 // respondPayload responds to the proposer with the payload
