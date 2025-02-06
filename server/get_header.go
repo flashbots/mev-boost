@@ -204,8 +204,14 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			mu.Lock()
 			defer mu.Unlock()
 
+			// Create a copy of the relay instance with its encoding preference. If we request SSZ and the relay
+			// responds with JSON, we know that it does not support SSZ yet. This preference will be used in getPayload,
+			// because we must encode the blinded block in the request in such a way that the relay can decode it.
+			relayWithEncodingPreference := relay.Copy()
+			relayWithEncodingPreference.SupportsSSZ = respContentType == MediaTypeOctetStream
+
 			// Remember which relays delivered which bids (multiple relays might deliver the top bid)
-			relays[BlockHashHex(bidInfo.blockHash.String())] = append(relays[BlockHashHex(bidInfo.blockHash.String())], relay)
+			relays[BlockHashHex(bidInfo.blockHash.String())] = append(relays[BlockHashHex(bidInfo.blockHash.String())], relayWithEncodingPreference)
 
 			// Compare the bid with already known top bid (if any)
 			if !result.response.IsEmpty() {
