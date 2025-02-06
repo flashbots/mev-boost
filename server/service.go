@@ -415,7 +415,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	if mediaTypeHandler, ok := supportedMediaTypeHandlers[preferredContentType]; ok {
 		mediaTypeHandler()
 	} else {
-		// This should never happen, but just in case.
 		message := fmt.Sprintf("unsupported media type: %s", preferredContentType)
 		m.respondError(w, http.StatusNotAcceptable, message)
 	}
