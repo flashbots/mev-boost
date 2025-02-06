@@ -308,7 +308,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 	slot := phase0.Slot(slotValue)
 
-	//
+	// Add relevant fields to the logger
 	log := m.log.WithFields(logrus.Fields{
 		"method":     "getHeader",
 		"slot":       slot,
