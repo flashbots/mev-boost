@@ -347,7 +347,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	log.Debug("clientAccepts", clientAccepts)
 	if len(clientAccepts) == 0 {
 		log.Info("no client accepts, defaulting to JSON")
-		clientAccepts = []acceptEntry{{MediaType: MediaTypeJSON}}
+		clientAccepts = []AcceptEntry{{MediaType: MediaTypeJSON}}
 	}
 
 	// Log result
@@ -405,7 +405,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	// Generate slice of supported media types
-	var supportedMediaTypes []string
+	supportedMediaTypes := make([]string, 0, len(supportedMediaTypeHandlers))
 	for mediaType := range supportedMediaTypeHandlers {
 		supportedMediaTypes = append(supportedMediaTypes, mediaType)
 	}

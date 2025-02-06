@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-type acceptEntry struct {
+type AcceptEntry struct {
 	MediaType string
 	Quality   float64
 	pos       int // position in the header (lower=earlier)
@@ -15,9 +15,9 @@ type acceptEntry struct {
 // It splits the header by commas and for each part, it splits by semicolon to find
 // a possible "q" parameter. If the part is malformed (for example, a trailing semicolon
 // with no parameter or a q value that cannot be parsed or is not in [0,1]), the entry is ignored.
-func ParseAcceptHeader(header string) []acceptEntry {
-	var entries []acceptEntry
+func ParseAcceptHeader(header string) []AcceptEntry {
 	parts := strings.Split(header, ",")
+	entries := make([]AcceptEntry, 0, len(parts))
 	for i, part := range parts {
 		part = strings.TrimSpace(part)
 		if part == "" {
@@ -60,7 +60,7 @@ func ParseAcceptHeader(header string) []acceptEntry {
 		if !valid {
 			continue
 		}
-		entries = append(entries, acceptEntry{
+		entries = append(entries, AcceptEntry{
 			MediaType: mediaType,
 			Quality:   quality,
 			pos:       i,
@@ -74,7 +74,7 @@ func ParseAcceptHeader(header string) []acceptEntry {
 // A supported type is considered matching if it is an exact match or if the accept entry is "*/*".
 // When quality factors are equal, the later (higher pos) accept entry “wins” – and if even that is tied,
 // the order of supportedMediaTypes is used as a final tie‐breaker.
-func SelectHighestQualityValueMediaType(entries []acceptEntry, supportedMediaTypes []string) string {
+func SelectHighestQualityValueMediaType(entries []AcceptEntry, supportedMediaTypes []string) string {
 	type candidate struct {
 		mediaType string
 		q         float64
