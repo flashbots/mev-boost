@@ -6,16 +6,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestParseAcceptHeader ensures that parsing/selection works properly.
+// These tests come from the Lodestar client (thank you for sharing!) here:
+// https://github.com/ChainSafe/lodestar/blob/9c66fac4a47446b225c874997dfc4d7b93a820b3/packages/api/test/unit/utils/headers.test.ts#L5-L42
 func TestParseAcceptHeader(t *testing.T) {
 	testCases := []struct {
 		header   string
 		expected string
 	}{
-		{"", MediaTypeJSON},
+		{"", ""},
 		{"*/*", MediaTypeJSON},
 		{"application/json", MediaTypeJSON},
 		{"application/octet-stream", MediaTypeOctetStream},
-		{"application/invalid", MediaTypeJSON},
+		{"application/invalid", ""},
 		{"application/invalid;q=1,application/octet-stream;q=0.1", MediaTypeOctetStream},
 		{"application/octet-stream;q=0.5,application/json;q=1", MediaTypeJSON},
 		{"application/octet-stream;q=1,application/json;q=0.1", MediaTypeOctetStream},
@@ -43,7 +46,7 @@ func TestParseAcceptHeader(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.header, func(t *testing.T) {
 			parsed := ParseAcceptHeader(tc.header)
-			selected := SelectHighestQualityValueMediaType(parsed, supportedMediaTypes, MediaTypeJSON)
+			selected := SelectHighestQualityValueMediaType(parsed, supportedMediaTypes)
 			require.Equal(t, tc.expected, selected)
 		})
 	}

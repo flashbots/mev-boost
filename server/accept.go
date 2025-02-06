@@ -6,9 +6,9 @@ import (
 )
 
 type acceptEntry struct {
-	mediaRange string
-	q          float64
-	pos        int // position in the header (lower=earlier)
+	MediaType string
+	Quality   float64
+	pos       int // position in the header (lower=earlier)
 }
 
 // ParseAcceptHeader takes an Accept header string and returns a slice of valid entries.
@@ -25,12 +25,12 @@ func ParseAcceptHeader(header string) []acceptEntry {
 		}
 		// Split on semicolon; first token is the media-range.
 		tokens := strings.Split(part, ";")
-		mediaRange := strings.TrimSpace(tokens[0])
-		if mediaRange == "" {
+		mediaType := strings.TrimSpace(tokens[0])
+		if mediaType == "" {
 			continue
 		}
-		// Default quality is 1.
-		q := 1.0
+		// Default q is 1.
+		quality := 1.0
 		valid := true
 		// Process parameters.
 		for _, token := range tokens[1:] {
@@ -53,7 +53,7 @@ func ParseAcceptHeader(header string) []acceptEntry {
 					valid = false
 					break
 				}
-				q = f
+				quality = f
 			}
 			// Other parameters are ignored.
 		}
@@ -61,9 +61,9 @@ func ParseAcceptHeader(header string) []acceptEntry {
 			continue
 		}
 		entries = append(entries, acceptEntry{
-			mediaRange: mediaRange,
-			q:          q,
-			pos:        i,
+			MediaType: mediaType,
+			Quality:   quality,
+			pos:       i,
 		})
 	}
 	return entries
@@ -74,7 +74,7 @@ func ParseAcceptHeader(header string) []acceptEntry {
 // A supported type is considered matching if it is an exact match or if the accept entry is "*/*".
 // When quality factors are equal, the later (higher pos) accept entry “wins” – and if even that is tied,
 // the order of supportedMediaTypes is used as a final tie‐breaker.
-func SelectHighestQualityValueMediaType(entries []acceptEntry, supportedMediaTypes []string, defaultMediaType string) string {
+func SelectHighestQualityValueMediaType(entries []acceptEntry, supportedMediaTypes []string) string {
 	type candidate struct {
 		mediaType string
 		q         float64
@@ -88,11 +88,11 @@ func SelectHighestQualityValueMediaType(entries []acceptEntry, supportedMediaTyp
 		bestPos := -1
 		found := false
 		for _, e := range entries {
-			if e.mediaRange == supp || e.mediaRange == "*/*" {
+			if e.MediaType == supp || e.MediaType == "*/*" {
 				// If this entry has a higher q or, in case of equal q, a later position,
 				// then it is preferred.
-				if e.q > bestQ || (e.q == bestQ && e.pos > bestPos) {
-					bestQ = e.q
+				if e.Quality > bestQ || (e.Quality == bestQ && e.pos > bestPos) {
+					bestQ = e.Quality
 					bestPos = e.pos
 					found = true
 				}
@@ -121,5 +121,5 @@ func SelectHighestQualityValueMediaType(entries []acceptEntry, supportedMediaTyp
 	if bestCandidate != nil {
 		return bestCandidate.mediaType
 	}
-	return defaultMediaType
+	return ""
 }

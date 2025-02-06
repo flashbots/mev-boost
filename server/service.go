@@ -345,6 +345,10 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// How should we respond to the client
 	clientAccepts := ParseAcceptHeader(req.Header.Get("Accept"))
 	log.Debug("clientAccepts", clientAccepts)
+	if len(clientAccepts) == 0 {
+		log.Info("no client accepts, defaulting to JSON")
+		clientAccepts = []acceptEntry{{MediaType: MediaTypeJSON}}
+	}
 
 	// Log result
 	valueEth := weiBigIntToEthBigFloat(result.bidInfo.value.ToBig())
@@ -406,8 +410,8 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		supportedMediaTypes = append(supportedMediaTypes, mediaType)
 	}
 
-	// Given the client's acceptable media types, respond with the highest quality one
-	preferredContentType := SelectHighestQualityValueMediaType(clientAccepts, supportedMediaTypes, MediaTypeJSON)
+	// Given the client's acceptable media types, respond with the highest q one
+	preferredContentType := SelectHighestQualityValueMediaType(clientAccepts, supportedMediaTypes)
 	if mediaTypeHandler, ok := supportedMediaTypeHandlers[preferredContentType]; ok {
 		mediaTypeHandler()
 	} else {

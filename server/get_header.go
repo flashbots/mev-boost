@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"sync"
 	"time"
@@ -118,8 +119,11 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				return
 			}
 
-			// Get the response's content type
-			respContentType := resp.Header.Get("Content-Type")
+			// Get the response's content type, default to JSON
+			respContentType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+			if err != nil {
+				respContentType = MediaTypeJSON
+			}
 			log = log.WithField("respContentType", respContentType)
 
 			// Decode bid
