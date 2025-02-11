@@ -373,19 +373,20 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			}
 		},
 		MediaTypeOctetStream: func() {
-			w.Header().Set("Content-Type", MediaTypeOctetStream)
-			w.WriteHeader(http.StatusOK)
-
 			// Serialize the response
 			var sszData []byte
 			switch result.response.Version {
 			case spec.DataVersionBellatrix:
+				w.Header().Set("Eth-Consensus-Version", "bellatrix")
 				sszData, err = result.response.Bellatrix.MarshalSSZ()
 			case spec.DataVersionCapella:
+				w.Header().Set("Eth-Consensus-Version", "capella")
 				sszData, err = result.response.Capella.MarshalSSZ()
 			case spec.DataVersionDeneb:
+				w.Header().Set("Eth-Consensus-Version", "deneb")
 				sszData, err = result.response.Deneb.MarshalSSZ()
 			case spec.DataVersionElectra:
+				w.Header().Set("Eth-Consensus-Version", "electra")
 				sszData, err = result.response.Electra.MarshalSSZ()
 			case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
 				err = errInvalidForkVersion
@@ -395,6 +396,10 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 				http.Error(w, "failed to serialize response", http.StatusInternalServerError)
 				return
 			}
+
+			// Write the header
+			w.Header().Set("Content-Type", MediaTypeOctetStream)
+			w.WriteHeader(http.StatusOK)
 
 			// Write SSZ data
 			if _, err := w.Write(sszData); err != nil {
