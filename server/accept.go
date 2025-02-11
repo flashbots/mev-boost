@@ -123,3 +123,12 @@ func SelectHighestQualityValueMediaType(entries []AcceptEntry, supportedMediaTyp
 	}
 	return ""
 }
+
+func Accepts(entries []AcceptEntry, mediaType string) bool {
+	for _, entry := range entries {
+		if entry.MediaType == mediaType {
+			return true
+		}
+	}
+	return false
+}

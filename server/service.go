@@ -410,8 +410,27 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		supportedMediaTypes = append(supportedMediaTypes, mediaType)
 	}
 
-	// Given the client's acceptable media types, respond with the highest q one
+	// Default to the client's highest quality acceptable media type
 	preferredContentType := SelectHighestQualityValueMediaType(clientAccepts, supportedMediaTypes)
+
+	// If every relay returned the bid in JSON, that means that none
+	// of them support SSZ and this would always require extra conversions.
+	// In this situation, if the client still accepts JSON, respond to the
+	// getHeader in JSON so the client sends the getPayload request in JSON.
+	allBidsWereJSON := true
+	for _, relay := range result.relays {
+		if relay.SupportsSSZ {
+			log.Debug("there is a relay that supports SSZ")
+			allBidsWereJSON = false
+			break
+		}
+	}
+	if preferredContentType != MediaTypeJSON && allBidsWereJSON && Accepts(clientAccepts, MediaTypeJSON) {
+		log.Debug("overriding the response content type to be JSON")
+		preferredContentType = MediaTypeJSON
+	}
+
+	// Respond appropriately
 	if mediaTypeHandler, ok := supportedMediaTypeHandlers[preferredContentType]; ok {
 		mediaTypeHandler()
 	} else {
