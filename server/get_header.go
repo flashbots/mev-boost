@@ -52,10 +52,6 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 		"msIntoSlot":  msIntoSlot,
 	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, slot)
 
-	// Get the optional version, used with SSZ decoding
-	ethConsensusVersion := header.Get("Eth-Consensus-Version")
-	log = log.WithField("ethConsensusVersion", ethConsensusVersion)
-
 	var (
 		mu sync.Mutex
 		wg sync.WaitGroup
@@ -125,6 +121,10 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				respContentType = MediaTypeJSON
 			}
 			log = log.WithField("respContentType", respContentType)
+
+			// Get the optional version, used with SSZ decoding
+			ethConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
+			log = log.WithField("ethConsensusVersion", ethConsensusVersion)
 
 			// Decode bid
 			bid := new(builderSpec.VersionedSignedBuilderBid)
