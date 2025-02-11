@@ -302,14 +302,6 @@ func TestGetHeader(t *testing.T) {
 		header.Set("Accept", "application/json")
 
 		backend := newTestBackend(t, 1, time.Second)
-		resp := backend.relays[0].MakeGetHeaderResponse(
-			12345,
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			spec.DataVersionDeneb,
-		)
-		backend.relays[0].GetHeaderResponse = resp
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -334,87 +326,112 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
 
+		// Ensure the response was SSZ
 		bid := new(builderApiDeneb.SignedBuilderBid)
 		err := bid.UnmarshalSSZ(rr.Body.Bytes())
 		require.NoError(t, err)
 		require.EqualValues(t, *resp.Deneb, *bid)
 	})
 
-	t.Run("Okay response from relay deneb accepts with q values", func(t *testing.T) {
+	t.Run("Relay returns SSZ, mev-boost returns SSZ", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set("Eth-Consensus-Version", "deneb")
 		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
 
 		backend := newTestBackend(t, 1, time.Second)
-		resp := backend.relays[0].MakeGetHeaderResponse(
-			12345,
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			spec.DataVersionDeneb,
-		)
-		backend.relays[0].GetHeaderResponse = resp
+		backend.relays[0].ForceSSZ = true
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
 	})
 
-	t.Run("Okay response from relay deneb no accept value", func(t *testing.T) {
+	t.Run("One relay returns SSZ, another relay returns JSON, mev-boost returns SSZ", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set("Eth-Consensus-Version", "deneb")
+		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
+
+		backend := newTestBackend(t, 2, time.Second)
+		backend.relays[0].ForceSSZ = true
+		backend.relays[1].ForceJSON = true
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
+		require.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
+	})
+
+	t.Run("One relay returns JSON, mev-boost returns JSON", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set("Eth-Consensus-Version", "deneb")
+		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
+
+		backend := newTestBackend(t, 1, time.Second)
+		backend.relays[0].ForceJSON = true
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+	})
+
+	t.Run("Two relays return JSON, mev-boost returns JSON", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set("Eth-Consensus-Version", "deneb")
+		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
+
+		backend := newTestBackend(t, 2, time.Second)
+		backend.relays[0].ForceJSON = true
+		backend.relays[1].ForceJSON = true
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
+		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+	})
+
+	t.Run("Accepts both with Q values", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set("Eth-Consensus-Version", "deneb")
+		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
+
+		backend := newTestBackend(t, 1, time.Second)
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
+	})
+
+	t.Run("No accept value", func(t *testing.T) {
 		// This should default to JSON
 		header := make(http.Header)
 		header.Set("Eth-Consensus-Version", "deneb")
 		header.Del("Accept")
 
 		backend := newTestBackend(t, 1, time.Second)
-		resp := backend.relays[0].MakeGetHeaderResponse(
-			12345,
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			spec.DataVersionDeneb,
-		)
-		backend.relays[0].GetHeaderResponse = resp
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
 	})
 
-	t.Run("Okay response from relay deneb client prefers json", func(t *testing.T) {
+	t.Run("Accepts both but prefers JSON", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set("Eth-Consensus-Version", "deneb")
 		header.Set("Accept", "application/octet-stream;q=0.9,application/json;q=1.0")
 
 		backend := newTestBackend(t, 1, time.Second)
-		resp := backend.relays[0].MakeGetHeaderResponse(
-			12345,
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			spec.DataVersionDeneb,
-		)
-		backend.relays[0].GetHeaderResponse = resp
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
 	})
 
-	t.Run("Okay response from relay deneb client accepts media type we do not support", func(t *testing.T) {
+	t.Run("Only accepts unsupported media type", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set("Eth-Consensus-Version", "deneb")
 		header.Set("Accept", "plain/text")
 
 		backend := newTestBackend(t, 1, time.Second)
-		resp := backend.relays[0].MakeGetHeaderResponse(
-			12345,
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
-			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
-			spec.DataVersionDeneb,
-		)
-		backend.relays[0].GetHeaderResponse = resp
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusNotAcceptable, rr.Code, rr.Body.String())
 	})

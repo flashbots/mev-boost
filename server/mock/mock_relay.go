@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -69,6 +70,10 @@ type Relay struct {
 	// Server section
 	Server        *httptest.Server
 	ResponseDelay time.Duration
+
+	// Force response encodings
+	ForceJSON bool
+	ForceSSZ  bool
 }
 
 // NewRelay creates a mocked relay which implements the backend.BoostBackend interface
@@ -277,7 +282,17 @@ func (m *Relay) defaultHandleGetHeader(w http.ResponseWriter, req *http.Request)
 		response = m.GetHeaderResponse
 	}
 
-	if req.Header.Get("Accept") == "application/octet-stream" {
+	respondJSON := func() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	respondSSZ := func() {
+		w.Header().Set("Eth-Consensus-Version", "deneb")
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.WriteHeader(http.StatusOK)
 		sszData, err := response.Deneb.MarshalSSZ()
@@ -290,13 +305,19 @@ func (m *Relay) defaultHandleGetHeader(w http.ResponseWriter, req *http.Request)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+	}
+
+	// We cannot use code in server, so this is a simplistic
+	// negotiation which should only be used in testing.
+	switch {
+	case m.ForceJSON:
+		respondJSON()
+	case m.ForceSSZ:
+		respondSSZ()
+	case strings.Contains(req.Header.Get("Accept"), "application/octet-stream"):
+		respondSSZ()
+	default:
+		respondJSON()
 	}
 }
 
