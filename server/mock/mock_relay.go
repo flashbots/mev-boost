@@ -158,12 +158,21 @@ func (m *Relay) handleRegisterValidator(w http.ResponseWriter, req *http.Request
 
 // defaultHandleRegisterValidator returns the default handler for handleRegisterValidator
 func (m *Relay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.Request) {
-	payload := []builderApiV1.SignedValidatorRegistration{}
-	decoder := json.NewDecoder(req.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	reqContentType := req.Header.Get("Content-Type")
+	if reqContentType == "" || reqContentType == "application/json" {
+		var payload []builderApiV1.SignedValidatorRegistration
+		decoder := json.NewDecoder(req.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&payload); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	} else if reqContentType == "application/octet-stream" {
+		// TODO(jtraglia): Handle this when a SignedValidatorRegistrationList type exists.
+		// See: https://github.com/attestantio/go-builder-client/pull/38
+		_ = reqContentType
+	} else {
+		panic("invalid content type: " + reqContentType)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
