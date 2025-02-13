@@ -20,7 +20,6 @@ import (
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
-	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-utils/httplogger"
@@ -331,62 +330,8 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"relays":      strings.Join(types.RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
-	// Define map of supported handlers
-	supportedMediaTypeHandlers := map[string]func(){
-		MediaTypeJSON: func() {
-			w.Header().Set("Content-Type", MediaTypeJSON)
-			w.WriteHeader(http.StatusOK)
-
-			// Serialize and write the data
-			if err := json.NewEncoder(w).Encode(&result.response); err != nil {
-				m.log.WithField("response", result.response).WithError(err).Error("could not write OK response")
-				http.Error(w, "", http.StatusInternalServerError)
-			}
-		},
-		MediaTypeOctetStream: func() {
-			// Serialize the response
-			var sszData []byte
-			switch result.response.Version {
-			case spec.DataVersionBellatrix:
-				w.Header().Set("Eth-Consensus-Version", "bellatrix")
-				sszData, err = result.response.Bellatrix.MarshalSSZ()
-			case spec.DataVersionCapella:
-				w.Header().Set("Eth-Consensus-Version", "capella")
-				sszData, err = result.response.Capella.MarshalSSZ()
-			case spec.DataVersionDeneb:
-				w.Header().Set("Eth-Consensus-Version", "deneb")
-				sszData, err = result.response.Deneb.MarshalSSZ()
-			case spec.DataVersionElectra:
-				w.Header().Set("Eth-Consensus-Version", "electra")
-				sszData, err = result.response.Electra.MarshalSSZ()
-			case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
-				err = errInvalidForkVersion
-			}
-			if err != nil {
-				m.log.WithError(err).Error("error serializing response as SSZ")
-				http.Error(w, "failed to serialize response", http.StatusInternalServerError)
-				return
-			}
-
-			// Write the header
-			w.Header().Set("Content-Type", MediaTypeOctetStream)
-			w.WriteHeader(http.StatusOK)
-
-			// Write SSZ data
-			if _, err := w.Write(sszData); err != nil {
-				m.log.WithError(err).Error("error writing SSZ response")
-				http.Error(w, "failed to write response", http.StatusInternalServerError)
-			}
-		},
-	}
-
-	// Generate slice of supported media types
-	supportedMediaTypes := make([]string, 0, len(supportedMediaTypeHandlers))
-	for mediaType := range supportedMediaTypeHandlers {
-		supportedMediaTypes = append(supportedMediaTypes, mediaType)
-	}
-
 	// Default to the client's highest quality acceptable media type
+	supportedMediaTypes := []string{MediaTypeJSON, MediaTypeOctetStream}
 	preferredContentType := SelectHighestQualityValueMediaType(clientAccepts, supportedMediaTypes)
 
 	// If every relay returned the bid in JSON, that means that none
@@ -407,8 +352,10 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	// Respond appropriately
-	if mediaTypeHandler, ok := supportedMediaTypeHandlers[preferredContentType]; ok {
-		mediaTypeHandler()
+	if preferredContentType == MediaTypeJSON {
+		m.respondGetHeaderJSON(w, &result)
+	} else if preferredContentType == MediaTypeOctetStream {
+		m.respondGetHeaderSSZ(w, &result)
 	} else {
 		message := fmt.Sprintf("unsupported media type: %s", preferredContentType)
 		m.respondError(w, http.StatusNotAcceptable, message)

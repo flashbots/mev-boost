@@ -282,3 +282,53 @@ func decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bi
 	}
 	return types.ErrInvalidContentType
 }
+
+// respondGetHeaderJSON responds to the client in JSON
+func (m *BoostService) respondGetHeaderJSON(w http.ResponseWriter, result *bidResp) {
+	w.Header().Set("Content-Type", MediaTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	// Serialize and write the data
+	if err := json.NewEncoder(w).Encode(&result.response); err != nil {
+		m.log.WithField("response", result.response).WithError(err).Error("could not write OK response")
+		http.Error(w, "", http.StatusInternalServerError)
+	}
+}
+
+// respondGetHeaderSSZ responds to the client in SSZ
+func (m *BoostService) respondGetHeaderSSZ(w http.ResponseWriter, result *bidResp) {
+	// Serialize the response
+	var err error
+	var sszData []byte
+	switch result.response.Version {
+	case spec.DataVersionBellatrix:
+		w.Header().Set("Eth-Consensus-Version", "bellatrix")
+		sszData, err = result.response.Bellatrix.MarshalSSZ()
+	case spec.DataVersionCapella:
+		w.Header().Set("Eth-Consensus-Version", "capella")
+		sszData, err = result.response.Capella.MarshalSSZ()
+	case spec.DataVersionDeneb:
+		w.Header().Set("Eth-Consensus-Version", "deneb")
+		sszData, err = result.response.Deneb.MarshalSSZ()
+	case spec.DataVersionElectra:
+		w.Header().Set("Eth-Consensus-Version", "electra")
+		sszData, err = result.response.Electra.MarshalSSZ()
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+		err = errInvalidForkVersion
+	}
+	if err != nil {
+		m.log.WithError(err).Error("error serializing response as SSZ")
+		http.Error(w, "failed to serialize response", http.StatusInternalServerError)
+		return
+	}
+
+	// Write the header
+	w.Header().Set("Content-Type", MediaTypeOctetStream)
+	w.WriteHeader(http.StatusOK)
+
+	// Write SSZ data
+	if _, err := w.Write(sszData); err != nil {
+		m.log.WithError(err).Error("error writing SSZ response")
+		http.Error(w, "failed to write response", http.StatusInternalServerError)
+	}
+}
