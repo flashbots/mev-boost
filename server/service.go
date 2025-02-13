@@ -264,10 +264,12 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 // handleGetHeader requests bids from the relays
 func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	var (
-		vars          = mux.Vars(req)
-		parentHashHex = vars["parent_hash"]
-		pubkey        = vars["pubkey"]
-		ua            = UserAgent(req.Header.Get("User-Agent"))
+		vars                   = mux.Vars(req)
+		parentHashHex          = vars["parent_hash"]
+		pubkey                 = vars["pubkey"]
+		ua                     = UserAgent(req.Header.Get("User-Agent"))
+		reqAccept              = req.Header.Get("Accept")
+		reqEthConsensusVersion = req.Header.Get("Eth-Consensus-Version")
 	)
 
 	// Parse the slot
@@ -280,21 +282,18 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	// Add relevant fields to the logger
 	log := m.log.WithFields(logrus.Fields{
-		"method":     "getHeader",
-		"slot":       slot,
-		"parentHash": parentHashHex,
-		"pubkey":     pubkey,
-		"ua":         ua,
+		"method":                 "getHeader",
+		"slot":                   slot,
+		"parentHash":             parentHashHex,
+		"pubkey":                 pubkey,
+		"ua":                     ua,
+		"reqAccept":              reqAccept,
+		"reqEthConsensusVersion": reqEthConsensusVersion,
 	})
 	log.Debug("handling request")
 
-	// Additional header fields
-	header := req.Header
-	header.Set("User-Agent", wrapUserAgent(ua))
-	header.Set(HeaderStartTimeUnixMS, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
-
 	// Query the relays for the header
-	result, err := m.getHeader(log, slot, pubkey, parentHashHex, header)
+	result, err := m.getHeader(log, slot, pubkey, parentHashHex, ua, reqAccept, reqEthConsensusVersion)
 	if err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return

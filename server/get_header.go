@@ -24,7 +24,7 @@ import (
 )
 
 // getHeader requests a bid from each relay and returns the most profitable one
-func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, parentHashHex string, header http.Header) (bidResp, error) {
+func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, parentHashHex string, ua UserAgent, reqAccept, reqEthConsensusVersion string) (bidResp, error) {
 	// Ensure arguments are valid
 	if len(pubkey) != 98 {
 		return bidResp{}, errInvalidPubkey
@@ -42,6 +42,10 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 	slotUID := m.slotUID.uid
 	m.slotUIDLock.Unlock()
 	log = log.WithField("slotUID", slotUID)
+
+	// Compute these once, instead of for each relay
+	userAgent := wrapUserAgent(ua)
+	startTime := fmt.Sprintf("%d", time.Now().UTC().UnixMilli())
 
 	// Log how late into the slot the request starts
 	slotStartTimestamp := m.genesisTime + uint64(slot)*config.SlotTimeSec
@@ -80,11 +84,11 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				return
 			}
 
-			// Add headers from the request to this request.
-			// This includes Accept and Eth-Consensus-Version, if provided.
-			for key, values := range header {
-				req.Header[key] = values
-			}
+			// Add header fields to this request
+			req.Header.Set("User-Agent", userAgent)
+			req.Header.Set("Accept", reqAccept)
+			req.Header.Set("Eth-Consensus-Version", reqEthConsensusVersion)
+			req.Header.Set(HeaderStartTimeUnixMS, startTime)
 
 			// Send the request
 			log.Debug("requesting header")
@@ -123,12 +127,12 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			log = log.WithField("respContentType", respContentType)
 
 			// Get the optional version, used with SSZ decoding
-			ethConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
-			log = log.WithField("ethConsensusVersion", ethConsensusVersion)
+			respEthConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
+			log = log.WithField("respEthConsensusVersion", respEthConsensusVersion)
 
 			// Decode bid
 			bid := new(builderSpec.VersionedSignedBuilderBid)
-			err = decodeBid(respBytes, respContentType, ethConsensusVersion, bid)
+			err = decodeBid(respBytes, respContentType, respEthConsensusVersion, bid)
 			if err != nil {
 				log.WithError(err).Warn("error decoding bid")
 				return
