@@ -258,10 +258,6 @@ Usage of mev-boost:
         a single relay, can be specified multiple times
   -relay-check
         check relay status on startup and on the status API call
-  -relay-monitor value
-        a single relay monitor, can be specified multiple times
-  -relay-monitors string
-        relay monitor urls - single entry or comma-separated list (scheme://host)
   -relays string
         relay urls - single entry or comma-separated list (scheme://pubkey@host)
   -request-timeout-getheader int

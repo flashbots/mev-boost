@@ -100,7 +100,6 @@ func TestNewBoostServiceErrors(t *testing.T) {
 			Log:                      mock.TestLog,
 			ListenAddr:               ":123",
 			Relays:                   []types.RelayEntry{},
-			RelayMonitors:            []*url.URL{},
 			GenesisForkVersionHex:    "0x00000000",
 			GenesisTime:              0,
 			RelayCheck:               true,

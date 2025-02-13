@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -60,7 +59,6 @@ type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
 	Relays                []types.RelayEntry
-	RelayMonitors         []*url.URL
 	GenesisForkVersionHex string
 	GenesisTime           uint64
 	RelayCheck            bool
@@ -74,14 +72,13 @@ type BoostServiceOpts struct {
 
 // BoostService - the mev-boost service
 type BoostService struct {
-	listenAddr    string
-	relays        []types.RelayEntry
-	relayMonitors []*url.URL
-	log           *logrus.Entry
-	srv           *http.Server
-	relayCheck    bool
-	relayMinBid   types.U256Str
-	genesisTime   uint64
+	listenAddr  string
+	relays      []types.RelayEntry
+	log         *logrus.Entry
+	srv         *http.Server
+	relayCheck  bool
+	relayMinBid types.U256Str
+	genesisTime uint64
 
 	builderSigningDomain phase0.Domain
 	httpClientGetHeader  http.Client
@@ -108,15 +105,14 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	}
 
 	return &BoostService{
-		listenAddr:    opts.ListenAddr,
-		relays:        opts.Relays,
-		relayMonitors: opts.RelayMonitors,
-		log:           opts.Log,
-		relayCheck:    opts.RelayCheck,
-		relayMinBid:   opts.RelayMinBid,
-		genesisTime:   opts.GenesisTime,
-		bids:          make(map[string]bidResp),
-		slotUID:       &slotUID{},
+		listenAddr:  opts.ListenAddr,
+		relays:      opts.Relays,
+		log:         opts.Log,
+		relayCheck:  opts.RelayCheck,
+		relayMinBid: opts.RelayMinBid,
+		genesisTime: opts.GenesisTime,
+		bids:        make(map[string]bidResp),
+		slotUID:     &slotUID{},
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
@@ -246,9 +242,6 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 		return
 	}
 	req.Body.Close()
-
-	// Send the registrations to relay monitors, if configured
-	go m.sendValidatorRegistrationsToRelayMonitors(log, regBytes, header)
 
 	// Send the registrations to each relay
 	err = m.registerValidator(log, regBytes, header)

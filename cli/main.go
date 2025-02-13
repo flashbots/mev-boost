@@ -65,16 +65,15 @@ func start(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var (
-		genesisForkVersion, genesisTime      = setupGenesis(cmd)
-		relays, monitors, minBid, relayCheck = setupRelays(cmd)
-		listenAddr                           = cmd.String(addrFlag.Name)
+		genesisForkVersion, genesisTime = setupGenesis(cmd)
+		relays, minBid, relayCheck      = setupRelays(cmd)
+		listenAddr                      = cmd.String(addrFlag.Name)
 	)
 
 	opts := server.BoostServiceOpts{
 		Log:                      log,
 		ListenAddr:               listenAddr,
 		Relays:                   relays,
-		RelayMonitors:            monitors,
 		GenesisForkVersionHex:    genesisForkVersion,
 		GenesisTime:              genesisTime,
 		RelayCheck:               relayCheck,
@@ -97,12 +96,9 @@ func start(_ context.Context, cmd *cli.Command) error {
 	return service.StartHTTPServer()
 }
 
-func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, bool) {
+func setupRelays(cmd *cli.Command) (relayList, types.U256Str, bool) {
 	// For backwards compatibility with the -relays flag.
-	var (
-		relays   relayList
-		monitors relayMonitorList
-	)
+	var relays relayList
 	if cmd.IsSet(relaysFlag.Name) {
 		relayURLs := cmd.StringSlice(relaysFlag.Name)
 		for _, urls := range relayURLs {
@@ -122,25 +118,6 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 		log.Infof("relay #%d: %s", index+1, relay.String())
 	}
 
-	// For backwards compatibility with the -relay-monitors flag.
-	if cmd.IsSet(relayMonitorFlag.Name) {
-		monitorURLs := cmd.StringSlice(relayMonitorFlag.Name)
-		for _, urls := range monitorURLs {
-			for _, url := range strings.Split(urls, ",") {
-				if err := monitors.Set(strings.TrimSpace(url)); err != nil {
-					log.WithError(err).WithField("relayMonitor", url).Fatal("invalid relay monitor URL")
-				}
-			}
-		}
-	}
-
-	if len(monitors) > 0 {
-		log.Infof("using %d relay monitors", len(monitors))
-		for index, relayMonitor := range monitors {
-			log.Infof("relay-monitor #%d: %s", index+1, relayMonitor.String())
-		}
-	}
-
 	relayMinBidWei, err := sanitizeMinBid(cmd.Float(minBidFlag.Name))
 	if err != nil {
 		log.WithError(err).Fatal("failed sanitizing min bid")
@@ -148,7 +125,7 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 	if relayMinBidWei.BigInt().Sign() > 0 {
 		log.Infof("min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
-	return relays, monitors, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
+	return relays, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
 }
 
 func setupGenesis(cmd *cli.Command) (string, uint64) {
