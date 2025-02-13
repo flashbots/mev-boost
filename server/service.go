@@ -29,6 +29,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
+	goacceptheaders "github.com/timewasted/go-accept-headers"
 )
 
 var (
@@ -312,11 +313,11 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.bidsLock.Unlock()
 
 	// Decide response content type (JSON by default)
-	clientAccepts := ParseAcceptHeader(req.Header.Get("Accept"))
+	clientAccepts := goacceptheaders.Parse(req.Header.Get("Accept"))
 	log.Debug("clientAccepts", clientAccepts)
 	if len(clientAccepts) == 0 {
 		log.Info("no client accepts, defaulting to JSON")
-		clientAccepts = []AcceptEntry{{MediaType: MediaTypeJSON}}
+		clientAccepts = goacceptheaders.AcceptSlice{{Type: MediaTypeJSON}}
 	}
 
 	// Log result
@@ -329,9 +330,13 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"relays":      strings.Join(types.RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
-	// Default to the client's highest quality acceptable media type
-	supportedMediaTypes := []string{MediaTypeJSON, MediaTypeOctetStream}
-	preferredContentType := SelectHighestQualityValueMediaType(clientAccepts, supportedMediaTypes)
+	// Get the client's highest quality acceptable media type. If the client did not
+	// specify an Accept value, the first media type (JSON) will be provided.
+	preferredContentType, err := clientAccepts.Negotiate(MediaTypeJSON, MediaTypeOctetStream)
+	if err != nil {
+		log.Warn("failed to negotiate preferred content-type", err)
+		preferredContentType = MediaTypeJSON
+	}
 
 	// If every relay returned the bid in JSON, that means that none
 	// of them support SSZ and this would always require extra conversions.
@@ -345,7 +350,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			break
 		}
 	}
-	if preferredContentType != MediaTypeJSON && allBidsWereJSON && Accepts(clientAccepts, MediaTypeJSON) {
+	if preferredContentType != MediaTypeJSON && allBidsWereJSON && clientAccepts.Accepts(MediaTypeJSON) {
 		log.Debug("overriding the response content type to be JSON")
 		preferredContentType = MediaTypeJSON
 	}
