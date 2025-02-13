@@ -342,7 +342,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.bids[bidKey(slot, result.bidInfo.blockHash)] = result
 	m.bidsLock.Unlock()
 
-	// How should we respond to the client
+	// Decide response content type (JSON by default)
 	clientAccepts := ParseAcceptHeader(req.Header.Get("Accept"))
 	log.Debug("clientAccepts", clientAccepts)
 	if len(clientAccepts) == 0 {
