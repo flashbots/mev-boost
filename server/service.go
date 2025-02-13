@@ -16,7 +16,6 @@ import (
 	"time"
 
 	builderApi "github.com/attestantio/go-builder-client/api"
-	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
@@ -210,22 +209,6 @@ func (m *BoostService) startBidCacheCleanupTask() {
 	}
 }
 
-func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(payload []builderApiV1.SignedValidatorRegistration) {
-	log := m.log.WithField("method", "sendValidatorRegistrationsToRelayMonitors").WithField("numRegistrations", len(payload))
-	for _, relayMonitor := range m.relayMonitors {
-		go func(relayMonitor *url.URL) {
-			url := types.GetURI(relayMonitor, params.PathRegisterValidator)
-			log = log.WithField("url", url)
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, "", nil, payload, nil)
-			if err != nil {
-				log.WithError(err).Warn("error calling registerValidator on relay monitor")
-				return
-			}
-			log.Debug("sent validator registrations to relay monitor")
-		}(relayMonitor)
-	}
-}
-
 func (m *BoostService) handleRoot(w http.ResponseWriter, _ *http.Request) {
 	m.respondOK(w, nilResponse)
 }
@@ -241,54 +224,42 @@ func (m *BoostService) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-// handleRegisterValidator returns StatusOK if at least one relay returns StatusOK, else StatusBadGateway
+// handleRegisterValidator returns StatusOK if at least one relay returns StatusOK, else StatusBadGateway.
+// This forwards the message from the node to relays with minimal overhead. The registrations will maintain their
+// original encoding (SSZ or JSON) from the node.
 func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	log := m.log.WithField("method", "registerValidator")
-	log.Debug("registerValidator")
+	log.Debug("handling request")
 
-	payload := []builderApiV1.SignedValidatorRegistration{}
-	if err := DecodeJSON(req.Body, &payload); err != nil {
-		m.respondError(w, http.StatusBadRequest, err.Error())
+	// Get the user agent
+	ua := UserAgent(req.Header.Get("User-Agent"))
+	log = log.WithFields(logrus.Fields{"ua": ua})
+
+	// Additional header fields
+	header := req.Header
+	header.Set("User-Agent", wrapUserAgent(ua))
+	header.Set(HeaderStartTimeUnixMS, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
+
+	// Read the validator registrations
+	regBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		m.respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	req.Body.Close()
 
-	ua := UserAgent(req.Header.Get("User-Agent"))
-	log = log.WithFields(logrus.Fields{
-		"numRegistrations": len(payload),
-		"ua":               ua,
-	})
+	// Send the registrations to relay monitors, if configured
+	go m.sendValidatorRegistrationsToRelayMonitors(log, regBytes, header)
 
-	// Add request headers
-	headers := map[string]string{
-		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
+	// Send the registrations to each relay
+	err = m.registerValidator(log, regBytes, header)
+	if err == nil {
+		// One of the relays responded OK
+		m.respondOK(w, nilResponse)
+	} else {
+		// None of the relays responded OK
+		m.respondError(w, http.StatusBadGateway, err.Error())
 	}
-
-	relayRespCh := make(chan error, len(m.relays))
-
-	for _, relay := range m.relays {
-		go func(relay types.RelayEntry) {
-			url := relay.GetURI(params.PathRegisterValidator)
-			log := log.WithField("url", url)
-
-			_, err := SendHTTPRequest(context.Background(), m.httpClientRegVal, http.MethodPost, url, ua, headers, payload, nil)
-			if err != nil {
-				log.WithError(err).Warn("error calling registerValidator on relay")
-			}
-			relayRespCh <- err
-		}(relay)
-	}
-
-	go m.sendValidatorRegistrationsToRelayMonitors(payload)
-
-	for i := 0; i < len(m.relays); i++ {
-		respErr := <-relayRespCh
-		if respErr == nil {
-			m.respondOK(w, nilResponse)
-			return
-		}
-	}
-
-	m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 }
 
 // handleGetHeader requests bids from the relays
