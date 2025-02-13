@@ -89,6 +89,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			req.Header.Set("Accept", reqAccept)
 			req.Header.Set("Eth-Consensus-Version", reqEthConsensusVersion)
 			req.Header.Set(HeaderStartTimeUnixMS, startTime)
+			req.Header.Set(HeaderKeySlotUID, slotUID.String())
 
 			// Send the request
 			log.Debug("requesting header")
