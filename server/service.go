@@ -312,7 +312,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	// Decide response content type (JSON by default)
 	proposerAccepts := goacceptheaders.Parse(proposerAcceptContentTypes)
-	log.Debug("proposerAcceptContentTypes", proposerAccepts)
 	if len(proposerAccepts) == 0 {
 		log.Info("no proposerAccepts, defaulting to JSON")
 		proposerAccepts = goacceptheaders.AcceptSlice{{Type: MediaTypeJSON}}
