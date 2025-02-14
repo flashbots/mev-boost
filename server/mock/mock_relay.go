@@ -1,8 +1,10 @@
 package mock
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -164,18 +166,26 @@ func (m *Relay) handleRegisterValidator(w http.ResponseWriter, req *http.Request
 // defaultHandleRegisterValidator returns the default handler for handleRegisterValidator
 func (m *Relay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.Request) {
 	reqContentType := req.Header.Get("Content-Type")
+	regBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	req.Body.Close()
 	if reqContentType == "" || reqContentType == "application/json" {
 		var payload []builderApiV1.SignedValidatorRegistration
-		decoder := json.NewDecoder(req.Body)
+		decoder := json.NewDecoder(bytes.NewReader(regBytes))
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&payload); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 	} else if reqContentType == "application/octet-stream" {
-		// TODO(jtraglia): Handle this when a SignedValidatorRegistrationList type exists.
-		// See: https://github.com/attestantio/go-builder-client/pull/38
-		_ = reqContentType
+		var validatorRegistrations builderApiV1.SignedValidatorRegistrations
+		if err := validatorRegistrations.UnmarshalSSZ(regBytes); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	} else {
 		panic("invalid content type: " + reqContentType)
 	}

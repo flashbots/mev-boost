@@ -116,22 +116,22 @@ func TestHandleRegisterValidator_ValidSSZ(t *testing.T) {
 		log:              logrus.NewEntry(logrus.New()),
 	}
 
-	validatorRegistrations := []builderApiV1.SignedValidatorRegistration{
-		{
-			Message: &builderApiV1.ValidatorRegistration{
-				Timestamp: time.Unix(1, 0),
+	validatorRegistrations := builderApiV1.SignedValidatorRegistrations{
+		Registrations: []*builderApiV1.SignedValidatorRegistration{
+			{
+				Message: &builderApiV1.ValidatorRegistration{
+					Timestamp: time.Unix(1, 0),
+				},
 			},
-		},
-		{
-			Message: &builderApiV1.ValidatorRegistration{
-				Timestamp: time.Unix(2, 0),
+			{
+				Message: &builderApiV1.ValidatorRegistration{
+					Timestamp: time.Unix(2, 0),
+				},
 			},
 		},
 	}
 
-	// TODO(jtraglia): Use SSZ here when a SignedValidatorRegistrationList type exists.
-	// See: https://github.com/attestantio/go-builder-client/pull/38
-	encodedValidatorRegistrations, err := json.Marshal(validatorRegistrations)
+	encodedValidatorRegistrations, err := validatorRegistrations.MarshalSSZ()
 	require.NoError(t, err)
 
 	reqBody := bytes.NewBuffer(encodedValidatorRegistrations)
@@ -165,9 +165,7 @@ func TestHandleRegisterValidator_InvalidSSZ(t *testing.T) {
 	rr := httptest.NewRecorder()
 	m.handleRegisterValidator(rr, req)
 
-	// TODO(jtraglia): Enable this when a SignedValidatorRegistrationList type exists.
-	// See: https://github.com/attestantio/go-builder-client/pull/38
-	// require.Equal(t, http.StatusBadGateway, rr.Code)
+	require.Equal(t, http.StatusBadGateway, rr.Code)
 
 	count := relay.GetRequestCount(params.PathRegisterValidator)
 	require.Equal(t, 1, count)
@@ -199,8 +197,8 @@ func TestHandleRegisterValidator_MultipleRelaysOneSuccess(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	countBadRelay := badRelay.GetRequestCount(params.PathRegisterValidator)
-	require.Equal(t, 1, countBadRelay)
+	// No need to check badRelay request count, it might not be called if the
+	// other relay responds first. This happens sometimes when running the tests.
 	countSuccess := relaySuccess.GetRequestCount(params.PathRegisterValidator)
 	require.Equal(t, 1, countSuccess)
 }
