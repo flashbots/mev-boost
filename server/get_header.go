@@ -127,12 +127,12 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			log = log.WithField("respContentType", respContentType)
 
 			// Get the optional version, used with SSZ decoding
-			ethConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
-			log = log.WithField("ethConsensusVersion", ethConsensusVersion)
+			respEthConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
+			log = log.WithField("respEthConsensusVersion", respEthConsensusVersion)
 
 			// Decode bid
 			bid := new(builderSpec.VersionedSignedBuilderBid)
-			err = decodeBid(respBytes, respContentType, ethConsensusVersion, bid)
+			err = decodeBid(respBytes, respContentType, respEthConsensusVersion, bid)
 			if err != nil {
 				log.WithError(err).Warn("error decoding bid")
 				return
@@ -140,6 +140,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 			// Skip if bid is empty
 			if bid.IsEmpty() {
+				log.Debug("skipping empty bid")
 				return
 			}
 
@@ -226,12 +227,14 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				valueDiff := bidInfo.value.Cmp(result.bidInfo.value)
 				if valueDiff == -1 {
 					// The current bid is less profitable than already known one
+					log.Debug("ignoring less profitable bid")
 					return
 				} else if valueDiff == 0 {
 					// The current bid is equally profitable as already known one
 					// Use hash as tiebreaker
 					previousBidBlockHash := result.bidInfo.blockHash
 					if bidInfo.blockHash.String() >= previousBidBlockHash.String() {
+						log.Debug("equally profitable bid lost tiebreaker")
 						return
 					}
 				}
