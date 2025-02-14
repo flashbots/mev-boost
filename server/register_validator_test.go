@@ -197,8 +197,8 @@ func TestHandleRegisterValidator_MultipleRelaysOneSuccess(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	countBadRelay := badRelay.GetRequestCount(params.PathRegisterValidator)
-	require.Equal(t, 1, countBadRelay)
+	// No need to check badRelay request count, it might not be called if the
+	// other relay responds first. This happens sometimes when running the tests.
 	countSuccess := relaySuccess.GetRequestCount(params.PathRegisterValidator)
 	require.Equal(t, 1, countSuccess)
 }
