@@ -290,7 +290,7 @@ func decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bi
 	return types.ErrInvalidContentType
 }
 
-// respondGetHeaderJSON responds to the client in JSON
+// respondGetHeaderJSON responds to the proposer in JSON
 func (m *BoostService) respondGetHeaderJSON(w http.ResponseWriter, result *bidResp) {
 	w.Header().Set("Content-Type", MediaTypeJSON)
 	w.WriteHeader(http.StatusOK)
@@ -302,7 +302,7 @@ func (m *BoostService) respondGetHeaderJSON(w http.ResponseWriter, result *bidRe
 	}
 }
 
-// respondGetHeaderSSZ responds to the client in SSZ
+// respondGetHeaderSSZ responds to the proposer in SSZ
 func (m *BoostService) respondGetHeaderSSZ(w http.ResponseWriter, result *bidResp) {
 	// Serialize the response
 	var err error

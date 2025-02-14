@@ -328,7 +328,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"relays":      strings.Join(types.RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
-	// Get the client's highest quality acceptable media type. If the client did not
+	// Get the proposer's highest quality acceptable media type. If the proposer did not
 	// specify an Accept value, the first media type (JSON) will be provided.
 	proposerPreferredContentType, err := proposerAccepts.Negotiate(MediaTypeJSON, MediaTypeOctetStream)
 	if err != nil {
@@ -338,8 +338,8 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	// If every relay returned the bid in JSON, that means that none
 	// of them support SSZ and this would always require extra conversions.
-	// In this situation, if the client still accepts JSON, respond to the
-	// getHeader in JSON so the client sends the getPayload request in JSON.
+	// In this situation, if the proposer still accepts JSON, respond to the
+	// getHeader in JSON so the proposer sends the getPayload request in JSON.
 	allBidsWereJSON := true
 	for _, relay := range result.relays {
 		if relay.SupportsSSZ {
