@@ -3,6 +3,7 @@ package mock
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -168,9 +169,17 @@ func (m *Relay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.
 			return
 		}
 	} else if reqContentType == "application/octet-stream" {
-		// TODO(jtraglia): Handle this when a SignedValidatorRegistrationList type exists.
-		// See: https://github.com/attestantio/go-builder-client/pull/38
-		_ = reqContentType
+		regBytes, err := io.ReadAll(req.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		req.Body.Close()
+		var validatorRegistrations builderApiV1.SignedValidatorRegistrations
+		if err := validatorRegistrations.UnmarshalSSZ(regBytes); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	} else {
 		panic("invalid content type: " + reqContentType)
 	}
