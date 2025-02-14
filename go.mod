@@ -3,7 +3,7 @@ module github.com/flashbots/mev-boost
 go 1.23
 
 require (
-	github.com/ethereum/go-ethereum v1.15.0
+	github.com/ethereum/go-ethereum v1.15.1
 	github.com/flashbots/go-boost-utils v1.8.2-0.20241014214143-c3fca3d69760
 	github.com/flashbots/go-utils v0.8.3
 	github.com/google/uuid v1.6.0
@@ -31,7 +31,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/supranational/blst v0.3.13 // indirect
+	github.com/supranational/blst v0.3.14 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
