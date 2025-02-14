@@ -2,7 +2,6 @@ package cli
 
 import (
 	"errors"
-	"net/url"
 	"strings"
 
 	"github.com/flashbots/mev-boost/server/types"
@@ -34,36 +33,5 @@ func (r *relayList) Set(value string) error {
 		return errDuplicateEntry
 	}
 	*r = append(*r, relay)
-	return nil
-}
-
-type relayMonitorList []*url.URL
-
-func (rm *relayMonitorList) String() string {
-	relayMonitors := []string{}
-	for _, relayMonitor := range *rm {
-		relayMonitors = append(relayMonitors, relayMonitor.String())
-	}
-	return strings.Join(relayMonitors, ",")
-}
-
-func (rm *relayMonitorList) Contains(relayMonitor *url.URL) bool {
-	for _, entry := range *rm {
-		if relayMonitor.String() == entry.String() {
-			return true
-		}
-	}
-	return false
-}
-
-func (rm *relayMonitorList) Set(value string) error {
-	relayMonitor, err := url.Parse(value)
-	if err != nil {
-		return err
-	}
-	if rm.Contains(relayMonitor) {
-		return errDuplicateEntry
-	}
-	*rm = append(*rm, relayMonitor)
 	return nil
 }

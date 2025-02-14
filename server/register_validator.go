@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
@@ -66,35 +65,4 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 
 	// None of the relays responded OK
 	return errNoSuccessfulRelayResponse
-}
-
-func (m *BoostService) sendValidatorRegistrationsToRelayMonitors(log *logrus.Entry, regBytes []byte, header http.Header) {
-	// Forward request to each relay monitor
-	for _, relayMonitor := range m.relayMonitors {
-		go func(relayMonitor *url.URL) {
-			// Get the URL for this relay monitor
-			requestURL := types.GetURI(relayMonitor, params.PathRegisterValidator)
-			log := log.WithField("url", requestURL)
-
-			// Build the new request
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, requestURL, bytes.NewReader(regBytes))
-			if err != nil {
-				log.WithError(err).Warn("error creating new request")
-				return
-			}
-
-			// Extend the request header with our values
-			for key, values := range header {
-				req.Header[key] = values
-			}
-
-			// Send the request
-			resp, err := m.httpClientRegVal.Do(req)
-			if err != nil {
-				log.WithError(err).Warn("error calling registerValidator on relay monitor")
-				return
-			}
-			resp.Body.Close()
-		}(relayMonitor)
-	}
 }
