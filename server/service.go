@@ -265,11 +265,11 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 // handleGetHeader requests bids from the relays
 func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	var (
-		vars          = mux.Vars(req)
-		parentHashHex = vars["parent_hash"]
-		pubkey        = vars["pubkey"]
-		ua            = UserAgent(req.Header.Get("User-Agent"))
-		accept        = req.Header.Get("Accept")
+		vars                       = mux.Vars(req)
+		parentHashHex              = vars["parent_hash"]
+		pubkey                     = vars["pubkey"]
+		ua                         = UserAgent(req.Header.Get("User-Agent"))
+		proposerAcceptContentTypes = req.Header.Get("Accept")
 	)
 
 	// Parse the slot
@@ -282,17 +282,17 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	// Add relevant fields to the logger
 	log := m.log.WithFields(logrus.Fields{
-		"method":     "getHeader",
-		"slot":       slot,
-		"parentHash": parentHashHex,
-		"pubkey":     pubkey,
-		"ua":         ua,
-		"accept":     accept,
+		"method":                     "getHeader",
+		"slot":                       slot,
+		"parentHash":                 parentHashHex,
+		"pubkey":                     pubkey,
+		"ua":                         ua,
+		"proposerAcceptContentTypes": proposerAcceptContentTypes,
 	})
 	log.Debug("handling request")
 
 	// Query the relays for the header
-	result, err := m.getHeader(log, slot, pubkey, parentHashHex, ua, accept)
+	result, err := m.getHeader(log, slot, pubkey, parentHashHex, ua, proposerAcceptContentTypes)
 	if err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -311,11 +311,11 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.bidsLock.Unlock()
 
 	// Decide response content type (JSON by default)
-	clientAccepts := goacceptheaders.Parse(req.Header.Get("Accept"))
-	log.Debug("clientAccepts", clientAccepts)
-	if len(clientAccepts) == 0 {
-		log.Info("no client accepts, defaulting to JSON")
-		clientAccepts = goacceptheaders.AcceptSlice{{Type: MediaTypeJSON}}
+	proposerAccepts := goacceptheaders.Parse(proposerAcceptContentTypes)
+	log.Debug("proposerAcceptContentTypes", proposerAccepts)
+	if len(proposerAccepts) == 0 {
+		log.Info("no proposerAccepts, defaulting to JSON")
+		proposerAccepts = goacceptheaders.AcceptSlice{{Type: MediaTypeJSON}}
 	}
 
 	// Log result
@@ -330,10 +330,10 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	// Get the client's highest quality acceptable media type. If the client did not
 	// specify an Accept value, the first media type (JSON) will be provided.
-	preferredContentType, err := clientAccepts.Negotiate(MediaTypeJSON, MediaTypeOctetStream)
+	proposerPreferredContentType, err := proposerAccepts.Negotiate(MediaTypeJSON, MediaTypeOctetStream)
 	if err != nil {
 		log.Warn("failed to negotiate preferred content-type", err)
-		preferredContentType = MediaTypeJSON
+		proposerPreferredContentType = MediaTypeJSON
 	}
 
 	// If every relay returned the bid in JSON, that means that none
@@ -348,18 +348,21 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			break
 		}
 	}
-	if preferredContentType != MediaTypeJSON && allBidsWereJSON && clientAccepts.Accepts(MediaTypeJSON) {
+	if proposerPreferredContentType != MediaTypeJSON && allBidsWereJSON && proposerAccepts.Accepts(MediaTypeJSON) {
 		log.Debug("overriding the response content type to be JSON")
-		preferredContentType = MediaTypeJSON
+		proposerPreferredContentType = MediaTypeJSON
 	}
 
 	// Respond appropriately
-	if preferredContentType == MediaTypeJSON {
+	if proposerPreferredContentType == MediaTypeJSON {
+		log.Debug("responding with JSON")
 		m.respondGetHeaderJSON(w, &result)
-	} else if preferredContentType == MediaTypeOctetStream {
+	} else if proposerPreferredContentType == MediaTypeOctetStream {
+		log.Debug("responding with SSZ")
 		m.respondGetHeaderSSZ(w, &result)
 	} else {
-		message := fmt.Sprintf("unsupported media type: %s", preferredContentType)
+		message := fmt.Sprintf("unsupported media type: %s", proposerPreferredContentType)
+		log.Error(message)
 		m.respondError(w, http.StatusNotAcceptable, message)
 	}
 }

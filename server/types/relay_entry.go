@@ -77,10 +77,10 @@ func RelayEntriesToStrings(relays []RelayEntry) []string {
 // Copy returns a deep copy of the relay entry.
 func (r *RelayEntry) Copy() (ret RelayEntry) {
 	ret.PublicKey = r.PublicKey
+	ret.SupportsSSZ = r.SupportsSSZ
 	if r.URL != nil {
 		urlCopy := *r.URL
 		ret.URL = &urlCopy
 	}
-	ret.SupportsSSZ = r.SupportsSSZ
 	return
 }

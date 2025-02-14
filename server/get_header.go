@@ -24,7 +24,7 @@ import (
 )
 
 // getHeader requests a bid from each relay and returns the most profitable one
-func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, parentHashHex string, ua UserAgent, accept string) (bidResp, error) {
+func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, parentHashHex string, ua UserAgent, proposerAcceptContentTypes string) (bidResp, error) {
 	// Ensure arguments are valid
 	if len(pubkey) != 98 {
 		return bidResp{}, errInvalidPubkey
@@ -86,7 +86,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 			// Add header fields to this request
 			req.Header.Set("User-Agent", userAgent)
-			req.Header.Set("Accept", accept)
+			req.Header.Set("Accept", proposerAcceptContentTypes)
 			req.Header.Set(HeaderStartTimeUnixMS, startTime)
 			req.Header.Set(HeaderKeySlotUID, slotUID.String())
 
