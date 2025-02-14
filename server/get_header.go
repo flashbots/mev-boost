@@ -122,6 +122,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			// Get the response's content type, default to JSON
 			respContentType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 			if err != nil {
+				log.WithError(err).Warn("error parsing response content type")
 				respContentType = MediaTypeJSON
 			}
 			log = log.WithField("respContentType", respContentType)
