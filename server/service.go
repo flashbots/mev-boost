@@ -265,11 +265,12 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 // handleGetHeader requests bids from the relays
 func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	var (
-		vars                       = mux.Vars(req)
-		parentHashHex              = vars["parent_hash"]
-		pubkey                     = vars["pubkey"]
-		ua                         = UserAgent(req.Header.Get("User-Agent"))
-		proposerAcceptContentTypes = req.Header.Get("Accept")
+		vars                             = mux.Vars(req)
+		parentHashHex                    = vars["parent_hash"]
+		pubkey                           = vars["pubkey"]
+		ua                               = UserAgent(req.Header.Get("User-Agent"))
+		rawProposerAcceptContentTypes    = req.Header.Get("Accept")
+		parsedProposerAcceptContentTypes = goacceptheaders.Parse(rawProposerAcceptContentTypes)
 	)
 
 	// Parse the slot
@@ -282,17 +283,17 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	// Add relevant fields to the logger
 	log := m.log.WithFields(logrus.Fields{
-		"method":                     "getHeader",
-		"slot":                       slot,
-		"parentHash":                 parentHashHex,
-		"pubkey":                     pubkey,
-		"ua":                         ua,
-		"proposerAcceptContentTypes": proposerAcceptContentTypes,
+		"method":                        "getHeader",
+		"slot":                          slot,
+		"parentHash":                    parentHashHex,
+		"pubkey":                        pubkey,
+		"ua":                            ua,
+		"rawProposerAcceptContentTypes": rawProposerAcceptContentTypes,
 	})
 	log.Debug("handling request")
 
 	// Query the relays for the header
-	result, err := m.getHeader(log, slot, pubkey, parentHashHex, ua, proposerAcceptContentTypes)
+	result, err := m.getHeader(log, slot, pubkey, parentHashHex, ua, rawProposerAcceptContentTypes)
 	if err != nil {
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -310,13 +311,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	m.bids[bidKey(slot, result.bidInfo.blockHash)] = result
 	m.bidsLock.Unlock()
 
-	// Decide response content type (JSON by default)
-	proposerAccepts := goacceptheaders.Parse(proposerAcceptContentTypes)
-	if len(proposerAccepts) == 0 {
-		log.Info("no proposerAccepts, defaulting to JSON")
-		proposerAccepts = goacceptheaders.AcceptSlice{{Type: MediaTypeJSON}}
-	}
-
 	// Log result
 	valueEth := weiBigIntToEthBigFloat(result.bidInfo.value.ToBig())
 	log.WithFields(logrus.Fields{
@@ -327,11 +321,16 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		"relays":      strings.Join(types.RelayEntriesToStrings(result.relays), ", "),
 	}).Info("best bid")
 
-	// Get the proposer's highest quality acceptable media type. If the proposer did not
-	// specify an Accept value, the first media type (JSON) will be provided.
-	proposerPreferredContentType, err := proposerAccepts.Negotiate(MediaTypeJSON, MediaTypeOctetStream)
+	// Default to JSON if the proposer provides nothing
+	if len(parsedProposerAcceptContentTypes) == 0 {
+		log.Info("no proposer accepts, defaulting to JSON")
+		parsedProposerAcceptContentTypes = goacceptheaders.AcceptSlice{{Type: MediaTypeJSON}}
+	}
+
+	// Get the proposer's highest quality acceptable media type
+	proposerPreferredContentType, err := parsedProposerAcceptContentTypes.Negotiate(MediaTypeJSON, MediaTypeOctetStream)
 	if err != nil {
-		log.Warn("failed to negotiate preferred content-type", err)
+		log.WithError(err).Warn("failed to negotiate preferred content-type")
 		proposerPreferredContentType = MediaTypeJSON
 	}
 
@@ -347,7 +346,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 			break
 		}
 	}
-	if proposerPreferredContentType != MediaTypeJSON && allBidsWereJSON && proposerAccepts.Accepts(MediaTypeJSON) {
+	if proposerPreferredContentType != MediaTypeJSON && allBidsWereJSON && parsedProposerAcceptContentTypes.Accepts(MediaTypeJSON) {
 		log.Debug("overriding the response content type to be JSON")
 		proposerPreferredContentType = MediaTypeJSON
 	}
