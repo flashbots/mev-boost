@@ -24,7 +24,7 @@ import (
 )
 
 // getHeader requests a bid from each relay and returns the most profitable one
-func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, parentHashHex string, ua UserAgent, reqAccept, reqEthConsensusVersion string) (bidResp, error) {
+func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, parentHashHex string, ua UserAgent, accept string) (bidResp, error) {
 	// Ensure arguments are valid
 	if len(pubkey) != 98 {
 		return bidResp{}, errInvalidPubkey
@@ -86,8 +86,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 			// Add header fields to this request
 			req.Header.Set("User-Agent", userAgent)
-			req.Header.Set("Accept", reqAccept)
-			req.Header.Set("Eth-Consensus-Version", reqEthConsensusVersion)
+			req.Header.Set("Accept", accept)
 			req.Header.Set(HeaderStartTimeUnixMS, startTime)
 			req.Header.Set(HeaderKeySlotUID, slotUID.String())
 
@@ -128,12 +127,12 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			log = log.WithField("respContentType", respContentType)
 
 			// Get the optional version, used with SSZ decoding
-			respEthConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
-			log = log.WithField("respEthConsensusVersion", respEthConsensusVersion)
+			ethConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
+			log = log.WithField("ethConsensusVersion", ethConsensusVersion)
 
 			// Decode bid
 			bid := new(builderSpec.VersionedSignedBuilderBid)
-			err = decodeBid(respBytes, respContentType, respEthConsensusVersion, bid)
+			err = decodeBid(respBytes, respContentType, ethConsensusVersion, bid)
 			if err != nil {
 				log.WithError(err).Warn("error decoding bid")
 				return
