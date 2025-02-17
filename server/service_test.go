@@ -370,7 +370,7 @@ func TestGetHeader(t *testing.T) {
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType)) //nolint:testifylint
+		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType))
 	})
 
 	t.Run("Two relays return JSON, mev-boost returns preferred SSZ", func(t *testing.T) {
@@ -385,7 +385,7 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
-		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType)) //nolint:testifylint
+		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType))
 	})
 
 	t.Run("Accepts both with Q values", func(t *testing.T) {
