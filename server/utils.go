@@ -26,16 +26,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	HeaderAccept              = "Accept"
-	HeaderContentType         = "Content-Type"
-	HeaderEthConsensusVersion = "Eth-Consensus-Version"
-	HeaderKeySlotUID          = "X-MEVBoost-SlotID"
-	HeaderKeyVersion          = "X-MEVBoost-Version"
-	HeaderStartTimeUnixMS     = "X-MEVBoost-StartTimeUnixMS"
-	HeaderUserAgent           = "User-Agent"
-)
-
 var (
 	errHTTPErrorResponse  = errors.New("HTTP error response")
 	errInvalidForkVersion = errors.New("invalid fork version")
