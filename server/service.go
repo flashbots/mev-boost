@@ -228,12 +228,12 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	log.Debug("handling request")
 
 	// Get the user agent
-	ua := UserAgent(req.Header.Get("User-Agent"))
+	ua := UserAgent(req.Header.Get(HeaderUserAgent))
 	log = log.WithFields(logrus.Fields{"ua": ua})
 
 	// Additional header fields
 	header := req.Header
-	header.Set("User-Agent", wrapUserAgent(ua))
+	header.Set(HeaderUserAgent, wrapUserAgent(ua))
 	header.Set(HeaderStartTimeUnixMS, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
 
 	// Read the validator registrations
@@ -258,10 +258,11 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 // handleGetHeader requests bids from the relays
 func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 	var (
-		vars                             = mux.Vars(req)
-		parentHashHex                    = vars["parent_hash"]
-		pubkey                           = vars["pubkey"]
-		ua                               = UserAgent(req.Header.Get(HeaderUserAgent))
+		vars          = mux.Vars(req)
+		parentHashHex = vars["parent_hash"]
+		pubkey        = vars["pubkey"]
+		ua            = UserAgent(req.Header.Get(HeaderUserAgent))
+
 		rawProposerAcceptContentTypes    = req.Header.Get(HeaderAccept)
 		parsedProposerAcceptContentTypes = goacceptheaders.Parse(rawProposerAcceptContentTypes)
 	)
@@ -384,7 +385,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 
 	// Read user agent for logging
-	userAgent := UserAgent(req.Header.Get("User-Agent"))
+	userAgent := UserAgent(req.Header.Get(HeaderUserAgent))
 
 	// New forks need to be added at the front of this array.
 	// The ordering of the array conveys precedence of the decoders.
