@@ -328,23 +328,6 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		proposerPreferredContentType = MediaTypeJSON
 	}
 
-	// If every relay returned the bid in JSON, that means that none
-	// of them support SSZ and this would always require extra conversions.
-	// In this situation, if the proposer still accepts JSON, respond to the
-	// getHeader in JSON so the proposer sends the getPayload request in JSON.
-	allBidsWereJSON := true
-	for _, relay := range result.relays {
-		if relay.SupportsSSZ {
-			log.Debug("there is a relay that supports SSZ")
-			allBidsWereJSON = false
-			break
-		}
-	}
-	if proposerPreferredContentType != MediaTypeJSON && allBidsWereJSON && parsedProposerAcceptContentTypes.Accepts(MediaTypeJSON) {
-		log.Debug("overriding the response content type to be JSON")
-		proposerPreferredContentType = MediaTypeJSON
-	}
-
 	// Respond appropriately
 	if proposerPreferredContentType == MediaTypeJSON {
 		log.Debug("responding with JSON")
