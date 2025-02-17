@@ -172,7 +172,7 @@ func TestWebserverMaxHeaderSize(t *testing.T) {
 func TestStatus(t *testing.T) {
 	t.Run("At least one relay is available", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
 		time.Sleep(time.Millisecond * 20)
@@ -186,7 +186,7 @@ func TestStatus(t *testing.T) {
 
 	t.Run("No relays available", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
 		backend.relays[0].Server.Close() // makes the relay unavailable
@@ -216,7 +216,7 @@ func TestRegisterValidator(t *testing.T) {
 
 	t.Run("Normal function", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodPost, path, header, payload)
@@ -226,7 +226,7 @@ func TestRegisterValidator(t *testing.T) {
 
 	t.Run("Relay error response", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 2, time.Second)
 		backend.relays[0].ResponseDelay = 5 * time.Millisecond
@@ -260,7 +260,7 @@ func TestRegisterValidator(t *testing.T) {
 
 	t.Run("mev-boost relay timeout works with slow relay", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, 150*time.Millisecond) // 10ms max
 		rr := backend.request(t, http.MethodPost, path, header, payload)
@@ -288,7 +288,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Okay response from relay", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, path, header, nil)
@@ -298,7 +298,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Okay response from relay deneb", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, path, header, nil)
@@ -308,8 +308,8 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Okay response from relay deneb in ssz", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Eth-Consensus-Version", "deneb")
-		header.Set("Accept", "application/octet-stream")
+		header.Set(HeaderEthConsensusVersion, "deneb")
+		header.Set(HeaderAccept, MediaTypeOctetStream)
 
 		backend := newTestBackend(t, 1, time.Second)
 		resp := backend.relays[0].MakeGetHeaderResponse(
@@ -323,7 +323,7 @@ func TestGetHeader(t *testing.T) {
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
+		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType))
 
 		// Ensure the response was SSZ
 		bid := new(builderApiDeneb.SignedBuilderBid)
@@ -334,21 +334,21 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Relay returns SSZ, mev-boost returns SSZ", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Eth-Consensus-Version", "deneb")
-		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
+		header.Set(HeaderEthConsensusVersion, "deneb")
+		header.Set(HeaderAccept, "application/octet-stream;q=1.0,application/json;q=0.9")
 
 		backend := newTestBackend(t, 1, time.Second)
 		backend.relays[0].ForceSSZ = true
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
+		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType))
 	})
 
 	t.Run("One relay returns SSZ, another relay returns JSON, mev-boost returns SSZ", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Eth-Consensus-Version", "deneb")
-		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
+		header.Set(HeaderEthConsensusVersion, "deneb")
+		header.Set(HeaderAccept, "application/octet-stream;q=1.0,application/json;q=0.9")
 
 		backend := newTestBackend(t, 2, time.Second)
 		backend.relays[0].ForceSSZ = true
@@ -357,26 +357,26 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
-		require.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
+		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType))
 	})
 
 	t.Run("One relay returns JSON, mev-boost returns JSON", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Eth-Consensus-Version", "deneb")
-		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
+		header.Set(HeaderEthConsensusVersion, "deneb")
+		header.Set(HeaderAccept, "application/octet-stream;q=1.0,application/json;q=0.9")
 
 		backend := newTestBackend(t, 1, time.Second)
 		backend.relays[0].ForceJSON = true
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+		require.Equal(t, MediaTypeJSON, rr.Header().Get(HeaderContentType))
 	})
 
 	t.Run("Two relays return JSON, mev-boost returns JSON", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Eth-Consensus-Version", "deneb")
-		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
+		header.Set(HeaderEthConsensusVersion, "deneb")
+		header.Set(HeaderAccept, "application/octet-stream;q=1.0,application/json;q=0.9")
 
 		backend := newTestBackend(t, 2, time.Second)
 		backend.relays[0].ForceJSON = true
@@ -385,50 +385,50 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
-		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+		require.Equal(t, MediaTypeJSON, rr.Header().Get(HeaderContentType))
 	})
 
 	t.Run("Accepts both with Q values", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Eth-Consensus-Version", "deneb")
-		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
+		header.Set(HeaderEthConsensusVersion, "deneb")
+		header.Set(HeaderAccept, "application/octet-stream;q=1.0,application/json;q=0.9")
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, "application/octet-stream", rr.Header().Get("Content-Type"))
+		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType))
 	})
 
 	t.Run("No accept value", func(t *testing.T) {
 		// This should default to JSON
 		header := make(http.Header)
-		header.Set("Eth-Consensus-Version", "deneb")
-		header.Del("Accept")
+		header.Set(HeaderEthConsensusVersion, "deneb")
+		header.Del(HeaderAccept)
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+		require.Equal(t, MediaTypeJSON, rr.Header().Get(HeaderContentType))
 	})
 
 	t.Run("Accepts both but prefers JSON", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Eth-Consensus-Version", "deneb")
-		header.Set("Accept", "application/octet-stream;q=0.9,application/json;q=1.0")
+		header.Set(HeaderEthConsensusVersion, "deneb")
+		header.Set(HeaderAccept, "application/octet-stream;q=0.9,application/json;q=1.0")
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
-		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+		require.Equal(t, MediaTypeJSON, rr.Header().Get(HeaderContentType))
 	})
 
 	t.Run("Only accepts unsupported media type", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Eth-Consensus-Version", "deneb")
-		header.Set("Accept", "plain/text")
+		header.Set(HeaderEthConsensusVersion, "deneb")
+		header.Set(HeaderAccept, "plain/text")
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodGet, path, header, nil)
@@ -437,7 +437,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Bad response from relays", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 2, time.Second)
 		resp := backend.relays[0].MakeGetHeaderResponse(
@@ -466,7 +466,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Invalid relay public key", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
 
@@ -491,7 +491,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Invalid relay signature", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
 
@@ -515,7 +515,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Invalid slot number", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		// Number larger than uint64 creates parsing error
 		slot := fmt.Sprintf("%d0", uint64(math.MaxUint64))
@@ -530,7 +530,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Invalid pubkey length", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		invalidPubkeyPath := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", 1, hash.String(), "0x1")
 
@@ -543,7 +543,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Invalid hash length", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		invalidSlotPath := fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", 1, "0x1", pubkey.String())
 
@@ -556,7 +556,7 @@ func TestGetHeader(t *testing.T) {
 
 	t.Run("Invalid parent hash", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
 
@@ -576,7 +576,7 @@ func TestGetHeaderBids(t *testing.T) {
 
 	t.Run("Use header with highest value", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		// Create backend and register 3 relays.
 		backend := newTestBackend(t, 3, time.Second)
@@ -629,7 +629,7 @@ func TestGetHeaderBids(t *testing.T) {
 
 	t.Run("Use header with lowest blockhash if same value", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		// Create backend and register 3 relays.
 		backend := newTestBackend(t, 3, time.Second)
@@ -683,7 +683,7 @@ func TestGetHeaderBids(t *testing.T) {
 
 	t.Run("Respect minimum bid cutoff", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		// Create backend and register relay.
 		backend := newTestBackend(t, 1, time.Second)
@@ -709,7 +709,7 @@ func TestGetHeaderBids(t *testing.T) {
 
 	t.Run("Allow bids which meet minimum bid cutoff", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		// Create backend and register relay.
 		backend := newTestBackend(t, 1, time.Second)
@@ -777,7 +777,7 @@ func TestGetPayload(t *testing.T) {
 
 	t.Run("Okay response from relay", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
 		rr := backend.request(t, http.MethodPost, path, header, payload)
@@ -792,7 +792,7 @@ func TestGetPayload(t *testing.T) {
 
 	t.Run("Bad response from relays", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 2, time.Second)
 		resp := &builderApi.VersionedSubmitBlindedBlockResponse{
@@ -824,7 +824,7 @@ func TestGetPayload(t *testing.T) {
 
 	t.Run("Retries on error from relay", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, 2*time.Second)
 
@@ -846,7 +846,7 @@ func TestGetPayload(t *testing.T) {
 
 	t.Run("Error after max retries are reached", func(t *testing.T) {
 		header := make(http.Header)
-		header.Set("Accept", "application/json")
+		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
 
@@ -1016,7 +1016,7 @@ func denebExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, k
 
 func TestGetPayloadForks(t *testing.T) {
 	header := make(http.Header)
-	header.Set("Accept", "application/json")
+	header.Set(HeaderAccept, MediaTypeJSON)
 
 	//nolint: forcetypeassert,thelper
 	tests := []struct {
@@ -1085,7 +1085,7 @@ func TestGetPayloadForks(t *testing.T) {
 
 func TestGetPayloadToAllRelays(t *testing.T) {
 	header := make(http.Header)
-	header.Set("Accept", "application/json")
+	header.Set(HeaderAccept, MediaTypeJSON)
 
 	// Load the signed blinded beacon block used for getPayload
 	jsonFile, err := os.Open("../testdata/signed-blinded-beacon-block-deneb.json")

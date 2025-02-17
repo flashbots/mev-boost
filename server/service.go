@@ -133,7 +133,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 }
 
 func (m *BoostService) respondError(w http.ResponseWriter, code int, message string) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, MediaTypeJSON)
 	w.WriteHeader(code)
 	resp := httpErrorResp{code, message}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
@@ -143,7 +143,7 @@ func (m *BoostService) respondError(w http.ResponseWriter, code int, message str
 }
 
 func (m *BoostService) respondOK(w http.ResponseWriter, response any) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HeaderContentType, MediaTypeJSON)
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		m.log.WithField("response", response).WithError(err).Error("could not write OK response")
@@ -261,8 +261,8 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 		vars                             = mux.Vars(req)
 		parentHashHex                    = vars["parent_hash"]
 		pubkey                           = vars["pubkey"]
-		ua                               = UserAgent(req.Header.Get("User-Agent"))
-		rawProposerAcceptContentTypes    = req.Header.Get("Accept")
+		ua                               = UserAgent(req.Header.Get(HeaderUserAgent))
+		rawProposerAcceptContentTypes    = req.Header.Get(HeaderAccept)
 		parsedProposerAcceptContentTypes = goacceptheaders.Parse(rawProposerAcceptContentTypes)
 	)
 

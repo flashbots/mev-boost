@@ -85,10 +85,10 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			}
 
 			// Add header fields to this request
-			req.Header.Set("User-Agent", userAgent)
-			req.Header.Set("Accept", proposerAcceptContentTypes)
-			req.Header.Set(HeaderStartTimeUnixMS, startTime)
+			req.Header.Set(HeaderAccept, proposerAcceptContentTypes)
 			req.Header.Set(HeaderKeySlotUID, slotUID.String())
+			req.Header.Set(HeaderStartTimeUnixMS, startTime)
+			req.Header.Set(HeaderUserAgent, userAgent)
 
 			// Send the request
 			log.Debug("requesting header")
@@ -120,7 +120,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			}
 
 			// Get the response's content type, default to JSON
-			respContentType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+			respContentType, _, err := mime.ParseMediaType(resp.Header.Get(HeaderContentType))
 			if err != nil {
 				log.WithError(err).Warn("error parsing response content type")
 				respContentType = MediaTypeJSON
@@ -128,7 +128,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			log = log.WithField("respContentType", respContentType)
 
 			// Get the optional version, used with SSZ decoding
-			respEthConsensusVersion := resp.Header.Get("Eth-Consensus-Version")
+			respEthConsensusVersion := resp.Header.Get(HeaderEthConsensusVersion)
 			log = log.WithField("respEthConsensusVersion", respEthConsensusVersion)
 
 			// Decode bid
@@ -293,7 +293,7 @@ func decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bi
 
 // respondGetHeaderJSON responds to the proposer in JSON
 func (m *BoostService) respondGetHeaderJSON(w http.ResponseWriter, result *bidResp) {
-	w.Header().Set("Content-Type", MediaTypeJSON)
+	w.Header().Set(HeaderContentType, MediaTypeJSON)
 	w.WriteHeader(http.StatusOK)
 
 	// Serialize and write the data
@@ -310,16 +310,16 @@ func (m *BoostService) respondGetHeaderSSZ(w http.ResponseWriter, result *bidRes
 	var sszData []byte
 	switch result.response.Version {
 	case spec.DataVersionBellatrix:
-		w.Header().Set("Eth-Consensus-Version", "bellatrix")
+		w.Header().Set(HeaderEthConsensusVersion, "bellatrix")
 		sszData, err = result.response.Bellatrix.MarshalSSZ()
 	case spec.DataVersionCapella:
-		w.Header().Set("Eth-Consensus-Version", "capella")
+		w.Header().Set(HeaderEthConsensusVersion, "capella")
 		sszData, err = result.response.Capella.MarshalSSZ()
 	case spec.DataVersionDeneb:
-		w.Header().Set("Eth-Consensus-Version", "deneb")
+		w.Header().Set(HeaderEthConsensusVersion, "deneb")
 		sszData, err = result.response.Deneb.MarshalSSZ()
 	case spec.DataVersionElectra:
-		w.Header().Set("Eth-Consensus-Version", "electra")
+		w.Header().Set(HeaderEthConsensusVersion, "electra")
 		sszData, err = result.response.Electra.MarshalSSZ()
 	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
 		err = errInvalidForkVersion
@@ -331,7 +331,7 @@ func (m *BoostService) respondGetHeaderSSZ(w http.ResponseWriter, result *bidRes
 	}
 
 	// Write the header
-	w.Header().Set("Content-Type", MediaTypeOctetStream)
+	w.Header().Set(HeaderContentType, MediaTypeOctetStream)
 	w.WriteHeader(http.StatusOK)
 
 	// Write SSZ data
