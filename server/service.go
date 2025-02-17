@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,11 +13,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	builderApi "github.com/attestantio/go-builder-client/api"
-	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
-	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
-	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
-	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-utils/httplogger"
@@ -342,8 +336,37 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 }
 
-// respondPayload responds to the proposer with the payload
-func (m *BoostService) respondPayload(w http.ResponseWriter, log *logrus.Entry, result *builderApi.VersionedSubmitBlindedBlockResponse, originalBid bidResp) {
+// handleGetPayload requests the payload from the relays
+func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
+	var (
+		userAgent                        = wrapUserAgent(UserAgent(req.Header.Get(HeaderUserAgent)))
+		proposerContentType              = req.Header.Get(HeaderContentType)
+		proposerAcceptContentTypes       = req.Header.Get(HeaderAccept)
+		parsedProposerAcceptContentTypes = goacceptheaders.Parse(proposerAcceptContentTypes)
+		proposerEthConsensusVersion      = req.Header.Get(HeaderEthConsensusVersion)
+	)
+
+	// Do the initial debug log
+	log := m.log.WithFields(logrus.Fields{
+		"method":                      "getPayload",
+		"userAgent":                   userAgent,
+		"proposerContentType":         proposerContentType,
+		"proposerAcceptContentTypes":  proposerAcceptContentTypes,
+		"proposerEthConsensusVersion": proposerEthConsensusVersion,
+	})
+	log.Debug("handling request")
+
+	// Read the body first, so we can log it later on error
+	signedBlindedBlockBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.WithError(err).Error("could not read body of request from the beacon node")
+		m.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Query the relays for the payload
+	result, originalBid := m.getPayload(log, signedBlindedBlockBytes, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion)
+
 	// If no payload has been received from relay, log loudly about withholding!
 	if result == nil || getPayloadResponseIsEmpty(result) {
 		originRelays := types.RelayEntriesToStrings(originalBid.relays)
@@ -351,84 +374,32 @@ func (m *BoostService) respondPayload(w http.ResponseWriter, log *logrus.Entry, 
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
-	m.respondOK(w, result)
-}
 
-// handleGetPayload requests the payload from the relays
-func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
-	log := m.log.WithField("method", "getPayload")
-	log.Debug("getPayload request starts")
+	// Default to JSON if the proposer provides nothing
+	if len(parsedProposerAcceptContentTypes) == 0 {
+		log.Info("no proposer accepts, defaulting to JSON")
+		parsedProposerAcceptContentTypes = goacceptheaders.AcceptSlice{{Type: MediaTypeJSON}}
+	}
 
-	// Read the body first, so we can log it later on error
-	body, err := io.ReadAll(req.Body)
+	// Get the proposer's highest quality acceptable media type
+	proposerPreferredContentType, err := parsedProposerAcceptContentTypes.Negotiate(MediaTypeJSON, MediaTypeOctetStream)
 	if err != nil {
-		log.WithError(err).Error("could not read body of request from the beacon node")
-		m.respondError(w, http.StatusBadRequest, err.Error())
-		return
+		log.WithError(err).Warn("failed to negotiate preferred content-type")
+		proposerPreferredContentType = MediaTypeJSON
 	}
 
-	// Read user agent for logging
-	userAgent := UserAgent(req.Header.Get(HeaderUserAgent))
-
-	// New forks need to be added at the front of this array.
-	// The ordering of the array conveys precedence of the decoders.
-	decoders := []struct {
-		fork      string
-		payload   any
-		processor func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp)
-	}{
-		{
-			fork:    "electra",
-			payload: new(eth2ApiV1Electra.SignedBlindedBeaconBlock),
-			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
-				//nolint: forcetypeassert
-				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Electra.SignedBlindedBeaconBlock))
-			},
-		},
-		{
-			fork:    "deneb",
-			payload: new(eth2ApiV1Deneb.SignedBlindedBeaconBlock),
-			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
-				//nolint: forcetypeassert
-				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock))
-			},
-		},
-		{
-			fork:    "capella",
-			payload: new(eth2ApiV1Capella.SignedBlindedBeaconBlock),
-			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
-				//nolint: forcetypeassert
-				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
-			},
-		},
-		{
-			fork:    "bellatrix",
-			payload: new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock),
-			processor: func(payload any) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
-				//nolint: forcetypeassert
-				return processPayload(m, log, userAgent, payload.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock))
-			},
-		},
+	// Respond appropriately
+	if proposerPreferredContentType == MediaTypeJSON {
+		log.Debug("responding with JSON")
+		m.respondGetPayloadJSON(w, result)
+	} else if proposerPreferredContentType == MediaTypeOctetStream {
+		log.Debug("responding with SSZ")
+		m.respondGetPayloadSSZ(w, result)
+	} else {
+		message := fmt.Sprintf("unsupported media type: %s", proposerPreferredContentType)
+		log.Error(message)
+		m.respondError(w, http.StatusNotAcceptable, message)
 	}
-
-	// Decode the body now
-	for _, decoder := range decoders {
-		payload := decoder.payload
-		// Try to decode the payload
-		log.Debugf("attempting to decode body into %v payload", decoder.fork)
-		if err := DecodeJSON(bytes.NewReader(body), payload); err != nil {
-			log.Debugf("could not decode %v request payload", decoder.fork)
-			continue
-		}
-		// Decoding was successful, process the payload
-		result, originalBid := decoder.processor(payload)
-		m.respondPayload(w, log, result, originalBid)
-		return
-	}
-
-	// No decoder was able to decode the body, log error
-	log.WithError(err).WithField("body", string(body)).Error("could not decode request payload from the beacon-node (signed blinded beacon block)")
-	m.respondError(w, http.StatusBadRequest, "could not decode body")
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status
