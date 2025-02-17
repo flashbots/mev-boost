@@ -262,19 +262,19 @@ func decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bi
 		if ethConsensusVersion != "" {
 			// Do SSZ decoding
 			switch ethConsensusVersion {
-			case "bellatrix":
+			case EthConsensusVersionBellatrix:
 				bid.Version = spec.DataVersionBellatrix
 				bid.Bellatrix = new(builderApiBellatrix.SignedBuilderBid)
 				return bid.Bellatrix.UnmarshalSSZ(respBytes)
-			case "capella":
+			case EthConsensusVersionCapella:
 				bid.Version = spec.DataVersionCapella
 				bid.Capella = new(builderApiCapella.SignedBuilderBid)
 				return bid.Capella.UnmarshalSSZ(respBytes)
-			case "deneb":
+			case EthConsensusVersionDeneb:
 				bid.Version = spec.DataVersionDeneb
 				bid.Deneb = new(builderApiDeneb.SignedBuilderBid)
 				return bid.Deneb.UnmarshalSSZ(respBytes)
-			case "electra":
+			case EthConsensusVersionElectra:
 				bid.Version = spec.DataVersionElectra
 				bid.Electra = new(builderApiElectra.SignedBuilderBid)
 				return bid.Electra.UnmarshalSSZ(respBytes)
@@ -310,16 +310,16 @@ func (m *BoostService) respondGetHeaderSSZ(w http.ResponseWriter, result *bidRes
 	var sszData []byte
 	switch result.response.Version {
 	case spec.DataVersionBellatrix:
-		w.Header().Set(HeaderEthConsensusVersion, "bellatrix")
+		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionBellatrix)
 		sszData, err = result.response.Bellatrix.MarshalSSZ()
 	case spec.DataVersionCapella:
-		w.Header().Set(HeaderEthConsensusVersion, "capella")
+		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionCapella)
 		sszData, err = result.response.Capella.MarshalSSZ()
 	case spec.DataVersionDeneb:
-		w.Header().Set(HeaderEthConsensusVersion, "deneb")
+		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionDeneb)
 		sszData, err = result.response.Deneb.MarshalSSZ()
 	case spec.DataVersionElectra:
-		w.Header().Set(HeaderEthConsensusVersion, "electra")
+		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionElectra)
 		sszData, err = result.response.Electra.MarshalSSZ()
 	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
 		err = errInvalidForkVersion

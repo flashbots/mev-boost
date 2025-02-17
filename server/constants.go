@@ -8,9 +8,12 @@ const (
 	HeaderKeyVersion          = "X-MEVBoost-Version"
 	HeaderStartTimeUnixMS     = "X-MEVBoost-StartTimeUnixMS"
 	HeaderUserAgent           = "User-Agent"
-)
 
-const (
 	MediaTypeJSON        = "application/json"
 	MediaTypeOctetStream = "application/octet-stream"
+
+	EthConsensusVersionBellatrix = "bellatrix"
+	EthConsensusVersionCapella   = "capella"
+	EthConsensusVersionDeneb     = "deneb"
+	EthConsensusVersionElectra   = "electra"
 )
