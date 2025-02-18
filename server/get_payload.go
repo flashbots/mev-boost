@@ -207,7 +207,11 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 			}
 
 			// Get the response's content type
-			respContentType := resp.Header.Get(HeaderContentType)
+			respContentType, _, err := mime.ParseMediaType(resp.Header.Get(HeaderContentType))
+			if err != nil {
+				log.WithError(err).Warn("error parsing response content type")
+				respContentType = MediaTypeJSON
+			}
 			log = log.WithField("respContentType", respContentType)
 
 			// Get the response's eth consensus version
