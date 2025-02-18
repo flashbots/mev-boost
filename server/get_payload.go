@@ -49,6 +49,7 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 	// Get the request's content type
 	parsedProposerContentType, _, err := mime.ParseMediaType(proposerContentType)
 	if err != nil {
+		log.WithError(err).Warn("failed to parse proposer content type")
 		parsedProposerContentType = MediaTypeJSON
 	}
 	log = log.WithField("parsedProposerContentType", parsedProposerContentType)
