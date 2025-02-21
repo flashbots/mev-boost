@@ -2,8 +2,8 @@ github.com/StackExchange/wmi v1.2.1 h1:VIkavFPXSjcnS+O8yTq7NI32k0R5Aj+v39y29VYDO
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
 github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjCM7NQbSmF7WI=
 github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkThDcMsQicp4xDukwJYI=
-github.com/attestantio/go-builder-client v0.6.1-0.20250214094521-11f33217a1ad h1:EmC3wS4CvsmmgoX7x1cRBkX68lb1JtbbUreZdT4snNI=
-github.com/attestantio/go-builder-client v0.6.1-0.20250214094521-11f33217a1ad/go.mod h1:f8wi3HzuPxfJoi2PirpJK3yZhte4SavDgKJbRrKoB1Q=
+github.com/attestantio/go-builder-client v0.6.1 h1:fn6PC8aDWx2YbptstR1JKP8NyakiNJJTiOE5f9N0z5Q=
+github.com/attestantio/go-builder-client v0.6.1/go.mod h1:f8wi3HzuPxfJoi2PirpJK3yZhte4SavDgKJbRrKoB1Q=
 github.com/attestantio/go-eth2-client v0.24.1-0.20250212111510-c92fd5e34e0e h1:rzLBViziJCcXUFVY5y6l3iIChlkaJJNJujH5fyapjVg=
 github.com/attestantio/go-eth2-client v0.24.1-0.20250212111510-c92fd5e34e0e/go.mod h1:/KTLN3WuH1xrJL7ZZrpBoWM1xCCihnFbzequD5L+83o=
 github.com/benbjohnson/clock v1.3.0 h1:ip6w0uFQkncKQ979AypyG0ER7mqUSBdKLOgAle/AT8A=

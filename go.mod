@@ -41,7 +41,7 @@ require (
 
 require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
-	github.com/attestantio/go-builder-client v0.6.1-0.20250214094521-11f33217a1ad
+	github.com/attestantio/go-builder-client v0.6.1
 	github.com/attestantio/go-eth2-client v0.24.1-0.20250212111510-c92fd5e34e0e
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
