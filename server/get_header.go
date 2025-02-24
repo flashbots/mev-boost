@@ -87,7 +87,6 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			// Add header fields to this request
 			req.Header.Set(HeaderAccept, proposerAcceptContentTypes)
 			req.Header.Set(HeaderKeySlotUID, slotUID.String())
-			req.Header.Set(HeaderStartTimeUnixMS, startTime)
 			req.Header.Set(HeaderUserAgent, userAgent)
 			req.Header.Set(HeaderDateMilliseconds, startTime)
 

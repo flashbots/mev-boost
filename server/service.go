@@ -234,7 +234,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	// Additional header fields
 	header := req.Header
 	header.Set(HeaderUserAgent, wrapUserAgent(ua))
-	header.Set(HeaderStartTimeUnixMS, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
+	header.Set(HeaderDateMilliseconds, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
 
 	// Read the validator registrations
 	regBytes, err := io.ReadAll(req.Body)
