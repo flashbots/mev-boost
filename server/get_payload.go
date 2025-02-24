@@ -79,8 +79,9 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 
 	// Add request headers
 	headers := map[string]string{
-		HeaderKeySlotUID:      currentSlotUID,
-		HeaderStartTimeUnixMS: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
+		HeaderKeySlotUID:       currentSlotUID,
+		HeaderStartTimeUnixMS:  fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
+		HeaderDateMilliseconds: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
 	}
 
 	// Prepare for requests
