@@ -46,8 +46,6 @@ where `<address>` is the public key of the wallet you created in step (6)
         2. Allow all subnets, with the line `SUBSCRIBE_ALL_SUBNETS="--subscribe-all-subnets"`
     3. Modify scripts/local_testnet/setup.sh:
         1. Add `--merge-fork-epoch $MERGE_FORK_EPOCH`
-    4. Modify start_local_testnet.sh:
-        1. Remove/comment ganache [`https://github.com/sigp/lighthouse/blob/stable/scripts/local_testnet/start_local_testnet.sh#L93`](https://github.com/sigp/lighthouse/blob/stable/scripts/local_testnet/start_local_testnet.sh#L93)
 3. install lighthouse and lcli:
     1. make
     2. make install-lcli  
