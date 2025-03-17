@@ -130,15 +130,15 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 	defer requestCtxCancel()
 
 	// Sort the relays so that those with SSZ support are first
-	relaysToRequestFrom := make([]types.RelayEntry, len(originalBid.relays))
-	copy(relaysToRequestFrom, originalBid.relays)
-	sort.SliceStable(relaysToRequestFrom, func(i, j int) bool {
-		return relaysToRequestFrom[i].SupportsSSZ && !relaysToRequestFrom[j].SupportsSSZ
+	relays := make([]types.RelayEntry, len(originalBid.relays))
+	copy(relays, originalBid.relays)
+	sort.SliceStable(relays, func(i, j int) bool {
+		return relays[i].SupportsSSZ && !relays[j].SupportsSSZ
 	})
 
 	// Only request payloads from relays which provided the bid. This is
 	// necessary now because we use the bid to track relay encoding preferences.
-	for _, relay := range relaysToRequestFrom {
+	for _, relay := range relays {
 		go func(relay types.RelayEntry) {
 			url := relay.GetURI(params.PathGetPayload)
 			log := log.WithField("url", url)
