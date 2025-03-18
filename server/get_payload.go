@@ -9,7 +9,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"sort"
 	"sync/atomic"
 	"time"
 
@@ -129,39 +128,19 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), m.httpClientGetPayload.Timeout)
 	defer requestCtxCancel()
 
-	// Sort the relays so that those with SSZ support are first
-	relays := make([]types.RelayEntry, len(originalBid.relays))
-	copy(relays, originalBid.relays)
-	sort.SliceStable(relays, func(i, j int) bool {
-		return relays[i].SupportsSSZ && !relays[j].SupportsSSZ
-	})
-
-	// Make a list of relays that do not support SSZ yet
-	var relaysNoSSZ []string
-	for _, relay := range relays {
-		if !relay.SupportsSSZ {
-			relaysNoSSZ = append(relaysNoSSZ, relay.URL.Hostname())
-		}
-	}
-
-	// If the request is in SSZ but there's at least one relay that indicated with
-	// getHeader that it does not support SSZ, we must convert the request blinded
-	// beacon block from SSZ to JSON.
+	// Convert the blinded block to JSON in case there's a relay that doesn't support SSZ yet
 	var signedBlindedBeaconBlockBytesJSON []byte
-	if parsedProposerContentType == MediaTypeOctetStream && len(relaysNoSSZ) > 0 {
-		log.WithField("relaysThatDoNotSupportSSZ", relaysNoSSZ).Info("at least one relay does not support SSZ, converting signed blinded beacon block to JSON")
-		start := time.Now()
+	if proposerContentType == MediaTypeOctetStream {
 		signedBlindedBeaconBlockBytesJSON, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
 		if err != nil {
 			log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
 			return nil, bidResp{}
 		}
-		log.WithField("conversionTime", time.Since(start)).Info("converted request from SSZ to JSON")
 	}
 
 	// Only request payloads from relays which provided the bid. This is
 	// necessary now because we use the bid to track relay encoding preferences.
-	for _, relay := range relays {
+	for _, relay := range originalBid.relays {
 		go func(relay types.RelayEntry) {
 			url := relay.GetURI(params.PathGetPayload)
 			log := log.WithField("url", url)
