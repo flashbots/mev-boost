@@ -52,7 +52,6 @@ linters:
     # Disabled due to versioning:
     #
     - intrange
-    - exportloopref
 
 
 linters-settings:
