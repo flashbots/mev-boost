@@ -147,10 +147,11 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 	// If the request is in SSZ but there's at least one relay that indicated with
 	// getHeader that it does not support SSZ, we must convert the request blinded
 	// beacon block from SSZ to JSON.
+	var signedBlindedBeaconBlockBytesJSON []byte
 	if parsedProposerContentType == MediaTypeOctetStream && len(relaysNoSSZ) > 0 {
 		log.WithField("relaysThatDoNotSupportSSZ", relaysNoSSZ).Info("at least one relay does not support SSZ, converting signed blinded beacon block to JSON")
 		start := time.Now()
-		signedBlindedBeaconBlockBytes, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
+		signedBlindedBeaconBlockBytesJSON, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
 		if err != nil {
 			log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
 			return nil, bidResp{}
@@ -168,8 +169,14 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
+				// If necessary, use the JSON encoded version
+				requestBytes := signedBlindedBeaconBlockBytes
+				if parsedProposerContentType == MediaTypeOctetStream && !relay.SupportsSSZ {
+					requestBytes = signedBlindedBeaconBlockBytesJSON
+				}
+
 				// Make a new request
-				req, err := http.NewRequestWithContext(requestCtx, http.MethodPost, url, bytes.NewReader(signedBlindedBeaconBlockBytes))
+				req, err := http.NewRequestWithContext(requestCtx, http.MethodPost, url, bytes.NewReader(requestBytes))
 				if err != nil {
 					log.WithError(err).Warn("error creating new request")
 					return nil, err
