@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/ethereum/go-ethereum v1.15.2
 	github.com/flashbots/go-boost-utils v1.8.2-0.20241014214143-c3fca3d69760
-	github.com/flashbots/go-utils v0.8.3
+	github.com/flashbots/go-utils v0.9.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/holiman/uint256 v1.3.2
