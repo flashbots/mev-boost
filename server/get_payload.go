@@ -136,6 +136,28 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 		return relays[i].SupportsSSZ && !relays[j].SupportsSSZ
 	})
 
+	// Make a list of relays that do not support SSZ yet
+	var relaysNoSSZ []string
+	for _, relay := range relays {
+		if !relay.SupportsSSZ {
+			relaysNoSSZ = append(relaysNoSSZ, relay.URL.Hostname())
+		}
+	}
+
+	// If the request is in SSZ but there's at least one relay that indicated with
+	// getHeader that it does not support SSZ, we must convert the request blinded
+	// beacon block from SSZ to JSON.
+	if parsedProposerContentType == MediaTypeOctetStream && len(relaysNoSSZ) > 0 {
+		log.WithField("relaysThatDoNotSupportSSZ", relaysNoSSZ).Info("at least one relay does not support SSZ, converting signed blinded beacon block to JSON")
+		start := time.Now()
+		signedBlindedBeaconBlockBytes, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
+		if err != nil {
+			log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
+			return nil, bidResp{}
+		}
+		log.WithField("conversionTime", time.Since(start)).Info("converted request from SSZ to JSON")
+	}
+
 	// Only request payloads from relays which provided the bid. This is
 	// necessary now because we use the bid to track relay encoding preferences.
 	for _, relay := range relays {
@@ -143,21 +165,6 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 			url := relay.GetURI(params.PathGetPayload)
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
-
-			// If the request is in SSZ but the relay indicated with getHeader that it does not
-			// support SSZ, we must convert the request blinded beacon block from SSZ to JSON.
-			// Another option would be to move this outside of the loop and do the conversion
-			// once if any relays do not support SSZ. The problem with this though is that it
-			// would penalize relays which do support SSZ, whereas this version only penalizes
-			// relays which do not support SSZ.
-			if parsedProposerContentType == MediaTypeOctetStream && !relay.SupportsSSZ {
-				log.Info("converting request from SSZ to JSON for relay")
-				signedBlindedBeaconBlockBytes, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
-				if err != nil {
-					log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
-					return
-				}
-			}
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
