@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -22,7 +21,7 @@ import (
 func TestMakePostRequest(t *testing.T) {
 	// Test errors
 	var x chan bool
-	code, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, "", "test", nil, x, nil)
+	code, err := SendHTTPRequest(t.Context(), *http.DefaultClient, http.MethodGet, "", "test", nil, x, nil)
 	require.Error(t, err)
 	require.Equal(t, 0, code)
 }
@@ -49,7 +48,7 @@ func TestSendHTTPRequestUserAgent(t *testing.T) {
 		require.Equal(t, expectedUA, r.Header.Get("User-Agent")) //nolint:testifylint // if we fail here the test has failed
 		done <- true
 	}))
-	code, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, ts.URL, UserAgent(customUA), nil, nil, nil)
+	code, err := SendHTTPRequest(t.Context(), *http.DefaultClient, http.MethodGet, ts.URL, UserAgent(customUA), nil, nil, nil)
 	ts.Close()
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
@@ -61,7 +60,7 @@ func TestSendHTTPRequestUserAgent(t *testing.T) {
 		require.Equal(t, expectedUA, r.Header.Get("User-Agent")) //nolint:testifylint  // if we fail here the test has failed
 		done <- true
 	}))
-	code, err = SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, nil, nil)
+	code, err = SendHTTPRequest(t.Context(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, nil, nil)
 	ts.Close()
 	require.NoError(t, err)
 	require.Equal(t, 200, code)
@@ -82,7 +81,7 @@ func TestSendHTTPRequestGzip(t *testing.T) {
 		_, _ = w.Write(buf.Bytes())
 	}))
 	resp := struct{ Msg string }{}
-	code, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, nil, &resp)
+	code, err := SendHTTPRequest(t.Context(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, nil, &resp)
 	ts.Close()
 	require.NoError(t, err)
 	require.Equal(t, 200, code)

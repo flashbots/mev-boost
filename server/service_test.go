@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -163,7 +162,7 @@ func TestWebserverMaxHeaderSize(t *testing.T) {
 	}()
 	time.Sleep(time.Millisecond * 100)
 	path := "http://" + addr + "?" + strings.Repeat("abc", 4000) // path with characters of size over 4kb
-	code, err := SendHTTPRequest(context.Background(), *http.DefaultClient, http.MethodGet, path, "test", nil, nil, nil)
+	code, err := SendHTTPRequest(t.Context(), *http.DefaultClient, http.MethodGet, path, "test", nil, nil, nil)
 	require.Error(t, err)
 	require.Equal(t, http.StatusRequestHeaderFieldsTooLarge, code)
 	backend.boost.srv.Close()
