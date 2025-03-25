@@ -25,6 +25,7 @@ var flags = []cli.Flag{
 	mainnetFlag,
 	sepoliaFlag,
 	holeskyFlag,
+	hoodiFlag,
 	// relay
 	relaysFlag,
 	deprecatedRelayMonitorFlag,
@@ -113,6 +114,12 @@ var (
 		Name:     "holesky",
 		Sources:  cli.EnvVars("HOLESKY"),
 		Usage:    "use Holesky",
+		Category: GenesisCategory,
+	}
+	hoodiFlag = &cli.BoolFlag{
+		Name:     "hoodi",
+		Sources:  cli.EnvVars("HOODI"),
+		Usage:    "use Hoodi",
 		Category: GenesisCategory,
 	}
 	// Relay
