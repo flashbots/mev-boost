@@ -20,13 +20,13 @@ import (
 const (
 	genesisForkVersionMainnet = "0x00000000"
 	genesisForkVersionSepolia = "0x90000069"
-	genesisForkVersionGoerli  = "0x00001020"
 	genesisForkVersionHolesky = "0x01017000"
+	genesisForkVersionHoodi   = "0x10000910"
 
 	genesisTimeMainnet = 1606824023
 	genesisTimeSepolia = 1655733600
-	genesisTimeGoerli  = 1614588812
 	genesisTimeHolesky = 1695902400
+	genesisTimeHoodi   = 1742213400
 )
 
 var (
@@ -143,12 +143,15 @@ func setupGenesis(cmd *cli.Command) (string, uint64) {
 	case cmd.Bool(holeskyFlag.Name):
 		genesisForkVersion = genesisForkVersionHolesky
 		genesisTime = genesisTimeHolesky
+	case cmd.Bool(hoodiFlag.Name):
+		genesisForkVersion = genesisForkVersionHoodi
+		genesisTime = genesisTimeHoodi
 	case cmd.Bool(mainnetFlag.Name):
 		genesisForkVersion = genesisForkVersionMainnet
 		genesisTime = genesisTimeMainnet
 	default:
 		flag.Usage()
-		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -holesky / -genesis-fork-version flags)")
+		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -holesky / -hoodi / -genesis-fork-version flags)")
 	}
 
 	if cmd.IsSet(customGenesisTimeFlag.Name) {

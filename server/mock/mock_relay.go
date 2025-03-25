@@ -372,15 +372,11 @@ func (m *Relay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 		m.handlerOverrideGetPayload(w, req)
 		return
 	}
-	m.DefaultHandleGetPayload(w)
+	m.DefaultHandleGetPayload(w, req)
 }
 
 // DefaultHandleGetPayload returns the default handler for handleGetPayload
-func (m *Relay) DefaultHandleGetPayload(w http.ResponseWriter) {
-	// By default, everything will be ok.
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
+func (m *Relay) DefaultHandleGetPayload(w http.ResponseWriter, req *http.Request) {
 	// Build the default response.
 	response := m.MakeGetPayloadResponse(
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
@@ -394,9 +390,46 @@ func (m *Relay) DefaultHandleGetPayload(w http.ResponseWriter) {
 		response = m.GetPayloadResponse
 	}
 
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if m.ForceSSZ && m.ForceJSON {
+		panic("cannot force both SSZ and JSON")
+	}
+
+	respondJSON := func() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	respondSSZ := func() {
+		w.Header().Set("Eth-Consensus-Version", "deneb")
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.WriteHeader(http.StatusOK)
+		sszData, err := response.Deneb.MarshalSSZ()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_, err = w.Write(sszData)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// We cannot use code in server, so this is a simplistic
+	// negotiation which should only be used in testing.
+	switch {
+	case m.ForceJSON:
+		respondJSON()
+	case m.ForceSSZ:
+		respondSSZ()
+	case strings.Contains(req.Header.Get("Accept"), "application/octet-stream"):
+		respondSSZ()
+	default:
+		respondJSON()
 	}
 }
 

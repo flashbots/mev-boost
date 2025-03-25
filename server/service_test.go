@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +19,7 @@ import (
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
+	eth2Api "github.com/attestantio/go-eth2-client/api"
 	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
@@ -86,6 +89,22 @@ func (be *testBackend) request(t *testing.T, method, path string, header http.He
 		require.NoError(t, err2)
 		req, err = http.NewRequest(method, path, bytes.NewReader(payloadBytes))
 	}
+	require.NoError(t, err)
+
+	// Set header
+	req.Header = header
+
+	rr := httptest.NewRecorder()
+	be.boost.getRouter().ServeHTTP(rr, req)
+	return rr
+}
+
+func (be *testBackend) requestBytes(t *testing.T, method, path string, header http.Header, payloadBytes []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	var req *http.Request
+	var err error
+
+	req, err = http.NewRequest(method, path, bytes.NewReader(payloadBytes))
 	require.NoError(t, err)
 
 	// Set header
@@ -774,11 +793,19 @@ func TestGetPayload(t *testing.T) {
 		},
 	}
 
-	t.Run("Okay response from relay", func(t *testing.T) {
+	t.Run("Okay response from relay in JSON", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
 		rr := backend.request(t, http.MethodPost, path, header, payload)
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -789,11 +816,115 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Deneb.ExecutionPayload.BlockHash)
 	})
 
+	t.Run("Okay response from relay in SSZ", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set("Eth-Consensus-Version", "deneb")
+		header.Set("Accept", "application/octet-stream")
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+		resp := new(builderApi.VersionedSubmitBlindedBlockResponse)
+		resp.Deneb = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
+		err := resp.Deneb.UnmarshalSSZ(rr.Body.Bytes())
+		require.NoError(t, err)
+		require.Equal(t, payload.Message.Body.ExecutionPayloadHeader.BlockHash, resp.Deneb.ExecutionPayload.BlockHash)
+	})
+
+	t.Run("Okay response from relay in SSZ but returns JSON", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set("Eth-Consensus-Version", "deneb")
+		header.Set("Accept", "application/octet-stream")
+		header.Set("Content-Type", "application/octet-stream")
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		// Tell mev-boost that the relay does not support SSZ
+		bid.relays[0].SupportsSSZ = false
+
+		// Only respond with JSON
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, req *http.Request) {
+			// Ensure the request was JSON
+			reqBody, err := io.ReadAll(req.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			var block eth2ApiV1Deneb.SignedBlindedBeaconBlock
+			err = json.Unmarshal(reqBody, &block)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Compare HTR as a sanity check
+			payloadHTR, err := payload.HashTreeRoot()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			blockHTR, err := block.HashTreeRoot()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if !bytes.Equal(payloadHTR[:], blockHTR[:]) {
+				http.Error(w, "htr did not match", http.StatusInternalServerError)
+				return
+			}
+
+			response := backend.relays[0].MakeGetPayloadResponse(
+				"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+				"0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46",
+				"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
+				12345,
+				spec.DataVersionDeneb,
+			)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		})
+
+		payloadBytes, err := payload.MarshalSSZ()
+		require.NoError(t, err)
+		rr := backend.requestBytes(t, http.MethodPost, path, header, payloadBytes)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+	})
+
 	t.Run("Bad response from relays", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 2, time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
 		resp := &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionDeneb,
 			Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
@@ -812,6 +943,14 @@ func TestGetPayload(t *testing.T) {
 
 		// 2/2 failing responses are okay
 		backend = newTestBackend(t, 2, time.Second)
+
+		// Add the bid to the service
+		bid = bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
 		backend.relays[0].GetPayloadResponse = resp
 		backend.relays[1].GetPayloadResponse = resp
 		rr = backend.request(t, http.MethodPost, path, header, payload)
@@ -827,11 +966,18 @@ func TestGetPayload(t *testing.T) {
 
 		backend := newTestBackend(t, 1, 2*time.Second)
 
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
 		count := 0
-		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, _ *http.Request) {
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, req *http.Request) {
 			if count > 0 {
 				// success response on the second attempt
-				backend.relays[0].DefaultHandleGetPayload(w)
+				backend.relays[0].DefaultHandleGetPayload(w, req)
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
@@ -849,14 +995,21 @@ func TestGetPayload(t *testing.T) {
 
 		backend := newTestBackend(t, 1, time.Second)
 
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
 		count := 0
 		maxRetries := 5
 
-		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, _ *http.Request) {
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, req *http.Request) {
 			count++
 			if count > maxRetries {
 				// success response after max retry attempts
-				backend.relays[0].DefaultHandleGetPayload(w)
+				backend.relays[0].DefaultHandleGetPayload(w, req)
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
@@ -1014,70 +1167,74 @@ func denebExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, k
 }
 
 func TestGetPayloadForks(t *testing.T) {
-	header := make(http.Header)
-	header.Set(HeaderAccept, MediaTypeJSON)
+	t.Parallel()
 
-	//nolint: forcetypeassert,thelper
-	tests := []struct {
-		fork              string
-		signedBeaconBlock any
-		verifyPostState   func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse)
-	}{
-		{
-			fork:              "bellatrix",
-			signedBeaconBlock: new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock),
-			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
-				hash := blockHash(block.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock))
-				require.Equal(t, hash, resp.Bellatrix.BlockHash)
-			},
-		},
-		{
-			fork:              "capella",
-			signedBeaconBlock: new(eth2ApiV1Capella.SignedBlindedBeaconBlock),
-			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
-				hash := blockHash(block.(*eth2ApiV1Capella.SignedBlindedBeaconBlock))
-				require.Equal(t, hash, resp.Capella.BlockHash)
-			},
-		},
-		{
-			fork:              "deneb",
-			signedBeaconBlock: new(eth2ApiV1Deneb.SignedBlindedBeaconBlock),
-			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
-				hash := blockHash(block.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock))
-				require.Equal(t, hash, resp.Deneb.ExecutionPayload.BlockHash)
-			},
-		},
-		{
-			fork:              "electra",
-			signedBeaconBlock: new(eth2ApiV1Electra.SignedBlindedBeaconBlock),
-			verifyPostState: func(t *testing.T, block any, resp *builderApi.VersionedSubmitBlindedBlockResponse) {
-				hash := blockHash(block.(*eth2ApiV1Electra.SignedBlindedBeaconBlock))
-				require.Equal(t, hash, resp.Electra.ExecutionPayload.BlockHash)
-			},
-		},
-	}
+	header := http.Header{}
+	header.Set("Accept", "application/json")
 
-	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v/%v", t.Name(), tt.fork), func(t *testing.T) {
-			// Load the signed blinded beacon block used for getPayload
-			path := fmt.Sprintf("../testdata/signed-blinded-beacon-block-%v.json", tt.fork)
-			jsonFile, err := os.Open(path)
+	// Get a list of testdata files
+	pattern := "../testdata/signed-blinded-beacon-block-*.json"
+	files, err := filepath.Glob(pattern)
+	require.NoError(t, err)
+	require.NotEmpty(t, files)
+
+	for _, file := range files {
+		file := file // capture variable for closure
+		t.Run(fmt.Sprintf("File=%s", file), func(t *testing.T) {
+			t.Parallel()
+
+			// Read the test JSON from file
+			jsonBytes, err := os.ReadFile(file)
 			require.NoError(t, err)
-			defer jsonFile.Close()
-			signedBlindedBeaconBlock := tt.signedBeaconBlock
-			require.NoError(t, DecodeJSON(jsonFile, &signedBlindedBeaconBlock))
+
+			// Create a new backend
 			backend := newTestBackend(t, 1, time.Second)
-			// Prepare getPayload response
-			backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(signedBlindedBeaconBlock)
-			// call getPayload, ensure it's only called on relay 0 (origin of the bid)
-			rr := backend.request(t, http.MethodPost, params.PathGetPayload, header, signedBlindedBeaconBlock)
+
+			// Decode the block
+			block := new(eth2Api.VersionedSignedBlindedBeaconBlock)
+			err = decodeSignedBlindedBeaconBlock(jsonBytes, MediaTypeJSON, "", block)
+			require.NoError(t, err)
+
+			// Get the request slot and block hash
+			slot, err := block.Slot()
+			require.NoError(t, err)
+			blockHash, err := block.ExecutionBlockHash()
+			require.NoError(t, err)
+
+			// Set up the bid in the backend
+			bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+			for i, r := range backend.relays {
+				bid.relays[i] = r.RelayEntry
+			}
+			backend.boost.bids[bidKey(slot, blockHash)] = bid
+
+			// Choose the payload based on the block version
+			var payload interface{}
+			switch block.Version {
+			case spec.DataVersionBellatrix:
+				payload = block.Bellatrix
+			case spec.DataVersionCapella:
+				payload = block.Capella
+			case spec.DataVersionDeneb:
+				payload = block.Deneb
+			case spec.DataVersionElectra:
+				payload = block.Electra
+			case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+				require.Fail(t, "unsupported version")
+			}
+
+			// Configure the relay's expected response and send the request
+			backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(payload)
+			rr := backend.request(t, http.MethodPost, params.PathGetPayload, header, payload)
+
+			// Validate the response
 			require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 			require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayload))
 			resp := new(builderApi.VersionedSubmitBlindedBlockResponse)
-			err = json.Unmarshal(rr.Body.Bytes(), resp)
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), resp))
+			respBlockHash, err := resp.BlockHash()
 			require.NoError(t, err)
-			// verify post state
-			tt.verifyPostState(t, signedBlindedBeaconBlock, resp)
+			require.Equal(t, blockHash, respBlockHash)
 		})
 	}
 }
@@ -1095,6 +1252,13 @@ func TestGetPayloadToAllRelays(t *testing.T) {
 
 	// Create a test backend with 2 relays
 	backend := newTestBackend(t, 2, time.Second)
+
+	// Add the bid to the service
+	bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+	for i, relay := range backend.relays {
+		bid.relays[i] = relay.RelayEntry
+	}
+	backend.boost.bids[bidKey(signedBlindedBeaconBlock.Message.Slot, signedBlindedBeaconBlock.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
 
 	// call getHeader, highest bid is returned by relay 0
 	getHeaderPath := "/eth/v1/builder/header/12345/0xcf8e0d4e9587369b2301d0790347320302cc0943d5a1884560367e8208d920f2/0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"

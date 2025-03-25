@@ -1,21 +1,27 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"mime"
 	"net/http"
 	"sync/atomic"
 	"time"
 
 	builderApi "github.com/attestantio/go-builder-client/api"
-	denebApi "github.com/attestantio/go-builder-client/api/deneb"
+	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	eth2Api "github.com/attestantio/go-eth2-client/api"
 	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
 	eth2ApiV1Deneb "github.com/attestantio/go-eth2-client/api/v1/deneb"
 	eth2ApiV1Electra "github.com/attestantio/go-eth2-client/api/v1/electra"
 	"github.com/attestantio/go-eth2-client/spec"
-	"github.com/attestantio/go-eth2-client/spec/deneb"
+	"github.com/attestantio/go-eth2-client/spec/bellatrix"
+	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server/params"
@@ -23,27 +29,54 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Payload interface {
-	*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock |
-		*eth2ApiV1Capella.SignedBlindedBeaconBlock |
-		*eth2ApiV1Deneb.SignedBlindedBeaconBlock |
-		*eth2ApiV1Electra.SignedBlindedBeaconBlock
-}
-
 var (
 	errInvalidVersion   = errors.New("invalid version")
 	errEmptyPayload     = errors.New("empty payload")
 	errInvalidBlockhash = errors.New("invalid blockhash")
 	errInvalidKZGLength = errors.New("invalid KZG commitments length")
 	errInvalidKZG       = errors.New("invalid KZG commitment")
+	errFailedToDecode   = errors.New("failed to decode payload")
+	errFailedToConvert  = errors.New("failed to convert block from SSZ to JSON")
 )
 
-// processPayload requests the payload (execution payload, blobs bundle, etc) from the relays
-func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent, blindedBlock P) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
-	var (
-		slot      = slot(blindedBlock)
-		blockHash = blockHash(blindedBlock)
-	)
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Core Logic
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// getPayload requests the payload (execution payload, blobs bundle, etc) from the relays
+func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+	// Get the request's content type
+	parsedProposerContentType, _, err := mime.ParseMediaType(proposerContentType)
+	if err != nil {
+		log.WithError(err).Warn("failed to parse proposer content type")
+		parsedProposerContentType = MediaTypeJSON
+	}
+	log = log.WithField("parsedProposerContentType", parsedProposerContentType)
+
+	// Decode the request
+	request := new(eth2Api.VersionedSignedBlindedBeaconBlock)
+	err = decodeSignedBlindedBeaconBlock(signedBlindedBeaconBlockBytes, parsedProposerContentType, proposerEthConsensusVersion, request)
+	if err != nil {
+		log.WithError(err).Error("failed to decode signed blinded beacon block")
+		return nil, bidResp{}
+	}
+
+	// Get information about the request
+	slot, err := request.Slot()
+	if err != nil {
+		log.WithError(err).Error("failed to get request slot")
+		return nil, bidResp{}
+	}
+	blockHash, err := request.ExecutionBlockHash()
+	if err != nil {
+		log.WithError(err).Error("failed to get request block hash")
+		return nil, bidResp{}
+	}
+	parentHash, err := request.ExecutionParentHash()
+	if err != nil {
+		log.WithError(err).Error("failed to get request parent hash")
+		return nil, bidResp{}
+	}
 
 	// Get the currentSlotUID for this slot
 	currentSlotUID := ""
@@ -56,7 +89,12 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 	m.slotUIDLock.Unlock()
 
 	// Prepare logger
-	log = prepareLogger(log, blindedBlock, ua, currentSlotUID)
+	log = log.WithFields(logrus.Fields{
+		"slot":       slot,
+		"blockHash":  blockHash.String(),
+		"parentHash": parentHash.String(),
+		"slotUID":    currentSlotUID,
+	})
 
 	// Log how late into the slot the request starts
 	slotStartTimestamp := m.genesisTime + uint64(slot)*config.SlotTimeSec
@@ -77,13 +115,6 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 		log.Warn("bid found but no associated relays")
 	}
 
-	// Add request headers
-	headers := map[string]string{
-		HeaderKeySlotUID:       currentSlotUID,
-		HeaderStartTimeUnixMS:  fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
-		HeaderDateMilliseconds: fmt.Sprintf("%d", time.Now().UTC().UnixMilli()),
-	}
-
 	// Prepare for requests
 	resultCh := make(chan *builderApi.VersionedSubmitBlindedBlockResponse, len(m.relays))
 	var received atomic.Bool
@@ -93,35 +124,123 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 		resultCh <- nil
 	}()
 
-	// Prepare the request context, which will be cancelled after the first successful response from a relay
-	requestCtx, requestCtxCancel := context.WithCancel(context.Background())
+	// Create a context with a timeout as configured in the http client
+	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), m.httpClientGetPayload.Timeout)
 	defer requestCtxCancel()
 
-	for _, relay := range m.relays {
+	// Make a list of relays without SSZ support
+	var relaysWithoutSSZ []string
+	for _, relay := range originalBid.relays {
+		if !relay.SupportsSSZ {
+			relaysWithoutSSZ = append(relaysWithoutSSZ, relay.URL.Hostname())
+		}
+	}
+
+	// Convert the blinded block to JSON if there's a relay that doesn't support SSZ yet
+	var signedBlindedBeaconBlockBytesJSON []byte
+	if proposerContentType == MediaTypeOctetStream && len(relaysWithoutSSZ) > 0 {
+		log.WithField("relaysWithoutSSZ", relaysWithoutSSZ).Info("Converting request from SSZ to JSON for relay(s)")
+		signedBlindedBeaconBlockBytesJSON, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
+		if err != nil {
+			log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
+			return nil, bidResp{}
+		}
+	}
+
+	// Only request payloads from relays which provided the bid. This is
+	// necessary now because we use the bid to track relay encoding preferences.
+	for _, relay := range originalBid.relays {
 		go func(relay types.RelayEntry) {
 			url := relay.GetURI(params.PathGetPayload)
 			log := log.WithField("url", url)
 			log.Debug("calling getPayload")
 
-			responsePayload := new(builderApi.VersionedSubmitBlindedBlockResponse)
-			_, err := SendHTTPRequestWithRetries(requestCtx, m.httpClientGetPayload, http.MethodPost, url, ua, headers, blindedBlock, responsePayload, m.requestMaxRetries, log)
-			if err != nil {
-				if errors.Is(requestCtx.Err(), context.Canceled) {
-					// This is expected if the payload has already been received by another relay
-					log.Info("request was cancelled")
-				} else {
-					log.WithError(err).Error("error making request to relay")
+			// If the request fails, try again a few times with 100ms between tries
+			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
+				// If necessary, use the JSON encoded version
+				requestBytes := signedBlindedBeaconBlockBytes
+				if parsedProposerContentType == MediaTypeOctetStream && !relay.SupportsSSZ {
+					requestBytes = signedBlindedBeaconBlockBytesJSON
 				}
+
+				// Make a new request
+				req, err := http.NewRequestWithContext(requestCtx, http.MethodPost, url, bytes.NewReader(requestBytes))
+				if err != nil {
+					log.WithError(err).Warn("error creating new request")
+					return nil, err
+				}
+
+				// Add header fields to this request
+				req.Header.Set(HeaderAccept, proposerAcceptContentTypes)
+				req.Header.Set(HeaderContentType, proposerContentType)
+				req.Header.Set(HeaderEthConsensusVersion, proposerEthConsensusVersion)
+				req.Header.Set(HeaderKeySlotUID, currentSlotUID)
+				req.Header.Set(HeaderDateMilliseconds, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
+				req.Header.Set(HeaderUserAgent, userAgent)
+
+				// Send the request
+				log.Debug("requesting payload")
+				resp, err := m.httpClientGetPayload.Do(req)
+				if err != nil {
+					log.WithError(err).Warn("error calling getPayload on relay")
+					return nil, err
+				}
+
+				// Check that the response was successful
+				if resp.StatusCode != http.StatusOK {
+					err = fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
+					log.WithError(err).Warn("error status code")
+					return nil, err
+				}
+
+				return resp, nil
+			})
+			if err != nil {
+				log.WithError(err).Warn("failed to get payload from relay after retries")
+				return
+			}
+			defer resp.Body.Close()
+
+			// Get the resp body content
+			respBytes, err := io.ReadAll(resp.Body)
+			if err != nil {
+				log.WithError(err).Warn("error reading response body")
 				return
 			}
 
-			if err := verifyPayload(blindedBlock, log, responsePayload); err != nil {
+			// Get the response's content type
+			respContentType, _, err := mime.ParseMediaType(resp.Header.Get(HeaderContentType))
+			if err != nil {
+				log.WithError(err).Warn("error parsing response content type")
+				respContentType = MediaTypeJSON
+			}
+			log = log.WithField("respContentType", respContentType)
+
+			// Get the response's eth consensus version
+			respEthConsensusVersion := resp.Header.Get(HeaderEthConsensusVersion)
+			log = log.WithField("respEthConsensusVersion", respEthConsensusVersion)
+
+			// Decode response
+			response := new(builderApi.VersionedSubmitBlindedBlockResponse)
+			err = decodeSubmitBlindedBlockResponse(respBytes, respContentType, respEthConsensusVersion, response)
+			if err != nil {
+				log.WithError(err).Warn("error decoding bid")
 				return
 			}
 
+			// Check that the payload matches our request
+			err = verifyPayload(log, request, response)
+			if err != nil {
+				log.WithError(err).Warn("error decoding bid")
+				return
+			}
+
+			// The payload is valid, cancel the request for others
 			requestCtxCancel()
+
+			// We have received a payload, cancel other requests
 			if received.CompareAndSwap(false, true) {
-				resultCh <- responsePayload
+				resultCh <- response
 				log.Info("received payload from relay")
 			} else {
 				log.Trace("discarding response, already received a correct response")
@@ -130,43 +249,22 @@ func processPayload[P Payload](m *BoostService, log *logrus.Entry, ua UserAgent,
 	}
 
 	// Wait for the first request to complete
-	result := <-resultCh
-
-	return result, originalBid
+	return <-resultCh, originalBid
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Verification Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // verifyPayload checks that the payload is valid
-func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi.VersionedSubmitBlindedBlockResponse) error {
-	// Verify version
-	switch any(payload).(type) {
-	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
-		if response.Version != spec.DataVersionBellatrix {
-			log.WithFields(logrus.Fields{
-				"version": response.Version,
-			}).Error("response version was not bellatrix")
-			return errInvalidVersion
-		}
-	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
-		if response.Version != spec.DataVersionCapella {
-			log.WithFields(logrus.Fields{
-				"version": response.Version,
-			}).Error("response version was not capella")
-			return errInvalidVersion
-		}
-	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
-		if response.Version != spec.DataVersionDeneb {
-			log.WithFields(logrus.Fields{
-				"version": response.Version,
-			}).Error("response version was not deneb")
-			return errInvalidVersion
-		}
-	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
-		if response.Version != spec.DataVersionElectra {
-			log.WithFields(logrus.Fields{
-				"version": response.Version,
-			}).Error("response version was not electra")
-			return errInvalidVersion
-		}
+func verifyPayload(log *logrus.Entry, request *eth2Api.VersionedSignedBlindedBeaconBlock, response *builderApi.VersionedSubmitBlindedBlockResponse) error {
+	// Verify that request & response versions are the same
+	if request.Version != response.Version {
+		log.WithFields(logrus.Fields{
+			"requestVersion":  request.Version,
+			"responseVersion": response.Version,
+		}).Error("response version does not match request version")
+		return errInvalidVersion
 	}
 
 	// Verify payload is not empty
@@ -175,141 +273,318 @@ func verifyPayload[P Payload](payload P, log *logrus.Entry, response *builderApi
 		return errEmptyPayload
 	}
 
-	// Verify post-conditions
-	switch block := any(payload).(type) {
-	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
-		if err := verifyBlockHash(log, payload, response.Bellatrix.BlockHash); err != nil {
-			return err
-		}
-	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
-		if err := verifyBlockHash(log, payload, response.Capella.BlockHash); err != nil {
-			return err
-		}
-	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
-		if err := verifyBlockHash(log, payload, response.Deneb.ExecutionPayload.BlockHash); err != nil {
-			return err
-		}
-		if err := verifyKZGCommitments(log, response.Deneb.BlobsBundle, block.Message.Body.BlobKZGCommitments); err != nil {
-			return err
-		}
-	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
-		if err := verifyBlockHash(log, payload, response.Electra.ExecutionPayload.BlockHash); err != nil {
-			return err
-		}
-		if err := verifyKZGCommitments(log, response.Electra.BlobsBundle, block.Message.Body.BlobKZGCommitments); err != nil {
+	// Verify that the request & response block hashes are the same
+	err := verifyBlockHash(log, request, response)
+	if err != nil {
+		log.WithError(err).Error("requestBlockHash does not equal responseBlockHash")
+		return err
+	}
+
+	// Verify that the request & response blobs bundle is the same
+	if request.Version >= spec.DataVersionDeneb {
+		err = verifyBlobsBundle(log, request, response)
+		if err != nil {
+			log.WithError(err).Error("requestBlockHash does not equal responseBlockHash")
 			return err
 		}
 	}
+
 	return nil
 }
 
 // verifyBlockHash checks that the block hash is correct
-func verifyBlockHash[P Payload](log *logrus.Entry, payload P, executionPayloadHash phase0.Hash32) error {
-	if blockHash(payload) != executionPayloadHash {
+func verifyBlockHash(log *logrus.Entry, request *eth2Api.VersionedSignedBlindedBeaconBlock, response *builderApi.VersionedSubmitBlindedBlockResponse) error {
+	// Get the request's block hash
+	requestBlockHash, err := request.ExecutionBlockHash()
+	if err != nil {
+		log.WithError(err).Error("failed to get request block hash")
+		return err
+	}
+
+	// Get the response's block hash
+	responseBlockHash, err := response.BlockHash()
+	if err != nil {
+		log.WithError(err).Error("failed to get response block hash")
+		return err
+	}
+
+	// Verify that they're the same
+	if requestBlockHash != responseBlockHash {
 		log.WithFields(logrus.Fields{
-			"responseBlockHash": executionPayloadHash.String(),
+			"responseBlockHash": responseBlockHash.String(),
 		}).Error("requestBlockHash does not equal responseBlockHash")
 		return errInvalidBlockhash
 	}
+
 	return nil
 }
 
-// verifyKZGCommitments checks that blobs bundle is valid
-func verifyKZGCommitments(log *logrus.Entry, blobs *denebApi.BlobsBundle, commitments []deneb.KZGCommitment) error {
-	// Ensure that blobs are valid and matches the request
-	if len(commitments) != len(blobs.Blobs) || len(commitments) != len(blobs.Commitments) || len(commitments) != len(blobs.Proofs) {
+// verifyBlobsBundle checks that blobs bundle is correct
+func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlindedBeaconBlock, response *builderApi.VersionedSubmitBlindedBlockResponse) error {
+	// Get the request's blob KZG commitments
+	requestCommitments, err := request.BlobKZGCommitments()
+	if err != nil {
+		log.WithError(err).Error("failed to get request commitments")
+		return err
+	}
+
+	// Get the response's blobs bundle
+	responseBlobsBundle, err := response.BlobsBundle()
+	if err != nil {
+		log.WithError(err).Error("failed to get response blobs bundle")
+		return err
+	}
+
+	// Ensure the blobs bundle field counts are correct
+	if len(requestCommitments) != len(responseBlobsBundle.Blobs) ||
+		len(requestCommitments) != len(responseBlobsBundle.Commitments) ||
+		len(requestCommitments) != len(responseBlobsBundle.Proofs) {
 		log.WithFields(logrus.Fields{
-			"requestBlobCommitments":  len(commitments),
-			"responseBlobs":           len(blobs.Blobs),
-			"responseBlobCommitments": len(blobs.Commitments),
-			"responseBlobProofs":      len(blobs.Proofs),
+			"requestBlobCommitments":  len(requestCommitments),
+			"responseBlobs":           len(responseBlobsBundle.Blobs),
+			"responseBlobCommitments": len(responseBlobsBundle.Commitments),
+			"responseBlobProofs":      len(responseBlobsBundle.Proofs),
 		}).Error("different lengths for blobs/commitments/proofs")
 		return errInvalidKZGLength
 	}
 
-	for i, commitment := range commitments {
-		if commitment != blobs.Commitments[i] {
+	// Ensure the request and response KZG commitments are the same
+	for i, commitment := range requestCommitments {
+		if commitment != responseBlobsBundle.Commitments[i] {
 			log.WithFields(logrus.Fields{
 				"index":                  i,
 				"requestBlobCommitment":  commitment.String(),
-				"responseBlobCommitment": blobs.Commitments[i].String(),
+				"responseBlobCommitment": responseBlobsBundle.Commitments[i].String(),
 			}).Error("requestBlobCommitment does not equal responseBlobCommitment")
 			return errInvalidKZG
 		}
 	}
+
 	return nil
 }
 
-// prepareLogger adds relevant fields to the logger
-func prepareLogger[P Payload](log *logrus.Entry, payload P, userAgent UserAgent, slotUID string) *logrus.Entry {
-	switch block := any(payload).(type) {
-	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
-		return log.WithFields(logrus.Fields{
-			"ua":         userAgent,
-			"slot":       block.Message.Slot,
-			"blockHash":  block.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
-			"parentHash": block.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
-			"slotUID":    slotUID,
-		})
-	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
-		return log.WithFields(logrus.Fields{
-			"ua":         userAgent,
-			"slot":       block.Message.Slot,
-			"blockHash":  block.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
-			"parentHash": block.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
-			"slotUID":    slotUID,
-		})
-	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
-		return log.WithFields(logrus.Fields{
-			"ua":         userAgent,
-			"slot":       block.Message.Slot,
-			"blockHash":  block.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
-			"parentHash": block.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
-			"slotUID":    slotUID,
-		})
-	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
-		return log.WithFields(logrus.Fields{
-			"ua":         userAgent,
-			"slot":       block.Message.Slot,
-			"blockHash":  block.Message.Body.ExecutionPayloadHeader.BlockHash.String(),
-			"parentHash": block.Message.Body.ExecutionPayloadHeader.ParentHash.String(),
-			"slotUID":    slotUID,
-		})
-	}
-	return nil
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Serialization Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// canUnmarshalSSZ is an interface for types that can unmarshal SSZ
+type canUnmarshalSSZ interface {
+	UnmarshalSSZ(input []byte) error
 }
 
-// slot returns the block's slot
-func slot[P Payload](payload P) phase0.Slot {
-	switch block := any(payload).(type) {
-	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
-		return block.Message.Slot
-	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
-		return block.Message.Slot
-	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
-		return block.Message.Slot
-	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
-		return block.Message.Slot
+// convertSSZToJSON converts SSZ-encoded bytes to JSON based on the given ethConsensusVersion
+func convertSSZToJSON(ethConsensusVersion string, sszBytes []byte) ([]byte, error) {
+	var block canUnmarshalSSZ
+	switch ethConsensusVersion {
+	case EthConsensusVersionBellatrix:
+		block = new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
+	case EthConsensusVersionCapella:
+		block = new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
+	case EthConsensusVersionDeneb:
+		block = new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+	case EthConsensusVersionElectra:
+		block = new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+	default:
+		return nil, errInvalidForkVersion
 	}
-	return 0
+
+	// Unmarshal the SSZ-encoded bytes into the block
+	if err := block.UnmarshalSSZ(sszBytes); err != nil {
+		return nil, err
+	}
+
+	// Re-encode the block as JSON
+	return json.Marshal(block)
 }
 
-// blockHash returns the block's hash
-func blockHash[P Payload](payload P) phase0.Hash32 {
-	switch block := any(payload).(type) {
-	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
-		return block.Message.Body.ExecutionPayloadHeader.BlockHash
-	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
-		return block.Message.Body.ExecutionPayloadHeader.BlockHash
-	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
-		return block.Message.Body.ExecutionPayloadHeader.BlockHash
-	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
-		return block.Message.Body.ExecutionPayloadHeader.BlockHash
+// decodeSignedBlindedBeaconBlock will decode the request block in either JSON or SSZ.
+// Note: when decoding JSON, we must attempt decoding from newest to oldest fork version.
+func decodeSignedBlindedBeaconBlock(in []byte, contentType, ethConsensusVersion string, out *eth2Api.VersionedSignedBlindedBeaconBlock) error {
+	switch contentType {
+	case MediaTypeOctetStream:
+		if ethConsensusVersion != "" {
+			switch ethConsensusVersion {
+			case EthConsensusVersionBellatrix:
+				out.Version = spec.DataVersionBellatrix
+				out.Bellatrix = new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
+				return out.Bellatrix.UnmarshalSSZ(in)
+			case EthConsensusVersionCapella:
+				out.Version = spec.DataVersionCapella
+				out.Capella = new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
+				return out.Capella.UnmarshalSSZ(in)
+			case EthConsensusVersionDeneb:
+				out.Version = spec.DataVersionDeneb
+				out.Deneb = new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+				return out.Deneb.UnmarshalSSZ(in)
+			case EthConsensusVersionElectra:
+				out.Version = spec.DataVersionElectra
+				out.Electra = new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+				return out.Electra.UnmarshalSSZ(in)
+			default:
+				return errInvalidForkVersion
+			}
+		} else {
+			return types.ErrMissingEthConsensusVersion
+		}
+	case MediaTypeJSON:
+		var err error
+		electraBlock := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+		err = json.Unmarshal(in, electraBlock)
+		if err == nil {
+			out.Version = spec.DataVersionElectra
+			out.Electra = electraBlock
+			return nil
+		}
+		denebBlock := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+		err = json.Unmarshal(in, denebBlock)
+		if err == nil {
+			out.Version = spec.DataVersionDeneb
+			out.Deneb = denebBlock
+			return nil
+		}
+		capellaBlock := new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
+		err = json.Unmarshal(in, capellaBlock)
+		if err == nil {
+			out.Version = spec.DataVersionCapella
+			out.Capella = capellaBlock
+			return nil
+		}
+		bellatrixBlock := new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
+		err = json.Unmarshal(in, bellatrixBlock)
+		if err == nil {
+			out.Version = spec.DataVersionBellatrix
+			out.Bellatrix = bellatrixBlock
+			return nil
+		}
+		return errFailedToDecode
 	}
-	return nilHash
+	return types.ErrInvalidContentType
 }
+
+// decodeSubmitBlindedBlockResponse will decode the response contents in either JSON or SSZ
+func decodeSubmitBlindedBlockResponse(in []byte, contentType, ethConsensusVersion string, out *builderApi.VersionedSubmitBlindedBlockResponse) error {
+	switch contentType {
+	case MediaTypeOctetStream:
+		if ethConsensusVersion != "" {
+			switch ethConsensusVersion {
+			case EthConsensusVersionBellatrix:
+				out.Version = spec.DataVersionBellatrix
+				out.Bellatrix = new(bellatrix.ExecutionPayload)
+				return out.Bellatrix.UnmarshalSSZ(in)
+			case EthConsensusVersionCapella:
+				out.Version = spec.DataVersionCapella
+				out.Capella = new(capella.ExecutionPayload)
+				return out.Capella.UnmarshalSSZ(in)
+			case EthConsensusVersionDeneb:
+				out.Version = spec.DataVersionDeneb
+				out.Deneb = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
+				return out.Deneb.UnmarshalSSZ(in)
+			case EthConsensusVersionElectra:
+				out.Version = spec.DataVersionElectra
+				out.Electra = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
+				return out.Electra.UnmarshalSSZ(in)
+			default:
+				return errInvalidForkVersion
+			}
+		} else {
+			return types.ErrMissingEthConsensusVersion
+		}
+	case MediaTypeJSON:
+		return json.Unmarshal(in, out)
+	}
+	return types.ErrInvalidContentType
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Response Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// respondGetPayloadJSON responds to the proposer in JSON
+func (m *BoostService) respondGetPayloadJSON(w http.ResponseWriter, result *builderApi.VersionedSubmitBlindedBlockResponse) {
+	w.Header().Set(HeaderContentType, MediaTypeJSON)
+	w.WriteHeader(http.StatusOK)
+
+	// Serialize and write the data
+	if err := json.NewEncoder(w).Encode(&result); err != nil {
+		m.log.WithField("response", result).WithError(err).Error("could not write OK response")
+		http.Error(w, "", http.StatusInternalServerError)
+	}
+}
+
+// respondGetPayloadSSZ responds to the proposer in SSZ
+func (m *BoostService) respondGetPayloadSSZ(w http.ResponseWriter, result *builderApi.VersionedSubmitBlindedBlockResponse) {
+	// Serialize the response
+	var err error
+	var sszData []byte
+	switch result.Version {
+	case spec.DataVersionBellatrix:
+		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionBellatrix)
+		sszData, err = result.Bellatrix.MarshalSSZ()
+	case spec.DataVersionCapella:
+		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionCapella)
+		sszData, err = result.Capella.MarshalSSZ()
+	case spec.DataVersionDeneb:
+		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionDeneb)
+		sszData, err = result.Deneb.MarshalSSZ()
+	case spec.DataVersionElectra:
+		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionElectra)
+		sszData, err = result.Electra.MarshalSSZ()
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+		err = errInvalidForkVersion
+	}
+	if err != nil {
+		m.log.WithError(err).Error("error serializing response as SSZ")
+		http.Error(w, "failed to serialize response", http.StatusInternalServerError)
+		return
+	}
+
+	// Write the header
+	w.Header().Set(HeaderContentType, MediaTypeOctetStream)
+	w.WriteHeader(http.StatusOK)
+
+	// Write SSZ data
+	if _, err := w.Write(sszData); err != nil {
+		m.log.WithError(err).Error("error writing SSZ response")
+		http.Error(w, "failed to write response", http.StatusInternalServerError)
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Other Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // bidKey makes a map key for a specific bid
 func bidKey(slot phase0.Slot, blockHash phase0.Hash32) string {
 	return fmt.Sprintf("%v%v", slot, blockHash)
+}
+
+// retry executes the provided function until it succeeds, the context is done, or
+// the maximum number of attempts is reached. It waits for 'delay' between attempts.
+func retry(ctx context.Context, maxAttempts int, delay time.Duration, fn func() (*http.Response, error)) (*http.Response, error) {
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		// Check context before starting an attempt
+		err := ctx.Err()
+		if err != nil {
+			return nil, err
+		}
+
+		// Execute the function
+		resp, err := fn()
+		if err == nil {
+			return resp, nil
+		}
+
+		// Save the last error
+		lastErr = err
+
+		// Wait for the delay before retrying, unless context is done
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+			// Continue to next attempt
+		}
+	}
+	return nil, fmt.Errorf("max retries exceeded: %w", lastErr)
 }

@@ -48,9 +48,9 @@ See also:
   - [Systemd configuration](#systemd-configuration)
 - [Usage](#usage)
   - [Mainnet](#mainnet)
-  - [Goerli testnet](#goerli-testnet)
   - [Sepolia testnet](#sepolia-testnet)
   - [Holesky testnet](#holesky-testnet)
+  - [Hoodi testnet](#hoodi-testnet)
   - [`test-cli`](#test-cli)
   - [mev-boost cli arguments](#mev-boost-cli-arguments)
 - [API](#api)
@@ -196,14 +196,6 @@ Run MEV-Boost pointed at a mainnet relay:
 ./mev-boost -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
-## Goerli testnet
-
-Run MEV-Boost pointed at a Goerli relay:
-
-```
-./mev-boost -goerli -relay-check -relay URL-OF-TRUSTED-RELAY
-```
-
 ## Sepolia testnet
 
 Run MEV-Boost pointed at a Sepolia relay:
@@ -218,6 +210,14 @@ Run MEV-Boost pointed at a Holesky relay:
 
 ```
 ./mev-boost -holesky -relay-check -relay URL-OF-TRUSTED-RELAY
+```
+
+## Hoodi testnet
+
+Run MEV-Boost pointed at a Hoodi relay:
+
+```
+./mev-boost -hoodi -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
 ## `test-cli`
@@ -238,10 +238,10 @@ Usage of mev-boost:
         shorthand for '-loglevel debug'
   -genesis-fork-version string
         use a custom genesis fork version
-  -goerli
-        use Goerli
   -holesky
         use Holesky
+  -hoodi
+        use Hoodi
   -json
         log in JSON format instead of text
   -log-no-version
