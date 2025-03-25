@@ -16,10 +16,10 @@ Alternatively, run mev-boost without build step:
 go run . -h
 
 # Run mev-boost
-./mev-boost -goerli -relay-check -relay URL-OF-TRUSTED-RELAY
+./mev-boost -hoodi -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
-Note that you'll need to set the correct genesis fork version (either manually with `-genesis-fork-version` or a helper flag `-mainnet`/`-goerli`/`-sepolia`/`-holesky`).
+Note that you'll need to set the correct genesis fork version (either manually with `-genesis-fork-version` or a helper flag `-mainnet`/`-sepolia`/`-holesky`/`-hoodi`).
 
 ## Test
 

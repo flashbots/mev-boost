@@ -64,7 +64,7 @@ Env & defaults:
 ### Run mev-boost
 
 ```
-./mev-boost -goerli -relay-check -relay URL-OF-TRUSTED-RELAY
+./mev-boost -hoodi -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
 ### Run beacon node
