@@ -128,9 +128,18 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), m.httpClientGetPayload.Timeout)
 	defer requestCtxCancel()
 
-	// Convert the blinded block to JSON in case there's a relay that doesn't support SSZ yet
+	// Make a list of relays without SSZ support
+	var relaysWithoutSSZ []string
+	for _, relay := range originalBid.relays {
+		if !relay.SupportsSSZ {
+			relaysWithoutSSZ = append(relaysWithoutSSZ, relay.URL.Hostname())
+		}
+	}
+
+	// Convert the blinded block to JSON if there's a relay that doesn't support SSZ yet
 	var signedBlindedBeaconBlockBytesJSON []byte
-	if proposerContentType == MediaTypeOctetStream {
+	if proposerContentType == MediaTypeOctetStream && len(relaysWithoutSSZ) > 0 {
+		log.WithField("relaysWithoutSSZ", relaysWithoutSSZ).Info("Converting request from SSZ to JSON for relay(s)")
 		signedBlindedBeaconBlockBytesJSON, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
 		if err != nil {
 			log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
