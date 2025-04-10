@@ -18,6 +18,7 @@ import (
 
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	builderApiFulu "github.com/attestantio/go-builder-client/api/fulu"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
 	eth2Api "github.com/attestantio/go-eth2-client/api"
@@ -1134,10 +1135,13 @@ func TestEmptyTxRoot(t *testing.T) {
 	require.Equal(t, "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1", txRootHex)
 }
 
-func blindedBlockToBlockResponse(signedBlock any) *builderApi.VersionedSubmitBlindedBlockResponse {
-	// TODO(jtraglia): How do we update this to work with Fulu too?
-	switch block := signedBlock.(type) {
-	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
+func blindedBlockToBlockResponse(signedBlock any, version spec.DataVersion) *builderApi.VersionedSubmitBlindedBlockResponse {
+	switch version {
+	case spec.DataVersionBellatrix:
+		block, ok := signedBlock.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
+		if !ok {
+			panic("failed to convert block")
+		}
 		header := block.Message.Body.ExecutionPayloadHeader
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionBellatrix,
@@ -1158,7 +1162,11 @@ func blindedBlockToBlockResponse(signedBlock any) *builderApi.VersionedSubmitBli
 				Transactions:  make([]bellatrix.Transaction, 0),
 			},
 		}
-	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
+	case spec.DataVersionCapella:
+		block, ok := signedBlock.(*eth2ApiV1Capella.SignedBlindedBeaconBlock)
+		if !ok {
+			panic("failed to convert block")
+		}
 		header := block.Message.Body.ExecutionPayloadHeader
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionCapella,
@@ -1180,20 +1188,41 @@ func blindedBlockToBlockResponse(signedBlock any) *builderApi.VersionedSubmitBli
 				Withdrawals:   make([]*capella.Withdrawal, 0),
 			},
 		}
-	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
+	case spec.DataVersionDeneb:
+		block, ok := signedBlock.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+		if !ok {
+			panic("failed to convert block")
+		}
 		header := block.Message.Body.ExecutionPayloadHeader
 		commitments := block.Message.Body.BlobKZGCommitments
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionDeneb,
 			Deneb:   denebExecutionPayloadAndBlobsBundle(header, commitments),
 		}
-	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
+	case spec.DataVersionElectra:
+		block, ok := signedBlock.(*eth2ApiV1Electra.SignedBlindedBeaconBlock)
+		if !ok {
+			panic("failed to convert block")
+		}
 		header := block.Message.Body.ExecutionPayloadHeader
 		commitments := block.Message.Body.BlobKZGCommitments
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionElectra,
 			Electra: denebExecutionPayloadAndBlobsBundle(header, commitments),
 		}
+	case spec.DataVersionFulu:
+		block, ok := signedBlock.(*eth2ApiV1Electra.SignedBlindedBeaconBlock)
+		if !ok {
+			panic("failed to convert block")
+		}
+		header := block.Message.Body.ExecutionPayloadHeader
+		commitments := block.Message.Body.BlobKZGCommitments
+		return &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionFulu,
+			Fulu:    fuluExecutionPayloadAndBlobsBundle(header, commitments),
+		}
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+		panic("unknown data version")
 	}
 	return nil
 }
@@ -1226,6 +1255,41 @@ func denebExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, k
 			ExcessBlobGas: header.ExcessBlobGas,
 		},
 		BlobsBundle: &builderApiDeneb.BlobsBundle{
+			Commitments: commitments,
+			Proofs:      proofs,
+			Blobs:       blobs,
+		},
+	}
+}
+
+func fuluExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, kzgCommitments []deneb.KZGCommitment) *builderApiFulu.ExecutionPayloadAndBlobsBundle {
+	numBlobs := len(kzgCommitments)
+	commitments := make([]deneb.KZGCommitment, numBlobs)
+	copy(commitments, kzgCommitments)
+	// For testing, proofs and blobs are not populated
+	proofs := make([]deneb.KZGProof, numBlobs)
+	blobs := make([]deneb.Blob, numBlobs)
+	return &builderApiFulu.ExecutionPayloadAndBlobsBundle{
+		ExecutionPayload: &deneb.ExecutionPayload{
+			ParentHash:    header.ParentHash,
+			FeeRecipient:  header.FeeRecipient,
+			StateRoot:     header.StateRoot,
+			ReceiptsRoot:  header.ReceiptsRoot,
+			LogsBloom:     header.LogsBloom,
+			PrevRandao:    header.PrevRandao,
+			BlockNumber:   header.BlockNumber,
+			GasLimit:      header.GasLimit,
+			GasUsed:       header.GasUsed,
+			Timestamp:     header.Timestamp,
+			ExtraData:     header.ExtraData,
+			BaseFeePerGas: header.BaseFeePerGas,
+			BlockHash:     header.BlockHash,
+			Transactions:  make([]bellatrix.Transaction, 0),
+			Withdrawals:   make([]*capella.Withdrawal, 0),
+			BlobGasUsed:   header.BlobGasUsed,
+			ExcessBlobGas: header.ExcessBlobGas,
+		},
+		BlobsBundle: &builderApiFulu.BlobsBundle{
 			Commitments: commitments,
 			Proofs:      proofs,
 			Blobs:       blobs,
@@ -1300,7 +1364,7 @@ func TestGetPayloadForks(t *testing.T) {
 			}
 
 			// Configure the relay's expected response and send the request
-			backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(payload)
+			backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(payload, block.Version)
 			rr := backend.request(t, http.MethodPost, params.PathGetPayload, header, payload)
 
 			// Validate the response
@@ -1352,7 +1416,7 @@ func TestGetPayloadToAllRelays(t *testing.T) {
 	require.Equal(t, 1, backend.relays[1].GetRequestCount(getHeaderPath))
 
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(signedBlindedBeaconBlock)
+	backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(signedBlindedBeaconBlock, spec.DataVersionDeneb)
 
 	// call getPayload, ensure it's called to all relays
 	rr = backend.request(t, http.MethodPost, params.PathGetPayload, header, signedBlindedBeaconBlock)
