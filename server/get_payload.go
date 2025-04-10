@@ -364,13 +364,13 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 	// Check proofs
 	responseProofs, err := responseBlobsBundle.Proofs()
 	if err != nil {
-		log.WithError(err).Error("failed to get response blobs")
+		log.WithError(err).Error("failed to get response proofs")
 		return err
 	}
 	if len(requestCommitments) != len(responseProofs) {
 		log.WithFields(logrus.Fields{
 			"requestBlobCommitments": len(requestCommitments),
-			"responseProofss":        len(responseProofs),
+			"responseProofs":         len(responseProofs),
 		}).Error("different lengths for proofs")
 		return errInvalidKZGLength
 	}
@@ -467,44 +467,44 @@ func decodeSignedBlindedBeaconBlock(in []byte, contentType, ethConsensusVersion 
 		var err error
 		switch ethConsensusVersion {
 		case EthConsensusVersionBellatrix:
-			bellatrixBlock := new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
-			err = json.Unmarshal(in, bellatrixBlock)
-			if err == nil {
-				out.Version = spec.DataVersionBellatrix
-				out.Bellatrix = bellatrixBlock
+			block := new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
+			if err = json.Unmarshal(in, block); err != nil {
+				return err
 			}
+			out.Version = spec.DataVersionBellatrix
+			out.Bellatrix = block
 		case EthConsensusVersionCapella:
-			capellaBlock := new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
-			err = json.Unmarshal(in, capellaBlock)
-			if err == nil {
-				out.Version = spec.DataVersionCapella
-				out.Capella = capellaBlock
+			block := new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
+			if err = json.Unmarshal(in, block); err != nil {
+				return err
 			}
+			out.Version = spec.DataVersionCapella
+			out.Capella = block
 		case EthConsensusVersionDeneb:
-			denebBlock := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
-			err = json.Unmarshal(in, denebBlock)
-			if err == nil {
-				out.Version = spec.DataVersionDeneb
-				out.Deneb = denebBlock
+			block := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+			if err = json.Unmarshal(in, block); err != nil {
+				return err
 			}
+			out.Version = spec.DataVersionDeneb
+			out.Deneb = block
 		case EthConsensusVersionElectra:
-			electraBlock := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
-			err = json.Unmarshal(in, electraBlock)
-			if err == nil {
-				out.Version = spec.DataVersionElectra
-				out.Electra = electraBlock
+			block := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+			if err = json.Unmarshal(in, block); err != nil {
+				return err
 			}
+			out.Version = spec.DataVersionElectra
+			out.Electra = block
 		case EthConsensusVersionFulu:
-			fuluBlock := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
-			err = json.Unmarshal(in, fuluBlock)
-			if err == nil {
-				out.Version = spec.DataVersionFulu
-				out.Fulu = fuluBlock
+			block := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+			if err = json.Unmarshal(in, block); err != nil {
+				return err
 			}
+			out.Version = spec.DataVersionFulu
+			out.Fulu = block
 		default:
 			return errInvalidForkVersion
 		}
-		return err
+		return nil
 	}
 	return types.ErrInvalidContentType
 }
