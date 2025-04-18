@@ -157,10 +157,12 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
-				// If necessary, use the JSON encoded version
+				// If necessary, use the JSON encoded version and the JSON Content-Type header
+				contentType := parsedProposerContentType
 				requestBytes := signedBlindedBeaconBlockBytes
 				if parsedProposerContentType == MediaTypeOctetStream && !relay.SupportsSSZ {
 					requestBytes = signedBlindedBeaconBlockBytesJSON
+					contentType = MediaTypeJSON
 				}
 
 				// Make a new request
@@ -172,7 +174,7 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 
 				// Add header fields to this request
 				req.Header.Set(HeaderAccept, proposerAcceptContentTypes)
-				req.Header.Set(HeaderContentType, proposerContentType)
+				req.Header.Set(HeaderContentType, contentType)
 				req.Header.Set(HeaderEthConsensusVersion, proposerEthConsensusVersion)
 				req.Header.Set(HeaderKeySlotUID, currentSlotUID)
 				req.Header.Set(HeaderDateMilliseconds, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
