@@ -323,13 +323,14 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 
 	// Respond appropriately
-	if proposerPreferredContentType == MediaTypeJSON {
+	switch proposerPreferredContentType {
+	case MediaTypeJSON:
 		log.Debug("responding with JSON")
 		m.respondGetHeaderJSON(w, &result)
-	} else if proposerPreferredContentType == MediaTypeOctetStream {
+	case MediaTypeOctetStream:
 		log.Debug("responding with SSZ")
 		m.respondGetHeaderSSZ(w, &result)
-	} else {
+	default:
 		message := fmt.Sprintf("unsupported media type: %s", proposerPreferredContentType)
 		log.Error(message)
 		m.respondError(w, http.StatusNotAcceptable, message)
@@ -389,13 +390,14 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 
 	// Respond appropriately
-	if proposerPreferredContentType == MediaTypeJSON {
+	switch proposerPreferredContentType {
+	case MediaTypeJSON:
 		log.Debug("responding with JSON")
 		m.respondGetPayloadJSON(w, result)
-	} else if proposerPreferredContentType == MediaTypeOctetStream {
+	case MediaTypeOctetStream:
 		log.Debug("responding with SSZ")
 		m.respondGetPayloadSSZ(w, result)
-	} else {
+	default:
 		message := fmt.Sprintf("unsupported media type: %s", proposerPreferredContentType)
 		log.Error(message)
 		m.respondError(w, http.StatusNotAcceptable, message)

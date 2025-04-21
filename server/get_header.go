@@ -226,11 +226,12 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			// Compare the bid with already known top bid (if any)
 			if !result.response.IsEmpty() {
 				valueDiff := bidInfo.value.Cmp(result.bidInfo.value)
-				if valueDiff == -1 {
+				switch valueDiff {
+				case -1:
 					// The current bid is less profitable than already known one
 					log.Debug("ignoring less profitable bid")
 					return
-				} else if valueDiff == 0 {
+				case 0:
 					// The current bid is equally profitable as already known one
 					// Use hash as tiebreaker
 					previousBidBlockHash := result.bidInfo.blockHash

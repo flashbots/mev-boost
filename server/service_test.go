@@ -347,7 +347,7 @@ func TestGetHeader(t *testing.T) {
 		bid := new(builderApiDeneb.SignedBuilderBid)
 		err := bid.UnmarshalSSZ(rr.Body.Bytes())
 		require.NoError(t, err)
-		require.EqualValues(t, *resp.Deneb, *bid)
+		require.Equal(t, *resp.Deneb, *bid)
 	})
 
 	t.Run("Relay returns SSZ, mev-boost returns SSZ", func(t *testing.T) {

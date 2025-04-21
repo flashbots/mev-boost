@@ -172,7 +172,10 @@ func (m *Relay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.
 		return
 	}
 	req.Body.Close()
-	if reqContentType == "" || reqContentType == "application/json" {
+	switch reqContentType {
+	case "":
+		fallthrough
+	case "application/json":
 		var payload []builderApiV1.SignedValidatorRegistration
 		decoder := json.NewDecoder(bytes.NewReader(regBytes))
 		decoder.DisallowUnknownFields()
@@ -180,13 +183,13 @@ func (m *Relay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-	} else if reqContentType == "application/octet-stream" {
+	case "application/octet-stream":
 		var validatorRegistrations builderApiV1.SignedValidatorRegistrations
 		if err := validatorRegistrations.UnmarshalSSZ(regBytes); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-	} else {
+	default:
 		panic("invalid content type: " + reqContentType)
 	}
 
