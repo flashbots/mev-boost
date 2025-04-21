@@ -1,72 +1,76 @@
+version: "2"
 linters:
-  enable-all: true
+  default: all
   disable:
     - canonicalheader
+    - contextcheck
+    - copyloopvar
+    - cyclop
     - depguard
     - dupl
     - exhaustruct
+    - funcorder
     - funlen
     - gochecknoglobals
     - gochecknoinits
+    - gocognit
+    - goconst
     - gocritic
     - godot
     - godox
+    - gosec
+    - intrange
+    - ireturn
     - lll
+    - maintidx
     - mnd
     - musttag
     - nlreturn
+    - noctx
     - nonamedreturns
     - paralleltest
-    - testpackage
-    - varnamelen
-    - wrapcheck
-    - wsl
-
-    #
-    # Maybe fix later:
-    #
-    - cyclop
-    - gocognit
-    - goconst
-    - gosec
-    - ireturn
-    - maintidx
-    - noctx
-    - tagliatelle
     - perfsprint
-
-    #
-    # Disabled because of generics:
-    #
-    - contextcheck
     - rowserrcheck
     - sqlclosecheck
+    - tagliatelle
+    - testpackage
+    - varnamelen
     - wastedassign
-
-    #
-    # Disabled because deprecated:
-    #
-    - copyloopvar
-
-    #
-    # Disabled due to versioning:
-    #
-    - intrange
-
-
-linters-settings:
-  gofumpt:
-    extra-rules: true
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-      - shadow
-  gomoddirectives:
-    replace-allow-list:
-      - github.com/attestantio/go-builder-client
-      - github.com/attestantio/go-eth2-client
-
-output:
-  print-issued-lines: true
-  sort-results: true
+    - wrapcheck
+    - wsl
+  settings:
+    gomoddirectives:
+      replace-allow-list:
+        - github.com/attestantio/go-builder-client
+        - github.com/attestantio/go-eth2-client
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      extra-rules: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
