@@ -81,7 +81,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 		RequestTimeoutGetHeader:  time.Duration(cmd.Int(timeoutGetHeaderFlag.Name)) * time.Millisecond,
 		RequestTimeoutGetPayload: time.Duration(cmd.Int(timeoutGetPayloadFlag.Name)) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(cmd.Int(timeoutRegValFlag.Name)) * time.Millisecond,
-		RequestMaxRetries:        int(cmd.Int(maxRetriesFlag.Name)),
+		RequestMaxRetries:        cmd.Int(maxRetriesFlag.Name),
 	}
 	service, err := server.NewBoostService(opts)
 	if err != nil {
@@ -155,7 +155,7 @@ func setupGenesis(cmd *cli.Command) (string, uint64) {
 	}
 
 	if cmd.IsSet(customGenesisTimeFlag.Name) {
-		genesisTime = cmd.Uint(customGenesisTimeFlag.Name)
+		genesisTime = cmd.Uint64(customGenesisTimeFlag.Name)
 	}
 	log.Infof("using genesis fork version: %s time: %d", genesisForkVersion, genesisTime)
 	return genesisForkVersion, genesisTime
