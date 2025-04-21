@@ -912,6 +912,67 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
+	t.Run("Convert SSZ request to JSON for relay without SSZ support", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set("Eth-Consensus-Version", "deneb")
+		header.Set("Accept", "application/octet-stream;q=1.0,application/json;q=0.9")
+		header.Set("Content-Type", "application/octet-stream")
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		// Tell mev-boost that the relay does not support SSZ
+		bid.relays[0].SupportsSSZ = false
+
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, req *http.Request) {
+			// Require that the request was JSON
+			reqBody, err := io.ReadAll(req.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			var block eth2ApiV1Deneb.SignedBlindedBeaconBlock
+			err = json.Unmarshal(reqBody, &block)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Require that the Content-Type header of the request was JSON
+			reqContentType := req.Header.Get(HeaderContentType)
+			require.Equal(t, MediaTypeJSON, reqContentType) //nolint:testifylint // allow require in HTTP handler
+
+			response := backend.relays[0].MakeGetPayloadResponse(
+				"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+				"0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46",
+				"0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941",
+				12345,
+				spec.DataVersionDeneb,
+			)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		})
+
+		payloadBytes, err := payload.MarshalSSZ()
+		require.NoError(t, err)
+		rr := backend.requestBytes(t, http.MethodPost, path, header, payloadBytes)
+
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+
+		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType))
+	})
+
 	t.Run("Bad response from relays", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
