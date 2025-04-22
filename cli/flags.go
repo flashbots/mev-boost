@@ -25,9 +25,10 @@ var flags = []cli.Flag{
 	mainnetFlag,
 	sepoliaFlag,
 	holeskyFlag,
+	hoodiFlag,
 	// relay
 	relaysFlag,
-	relayMonitorFlag,
+	deprecatedRelayMonitorFlag,
 	minBidFlag,
 	relayCheckFlag,
 	timeoutGetHeaderFlag,
@@ -115,6 +116,12 @@ var (
 		Usage:    "use Holesky",
 		Category: GenesisCategory,
 	}
+	hoodiFlag = &cli.BoolFlag{
+		Name:     "hoodi",
+		Sources:  cli.EnvVars("HOODI"),
+		Usage:    "use Hoodi",
+		Category: GenesisCategory,
+	}
 	// Relay
 	relaysFlag = &cli.StringSliceFlag{
 		Name:     "relay",
@@ -123,12 +130,12 @@ var (
 		Usage:    "relay urls - single entry or comma-separated list (scheme://pubkey@host)",
 		Category: RelayCategory,
 	}
-	relayMonitorFlag = &cli.StringSliceFlag{
+	deprecatedRelayMonitorFlag = &cli.StringSliceFlag{
 		Name:     "relay-monitors",
 		Aliases:  []string{"relay-monitor"},
-		Sources:  cli.EnvVars("RELAY_MONITORS"),
-		Usage:    "relay monitor urls - single entry or comma-separated list (scheme://host)",
+		Usage:    "[deprecated]",
 		Category: RelayCategory,
+		Hidden:   true,
 	}
 	minBidFlag = &cli.FloatFlag{
 		Name:     "min-bid",

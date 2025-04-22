@@ -6,7 +6,7 @@ Please start by reading our [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Set up
 
-Install a few dev dependencies for `make lint`: https://github.com/flashbots/mev-boost/blob/go122/.github/workflows/lint.yml#L29-L37
+Install a few dev dependencies for `make lint`: https://github.com/flashbots/mev-boost/blob/develop/.github/workflows/lint.yml#L29-L37
 
 Look at the [README for instructions to install the dependencies and build `mev-boost`](README.md#installing)
 
@@ -16,10 +16,10 @@ Alternatively, run mev-boost without build step:
 go run . -h
 
 # Run mev-boost
-./mev-boost -goerli -relay-check -relay URL-OF-TRUSTED-RELAY
+./mev-boost -hoodi -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
-Note that you'll need to set the correct genesis fork version (either manually with `-genesis-fork-version` or a helper flag `-mainnet`/`-goerli`/`-sepolia`/`-holesky`).
+Note that you'll need to set the correct genesis fork version (either manually with `-genesis-fork-version` or a helper flag `-mainnet`/`-sepolia`/`-holesky`/`-hoodi`).
 
 ## Test
 
@@ -37,7 +37,7 @@ test-cli is a utility to run through all the proposer requests against mev-boost
 
 Mergemock is fully integrated: https://github.com/protolambda/mergemock
 
-Make sure you've setup and built mergemock first, refer to its [README](https://github.com/flashbots/mergemock#quick-start) but here's a quick setup guide:
+Make sure you've setup and built mergemock first, refer to its [README](https://github.com/protolambda/mergemock/blob/master/README.md) but here's a quick setup guide:
 
 ```bash
 git clone https://github.com/protolambda/mergemock.git

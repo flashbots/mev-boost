@@ -1,22 +1,28 @@
 package mock
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	builderApi "github.com/attestantio/go-builder-client/api"
+	builderApiCapella "github.com/attestantio/go-builder-client/api/capella"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	builderApiElectra "github.com/attestantio/go-builder-client/api/electra"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/deneb"
+	"github.com/attestantio/go-eth2-client/spec/electra"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
@@ -66,6 +72,10 @@ type Relay struct {
 	// Server section
 	Server        *httptest.Server
 	ResponseDelay time.Duration
+
+	// Force response encodings
+	ForceJSON bool
+	ForceSSZ  bool
 }
 
 // NewRelay creates a mocked relay which implements the backend.BoostBackend interface
@@ -155,12 +165,32 @@ func (m *Relay) handleRegisterValidator(w http.ResponseWriter, req *http.Request
 
 // defaultHandleRegisterValidator returns the default handler for handleRegisterValidator
 func (m *Relay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.Request) {
-	payload := []builderApiV1.SignedValidatorRegistration{}
-	decoder := json.NewDecoder(req.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	reqContentType := req.Header.Get("Content-Type")
+	regBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	req.Body.Close()
+	switch reqContentType {
+	case "":
+		fallthrough
+	case "application/json":
+		var payload []builderApiV1.SignedValidatorRegistration
+		decoder := json.NewDecoder(bytes.NewReader(regBytes))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&payload); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	case "application/octet-stream":
+		var validatorRegistrations builderApiV1.SignedValidatorRegistrations
+		if err := validatorRegistrations.UnmarshalSSZ(regBytes); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	default:
+		panic("invalid content type: " + reqContentType)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -171,6 +201,27 @@ func (m *Relay) defaultHandleRegisterValidator(w http.ResponseWriter, req *http.
 // method
 func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publicKey string, version spec.DataVersion) *builderSpec.VersionedSignedBuilderBid {
 	switch version {
+	case spec.DataVersionCapella:
+		// Fill the payload with custom values.
+		message := &builderApiCapella.BuilderBid{
+			Header: &capella.ExecutionPayloadHeader{
+				BlockHash:       HexToHash(blockHash),
+				ParentHash:      HexToHash(parentHash),
+				WithdrawalsRoot: phase0.Root{},
+			},
+			Value:  uint256.NewInt(value),
+			Pubkey: HexToPubkey(publicKey),
+		}
+		// Sign the message.
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
+		require.NoError(m.t, err)
+		return &builderSpec.VersionedSignedBuilderBid{
+			Version: spec.DataVersionCapella,
+			Capella: &builderApiCapella.SignedBuilderBid{
+				Message:   message,
+				Signature: signature,
+			},
+		}
 	case spec.DataVersionDeneb:
 		message := &builderApiDeneb.BuilderBid{
 			Header: &deneb.ExecutionPayloadHeader{
@@ -178,6 +229,7 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 				ParentHash:      HexToHash(parentHash),
 				WithdrawalsRoot: phase0.Root{},
 				BaseFeePerGas:   uint256.NewInt(0),
+				ExtraData:       make([]byte, 0),
 			},
 			BlobKZGCommitments: make([]deneb.KZGCommitment, 0),
 			Value:              uint256.NewInt(value),
@@ -195,7 +247,32 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 				Signature: signature,
 			},
 		}
-	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix, spec.DataVersionCapella:
+	case spec.DataVersionElectra:
+		message := &builderApiElectra.BuilderBid{
+			Header: &deneb.ExecutionPayloadHeader{
+				BlockHash:       HexToHash(blockHash),
+				ParentHash:      HexToHash(parentHash),
+				WithdrawalsRoot: phase0.Root{},
+				BaseFeePerGas:   uint256.NewInt(0),
+			},
+			BlobKZGCommitments: make([]deneb.KZGCommitment, 0),
+			ExecutionRequests:  &electra.ExecutionRequests{},
+			Value:              uint256.NewInt(value),
+			Pubkey:             HexToPubkey(publicKey),
+		}
+
+		// Sign the message.
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
+		require.NoError(m.t, err)
+
+		return &builderSpec.VersionedSignedBuilderBid{
+			Version: spec.DataVersionElectra,
+			Electra: &builderApiElectra.SignedBuilderBid{
+				Message:   message,
+				Signature: signature,
+			},
+		}
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix:
 		return nil
 	}
 	return nil
@@ -210,15 +287,11 @@ func (m *Relay) handleGetHeader(w http.ResponseWriter, req *http.Request) {
 		m.handlerOverrideGetHeader(w, req)
 		return
 	}
-	m.defaultHandleGetHeader(w)
+	m.defaultHandleGetHeader(w, req)
 }
 
 // defaultHandleGetHeader returns the default handler for handleGetHeader
-func (m *Relay) defaultHandleGetHeader(w http.ResponseWriter) {
-	// By default, everything will be ok.
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
+func (m *Relay) defaultHandleGetHeader(w http.ResponseWriter, req *http.Request) {
 	// Build the default response.
 	response := m.MakeGetHeaderResponse(
 		12345,
@@ -231,9 +304,42 @@ func (m *Relay) defaultHandleGetHeader(w http.ResponseWriter) {
 		response = m.GetHeaderResponse
 	}
 
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	respondJSON := func() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	respondSSZ := func() {
+		w.Header().Set("Eth-Consensus-Version", "deneb")
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.WriteHeader(http.StatusOK)
+		sszData, err := response.Deneb.MarshalSSZ()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_, err = w.Write(sszData)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// We cannot use code in server, so this is a simplistic
+	// negotiation which should only be used in testing.
+	switch {
+	case m.ForceJSON:
+		respondJSON()
+	case m.ForceSSZ:
+		respondSSZ()
+	case strings.Contains(req.Header.Get("Accept"), "application/octet-stream"):
+		respondSSZ()
+	default:
+		respondJSON()
 	}
 }
 
@@ -269,15 +375,11 @@ func (m *Relay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 		m.handlerOverrideGetPayload(w, req)
 		return
 	}
-	m.DefaultHandleGetPayload(w)
+	m.DefaultHandleGetPayload(w, req)
 }
 
 // DefaultHandleGetPayload returns the default handler for handleGetPayload
-func (m *Relay) DefaultHandleGetPayload(w http.ResponseWriter) {
-	// By default, everything will be ok.
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
+func (m *Relay) DefaultHandleGetPayload(w http.ResponseWriter, req *http.Request) {
 	// Build the default response.
 	response := m.MakeGetPayloadResponse(
 		"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
@@ -291,9 +393,46 @@ func (m *Relay) DefaultHandleGetPayload(w http.ResponseWriter) {
 		response = m.GetPayloadResponse
 	}
 
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if m.ForceSSZ && m.ForceJSON {
+		panic("cannot force both SSZ and JSON")
+	}
+
+	respondJSON := func() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	respondSSZ := func() {
+		w.Header().Set("Eth-Consensus-Version", "deneb")
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.WriteHeader(http.StatusOK)
+		sszData, err := response.Deneb.MarshalSSZ()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_, err = w.Write(sszData)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// We cannot use code in server, so this is a simplistic
+	// negotiation which should only be used in testing.
+	switch {
+	case m.ForceJSON:
+		respondJSON()
+	case m.ForceSSZ:
+		respondSSZ()
+	case strings.Contains(req.Header.Get("Accept"), "application/octet-stream"):
+		respondSSZ()
+	default:
+		respondJSON()
 	}
 }
 

@@ -34,12 +34,12 @@ func (v *validatorPrivateData) SaveValidator(filePath string) error {
 func mustLoadValidator(filePath string) validatorPrivateData {
 	fileData, err := os.ReadFile(filePath)
 	if err != nil {
-		log.WithField("filePath", filePath).WithError(err).Fatal("Could not load validator data")
+		log.WithField("filePath", filePath).WithError(err).Fatal("could not load validator data")
 	}
 	var v validatorPrivateData
 	err = json.Unmarshal(fileData, &v)
 	if err != nil {
-		log.WithField("filePath", filePath).WithField("fileData", fileData).WithError(err).Fatal("Could not parse validator data")
+		log.WithField("filePath", filePath).WithField("fileData", fileData).WithError(err).Fatal("could not parse validator data")
 	}
 	return v
 }

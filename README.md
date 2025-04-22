@@ -48,9 +48,9 @@ See also:
   - [Systemd configuration](#systemd-configuration)
 - [Usage](#usage)
   - [Mainnet](#mainnet)
-  - [Goerli testnet](#goerli-testnet)
   - [Sepolia testnet](#sepolia-testnet)
   - [Holesky testnet](#holesky-testnet)
+  - [Hoodi testnet](#hoodi-testnet)
   - [`test-cli`](#test-cli)
   - [mev-boost cli arguments](#mev-boost-cli-arguments)
 - [API](#api)
@@ -78,7 +78,7 @@ Read more in [Why run MEV-Boost?](https://writings.flashbots.net/why-run-mevboos
 
 The most common setup is to install MEV-Boost on the same machine as the beacon client. Multiple beacon-clients can use a single MEV-Boost instance. The default port is 18550.
 
-See also [Rémy Roy's guide](https://github.com/remyroy/ethstaker/blob/main/prepare-for-the-merge.md#installing-mev-boost) for comprehensive instructions on installing, configuring and running MEV-Boost.
+See also [Rémy Roy's guide](https://github.com/eth-educators/ethstaker-guides/blob/main/docs/prepare-for-the-merge.md#installing-mev-boost) for comprehensive instructions on installing, configuring and running MEV-Boost.
 
 ## Binaries
 
@@ -196,14 +196,6 @@ Run MEV-Boost pointed at a mainnet relay:
 ./mev-boost -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
-## Goerli testnet
-
-Run MEV-Boost pointed at a Goerli relay:
-
-```
-./mev-boost -goerli -relay-check -relay URL-OF-TRUSTED-RELAY
-```
-
 ## Sepolia testnet
 
 Run MEV-Boost pointed at a Sepolia relay:
@@ -218,6 +210,14 @@ Run MEV-Boost pointed at a Holesky relay:
 
 ```
 ./mev-boost -holesky -relay-check -relay URL-OF-TRUSTED-RELAY
+```
+
+## Hoodi testnet
+
+Run MEV-Boost pointed at a Hoodi relay:
+
+```
+./mev-boost -hoodi -relay-check -relay URL-OF-TRUSTED-RELAY
 ```
 
 ## `test-cli`
@@ -238,10 +238,10 @@ Usage of mev-boost:
         shorthand for '-loglevel debug'
   -genesis-fork-version string
         use a custom genesis fork version
-  -goerli
-        use Goerli
   -holesky
         use Holesky
+  -hoodi
+        use Hoodi
   -json
         log in JSON format instead of text
   -log-no-version
@@ -258,10 +258,6 @@ Usage of mev-boost:
         a single relay, can be specified multiple times
   -relay-check
         check relay status on startup and on the status API call
-  -relay-monitor value
-        a single relay monitor, can be specified multiple times
-  -relay-monitors string
-        relay monitor urls - single entry or comma-separated list (scheme://host)
   -relays string
         relay urls - single entry or comma-separated list (scheme://pubkey@host)
   -request-timeout-getheader int

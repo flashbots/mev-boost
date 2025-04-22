@@ -10,8 +10,9 @@ import (
 
 // RelayEntry represents a relay that mev-boost connects to.
 type RelayEntry struct {
-	PublicKey phase0.BLSPubKey
-	URL       *url.URL
+	PublicKey   phase0.BLSPubKey
+	URL         *url.URL
+	SupportsSSZ bool
 }
 
 func (r *RelayEntry) String() string {
@@ -71,4 +72,15 @@ func RelayEntriesToStrings(relays []RelayEntry) []string {
 		ret[i] = entry.String()
 	}
 	return ret
+}
+
+// Copy returns a deep copy of the relay entry.
+func (r *RelayEntry) Copy() (ret RelayEntry) {
+	ret.PublicKey = r.PublicKey
+	ret.SupportsSSZ = r.SupportsSSZ
+	if r.URL != nil {
+		urlCopy := *r.URL
+		ret.URL = &urlCopy
+	}
+	return
 }

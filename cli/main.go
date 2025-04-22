@@ -20,13 +20,13 @@ import (
 const (
 	genesisForkVersionMainnet = "0x00000000"
 	genesisForkVersionSepolia = "0x90000069"
-	genesisForkVersionGoerli  = "0x00001020"
 	genesisForkVersionHolesky = "0x01017000"
+	genesisForkVersionHoodi   = "0x10000910"
 
 	genesisTimeMainnet = 1606824023
 	genesisTimeSepolia = 1655733600
-	genesisTimeGoerli  = 1614588812
 	genesisTimeHolesky = 1695902400
+	genesisTimeHoodi   = 1742213400
 )
 
 var (
@@ -55,7 +55,7 @@ func Main() {
 func start(_ context.Context, cmd *cli.Command) error {
 	// Only print the version if the flag is set
 	if cmd.IsSet(versionFlag.Name) {
-		log.Infof("mev-boost %s\n", config.Version)
+		fmt.Fprintf(cmd.Writer, "mev-boost %s\n", config.Version)
 		return nil
 	}
 
@@ -65,16 +65,15 @@ func start(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var (
-		genesisForkVersion, genesisTime      = setupGenesis(cmd)
-		relays, monitors, minBid, relayCheck = setupRelays(cmd)
-		listenAddr                           = cmd.String(addrFlag.Name)
+		genesisForkVersion, genesisTime = setupGenesis(cmd)
+		relays, minBid, relayCheck      = setupRelays(cmd)
+		listenAddr                      = cmd.String(addrFlag.Name)
 	)
 
 	opts := server.BoostServiceOpts{
 		Log:                      log,
 		ListenAddr:               listenAddr,
 		Relays:                   relays,
-		RelayMonitors:            monitors,
 		GenesisForkVersionHex:    genesisForkVersion,
 		GenesisTime:              genesisTime,
 		RelayCheck:               relayCheck,
@@ -82,7 +81,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 		RequestTimeoutGetHeader:  time.Duration(cmd.Int(timeoutGetHeaderFlag.Name)) * time.Millisecond,
 		RequestTimeoutGetPayload: time.Duration(cmd.Int(timeoutGetPayloadFlag.Name)) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(cmd.Int(timeoutRegValFlag.Name)) * time.Millisecond,
-		RequestMaxRetries:        int(cmd.Int(maxRetriesFlag.Name)),
+		RequestMaxRetries:        cmd.Int(maxRetriesFlag.Name),
 	}
 	service, err := server.NewBoostService(opts)
 	if err != nil {
@@ -93,22 +92,19 @@ func start(_ context.Context, cmd *cli.Command) error {
 		log.Error("no relay passed the health-check!")
 	}
 
-	log.Infof("Listening on %v", listenAddr)
+	log.Infof("listening on %v", listenAddr)
 	return service.StartHTTPServer()
 }
 
-func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, bool) {
+func setupRelays(cmd *cli.Command) (relayList, types.U256Str, bool) {
 	// For backwards compatibility with the -relays flag.
-	var (
-		relays   relayList
-		monitors relayMonitorList
-	)
+	var relays relayList
 	if cmd.IsSet(relaysFlag.Name) {
 		relayURLs := cmd.StringSlice(relaysFlag.Name)
 		for _, urls := range relayURLs {
 			for _, url := range strings.Split(urls, ",") {
 				if err := relays.Set(strings.TrimSpace(url)); err != nil {
-					log.WithError(err).WithField("relay", url).Fatal("Invalid relay URL")
+					log.WithError(err).WithField("relay", url).Fatal("invalid relay URL")
 				}
 			}
 		}
@@ -122,33 +118,14 @@ func setupRelays(cmd *cli.Command) (relayList, relayMonitorList, types.U256Str, 
 		log.Infof("relay #%d: %s", index+1, relay.String())
 	}
 
-	// For backwards compatibility with the -relay-monitors flag.
-	if cmd.IsSet(relayMonitorFlag.Name) {
-		monitorURLs := cmd.StringSlice(relayMonitorFlag.Name)
-		for _, urls := range monitorURLs {
-			for _, url := range strings.Split(urls, ",") {
-				if err := monitors.Set(strings.TrimSpace(url)); err != nil {
-					log.WithError(err).WithField("relayMonitor", url).Fatal("Invalid relay monitor URL")
-				}
-			}
-		}
-	}
-
-	if len(monitors) > 0 {
-		log.Infof("using %d relay monitors", len(monitors))
-		for index, relayMonitor := range monitors {
-			log.Infof("relay-monitor #%d: %s", index+1, relayMonitor.String())
-		}
-	}
-
 	relayMinBidWei, err := sanitizeMinBid(cmd.Float(minBidFlag.Name))
 	if err != nil {
-		log.WithError(err).Fatal("Failed sanitizing min bid")
+		log.WithError(err).Fatal("failed sanitizing min bid")
 	}
 	if relayMinBidWei.BigInt().Sign() > 0 {
-		log.Infof("Min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
+		log.Infof("min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
-	return relays, monitors, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
+	return relays, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
 }
 
 func setupGenesis(cmd *cli.Command) (string, uint64) {
@@ -158,7 +135,7 @@ func setupGenesis(cmd *cli.Command) (string, uint64) {
 	)
 
 	switch {
-	case cmd.Bool(customGenesisForkFlag.Name):
+	case cmd.IsSet(customGenesisForkFlag.Name):
 		genesisForkVersion = cmd.String(customGenesisForkFlag.Name)
 	case cmd.Bool(sepoliaFlag.Name):
 		genesisForkVersion = genesisForkVersionSepolia
@@ -166,16 +143,19 @@ func setupGenesis(cmd *cli.Command) (string, uint64) {
 	case cmd.Bool(holeskyFlag.Name):
 		genesisForkVersion = genesisForkVersionHolesky
 		genesisTime = genesisTimeHolesky
+	case cmd.Bool(hoodiFlag.Name):
+		genesisForkVersion = genesisForkVersionHoodi
+		genesisTime = genesisTimeHoodi
 	case cmd.Bool(mainnetFlag.Name):
 		genesisForkVersion = genesisForkVersionMainnet
 		genesisTime = genesisTimeMainnet
 	default:
 		flag.Usage()
-		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -goerli / -holesky / -genesis-fork-version flags)")
+		log.Fatal("please specify a genesis fork version (eg. -mainnet / -sepolia / -holesky / -hoodi / -genesis-fork-version flags)")
 	}
 
 	if cmd.IsSet(customGenesisTimeFlag.Name) {
-		genesisTime = cmd.Uint(customGenesisTimeFlag.Name)
+		genesisTime = cmd.Uint64(customGenesisTimeFlag.Name)
 	}
 	log.Infof("using genesis fork version: %s time: %d", genesisForkVersion, genesisTime)
 	return genesisForkVersion, genesisTime
