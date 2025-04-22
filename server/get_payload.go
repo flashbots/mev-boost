@@ -14,6 +14,7 @@ import (
 
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	builderApiFulu "github.com/attestantio/go-builder-client/api/fulu"
 	eth2Api "github.com/attestantio/go-eth2-client/api"
 	eth2ApiV1Bellatrix "github.com/attestantio/go-eth2-client/api/v1/bellatrix"
 	eth2ApiV1Capella "github.com/attestantio/go-eth2-client/api/v1/capella"
@@ -35,7 +36,6 @@ var (
 	errInvalidBlockhash = errors.New("invalid blockhash")
 	errInvalidKZGLength = errors.New("invalid KZG commitments length")
 	errInvalidKZG       = errors.New("invalid KZG commitment")
-	errFailedToDecode   = errors.New("failed to decode payload")
 	errFailedToConvert  = errors.New("failed to convert block from SSZ to JSON")
 )
 
@@ -337,29 +337,56 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 		return err
 	}
 
-	// Ensure the blobs bundle field counts are correct
-	if len(requestCommitments) != len(responseBlobsBundle.Blobs) ||
-		len(requestCommitments) != len(responseBlobsBundle.Commitments) ||
-		len(requestCommitments) != len(responseBlobsBundle.Proofs) {
+	// Check commitments
+	responseCommitments, err := responseBlobsBundle.Commitments()
+	if err != nil {
+		log.WithError(err).Error("failed to get response commitments")
+		return err
+	}
+	if len(requestCommitments) != len(responseCommitments) {
 		log.WithFields(logrus.Fields{
-			"requestBlobCommitments":  len(requestCommitments),
-			"responseBlobs":           len(responseBlobsBundle.Blobs),
-			"responseBlobCommitments": len(responseBlobsBundle.Commitments),
-			"responseBlobProofs":      len(responseBlobsBundle.Proofs),
-		}).Error("different lengths for blobs/commitments/proofs")
+			"requestBlobCommitments": len(requestCommitments),
+			"responseCommitments":    len(responseCommitments),
+		}).Error("different lengths for commitments")
 		return errInvalidKZGLength
 	}
-
-	// Ensure the request and response KZG commitments are the same
 	for i, commitment := range requestCommitments {
-		if commitment != responseBlobsBundle.Commitments[i] {
+		if commitment != responseCommitments[i] {
 			log.WithFields(logrus.Fields{
 				"index":                  i,
 				"requestBlobCommitment":  commitment.String(),
-				"responseBlobCommitment": responseBlobsBundle.Commitments[i].String(),
+				"responseBlobCommitment": responseCommitments[i].String(),
 			}).Error("requestBlobCommitment does not equal responseBlobCommitment")
 			return errInvalidKZG
 		}
+	}
+
+	// Check proofs
+	responseProofs, err := responseBlobsBundle.Proofs()
+	if err != nil {
+		log.WithError(err).Error("failed to get response blobs")
+		return err
+	}
+	if len(requestCommitments) != len(responseProofs) {
+		log.WithFields(logrus.Fields{
+			"requestBlobCommitments": len(requestCommitments),
+			"responseProofss":        len(responseProofs),
+		}).Error("different lengths for proofs")
+		return errInvalidKZGLength
+	}
+
+	// Check blobs
+	responseBlobs, err := responseBlobsBundle.Blobs()
+	if err != nil {
+		log.WithError(err).Error("failed to get response blobs")
+		return err
+	}
+	if len(requestCommitments) != len(responseBlobs) {
+		log.WithFields(logrus.Fields{
+			"requestBlobCommitments": len(requestCommitments),
+			"responseBlobs":          len(responseBlobs),
+		}).Error("different lengths for blobs")
+		return errInvalidKZGLength
 	}
 
 	return nil
@@ -386,6 +413,8 @@ func convertSSZToJSON(ethConsensusVersion string, sszBytes []byte) ([]byte, erro
 		block = new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
 	case EthConsensusVersionElectra:
 		block = new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+	case EthConsensusVersionFulu:
+		block = new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
 	default:
 		return nil, errInvalidForkVersion
 	}
@@ -404,61 +433,78 @@ func convertSSZToJSON(ethConsensusVersion string, sszBytes []byte) ([]byte, erro
 func decodeSignedBlindedBeaconBlock(in []byte, contentType, ethConsensusVersion string, out *eth2Api.VersionedSignedBlindedBeaconBlock) error {
 	switch contentType {
 	case MediaTypeOctetStream:
-		if ethConsensusVersion != "" {
-			switch ethConsensusVersion {
-			case EthConsensusVersionBellatrix:
-				out.Version = spec.DataVersionBellatrix
-				out.Bellatrix = new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
-				return out.Bellatrix.UnmarshalSSZ(in)
-			case EthConsensusVersionCapella:
-				out.Version = spec.DataVersionCapella
-				out.Capella = new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
-				return out.Capella.UnmarshalSSZ(in)
-			case EthConsensusVersionDeneb:
-				out.Version = spec.DataVersionDeneb
-				out.Deneb = new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
-				return out.Deneb.UnmarshalSSZ(in)
-			case EthConsensusVersionElectra:
-				out.Version = spec.DataVersionElectra
-				out.Electra = new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
-				return out.Electra.UnmarshalSSZ(in)
-			default:
-				return errInvalidForkVersion
-			}
-		} else {
+		if ethConsensusVersion == "" {
 			return types.ErrMissingEthConsensusVersion
 		}
-	case MediaTypeJSON:
-		var err error
-		electraBlock := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
-		err = json.Unmarshal(in, electraBlock)
-		if err == nil {
-			out.Version = spec.DataVersionElectra
-			out.Electra = electraBlock
-			return nil
-		}
-		denebBlock := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
-		err = json.Unmarshal(in, denebBlock)
-		if err == nil {
-			out.Version = spec.DataVersionDeneb
-			out.Deneb = denebBlock
-			return nil
-		}
-		capellaBlock := new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
-		err = json.Unmarshal(in, capellaBlock)
-		if err == nil {
-			out.Version = spec.DataVersionCapella
-			out.Capella = capellaBlock
-			return nil
-		}
-		bellatrixBlock := new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
-		err = json.Unmarshal(in, bellatrixBlock)
-		if err == nil {
+		switch ethConsensusVersion {
+		case EthConsensusVersionBellatrix:
 			out.Version = spec.DataVersionBellatrix
-			out.Bellatrix = bellatrixBlock
-			return nil
+			out.Bellatrix = new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
+			return out.Bellatrix.UnmarshalSSZ(in)
+		case EthConsensusVersionCapella:
+			out.Version = spec.DataVersionCapella
+			out.Capella = new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
+			return out.Capella.UnmarshalSSZ(in)
+		case EthConsensusVersionDeneb:
+			out.Version = spec.DataVersionDeneb
+			out.Deneb = new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+			return out.Deneb.UnmarshalSSZ(in)
+		case EthConsensusVersionElectra:
+			out.Version = spec.DataVersionElectra
+			out.Electra = new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+			return out.Electra.UnmarshalSSZ(in)
+		case EthConsensusVersionFulu:
+			out.Version = spec.DataVersionFulu
+			out.Fulu = new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+			return out.Fulu.UnmarshalSSZ(in)
+		default:
+			return errInvalidForkVersion
 		}
-		return errFailedToDecode
+	case MediaTypeJSON:
+		if ethConsensusVersion == "" {
+			return types.ErrMissingEthConsensusVersion
+		}
+		var err error
+		switch ethConsensusVersion {
+		case EthConsensusVersionBellatrix:
+			bellatrixBlock := new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
+			err = json.Unmarshal(in, bellatrixBlock)
+			if err == nil {
+				out.Version = spec.DataVersionBellatrix
+				out.Bellatrix = bellatrixBlock
+			}
+		case EthConsensusVersionCapella:
+			capellaBlock := new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
+			err = json.Unmarshal(in, capellaBlock)
+			if err == nil {
+				out.Version = spec.DataVersionCapella
+				out.Capella = capellaBlock
+			}
+		case EthConsensusVersionDeneb:
+			denebBlock := new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+			err = json.Unmarshal(in, denebBlock)
+			if err == nil {
+				out.Version = spec.DataVersionDeneb
+				out.Deneb = denebBlock
+			}
+		case EthConsensusVersionElectra:
+			electraBlock := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+			err = json.Unmarshal(in, electraBlock)
+			if err == nil {
+				out.Version = spec.DataVersionElectra
+				out.Electra = electraBlock
+			}
+		case EthConsensusVersionFulu:
+			fuluBlock := new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
+			err = json.Unmarshal(in, fuluBlock)
+			if err == nil {
+				out.Version = spec.DataVersionFulu
+				out.Fulu = fuluBlock
+			}
+		default:
+			return errInvalidForkVersion
+		}
+		return err
 	}
 	return types.ErrInvalidContentType
 }
@@ -467,29 +513,32 @@ func decodeSignedBlindedBeaconBlock(in []byte, contentType, ethConsensusVersion 
 func decodeSubmitBlindedBlockResponse(in []byte, contentType, ethConsensusVersion string, out *builderApi.VersionedSubmitBlindedBlockResponse) error {
 	switch contentType {
 	case MediaTypeOctetStream:
-		if ethConsensusVersion != "" {
-			switch ethConsensusVersion {
-			case EthConsensusVersionBellatrix:
-				out.Version = spec.DataVersionBellatrix
-				out.Bellatrix = new(bellatrix.ExecutionPayload)
-				return out.Bellatrix.UnmarshalSSZ(in)
-			case EthConsensusVersionCapella:
-				out.Version = spec.DataVersionCapella
-				out.Capella = new(capella.ExecutionPayload)
-				return out.Capella.UnmarshalSSZ(in)
-			case EthConsensusVersionDeneb:
-				out.Version = spec.DataVersionDeneb
-				out.Deneb = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
-				return out.Deneb.UnmarshalSSZ(in)
-			case EthConsensusVersionElectra:
-				out.Version = spec.DataVersionElectra
-				out.Electra = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
-				return out.Electra.UnmarshalSSZ(in)
-			default:
-				return errInvalidForkVersion
-			}
-		} else {
+		if ethConsensusVersion == "" {
 			return types.ErrMissingEthConsensusVersion
+		}
+		switch ethConsensusVersion {
+		case EthConsensusVersionBellatrix:
+			out.Version = spec.DataVersionBellatrix
+			out.Bellatrix = new(bellatrix.ExecutionPayload)
+			return out.Bellatrix.UnmarshalSSZ(in)
+		case EthConsensusVersionCapella:
+			out.Version = spec.DataVersionCapella
+			out.Capella = new(capella.ExecutionPayload)
+			return out.Capella.UnmarshalSSZ(in)
+		case EthConsensusVersionDeneb:
+			out.Version = spec.DataVersionDeneb
+			out.Deneb = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
+			return out.Deneb.UnmarshalSSZ(in)
+		case EthConsensusVersionElectra:
+			out.Version = spec.DataVersionElectra
+			out.Electra = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
+			return out.Electra.UnmarshalSSZ(in)
+		case EthConsensusVersionFulu:
+			out.Version = spec.DataVersionFulu
+			out.Fulu = new(builderApiFulu.ExecutionPayloadAndBlobsBundle)
+			return out.Fulu.UnmarshalSSZ(in)
+		default:
+			return errInvalidForkVersion
 		}
 	case MediaTypeJSON:
 		return json.Unmarshal(in, out)
@@ -531,6 +580,9 @@ func (m *BoostService) respondGetPayloadSSZ(w http.ResponseWriter, result *build
 	case spec.DataVersionElectra:
 		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionElectra)
 		sszData, err = result.Electra.MarshalSSZ()
+	case spec.DataVersionFulu:
+		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionFulu)
+		sszData, err = result.Fulu.MarshalSSZ()
 	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
 		err = errInvalidForkVersion
 	}

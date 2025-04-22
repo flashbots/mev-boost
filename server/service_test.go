@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -796,6 +797,7 @@ func TestGetPayload(t *testing.T) {
 	t.Run("Okay response from relay in JSON", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
 
 		backend := newTestBackend(t, 1, time.Second)
 
@@ -976,6 +978,7 @@ func TestGetPayload(t *testing.T) {
 	t.Run("Bad response from relays", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
 
 		backend := newTestBackend(t, 2, time.Second)
 
@@ -1024,6 +1027,7 @@ func TestGetPayload(t *testing.T) {
 	t.Run("Retries on error from relay", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
 
 		backend := newTestBackend(t, 1, 2*time.Second)
 
@@ -1053,6 +1057,7 @@ func TestGetPayload(t *testing.T) {
 	t.Run("Error after max retries are reached", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
 
 		backend := newTestBackend(t, 1, time.Second)
 
@@ -1130,6 +1135,7 @@ func TestEmptyTxRoot(t *testing.T) {
 }
 
 func blindedBlockToBlockResponse(signedBlock any) *builderApi.VersionedSubmitBlindedBlockResponse {
+	// TODO(jtraglia): How do we update this to work with Fulu too?
 	switch block := signedBlock.(type) {
 	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
 		header := block.Message.Body.ExecutionPayloadHeader
@@ -1230,9 +1236,6 @@ func denebExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, k
 func TestGetPayloadForks(t *testing.T) {
 	t.Parallel()
 
-	header := http.Header{}
-	header.Set("Accept", "application/json")
-
 	// Get a list of testdata files
 	pattern := "../testdata/signed-blinded-beacon-block-*.json"
 	files, err := filepath.Glob(pattern)
@@ -1248,12 +1251,22 @@ func TestGetPayloadForks(t *testing.T) {
 			jsonBytes, err := os.ReadFile(file)
 			require.NoError(t, err)
 
+			re := regexp.MustCompile(`^.*signed-blinded-beacon-block-(.+)\.json$`)
+			matches := re.FindStringSubmatch(file)
+			require.Len(t, matches, 2, "filename did not match expected pattern")
+			consensusVersion := matches[1]
+
+			header := http.Header{}
+			header.Set("Accept", "application/json")
+			header.Set("Content-Type", "application/json")
+			header.Set("Eth-Consensus-Version", consensusVersion)
+
 			// Create a new backend
 			backend := newTestBackend(t, 1, time.Second)
 
 			// Decode the block
 			block := new(eth2Api.VersionedSignedBlindedBeaconBlock)
-			err = decodeSignedBlindedBeaconBlock(jsonBytes, MediaTypeJSON, "", block)
+			err = decodeSignedBlindedBeaconBlock(jsonBytes, MediaTypeJSON, consensusVersion, block)
 			require.NoError(t, err)
 
 			// Get the request slot and block hash
@@ -1280,6 +1293,8 @@ func TestGetPayloadForks(t *testing.T) {
 				payload = block.Deneb
 			case spec.DataVersionElectra:
 				payload = block.Electra
+			case spec.DataVersionFulu:
+				payload = block.Fulu
 			case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
 				require.Fail(t, "unsupported version")
 			}
@@ -1303,6 +1318,7 @@ func TestGetPayloadForks(t *testing.T) {
 func TestGetPayloadToAllRelays(t *testing.T) {
 	header := make(http.Header)
 	header.Set(HeaderAccept, MediaTypeJSON)
+	header.Set("Eth-Consensus-Version", "deneb")
 
 	// Load the signed blinded beacon block used for getPayload
 	jsonFile, err := os.Open("../testdata/signed-blinded-beacon-block-deneb.json")

@@ -272,6 +272,31 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 				Signature: signature,
 			},
 		}
+	case spec.DataVersionFulu:
+		message := &builderApiElectra.BuilderBid{
+			Header: &deneb.ExecutionPayloadHeader{
+				BlockHash:       HexToHash(blockHash),
+				ParentHash:      HexToHash(parentHash),
+				WithdrawalsRoot: phase0.Root{},
+				BaseFeePerGas:   uint256.NewInt(0),
+			},
+			BlobKZGCommitments: make([]deneb.KZGCommitment, 0),
+			ExecutionRequests:  &electra.ExecutionRequests{},
+			Value:              uint256.NewInt(value),
+			Pubkey:             HexToPubkey(publicKey),
+		}
+
+		// Sign the message.
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
+		require.NoError(m.t, err)
+
+		return &builderSpec.VersionedSignedBuilderBid{
+			Version: spec.DataVersionFulu,
+			Fulu: &builderApiElectra.SignedBuilderBid{
+				Message:   message,
+				Signature: signature,
+			},
+		}
 	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix:
 		return nil
 	}
