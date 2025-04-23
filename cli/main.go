@@ -155,7 +155,7 @@ func setupGenesis(cmd *cli.Command) (string, uint64) {
 	}
 
 	if cmd.IsSet(customGenesisTimeFlag.Name) {
-		genesisTime = cmd.Uint64(customGenesisTimeFlag.Name)
+		genesisTime = uint64(cmd.Uint(customGenesisTimeFlag.Name))
 	}
 	log.Infof("using genesis fork version: %s time: %d", genesisForkVersion, genesisTime)
 	return genesisForkVersion, genesisTime
