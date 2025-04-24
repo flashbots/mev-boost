@@ -8,9 +8,10 @@ import (
 	"github.com/flashbots/go-boost-utils/types"
 )
 
-const (
-	SlotTimeSecMainnet = 12
-)
+// GetSlotTimeSecMainnet returns the slot time in seconds from SEC_PER_SLOT env var, defaulting to 12
+func GetSlotTimeSecMainnet() int {
+	return GetEnvInt("SEC_PER_SLOT", 12)
+}
 
 func GetEnv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
