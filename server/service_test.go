@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -988,14 +989,20 @@ func TestGetPayload(t *testing.T) {
 		bid.relays[0].SupportsSSZ = true
 		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
 
+		// Make a wait group to ensure both relays get the request
+		var wg sync.WaitGroup
+		wg.Add(len(backend.relays))
+
 		// Ensure the first relay gets the request in SSZ
 		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, req *http.Request) {
+			defer wg.Done()
 			require.Equal(t, MediaTypeOctetStream, req.Header.Get(HeaderContentType)) //nolint:testifylint
 			backend.relays[0].DefaultHandleGetPayload(w, req)
 		})
 
 		// Ensure the second relay gets the request in JSON
 		backend.relays[1].OverrideHandleGetPayload(func(w http.ResponseWriter, req *http.Request) {
+			defer wg.Done()
 			require.Equal(t, MediaTypeJSON, req.Header.Get(HeaderContentType)) //nolint:testifylint
 			backend.relays[1].DefaultHandleGetPayload(w, req)
 		})
@@ -1007,6 +1014,7 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
 
 		// Ensure both relays got the request
+		wg.Wait()
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
 	})
