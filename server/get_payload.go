@@ -152,7 +152,7 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 				log.WithField("relaySupportsSSZ", relaySupportsSSZ).Debug("encoding preference")
 
 				// If the relay provided the bid in JSON or did not provide a bid for this payload,
-				// we must convert the signed blinded beacon block to SSZ for this relay
+				// we must convert the signed blinded beacon block from SSZ to JSON for this relay
 				if parsedProposerContentType == MediaTypeOctetStream && !relaySupportsSSZ {
 					requestContentType = MediaTypeJSON
 					startTime := time.Now()
