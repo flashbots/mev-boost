@@ -973,6 +973,44 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType))
 	})
 
+	t.Run("A relay which does not provide the bid gets a JSON request", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set("Eth-Consensus-Version", "deneb")
+		header.Set("Accept", "application/octet-stream")
+		header.Set("Content-Type", "application/octet-stream")
+
+		// Setup backend with 2 relays
+		backend := newTestBackend(t, 2, time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, 1)}
+		bid.relays[0] = backend.relays[0].RelayEntry
+		bid.relays[0].SupportsSSZ = true
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		// Ensure the first relay gets the request in SSZ
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, req *http.Request) {
+			require.Equal(t, MediaTypeOctetStream, req.Header.Get(HeaderContentType)) //nolint:testifylint
+			backend.relays[0].DefaultHandleGetPayload(w, req)
+		})
+
+		// Ensure the second relay gets the request in JSON
+		backend.relays[1].OverrideHandleGetPayload(func(w http.ResponseWriter, req *http.Request) {
+			require.Equal(t, MediaTypeJSON, req.Header.Get(HeaderContentType)) //nolint:testifylint
+			backend.relays[1].DefaultHandleGetPayload(w, req)
+		})
+
+		// Send the request
+		payloadBytes, err := payload.MarshalSSZ()
+		require.NoError(t, err)
+		rr := backend.requestBytes(t, http.MethodPost, path, header, payloadBytes)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		// Ensure both relays got the request
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
+	})
+
 	t.Run("Bad response from relays", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
