@@ -3,7 +3,7 @@ module github.com/flashbots/mev-boost
 go 1.24.0
 
 require (
-	github.com/ethereum/go-ethereum v1.15.9
+	github.com/ethereum/go-ethereum v1.15.11
 	github.com/flashbots/go-boost-utils v1.9.0
 	github.com/flashbots/go-utils v0.10.0
 	github.com/google/uuid v1.6.0
@@ -20,10 +20,10 @@ require (
 	github.com/bits-and-blooms/bitset v1.22.0 // indirect
 	github.com/consensys/bavard v0.1.30 // indirect
 	github.com/consensys/gnark-crypto v0.17.0 // indirect
+	github.com/crate-crypto/go-eth-kzg v1.3.0 // indirect
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
-	github.com/crate-crypto/go-kzg-4844 v1.1.0 // indirect
 	github.com/emicklei/dot v1.8.0 // indirect
-	github.com/ethereum/c-kzg-4844 v1.0.3 // indirect
+	github.com/ethereum/c-kzg-4844/v2 v2.1.0 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/goccy/go-yaml v1.17.1 // indirect
 	github.com/gofrs/flock v0.12.1 // indirect
