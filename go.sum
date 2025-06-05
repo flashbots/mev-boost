@@ -35,8 +35,8 @@ github.com/ferranbt/fastssz v0.1.4 h1:OCDB+dYDEQDvAgtAGnTSidK1Pe2tW3nFV40XyMkTeD
 github.com/ferranbt/fastssz v0.1.4/go.mod h1:Ea3+oeoRGGLGm5shYAeDgu6PGUlcvQhE2fILyD9+tGg=
 github.com/flashbots/go-boost-utils v1.9.0 h1:KtTE70OYEJmIhK0GxLmXChgBTtBN6fbBK+klwP79AEM=
 github.com/flashbots/go-boost-utils v1.9.0/go.mod h1:vqZMGJCgwbS9WUVRzqfkn4ttRXiul4vKSu5iDtAKDfs=
-github.com/flashbots/go-utils v0.10.0 h1:75XWewRO5GIhdLn8+vqdzzuoqJh+j8wN54A++Id7W0Y=
-github.com/flashbots/go-utils v0.10.0/go.mod h1:i4xxEB6sHDFfNWEIfh+rP6nx3LxynEn8AOZa05EYgwA=
+github.com/flashbots/go-utils v0.14.0 h1:gg9UAGWhwMrnnhY/wV9W5TPRUhhM8GS6bFh4H2VqgsA=
+github.com/flashbots/go-utils v0.14.0/go.mod h1:vESXnJKP/r6WRrf8pr87Dr0gJdkGUpzOiMae8yangEc=
 github.com/go-ole/go-ole v1.2.6/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
 github.com/go-ole/go-ole v1.3.0 h1:Dt6ye7+vXGIKZ7Xtk4s6/xVdGDQynvom7xCFEdWr6uE=
 github.com/go-ole/go-ole v1.3.0/go.mod h1:5LS6F96DhAwUc7C+1HLexzMXY1xGRSryjyPPKW6zv78=
