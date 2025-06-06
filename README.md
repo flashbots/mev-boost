@@ -1,9 +1,7 @@
 ![mev-boost](https://user-images.githubusercontent.com/116939/224986867-3d1916c6-3219-4d61-b1ce-213fc663070c.png)
 
-#
-
 [![Goreport status](https://goreportcard.com/badge/github.com/flashbots/mev-boost)](https://goreportcard.com/report/github.com/flashbots/mev-boost)
-[![Test status](https://github.com/flashbots/mev-boost/workflows/Tests/badge.svg?branch=develop)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Tests%22)
+[![Test status](https://github.com/flashbots/mev-boost/actions/workflows/tests.yml/badge.svg?branch=develop)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Tests%22)
 [![Docker hub](https://badgen.net/docker/size/flashbots/mev-boost?icon=docker&label=image)](https://hub.docker.com/r/flashbots/mev-boost/tags)
 
 ## What is MEV-Boost?
@@ -31,28 +29,32 @@ MEV-Boost is a piece of software that any PoS Ethereum node operator (including 
 
 See also:
 
-* [MEV-Boost Docker images](https://hub.docker.com/r/flashbots/mev-boost)
-* [Wiki](https://github.com/flashbots/mev-boost/wiki)
-* Specs:
-  * [Builder API](https://ethereum.github.io/builder-specs)
+* [Builder API Specs](https://ethereum.github.io/builder-specs)
+* [MEV-Boost Relay](https://github.com/flashbots/mev-boost-relay)
+* [Relay Specs](https://github.com/flashbots/relay-specs)
 
 ---
 
-# Table of Contents
+**Content**
 
 - [Background](#background)
 - [Installing](#installing)
   - [Binaries](#binaries)
   - [From source](#from-source)
+    - [`go install`](#go-install)
+    - [Clone and Build](#clone-and-build)
   - [From Docker image](#from-docker-image)
   - [Systemd configuration](#systemd-configuration)
 - [Usage](#usage)
+  - [Note on usage documentation](#note-on-usage-documentation)
   - [Mainnet](#mainnet)
   - [Sepolia testnet](#sepolia-testnet)
   - [Holesky testnet](#holesky-testnet)
   - [Hoodi testnet](#hoodi-testnet)
   - [`test-cli`](#test-cli)
   - [mev-boost cli arguments](#mev-boost-cli-arguments)
+    - [`-relays` vs `-relay`](#-relays-vs--relay)
+    - [Setting a minimum bid value with `-min-bid`](#setting-a-minimum-bid-value-with--min-bid)
 - [API](#api)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
