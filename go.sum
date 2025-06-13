@@ -112,8 +112,8 @@ github.com/tklauser/numcpus v0.10.0 h1:18njr6LDBk1zuna922MgdjQuJFjrdppsZG60sHGfj
 github.com/tklauser/numcpus v0.10.0/go.mod h1:BiTKazU708GQTYF4mB+cmlpT2Is1gLk7XVuEeem8LsQ=
 github.com/trailofbits/go-fuzz-utils v0.0.0-20240830175354-474de707d2aa h1:jXdW82tOv+Bvh6adpc4kqcV6yuy5KLw/xzJmZBtZIdw=
 github.com/trailofbits/go-fuzz-utils v0.0.0-20240830175354-474de707d2aa/go.mod h1:/7KgvY5ghyUsjocUh9dMkLCwKtNxqe0kWl5SIdpLtO8=
-github.com/urfave/cli/v3 v3.2.0 h1:m8WIXY0U9LCuUl5r+0fqLWDhNYWt6qvlW+GcF4EoXf8=
-github.com/urfave/cli/v3 v3.2.0/go.mod h1:FJSKtM/9AiiTOJL4fJ6TbMUkxBXn7GO9guZqoZtpYpo=
+github.com/urfave/cli/v3 v3.3.8 h1:BzolUExliMdet9NlJ/u4m5vHSotJ3PzEqSAZ1oPMa/E=
+github.com/urfave/cli/v3 v3.3.8/go.mod h1:FJSKtM/9AiiTOJL4fJ6TbMUkxBXn7GO9guZqoZtpYpo=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
