@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -128,28 +129,7 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), m.httpClientGetPayload.Timeout)
 	defer requestCtxCancel()
 
-	// Make a list of relays without SSZ support
-	var relaysWithoutSSZ []string
-	for _, relay := range originalBid.relays {
-		if !relay.SupportsSSZ {
-			relaysWithoutSSZ = append(relaysWithoutSSZ, relay.URL.Hostname())
-		}
-	}
-
-	// Convert the blinded block to JSON if there's a relay that doesn't support SSZ yet
-	var signedBlindedBeaconBlockBytesJSON []byte
-	if proposerContentType == MediaTypeOctetStream && len(relaysWithoutSSZ) > 0 {
-		log.WithField("relaysWithoutSSZ", relaysWithoutSSZ).Info("Converting request from SSZ to JSON for relay(s)")
-		signedBlindedBeaconBlockBytesJSON, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
-		if err != nil {
-			log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
-			return nil, bidResp{}
-		}
-	}
-
-	// Only request payloads from relays which provided the bid. This is
-	// necessary now because we use the bid to track relay encoding preferences.
-	for _, relay := range originalBid.relays {
+	for _, relay := range m.relays {
 		go func(relay types.RelayEntry) {
 			url := relay.GetURI(params.PathGetPayload)
 			log := log.WithField("url", url)
@@ -157,12 +137,34 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
-				// If necessary, use the JSON encoded version and the JSON Content-Type header
+				// Default to the content from the proposer
 				requestContentType := parsedProposerContentType
 				requestBytes := signedBlindedBeaconBlockBytes
-				if parsedProposerContentType == MediaTypeOctetStream && !relay.SupportsSSZ {
-					requestBytes = signedBlindedBeaconBlockBytesJSON
+
+				// Check if the relay supports SSZ
+				relaySupportsSSZ := false
+				for _, originalBidRelay := range originalBid.relays {
+					if relay.URL == originalBidRelay.URL {
+						relaySupportsSSZ = originalBidRelay.SupportsSSZ
+						break
+					}
+				}
+				log.WithField("relaySupportsSSZ", relaySupportsSSZ).Debug("encoding preference")
+
+				// If the relay provided the bid in JSON or did not provide a bid for this payload,
+				// we must convert the signed blinded beacon block from SSZ to JSON for this relay
+				if parsedProposerContentType == MediaTypeOctetStream && !relaySupportsSSZ {
 					requestContentType = MediaTypeJSON
+					startTime := time.Now()
+					requestBytes, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
+					if err != nil {
+						log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
+						return nil, err
+					}
+					log.WithFields(logrus.Fields{
+						"relayProvidedBid": slices.Contains(originalBid.relays, relay),
+						"conversionTime":   time.Since(startTime),
+					}).Info("Converted request from SSZ to JSON for relay")
 				}
 
 				// Make a new request
