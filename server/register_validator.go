@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
 
 	"github.com/flashbots/mev-boost/server/params"
@@ -36,9 +37,7 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 			}
 
 			// Extend the request header with our values
-			for key, values := range header {
-				req.Header[key] = values
-			}
+			maps.Copy(req.Header, header)
 
 			log.WithFields(logrus.Fields{
 				"request": req,
