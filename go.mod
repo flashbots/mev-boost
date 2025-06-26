@@ -60,3 +60,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/attestantio/go-eth2-client => github.com/jtraglia/go-eth2-client v0.21.5-0.20250410211702-92a5240d75c6
+
+replace github.com/attestantio/go-builder-client => github.com/jtraglia/go-builder-client v0.4.6-0.20250410195459-42a3ff7f1546

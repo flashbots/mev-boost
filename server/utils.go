@@ -223,6 +223,12 @@ func getPayloadResponseIsEmpty(payload *builderApi.VersionedSubmitBlindedBlockRe
 			payload.Electra.BlobsBundle == nil {
 			return true
 		}
+	case spec.DataVersionFulu:
+		if payload.Fulu == nil || payload.Fulu.ExecutionPayload == nil ||
+			payload.Fulu.ExecutionPayload.BlockHash == nilHash ||
+			payload.Fulu.BlobsBundle == nil {
+			return true
+		}
 	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
 		return true
 	}
