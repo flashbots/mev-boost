@@ -8,9 +8,10 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { ErrorMessage } from './components/ErrorMessage';
 import { SmartContractDeployer } from './components/SmartContractDeployer';
 import { DeploymentHistory } from './components/DeploymentHistory';
-import { Link, Globe, Zap, Code, History } from 'lucide-react';
+import { EarningsPanel } from './components/EarningsPanel';
+import { Link, Globe, Zap, Code, History, DollarSign } from 'lucide-react';
 
-type AppView = 'chains' | 'deployer' | 'history';
+type AppView = 'chains' | 'deployer' | 'history' | 'earnings';
 
 function App() {
   const [chains, setChains] = useState<ChainData[]>([]);
@@ -113,6 +114,20 @@ function App() {
               </button>
 
               <button
+                onClick={() => setCurrentView('earnings')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  currentView === 'earnings'
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <DollarSign className="w-4 h-4" />
+                  <span>Ethereum Earnings</span>
+                </div>
+              </button>
+
+              <button
                 onClick={() => setCurrentView('history')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   currentView === 'history'
@@ -188,7 +203,7 @@ function App() {
                 <h1 className="text-4xl font-bold">Multi-Chain RPC Interface</h1>
               </div>
               <p className="text-xl text-white text-opacity-90 mb-8">
-                Comprehensive blockchain network explorer with real-time RPC endpoint testing and smart contract deployment
+                Comprehensive blockchain network explorer with real-time RPC endpoint testing, smart contract deployment, and Ethereum earning system
               </p>
               
               {/* Stats */}
@@ -267,6 +282,10 @@ function App() {
           <SmartContractDeployer chains={chains} />
         )}
 
+        {currentView === 'earnings' && (
+          <EarningsPanel />
+        )}
+
         {currentView === 'history' && (
           <DeploymentHistory />
         )}
@@ -287,7 +306,7 @@ function App() {
             </a>
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            Multi-chain smart contract deployment and blockchain network management
+            Multi-chain smart contract deployment with automated Ethereum earning system
           </p>
         </div>
       </footer>

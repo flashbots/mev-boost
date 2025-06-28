@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChainData } from '../types/chain';
 import { chainService } from '../services/chainService';
+import { ethereumEarningService } from '../services/ethereumEarningService';
 import { 
   Code, 
   Upload, 
@@ -12,7 +13,8 @@ import {
   Copy,
   ExternalLink,
   Settings,
-  Zap
+  Zap,
+  DollarSign
 } from 'lucide-react';
 
 interface DeploymentStatus {
@@ -24,6 +26,8 @@ interface DeploymentStatus {
   error?: string;
   gasUsed?: string;
   deploymentTime?: number;
+  commission?: string;
+  commissionETH?: string;
 }
 
 interface SmartContractDeployerProps {
@@ -85,12 +89,14 @@ contract MyToken {
   const [gasLimit, setGasLimit] = useState('3000000');
   const [gasPrice, setGasPrice] = useState('20'); // Gwei
   const [constructorArgs, setConstructorArgs] = useState('');
+  const [totalCommissionETH, setTotalCommissionETH] = useState('0');
+  const [estimatedEarnings, setEstimatedEarnings] = useState('0');
 
   // Deployment konfigürasyonu
   const [deploymentConfig, setDeploymentConfig] = useState({
-    batchSize: 5, // Aynı anda kaç ağa deploy edilecek
+    batchSize: 5,
     retryAttempts: 3,
-    delayBetweenDeployments: 2000, // ms
+    delayBetweenDeployments: 2000,
     onlyTestnets: false,
     onlyMainnets: false
   });
@@ -106,6 +112,28 @@ contract MyToken {
     }
     return chain.rpc && chain.rpc.length > 0;
   });
+
+  // Tahmini kazanç hesaplama
+  useEffect(() => {
+    if (selectedChains.length > 0) {
+      calculateEstimatedEarnings();
+    }
+  }, [selectedChains, gasLimit, gasPrice]);
+
+  const calculateEstimatedEarnings = () => {
+    let totalEarnings = 0;
+    
+    selectedChains.forEach(chainId => {
+      const { commissionInETH } = ethereumEarningService.calculateCommission(
+        gasLimit,
+        gasPrice,
+        chainId
+      );
+      totalEarnings += parseFloat(commissionInETH);
+    });
+
+    setEstimatedEarnings(totalEarnings.toFixed(6));
+  };
 
   const handleChainSelection = (chainId: number) => {
     setSelectedChains(prev => 
@@ -124,7 +152,6 @@ contract MyToken {
   };
 
   const compileContract = async (sourceCode: string) => {
-    // Simulated compilation - gerçek uygulamada Solidity compiler kullanılır
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
@@ -147,21 +174,37 @@ contract MyToken {
     const startTime = Date.now();
     
     try {
-      // RPC endpoint seç
       const workingRpc = await findWorkingRpc(chain);
       if (!workingRpc) {
         throw new Error('No working RPC endpoint found');
       }
 
-      // Simulated deployment - gerçek uygulamada Web3/Ethers.js kullanılır
+      // Simulated deployment
       await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000));
 
-      // Random success/failure simulation
       const success = Math.random() > 0.2; // %80 başarı oranı
 
       if (success) {
         const mockTxHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
         const mockContractAddress = '0x' + Array.from({length: 40}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        const gasUsed = (Math.floor(Math.random() * 500000) + 100000).toString();
+        
+        // Komisyon hesapla
+        const { commission, commissionInETH } = ethereumEarningService.calculateCommission(
+          gasUsed,
+          gasPrice,
+          chain.chainId
+        );
+
+        // Kazancı kaydet
+        await ethereumEarningService.recordDeploymentEarning(
+          chain.chainId,
+          chain.name,
+          gasUsed,
+          gasPrice,
+          mockTxHash,
+          '0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8b6' // Mock user address
+        );
         
         return {
           chainId: chain.chainId,
@@ -169,8 +212,10 @@ contract MyToken {
           status: 'success',
           txHash: mockTxHash,
           contractAddress: mockContractAddress,
-          gasUsed: (Math.floor(Math.random() * 500000) + 100000).toString(),
-          deploymentTime: Date.now() - startTime
+          gasUsed,
+          deploymentTime: Date.now() - startTime,
+          commission,
+          commissionETH: commissionInETH
         };
       } else {
         throw new Error('Transaction failed: insufficient gas or network error');
@@ -208,13 +253,12 @@ contract MyToken {
 
     setIsDeploying(true);
     setDeploymentStatuses([]);
+    setTotalCommissionETH('0');
 
     try {
-      // Contract'ı compile et
       console.log('Compiling contract...');
       const compiledContract = await compileContract(contractCode);
 
-      // Seçilen chain'leri al
       const chainsToDeployTo = chains.filter(chain => selectedChains.includes(chain.chainId));
 
       // Initial statuses
@@ -231,10 +275,10 @@ contract MyToken {
         batches.push(chainsToDeployTo.slice(i, i + deploymentConfig.batchSize));
       }
 
+      let totalCommission = 0;
+
       for (const batch of batches) {
-        // Batch içindeki tüm deployment'ları paralel başlat
         const deploymentPromises = batch.map(async (chain) => {
-          // Status'u deploying olarak güncelle
           setDeploymentStatuses(prev => 
             prev.map(status => 
               status.chainId === chain.chainId 
@@ -243,10 +287,12 @@ contract MyToken {
             )
           );
 
-          // Deploy et
           const result = await deployToChain(chain, compiledContract);
           
-          // Status'u güncelle
+          if (result.commissionETH) {
+            totalCommission += parseFloat(result.commissionETH);
+          }
+
           setDeploymentStatuses(prev => 
             prev.map(status => 
               status.chainId === chain.chainId ? result : status
@@ -256,14 +302,14 @@ contract MyToken {
           return result;
         });
 
-        // Batch'i bekle
         await Promise.all(deploymentPromises);
 
-        // Batch'ler arası delay
         if (batches.indexOf(batch) < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, deploymentConfig.delayBetweenDeployments));
         }
       }
+
+      setTotalCommissionETH(totalCommission.toFixed(6));
 
     } catch (error) {
       console.error('Deployment failed:', error);
@@ -304,9 +350,30 @@ contract MyToken {
           <h1 className="text-3xl font-bold text-gray-900">Multi-Chain Smart Contract Deployer</h1>
         </div>
         <p className="text-lg text-gray-600">
-          Deploy your smart contracts to multiple blockchain networks simultaneously
+          Deploy your smart contracts to multiple blockchain networks simultaneously and earn ETH commissions
         </p>
       </div>
+
+      {/* Earnings Preview */}
+      {selectedChains.length > 0 && (
+        <div className="card p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-green-900">Estimated Earnings</h3>
+                <p className="text-sm text-green-700">From {selectedChains.length} network deployments</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-green-900">{estimatedEarnings} ETH</p>
+              <p className="text-sm text-green-700">Commission (2.5% per deployment)</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Contract Code Editor */}
@@ -467,27 +534,35 @@ contract MyToken {
             </div>
 
             <div className="max-h-96 overflow-y-auto space-y-2">
-              {availableChains.map((chain) => (
-                <label
-                  key={chain.chainId}
-                  className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedChains.includes(chain.chainId)}
-                    onChange={() => handleChainSelection(chain.chainId)}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 truncate">
-                      {chain.name}
+              {availableChains.map((chain) => {
+                const { commissionInETH } = ethereumEarningService.calculateCommission(
+                  gasLimit,
+                  gasPrice,
+                  chain.chainId
+                );
+                
+                return (
+                  <label
+                    key={chain.chainId}
+                    className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedChains.includes(chain.chainId)}
+                      onChange={() => handleChainSelection(chain.chainId)}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 truncate">
+                        {chain.name}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        ID: {chain.chainId} | Earn: {commissionInETH} ETH
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      ID: {chain.chainId} | RPCs: {chain.rpc?.length || 0}
-                    </div>
-                  </div>
-                </label>
-              ))}
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -532,6 +607,15 @@ contract MyToken {
                 </div>
               </div>
 
+              {totalCommissionETH !== '0' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-green-900">Total Earned:</span>
+                    <span className="text-lg font-bold text-green-900">{totalCommissionETH} ETH</span>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {deploymentStatuses.map((status) => (
                   <div
@@ -542,7 +626,12 @@ contract MyToken {
                       {getStatusIcon(status.status)}
                       <div>
                         <div className="font-medium text-gray-900">{status.chainName}</div>
-                        <div className="text-sm text-gray-500">ID: {status.chainId}</div>
+                        <div className="text-sm text-gray-500">
+                          ID: {status.chainId}
+                          {status.commissionETH && (
+                            <span className="ml-2 text-green-600">+{status.commissionETH} ETH</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
@@ -563,7 +652,7 @@ contract MyToken {
         </div>
       </div>
 
-      {/* Deployment Results */}
+      {/* Successful Deployments Table */}
       {successfulDeployments.length > 0 && (
         <div className="card p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center space-x-2">
@@ -579,6 +668,7 @@ contract MyToken {
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Contract Address</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Transaction Hash</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Gas Used</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-900">Commission</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Time</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
                 </tr>
@@ -604,6 +694,11 @@ contract MyToken {
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">
                       {deployment.gasUsed}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="text-sm font-semibold text-green-600">
+                        {deployment.commissionETH} ETH
+                      </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">
                       {deployment.deploymentTime}ms
