@@ -8,7 +8,8 @@ import {
   ExternalLink, 
   AlertCircle,
   CheckCircle,
-  RefreshCw
+  RefreshCw,
+  Shield
 } from 'lucide-react';
 
 interface WalletConnectionProps {
@@ -20,15 +21,20 @@ export const WalletConnection: React.FC<WalletConnectionProps> = ({ onConnection
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [balance, setBalance] = useState<string>('0');
+  const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(false);
 
   useEffect(() => {
+    // MetaMask kurulu mu kontrol et
+    setIsMetaMaskInstalled(!!window.ethereum);
+    
     // Sayfa yüklendiğinde mevcut bağlantıyı kontrol et
     checkExistingConnection();
   }, []);
 
   const checkExistingConnection = async () => {
-    if (window.ethereum && window.ethereum.selectedAddress) {
-      try {
+    try {
+      const isConnected = await web3Service.isWalletConnected();
+      if (isConnected) {
         const conn = await web3Service.connectWallet();
         setConnection(conn);
         setBalance(conn.balance);
@@ -39,13 +45,19 @@ export const WalletConnection: React.FC<WalletConnectionProps> = ({ onConnection
         
         // Bakiye takibini başlat
         web3Service.startBalanceTracking(setBalance);
-      } catch (error) {
-        console.error('Failed to restore connection:', error);
       }
+    } catch (error) {
+      console.error('Failed to restore connection:', error);
+      setError('Failed to restore wallet connection');
     }
   };
 
   const connectWallet = async () => {
+    if (!isMetaMaskInstalled) {
+      window.open('https://metamask.io/download/', '_blank');
+      return;
+    }
+
     setIsConnecting(true);
     setError(null);
 
@@ -62,6 +74,7 @@ export const WalletConnection: React.FC<WalletConnectionProps> = ({ onConnection
       web3Service.startBalanceTracking(setBalance);
 
     } catch (error) {
+      console.error('Wallet connection error:', error);
       setError(error instanceof Error ? error.message : 'Failed to connect wallet');
     } finally {
       setIsConnecting(false);
@@ -132,18 +145,31 @@ export const WalletConnection: React.FC<WalletConnectionProps> = ({ onConnection
             </div>
           )}
 
-          <button
-            onClick={connectWallet}
-            disabled={isConnecting}
-            className="btn-primary flex items-center space-x-2 mx-auto"
-          >
-            {isConnecting ? (
-              <RefreshCw className="w-5 h-5 animate-spin" />
-            ) : (
-              <Wallet className="w-5 h-5" />
-            )}
-            <span>{isConnecting ? 'Connecting...' : 'Connect MetaMask'}</span>
-          </button>
+          {!isMetaMaskInstalled ? (
+            <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <p className="text-orange-700 text-sm mb-2">MetaMask not detected</p>
+              <button
+                onClick={connectWallet}
+                className="btn-primary flex items-center space-x-2 mx-auto"
+              >
+                <Shield className="w-5 h-5" />
+                <span>Install MetaMask</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={connectWallet}
+              disabled={isConnecting}
+              className="btn-primary flex items-center space-x-2 mx-auto"
+            >
+              {isConnecting ? (
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              ) : (
+                <Wallet className="w-5 h-5" />
+              )}
+              <span>{isConnecting ? 'Connecting...' : 'Connect MetaMask'}</span>
+            </button>
+          )}
 
           <div className="mt-6 text-sm text-gray-500">
             <p>Supported wallets:</p>
@@ -152,6 +178,13 @@ export const WalletConnection: React.FC<WalletConnectionProps> = ({ onConnection
               <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">WalletConnect</span>
               <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full">Coinbase</span>
             </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-blue-700 text-sm">
+              <Shield className="w-4 h-4 inline mr-1" />
+              Your wallet stays secure. We never store your private keys.
+            </p>
           </div>
         </div>
       </div>
@@ -180,7 +213,7 @@ export const WalletConnection: React.FC<WalletConnectionProps> = ({ onConnection
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
           <div className="flex items-center space-x-2">
-            <code className="flex-1 text-sm bg-gray-100 px-3 py-2 rounded font-mono">
+            <code className="flex-1 text-sm bg-gray-100 px-3 py-2 rounded font-mono truncate">
               {connection.address}
             </code>
             <button

@@ -34,11 +34,18 @@ class Web3Service {
 
     try {
       // MetaMask'tan hesap izni iste
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts found. Please unlock MetaMask.');
+      }
+
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
-      const address = await signer.getAddress();
+      
+      // Address'i doğrudan accounts'tan al
+      const address = accounts[0];
+      
       const network = await provider.getNetwork();
       const balance = await provider.getBalance(address);
 
@@ -56,6 +63,7 @@ class Web3Service {
 
       return this.connection;
     } catch (error) {
+      console.error('Wallet connection error:', error);
       throw new Error('Failed to connect wallet: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   }
@@ -74,21 +82,21 @@ class Web3Service {
   }
 
   // Hesap değişikliği
-  private handleAccountsChanged(accounts: string[]): void {
+  private async handleAccountsChanged(accounts: string[]): Promise<void> {
     if (accounts.length === 0) {
       this.disconnectWallet();
     } else if (this.connection) {
       this.connection.address = accounts[0];
       // Bakiyeyi güncelle
-      this.updateBalance();
+      await this.updateBalance();
     }
   }
 
   // Chain değişikliği
-  private handleChainChanged(chainId: string): void {
+  private async handleChainChanged(chainId: string): Promise<void> {
     if (this.connection) {
       this.connection.chainId = parseInt(chainId, 16);
-      this.updateBalance();
+      await this.updateBalance();
     }
   }
 
@@ -125,13 +133,15 @@ class Web3Service {
       let gasPrice: GasPrice;
 
       if (chainId === 1) { // Ethereum Mainnet
-        const response = await fetch('https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=YourApiKeyToken');
-        const data = await response.json();
+        // Etherscan API kullanmak yerine provider'dan al
+        const provider = this.getProviderForChain(chainId);
+        const gasPrice_wei = await provider.getGasPrice();
+        const gasPrice_gwei = ethers.utils.formatUnits(gasPrice_wei, 'gwei');
         
         gasPrice = {
-          standard: data.result.SafeGasPrice,
-          fast: data.result.ProposeGasPrice,
-          instant: data.result.FastGasPrice
+          standard: gasPrice_gwei,
+          fast: (parseFloat(gasPrice_gwei) * 1.2).toString(),
+          instant: (parseFloat(gasPrice_gwei) * 1.5).toString()
         };
       } else {
         // Diğer chainler için provider'dan al
@@ -157,7 +167,7 @@ class Web3Service {
   // Chain için provider al
   private getProviderForChain(chainId: number): ethers.providers.JsonRpcProvider {
     const rpcUrls: { [key: number]: string } = {
-      1: 'https://eth-mainnet.g.alchemy.com/v2/your-api-key',
+      1: 'https://eth-mainnet.g.alchemy.com/v2/demo', // Demo key
       137: 'https://polygon-rpc.com',
       56: 'https://bsc-dataseed.binance.org',
       43114: 'https://api.avax.network/ext/bc/C/rpc',
@@ -305,6 +315,18 @@ class Web3Service {
 
     // Her 10 saniyede bir güncelle
     setInterval(updateBalance, 10000);
+  }
+
+  // Cüzdan bağlı mı kontrol et
+  async isWalletConnected(): Promise<boolean> {
+    if (!window.ethereum) return false;
+
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      return accounts && accounts.length > 0;
+    } catch (error) {
+      return false;
+    }
   }
 
   // Event listener'ları temizle
