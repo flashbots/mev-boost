@@ -33,3 +33,4 @@
 .env*
 !.env.example
 
+.env
