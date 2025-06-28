@@ -8,15 +8,16 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { ErrorMessage } from './components/ErrorMessage';
 import { SmartContractDeployer } from './components/SmartContractDeployer';
 import { DeploymentHistory } from './components/DeploymentHistory';
-import { EarningsPanel } from './components/EarningsPanel';
-import { Link, Globe, Zap, Code, History, DollarSign } from 'lucide-react';
+import { WalletConnection } from './components/WalletConnection';
+import { RealTimeEarningsPanel } from './components/RealTimeEarningsPanel';
+import { Link, Globe, Zap, Code, History, DollarSign, Wallet } from 'lucide-react';
 
 type AppView = 'chains' | 'deployer' | 'history' | 'earnings';
 
 function App() {
   const [chains, setChains] = useState<ChainData[]>([]);
   const [selectedChain, setSelectedChain] = useState<ChainData | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>('chains');
+  const [currentView, setCurrentView] = useState<AppView>('earnings');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,6 +28,7 @@ function App() {
     hasRpc?: boolean;
     hasExplorer?: boolean;
   }>({});
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
 
   useEffect(() => {
     loadChains();
@@ -83,19 +85,19 @@ function App() {
 
             <div className="flex items-center space-x-1">
               <button
-                onClick={() => {
-                  setCurrentView('chains');
-                  setSelectedChain(null);
-                }}
+                onClick={() => setCurrentView('earnings')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentView === 'chains'
+                  currentView === 'earnings'
                     ? 'bg-primary-100 text-primary-700'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
                 <div className="flex items-center space-x-2">
-                  <Globe className="w-4 h-4" />
-                  <span>Networks</span>
+                  <DollarSign className="w-4 h-4" />
+                  <span>Real-Time Earnings</span>
+                  {isWalletConnected && (
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  )}
                 </div>
               </button>
 
@@ -114,16 +116,19 @@ function App() {
               </button>
 
               <button
-                onClick={() => setCurrentView('earnings')}
+                onClick={() => {
+                  setCurrentView('chains');
+                  setSelectedChain(null);
+                }}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentView === 'earnings'
+                  currentView === 'chains'
                     ? 'bg-primary-100 text-primary-700'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
                 <div className="flex items-center space-x-2">
-                  <DollarSign className="w-4 h-4" />
-                  <span>Ethereum Earnings</span>
+                  <Globe className="w-4 h-4" />
+                  <span>Networks</span>
                 </div>
               </button>
 
@@ -143,8 +148,17 @@ function App() {
             </div>
           </div>
 
-          <div className="text-sm text-gray-500">
-            {stats.totalChains} Networks • {stats.totalRpcs} RPCs
+          <div className="flex items-center space-x-4">
+            <div className="text-sm text-gray-500">
+              {stats.totalChains} Networks • {stats.totalRpcs} RPCs
+            </div>
+            
+            {!isWalletConnected && (
+              <div className="flex items-center space-x-2 text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
+                <Wallet className="w-4 h-4" />
+                <span className="text-sm font-medium">Connect Wallet</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -245,6 +259,17 @@ function App() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {currentView === 'earnings' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1">
+              <WalletConnection onConnectionChange={setIsWalletConnected} />
+            </div>
+            <div className="lg:col-span-2">
+              <RealTimeEarningsPanel />
+            </div>
+          </div>
+        )}
+
         {currentView === 'chains' && (
           <>
             <SearchAndFilter
@@ -282,10 +307,6 @@ function App() {
           <SmartContractDeployer chains={chains} />
         )}
 
-        {currentView === 'earnings' && (
-          <EarningsPanel />
-        )}
-
         {currentView === 'history' && (
           <DeploymentHistory />
         )}
@@ -295,7 +316,7 @@ function App() {
       <footer className="bg-gray-900 text-white py-8 mt-16">
         <div className="container mx-auto px-4 text-center">
           <p className="text-gray-400">
-            Data provided by{' '}
+            Real-time blockchain earnings system with{' '}
             <a 
               href="https://chainlist.org" 
               target="_blank" 
@@ -304,9 +325,10 @@ function App() {
             >
               chainlist.org
             </a>
+            {' '}integration
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            Multi-chain smart contract deployment with automated Ethereum earning system
+            Connect your wallet to start earning ETH from multi-chain operations
           </p>
         </div>
       </footer>
