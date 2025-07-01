@@ -25,6 +25,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/flashbots/mev-boost/common"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
@@ -338,7 +339,7 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 		log.WithError(err).Error("failed to get response blobs bundle")
 		return err
 	}
-
+	
 	// Check commitments
 	responseCommitments, err := responseBlobsBundle.Commitments()
 	if err != nil {
@@ -369,12 +370,24 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 		log.WithError(err).Error("failed to get response proofs")
 		return err
 	}
-	if len(requestCommitments) != len(responseProofs) {
-		log.WithFields(logrus.Fields{
-			"requestBlobCommitments": len(requestCommitments),
-			"responseProofs":         len(responseProofs),
-		}).Error("different lengths for proofs")
-		return errInvalidKZGLength
+
+	if request.Version >= spec.DataVersionFulu {
+		if len(requestCommitments) * common.CellsPerExtBlob != len(responseProofs) {
+			log.WithFields(logrus.Fields{
+				"requestBlobCommitments": len(requestCommitments),
+				"responseProofs":         len(responseProofs),
+				"cellsPerExtBlob":        common.CellsPerExtBlob,
+			}).Error("different lengths for proofs")
+			return errInvalidKZGLength
+		}
+	} else {
+		if len(requestCommitments) != len(responseProofs) {
+			log.WithFields(logrus.Fields{
+				"requestBlobCommitments": len(requestCommitments),
+				"responseProofs":         len(responseProofs),
+			}).Error("different lengths for proofs")
+			return errInvalidKZGLength
+		}
 	}
 
 	// Check blobs
