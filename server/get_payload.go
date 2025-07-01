@@ -339,7 +339,7 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 		log.WithError(err).Error("failed to get response blobs bundle")
 		return err
 	}
-	
+
 	// Check commitments
 	responseCommitments, err := responseBlobsBundle.Commitments()
 	if err != nil {
@@ -372,7 +372,7 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 	}
 
 	if request.Version >= spec.DataVersionFulu {
-		if len(requestCommitments) * common.CellsPerExtBlob != len(responseProofs) {
+		if len(requestCommitments)*common.CellsPerExtBlob != len(responseProofs) {
 			log.WithFields(logrus.Fields{
 				"requestBlobCommitments": len(requestCommitments),
 				"responseProofs":         len(responseProofs),
