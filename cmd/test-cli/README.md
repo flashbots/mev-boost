@@ -20,7 +20,7 @@ getPayload [-vd-file] [-mev-boost] [-bn] [-en] [-mm] [-bellatrix-fork-version] [
 
 Env & defaults:
 	[generate]
-	-gas-limit                               = 30000000
+	-gas-limit                               = 45000000
 	-fee-recipient  VALIDATOR_FEE_RECIPIENT  = 0x0000000000000000000000000000000000000000
 
 	[register]

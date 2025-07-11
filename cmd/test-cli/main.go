@@ -181,7 +181,7 @@ func main() {
 	getPayloadCommand.StringVar(&bellatrixForkVersionStr, "bellatrix-fork-version", envBellatrixForkVersion, "hex encoded bellatrix fork version")
 
 	var gasLimit uint64
-	envGasLimitStr := getEnv("VALIDATOR_GAS_LIMIT", "30000000")
+	envGasLimitStr := getEnv("VALIDATOR_GAS_LIMIT", "45000000")
 	envGasLimit, err := strconv.ParseUint(envGasLimitStr, 10, 64)
 	if err != nil {
 		log.WithError(err).Fatal("invalid gas limit specified")
