@@ -12,9 +12,9 @@ const (
 	SlotTimeSecMainnet = 12
 	// FieldElementsPerBlob is the number of field elements needed to represent a blob.
 	FieldElementsPerBlob = 4096
-	// BlobExpansionFactor is the factor by which we extend a blob for PeerDas.
+	// BlobExpansionFactor is the factor by which we extend a blob for PeerDAS.
 	BlobExpansionFactor = 2
-	// FieldElementsPerCell is the number of field elements in a cell
+	// FieldElementsPerCell is the number of field elements in a cell.
 	FieldElementsPerCell = 64
 	// FieldElementsPerExtBlob is the number of field elements needed to represent an extended blob.
 	FieldElementsPerExtBlob = FieldElementsPerBlob * BlobExpansionFactor
