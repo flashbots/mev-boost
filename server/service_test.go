@@ -34,6 +34,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2UtilBellatrix "github.com/attestantio/go-eth2-client/util/bellatrix"
+	"github.com/flashbots/mev-boost/common"
 	"github.com/flashbots/mev-boost/server/mock"
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
@@ -1313,7 +1314,7 @@ func fuluExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, kz
 	commitments := make([]deneb.KZGCommitment, numBlobs)
 	copy(commitments, kzgCommitments)
 	// For testing, proofs and blobs are not populated
-	proofs := make([]deneb.KZGProof, numBlobs)
+	proofs := make([]deneb.KZGProof, numBlobs * common.CellsPerExtBlob)
 	blobs := make([]deneb.Blob, numBlobs)
 	return &builderApiFulu.ExecutionPayloadAndBlobsBundle{
 		ExecutionPayload: &deneb.ExecutionPayload{

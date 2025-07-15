@@ -350,7 +350,7 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 		log.WithFields(logrus.Fields{
 			"requestBlobCommitments": len(requestCommitments),
 			"responseCommitments":    len(responseCommitments),
-		}).Error("different lengths for commitments")
+		}).Error("wrong lengths for commitments")
 		return errInvalidKZGLength
 	}
 	for i, commitment := range requestCommitments {
@@ -377,7 +377,7 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 				"requestBlobCommitments": len(requestCommitments),
 				"responseProofs":         len(responseProofs),
 				"cellsPerExtBlob":        common.CellsPerExtBlob,
-			}).Error("different lengths for proofs")
+			}).Error("wrong lengths for proofs")
 			return errInvalidKZGLength
 		}
 	} else {
@@ -385,7 +385,7 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 			log.WithFields(logrus.Fields{
 				"requestBlobCommitments": len(requestCommitments),
 				"responseProofs":         len(responseProofs),
-			}).Error("different lengths for proofs")
+			}).Error("wrong lengths for proofs")
 			return errInvalidKZGLength
 		}
 	}
@@ -400,7 +400,7 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 		log.WithFields(logrus.Fields{
 			"requestBlobCommitments": len(requestCommitments),
 			"responseBlobs":          len(responseBlobs),
-		}).Error("different lengths for blobs")
+		}).Error("wrong lengths for blobs")
 		return errInvalidKZGLength
 	}
 
