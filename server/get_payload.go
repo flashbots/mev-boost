@@ -45,6 +45,7 @@ var (
 // Core Logic
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Depreciated: For reference: https://github.com/ethereum/builder-specs/issues/119
 // getPayload requests the payload (execution payload, blobs bundle, etc) from the relays
 func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
 	// Get the request's content type

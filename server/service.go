@@ -153,6 +153,7 @@ func (m *BoostService) getRouter() http.Handler {
 	r.HandleFunc(params.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
 	r.HandleFunc(params.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	r.HandleFunc(params.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(params.PathSubmitBlindedBlock, m.handleSubmitBlindedBlock).Methods(http.MethodPost)
 
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
@@ -337,6 +338,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 }
 
+// Depreciated: For reference: https://github.com/ethereum/builder-specs/issues/119
 // handleGetPayload requests the payload from the relays
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	var (
@@ -402,6 +404,47 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 		log.Error(message)
 		m.respondError(w, http.StatusNotAcceptable, message)
 	}
+}
+
+// handleSubmitBlindedBlock requests the payload submission from the relays but does not return the execution payload and blobs
+func (m *BoostService) handleSubmitBlindedBlock(w http.ResponseWriter, req *http.Request) {
+	var (
+		userAgent                   = wrapUserAgent(UserAgent(req.Header.Get(HeaderUserAgent)))
+		proposerContentType         = req.Header.Get(HeaderContentType)
+		proposerEthConsensusVersion = req.Header.Get(HeaderEthConsensusVersion)
+		acceptContentType           = "application/json"
+	)
+
+	// Do the initial debug log
+	log := m.log.WithFields(logrus.Fields{
+		"method":                      "handleSubmitBlindedBlock",
+		"userAgent":                   userAgent,
+		"proposerContentType":         proposerContentType,
+		"proposerEthConsensusVersion": proposerEthConsensusVersion,
+	})
+	log.Debug("handling request")
+
+	// Read the body first, so we can log it later on error
+	signedBlindedBlockBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.WithError(err).Error("could not read body of request from the beacon node")
+		m.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Submit the signed blinded beacon block to relays
+	success, originalBid := m.submitBlindedBlock(log, signedBlindedBlockBytes, userAgent, proposerContentType, acceptContentType, proposerEthConsensusVersion)
+
+	// If no relay accepted the submission, log about the failure
+	if !success {
+		originRelays := types.RelayEntriesToStrings(originalBid.relays)
+		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no relay accepted the signed blinded beacon block submission!")
+		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
+		return
+	}
+
+	log.Info("successfully submitted signed blinded beacon block to relay")
+	w.WriteHeader(http.StatusAccepted)
 }
 
 // CheckRelays sends a request to each one of the relays previously registered to get their status
