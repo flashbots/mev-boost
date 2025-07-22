@@ -338,7 +338,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	}
 }
 
-// Depreciated: For reference: https://github.com/ethereum/builder-specs/issues/119
+// Deprecated: For reference: https://github.com/ethereum/builder-specs/issues/119
 // handleGetPayload requests the payload from the relays
 func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	var (
