@@ -153,7 +153,7 @@ func (m *BoostService) getRouter() http.Handler {
 	r.HandleFunc(params.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
 	r.HandleFunc(params.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	r.HandleFunc(params.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
-	r.HandleFunc(params.PathSubmitBlindedBlock, m.handleGetPayloadV2).Methods(http.MethodPost)
+	r.HandleFunc(params.PathGetPayloadV2, m.handleGetPayloadV2).Methods(http.MethodPost)
 
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
