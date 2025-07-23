@@ -412,7 +412,7 @@ func (m *BoostService) handleGetPayloadV2(w http.ResponseWriter, req *http.Reque
 		userAgent                   = wrapUserAgent(UserAgent(req.Header.Get(HeaderUserAgent)))
 		proposerContentType         = req.Header.Get(HeaderContentType)
 		proposerEthConsensusVersion = req.Header.Get(HeaderEthConsensusVersion)
-		acceptContentType           = "application/json"
+		acceptContentType           = MediaTypeJSON
 	)
 
 	// Do the initial debug log

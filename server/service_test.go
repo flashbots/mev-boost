@@ -1139,6 +1139,137 @@ func TestGetPayload(t *testing.T) {
 	})
 }
 
+func TestGetPayloadV2(t *testing.T) {
+	path := params.PathGetPayloadV2
+	blockHash := mock.HexToHash("0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46")
+	payload := &eth2ApiV1Deneb.SignedBlindedBeaconBlock{
+		Signature: mock.HexToSignature(
+			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9"),
+		Message: &eth2ApiV1Deneb.BlindedBeaconBlock{
+			Slot:          1,
+			ProposerIndex: 1,
+			ParentRoot:    phase0.Root{0x01},
+			StateRoot:     phase0.Root{0x02},
+			Body: &eth2ApiV1Deneb.BlindedBeaconBlockBody{
+				RANDAOReveal: phase0.BLSSignature{0xa1},
+				ETH1Data: &phase0.ETH1Data{
+					BlockHash: blockHash[:],
+				},
+				Graffiti: phase0.Hash32{0xa2},
+				SyncAggregate: &altair.SyncAggregate{
+					SyncCommitteeBits: bitfield.NewBitvector512(),
+				},
+				ProposerSlashings: []*phase0.ProposerSlashing{},
+				AttesterSlashings: []*phase0.AttesterSlashing{},
+				Attestations:      []*phase0.Attestation{},
+				Deposits:          []*phase0.Deposit{},
+				VoluntaryExits:    []*phase0.SignedVoluntaryExit{},
+				ExecutionPayloadHeader: &deneb.ExecutionPayloadHeader{
+					ParentHash:    mock.HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+					BlockHash:     blockHash,
+					BlockNumber:   12345,
+					FeeRecipient:  mock.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+					BaseFeePerGas: uint256.NewInt(100),
+				},
+			},
+		},
+	}
+
+	t.Run("Returns accepted response without payload", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Empty(t, rr.Body.String(), "v2 endpoint should not return payload")
+	})
+
+	t.Run("Returns error when no relay responds", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusBadGateway, rr.Code)
+		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Retries on error from relay", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 1, 2*time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		count := 0
+		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, req *http.Request) {
+			if count > 0 {
+				// success response on the second attempt
+				backend.relays[0].DefaultHandleGetPayloadV2(w, req)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
+				require.NoError(t, err, "failed to write error response") //nolint:testifylint // if we fail here the test is compromised
+			}
+			count++
+		})
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
+	})
+
+	t.Run("Error after max retries are reached", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		count := 0
+		maxRetries := 5
+
+		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, req *http.Request) {
+			count++
+			if count > maxRetries {
+				// success response after max retry attempts
+				backend.relays[0].DefaultHandleGetPayloadV2(w, req)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
+				require.NoError(t, err, "failed to write error response") //nolint:testifylint // if we fail here the test is compromised
+			}
+		})
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, 5, backend.relays[0].GetRequestCount(path))
+		require.JSONEq(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
+		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
+}
+
 func TestCheckRelays(t *testing.T) {
 	t.Run("One relay is okay", func(t *testing.T) {
 		backend := newTestBackend(t, 1, time.Second)
@@ -1319,7 +1450,7 @@ func fuluExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, kz
 	commitments := make([]deneb.KZGCommitment, numBlobs)
 	copy(commitments, kzgCommitments)
 	// For testing, proofs and blobs are not populated
-	proofs := make([]deneb.KZGProof, 0, numBlobs * common.CellsPerExtBlob)
+	proofs := make([]deneb.KZGProof, 0, numBlobs*common.CellsPerExtBlob)
 	blobs := make([]deneb.Blob, numBlobs)
 
 	for i := 0; i < numBlobs; i++ {
