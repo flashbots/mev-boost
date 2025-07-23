@@ -153,7 +153,7 @@ func (m *BoostService) getRouter() http.Handler {
 	r.HandleFunc(params.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
 	r.HandleFunc(params.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	r.HandleFunc(params.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
-	r.HandleFunc(params.PathSubmitBlindedBlock, m.handleSubmitBlindedBlock).Methods(http.MethodPost)
+	r.HandleFunc(params.PathSubmitBlindedBlock, m.handleGetPayloadV2).Methods(http.MethodPost)
 
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
@@ -406,8 +406,8 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 }
 
-// handleSubmitBlindedBlock requests the payload submission from the relays but does not return the execution payload and blobs
-func (m *BoostService) handleSubmitBlindedBlock(w http.ResponseWriter, req *http.Request) {
+// handleGetPayloadV2 requests the payload submission from the relays but does not return the execution payload and blobs
+func (m *BoostService) handleGetPayloadV2(w http.ResponseWriter, req *http.Request) {
 	var (
 		userAgent                   = wrapUserAgent(UserAgent(req.Header.Get(HeaderUserAgent)))
 		proposerContentType         = req.Header.Get(HeaderContentType)
@@ -417,7 +417,7 @@ func (m *BoostService) handleSubmitBlindedBlock(w http.ResponseWriter, req *http
 
 	// Do the initial debug log
 	log := m.log.WithFields(logrus.Fields{
-		"method":                      "handleSubmitBlindedBlock",
+		"method":                      "handleGetPayloadV2",
 		"userAgent":                   userAgent,
 		"proposerContentType":         proposerContentType,
 		"proposerEthConsensusVersion": proposerEthConsensusVersion,
@@ -433,7 +433,7 @@ func (m *BoostService) handleSubmitBlindedBlock(w http.ResponseWriter, req *http
 	}
 
 	// Submit the signed blinded beacon block to relays
-	success, originalBid := m.submitBlindedBlock(log, signedBlindedBlockBytes, userAgent, proposerContentType, acceptContentType, proposerEthConsensusVersion)
+	success, originalBid := m.getPayloadV2(log, signedBlindedBlockBytes, userAgent, proposerContentType, acceptContentType, proposerEthConsensusVersion)
 
 	// If no relay accepted the submission, log about the failure
 	if !success {
