@@ -213,11 +213,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				req.Header.Set(HeaderUserAgent, userAgent)
 
 				// Send the request
-				if version == GetPayloadV1 {
-					log.Debug("requesting payload")
-				} else {
-					log.Debug("requesting payload submission")
-				}
+				log.Debug("submitting signed blinded block")
 				resp, err := m.httpClientGetPayload.Do(req)
 				if err != nil {
 					log.WithError(err).Warnf("error calling getPayload%s on relay", version)
@@ -240,11 +236,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				return resp, nil
 			})
 			if err != nil {
-				if version == GetPayloadV1 {
-					log.WithError(err).Warn("failed to get payload from relay after retries")
-				} else {
-					log.WithError(err).Warn("failed to request submit payload after retries")
-				}
+				log.WithError(err).Warn("failed to submit signed blinded block after retries")
 				return
 			}
 			defer resp.Body.Close()
@@ -296,11 +288,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 			// We have received a valid response, cancel other requests
 			if received.CompareAndSwap(false, true) {
 				resultCh <- result
-				if version == GetPayloadV1 {
-					log.Info("received payload from relay")
-				} else {
-					log.Info("successfully submitted blinded block to relay")
-				}
+				log.Info("successfully submitted blinded block to relay")
 			} else {
 				log.Trace("discarding response, already received a correct response")
 			}
