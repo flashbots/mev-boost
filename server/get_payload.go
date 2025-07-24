@@ -41,12 +41,36 @@ var (
 	errFailedToConvert  = errors.New("failed to convert block from SSZ to JSON")
 )
 
+type GetPayloadVersion string
+
+const (
+	GetPayloadV1 GetPayloadVersion = "V1"
+	GetPayloadV2 GetPayloadVersion = "V2"
+)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Core Logic
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+type payloadResult struct {
+	success  bool
+	response *builderApi.VersionedSubmitBlindedBlockResponse
+}
+
+// Deprecated: For reference: https://github.com/ethereum/builder-specs/issues/119
 // getPayload requests the payload (execution payload, blobs bundle, etc) from the relays
 func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+	result, bid := m.innerGetPayload(log, signedBlindedBeaconBlockBytes, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion, GetPayloadV1)
+	return result.response, bid
+}
+
+// getPayloadV2 submits the signed blinded beacon block to relays for submission without returning the payload and blobs
+func (m *BoostService) getPayloadV2(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string) (bool, bidResp) {
+	result, bid := m.innerGetPayload(log, signedBlindedBeaconBlockBytes, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion, GetPayloadV2)
+	return result.success, bid
+}
+
+func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string, version GetPayloadVersion) (payloadResult, bidResp) {
 	// Get the request's content type
 	parsedProposerContentType, _, err := mime.ParseMediaType(proposerContentType)
 	if err != nil {
@@ -60,24 +84,24 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 	err = decodeSignedBlindedBeaconBlock(signedBlindedBeaconBlockBytes, parsedProposerContentType, proposerEthConsensusVersion, request)
 	if err != nil {
 		log.WithError(err).Error("failed to decode signed blinded beacon block")
-		return nil, bidResp{}
+		return payloadResult{}, bidResp{}
 	}
 
 	// Get information about the request
 	slot, err := request.Slot()
 	if err != nil {
 		log.WithError(err).Error("failed to get request slot")
-		return nil, bidResp{}
+		return payloadResult{}, bidResp{}
 	}
 	blockHash, err := request.ExecutionBlockHash()
 	if err != nil {
 		log.WithError(err).Error("failed to get request block hash")
-		return nil, bidResp{}
+		return payloadResult{}, bidResp{}
 	}
 	parentHash, err := request.ExecutionParentHash()
 	if err != nil {
 		log.WithError(err).Error("failed to get request parent hash")
-		return nil, bidResp{}
+		return payloadResult{}, bidResp{}
 	}
 
 	// Get the currentSlotUID for this slot
@@ -112,18 +136,18 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 	originalBid := m.bids[bidKey(slot, blockHash)]
 	m.bidsLock.Unlock()
 	if originalBid.response.IsEmpty() {
-		log.Error("no bid for this getPayload payload found, was getHeader called before?")
+		log.Error("no bid for this payload found, was getHeader called before?")
 	} else if len(originalBid.relays) == 0 {
 		log.Warn("bid found but no associated relays")
 	}
 
 	// Prepare for requests
-	resultCh := make(chan *builderApi.VersionedSubmitBlindedBlockResponse, len(m.relays))
+	resultCh := make(chan payloadResult, len(m.relays))
 	var received atomic.Bool
 	go func() {
 		// Make sure we receive a response within the timeout
 		time.Sleep(m.httpClientGetPayload.Timeout)
-		resultCh <- nil
+		resultCh <- payloadResult{}
 	}()
 
 	// Create a context with a timeout as configured in the http client
@@ -132,9 +156,14 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 
 	for _, relay := range m.relays {
 		go func(relay types.RelayEntry) {
-			url := relay.GetURI(params.PathGetPayload)
+			var url string
+			if version == GetPayloadV1 {
+				url = relay.GetURI(params.PathGetPayload)
+			} else {
+				url = relay.GetURI(params.PathGetPayloadV2)
+			}
 			log := log.WithField("url", url)
-			log.Debug("calling getPayload")
+			log.Debugf("calling getPayload%s", version)
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
@@ -184,15 +213,21 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 				req.Header.Set(HeaderUserAgent, userAgent)
 
 				// Send the request
-				log.Debug("requesting payload")
+				log.Debug("submitting signed blinded block")
 				resp, err := m.httpClientGetPayload.Do(req)
 				if err != nil {
-					log.WithError(err).Warn("error calling getPayload on relay")
+					log.WithError(err).Warnf("error calling getPayload%s on relay", version)
 					return nil, err
 				}
 
+				var statusCode int
+				if version == GetPayloadV1 {
+					statusCode = http.StatusOK
+				} else {
+					statusCode = http.StatusAccepted
+				}
 				// Check that the response was successful
-				if resp.StatusCode != http.StatusOK {
+				if resp.StatusCode != statusCode {
 					err = fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
 					log.WithError(err).Warn("error status code")
 					return nil, err
@@ -201,52 +236,59 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 				return resp, nil
 			})
 			if err != nil {
-				log.WithError(err).Warn("failed to get payload from relay after retries")
+				log.WithError(err).Warn("failed to submit signed blinded block after retries")
 				return
 			}
 			defer resp.Body.Close()
 
-			// Get the resp body content
-			respBytes, err := io.ReadAll(resp.Body)
-			if err != nil {
-				log.WithError(err).Warn("error reading response body")
-				return
-			}
+			var result payloadResult
+			result.success = true
 
-			// Get the response's content type
-			respContentType, _, err := mime.ParseMediaType(resp.Header.Get(HeaderContentType))
-			if err != nil {
-				log.WithError(err).Warn("error parsing response content type")
-				respContentType = MediaTypeJSON
-			}
-			log = log.WithField("respContentType", respContentType)
+			if version == GetPayloadV1 {
+				// Get the resp body content
+				respBytes, err := io.ReadAll(resp.Body)
+				if err != nil {
+					log.WithError(err).Warn("error reading response body")
+					return
+				}
 
-			// Get the response's eth consensus version
-			respEthConsensusVersion := resp.Header.Get(HeaderEthConsensusVersion)
-			log = log.WithField("respEthConsensusVersion", respEthConsensusVersion)
+				// Get the response's content type
+				respContentType, _, err := mime.ParseMediaType(resp.Header.Get(HeaderContentType))
+				if err != nil {
+					log.WithError(err).Warn("error parsing response content type")
+					respContentType = MediaTypeJSON
+				}
+				log = log.WithField("respContentType", respContentType)
 
-			// Decode response
-			response := new(builderApi.VersionedSubmitBlindedBlockResponse)
-			err = decodeSubmitBlindedBlockResponse(respBytes, respContentType, respEthConsensusVersion, response)
-			if err != nil {
-				log.WithError(err).Warn("error decoding bid")
-				return
-			}
+				// Get the response's eth consensus version
+				respEthConsensusVersion := resp.Header.Get(HeaderEthConsensusVersion)
+				log = log.WithField("respEthConsensusVersion", respEthConsensusVersion)
 
-			// Check that the payload matches our request
-			err = verifyPayload(log, request, response)
-			if err != nil {
-				log.WithError(err).Warn("error decoding bid")
-				return
+				// Decode response
+				response := new(builderApi.VersionedSubmitBlindedBlockResponse)
+				err = decodeSubmitBlindedBlockResponse(respBytes, respContentType, respEthConsensusVersion, response)
+				if err != nil {
+					log.WithError(err).Warn("error decoding bid")
+					return
+				}
+
+				// Check that the payload matches our request
+				err = verifyPayload(log, request, response)
+				if err != nil {
+					log.WithError(err).Warn("error verifying payload")
+					return
+				}
+
+				result.response = response
 			}
 
 			// The payload is valid, cancel the request for others
 			requestCtxCancel()
 
-			// We have received a payload, cancel other requests
+			// We have received a valid response, cancel other requests
 			if received.CompareAndSwap(false, true) {
-				resultCh <- response
-				log.Info("received payload from relay")
+				resultCh <- result
+				log.Info("successfully submitted blinded block to relay")
 			} else {
 				log.Trace("discarding response, already received a correct response")
 			}
