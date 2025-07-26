@@ -20,6 +20,7 @@ import (
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/google/uuid"
+	dynssz "github.com/pk910/dynamic-ssz"
 	"github.com/sirupsen/logrus"
 )
 
@@ -133,7 +134,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 			// Decode bid
 			bid := new(builderSpec.VersionedSignedBuilderBid)
-			err = decodeBid(respBytes, respContentType, respEthConsensusVersion, bid)
+			err = m.decodeBid(respBytes, respContentType, respEthConsensusVersion, bid)
 			if err != nil {
 				log.WithError(err).Warn("error decoding bid")
 				return
@@ -257,28 +258,30 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 }
 
 // decodeBid decodes a bid by SSZ or JSON, depending on the provided respContentType
-func decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bid *builderSpec.VersionedSignedBuilderBid) error {
+func (m *BoostService) decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bid *builderSpec.VersionedSignedBuilderBid) error {
 	switch respContentType {
 	case MediaTypeOctetStream:
 		if ethConsensusVersion != "" {
 			// Do SSZ decoding
+			dynSSZ := dynssz.NewDynSsz(m.preset)
+
 			switch ethConsensusVersion {
 			case EthConsensusVersionBellatrix:
 				bid.Version = spec.DataVersionBellatrix
 				bid.Bellatrix = new(builderApiBellatrix.SignedBuilderBid)
-				return bid.Bellatrix.UnmarshalSSZ(respBytes)
+				return dynSSZ.UnmarshalSSZ(bid.Bellatrix, respBytes)
 			case EthConsensusVersionCapella:
 				bid.Version = spec.DataVersionCapella
 				bid.Capella = new(builderApiCapella.SignedBuilderBid)
-				return bid.Capella.UnmarshalSSZ(respBytes)
+				return dynSSZ.UnmarshalSSZ(bid.Capella, respBytes)
 			case EthConsensusVersionDeneb:
 				bid.Version = spec.DataVersionDeneb
 				bid.Deneb = new(builderApiDeneb.SignedBuilderBid)
-				return bid.Deneb.UnmarshalSSZ(respBytes)
+				return dynSSZ.UnmarshalSSZ(bid.Deneb, respBytes)
 			case EthConsensusVersionElectra:
 				bid.Version = spec.DataVersionElectra
 				bid.Electra = new(builderApiElectra.SignedBuilderBid)
-				return bid.Electra.UnmarshalSSZ(respBytes)
+				return dynSSZ.UnmarshalSSZ(bid.Electra, respBytes)
 			default:
 				return errInvalidForkVersion
 			}
@@ -309,19 +312,20 @@ func (m *BoostService) respondGetHeaderSSZ(w http.ResponseWriter, result *bidRes
 	// Serialize the response
 	var err error
 	var sszData []byte
+	dynSSZ := dynssz.NewDynSsz(m.preset)
 	switch result.response.Version {
 	case spec.DataVersionBellatrix:
 		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionBellatrix)
-		sszData, err = result.response.Bellatrix.MarshalSSZ()
+		sszData, err = dynSSZ.MarshalSSZ(result.response.Bellatrix)
 	case spec.DataVersionCapella:
 		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionCapella)
-		sszData, err = result.response.Capella.MarshalSSZ()
+		sszData, err = dynSSZ.MarshalSSZ(result.response.Capella)
 	case spec.DataVersionDeneb:
 		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionDeneb)
-		sszData, err = result.response.Deneb.MarshalSSZ()
+		sszData, err = dynSSZ.MarshalSSZ(result.response.Deneb)
 	case spec.DataVersionElectra:
 		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionElectra)
-		sszData, err = result.response.Electra.MarshalSSZ()
+		sszData, err = dynSSZ.MarshalSSZ(result.response.Electra)
 	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
 		err = errInvalidForkVersion
 	}

@@ -9,6 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/holiman/uint256 v1.3.2
+	github.com/pk910/dynamic-ssz v0.0.4
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20240618144021-706c95b2dd15
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
@@ -32,6 +33,7 @@ require (
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/sync v0.13.0 // indirect
+	gopkg.in/Knetic/govaluate.v3 v3.0.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
@@ -60,3 +62,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/attestantio/go-eth2-client => github.com/jacobkaufmann/go-eth2-client v0.0.0-20250529231327-5f241b4aa8a4
