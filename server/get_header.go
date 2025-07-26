@@ -176,7 +176,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 			// Verify the relay signature in the relay response
 			if !config.SkipRelaySignatureCheck {
-				ok, err := checkRelaySignature(bid, m.builderSigningDomain, relay.PublicKey)
+				ok, err := checkRelaySignature(bid, m.builderSigningDomain, relay.PublicKey, m.preset)
 				if err != nil {
 					log.WithError(err).Error("error verifying relay signature")
 					return

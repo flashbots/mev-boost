@@ -23,6 +23,7 @@ import (
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/holiman/uint256"
+	dynssz "github.com/pk910/dynamic-ssz"
 )
 
 var (
@@ -183,7 +184,7 @@ func parseBidInfo(bid *builderSpec.VersionedSignedBuilderBid) (bidInfo, error) {
 	}, nil
 }
 
-func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phase0.Domain, pubKey phase0.BLSPubKey) (bool, error) {
+func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phase0.Domain, pubKey phase0.BLSPubKey, preset map[string]interface{}) (bool, error) {
 	root, err := bid.MessageHashTreeRoot()
 	if err != nil {
 		return false, err
@@ -193,7 +194,8 @@ func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phas
 		return false, err
 	}
 	signingData := phase0.SigningData{ObjectRoot: root, Domain: domain}
-	msg, err := signingData.HashTreeRoot()
+	dynSSZ := dynssz.NewDynSsz(preset)
+	msg, err := dynSSZ.HashTreeRoot(signingData)
 	if err != nil {
 		return false, err
 	}

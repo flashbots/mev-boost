@@ -27,6 +27,7 @@ import (
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
+	dynssz "github.com/pk910/dynamic-ssz"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,7 +57,7 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 
 	// Decode the request
 	request := new(eth2Api.VersionedSignedBlindedBeaconBlock)
-	err = decodeSignedBlindedBeaconBlock(signedBlindedBeaconBlockBytes, parsedProposerContentType, proposerEthConsensusVersion, request)
+	err = m.decodeSignedBlindedBeaconBlock(signedBlindedBeaconBlockBytes, parsedProposerContentType, proposerEthConsensusVersion, request)
 	if err != nil {
 		log.WithError(err).Error("failed to decode signed blinded beacon block")
 		return nil, bidResp{}
@@ -156,7 +157,7 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 				if parsedProposerContentType == MediaTypeOctetStream && !relaySupportsSSZ {
 					requestContentType = MediaTypeJSON
 					startTime := time.Now()
-					requestBytes, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
+					requestBytes, err = m.convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
 					if err != nil {
 						log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
 						return nil, err
@@ -226,7 +227,7 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 
 			// Decode response
 			response := new(builderApi.VersionedSubmitBlindedBlockResponse)
-			err = decodeSubmitBlindedBlockResponse(respBytes, respContentType, respEthConsensusVersion, response)
+			err = m.decodeSubmitBlindedBlockResponse(respBytes, respContentType, respEthConsensusVersion, response)
 			if err != nil {
 				log.WithError(err).Warn("error decoding bid")
 				return
@@ -377,7 +378,7 @@ type canUnmarshalSSZ interface {
 }
 
 // convertSSZToJSON converts SSZ-encoded bytes to JSON based on the given ethConsensusVersion
-func convertSSZToJSON(ethConsensusVersion string, sszBytes []byte) ([]byte, error) {
+func (m *BoostService) convertSSZToJSON(ethConsensusVersion string, sszBytes []byte) ([]byte, error) {
 	var block canUnmarshalSSZ
 	switch ethConsensusVersion {
 	case EthConsensusVersionBellatrix:
@@ -391,9 +392,9 @@ func convertSSZToJSON(ethConsensusVersion string, sszBytes []byte) ([]byte, erro
 	default:
 		return nil, errInvalidForkVersion
 	}
-
+	dynSSZ := dynssz.NewDynSsz(m.preset)
 	// Unmarshal the SSZ-encoded bytes into the block
-	if err := block.UnmarshalSSZ(sszBytes); err != nil {
+	if err := dynSSZ.UnmarshalSSZ(block, sszBytes); err != nil {
 		return nil, err
 	}
 
@@ -403,27 +404,29 @@ func convertSSZToJSON(ethConsensusVersion string, sszBytes []byte) ([]byte, erro
 
 // decodeSignedBlindedBeaconBlock will decode the request block in either JSON or SSZ.
 // Note: when decoding JSON, we must attempt decoding from newest to oldest fork version.
-func decodeSignedBlindedBeaconBlock(in []byte, contentType, ethConsensusVersion string, out *eth2Api.VersionedSignedBlindedBeaconBlock) error {
+func (m *BoostService) decodeSignedBlindedBeaconBlock(in []byte, contentType, ethConsensusVersion string, out *eth2Api.VersionedSignedBlindedBeaconBlock) error {
 	switch contentType {
 	case MediaTypeOctetStream:
 		if ethConsensusVersion != "" {
+			dynSSZ := dynssz.NewDynSsz(m.preset)
+
 			switch ethConsensusVersion {
 			case EthConsensusVersionBellatrix:
 				out.Version = spec.DataVersionBellatrix
 				out.Bellatrix = new(eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
-				return out.Bellatrix.UnmarshalSSZ(in)
+				return dynSSZ.UnmarshalSSZ(out.Bellatrix, in)
 			case EthConsensusVersionCapella:
 				out.Version = spec.DataVersionCapella
 				out.Capella = new(eth2ApiV1Capella.SignedBlindedBeaconBlock)
-				return out.Capella.UnmarshalSSZ(in)
+				return dynSSZ.UnmarshalSSZ(out.Capella, in)
 			case EthConsensusVersionDeneb:
 				out.Version = spec.DataVersionDeneb
 				out.Deneb = new(eth2ApiV1Deneb.SignedBlindedBeaconBlock)
-				return out.Deneb.UnmarshalSSZ(in)
+				return dynSSZ.UnmarshalSSZ(out.Deneb, in)
 			case EthConsensusVersionElectra:
 				out.Version = spec.DataVersionElectra
 				out.Electra = new(eth2ApiV1Electra.SignedBlindedBeaconBlock)
-				return out.Electra.UnmarshalSSZ(in)
+				return dynSSZ.UnmarshalSSZ(out.Electra, in)
 			default:
 				return errInvalidForkVersion
 			}
@@ -466,27 +469,29 @@ func decodeSignedBlindedBeaconBlock(in []byte, contentType, ethConsensusVersion 
 }
 
 // decodeSubmitBlindedBlockResponse will decode the response contents in either JSON or SSZ
-func decodeSubmitBlindedBlockResponse(in []byte, contentType, ethConsensusVersion string, out *builderApi.VersionedSubmitBlindedBlockResponse) error {
+func (m *BoostService) decodeSubmitBlindedBlockResponse(in []byte, contentType, ethConsensusVersion string, out *builderApi.VersionedSubmitBlindedBlockResponse) error {
 	switch contentType {
 	case MediaTypeOctetStream:
 		if ethConsensusVersion != "" {
+			dynSSZ := dynssz.NewDynSsz(m.preset)
+
 			switch ethConsensusVersion {
 			case EthConsensusVersionBellatrix:
 				out.Version = spec.DataVersionBellatrix
 				out.Bellatrix = new(bellatrix.ExecutionPayload)
-				return out.Bellatrix.UnmarshalSSZ(in)
+				return dynSSZ.UnmarshalSSZ(out.Bellatrix, in)
 			case EthConsensusVersionCapella:
 				out.Version = spec.DataVersionCapella
 				out.Capella = new(capella.ExecutionPayload)
-				return out.Capella.UnmarshalSSZ(in)
+				return dynSSZ.UnmarshalSSZ(out.Capella, in)
 			case EthConsensusVersionDeneb:
 				out.Version = spec.DataVersionDeneb
 				out.Deneb = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
-				return out.Deneb.UnmarshalSSZ(in)
+				return dynSSZ.UnmarshalSSZ(out.Deneb, in)
 			case EthConsensusVersionElectra:
 				out.Version = spec.DataVersionElectra
 				out.Electra = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
-				return out.Electra.UnmarshalSSZ(in)
+				return dynSSZ.UnmarshalSSZ(out.Electra, in)
 			default:
 				return errInvalidForkVersion
 			}
