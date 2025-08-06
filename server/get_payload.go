@@ -382,6 +382,20 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 		return err
 	}
 
+	// Check blobs
+	responseBlobs, err := responseBlobsBundle.Blobs()
+	if err != nil {
+		log.WithError(err).Error("failed to get response blobs")
+		return err
+	}
+	if len(requestCommitments) != len(responseBlobs) {
+		log.WithFields(logrus.Fields{
+			"requestBlobCommitments": len(requestCommitments),
+			"responseBlobs":          len(responseBlobs),
+		}).Error("wrong lengths for blobs")
+		return errInvalidKZGLength
+	}
+
 	// Check commitments
 	responseCommitments, err := responseBlobsBundle.Commitments()
 	if err != nil {
@@ -430,20 +444,6 @@ func verifyBlobsBundle(log *logrus.Entry, request *eth2Api.VersionedSignedBlinde
 			}).Error("wrong lengths for proofs")
 			return errInvalidKZGLength
 		}
-	}
-
-	// Check blobs
-	responseBlobs, err := responseBlobsBundle.Blobs()
-	if err != nil {
-		log.WithError(err).Error("failed to get response blobs")
-		return err
-	}
-	if len(requestCommitments) != len(responseBlobs) {
-		log.WithFields(logrus.Fields{
-			"requestBlobCommitments": len(requestCommitments),
-			"responseBlobs":          len(responseBlobs),
-		}).Error("wrong lengths for blobs")
-		return errInvalidKZGLength
 	}
 
 	return nil

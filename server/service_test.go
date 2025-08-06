@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -35,7 +34,6 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2UtilBellatrix "github.com/attestantio/go-eth2-client/util/bellatrix"
-	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/flashbots/mev-boost/common"
 	"github.com/flashbots/mev-boost/server/mock"
 	"github.com/flashbots/mev-boost/server/params"
@@ -1415,8 +1413,6 @@ func denebExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, k
 	proofs := make([]deneb.KZGProof, numBlobs)
 	blobs := make([]deneb.Blob, numBlobs)
 
-	// TODO - add blobs, commitments and proofs for deneb
-
 	return &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
 		ExecutionPayload: &deneb.ExecutionPayload{
 			ParentHash:    header.ParentHash,
@@ -1453,35 +1449,6 @@ func fuluExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, kz
 	proofs := make([]deneb.KZGProof, 0, numBlobs*common.CellsPerExtBlob)
 	blobs := make([]deneb.Blob, numBlobs)
 
-	for i := 0; i < numBlobs; i++ {
-		blobData, err := randomBlobData(deneb.BlobLength)
-		if err != nil {
-			panic(err)
-		}
-		blobs[i] = deneb.Blob(blobData)
-	}
-	// generate kzg commitments
-	for i := 0; i < numBlobs; i++ {
-		convertedBlob := kzg4844.Blob(blobs[i])
-		commitment, err := kzg4844.BlobToCommitment(&convertedBlob)
-		if err != nil {
-			panic(err)
-		}
-		commitments[i] = deneb.KZGCommitment(commitment)
-	}
-	for i := 0; i < numBlobs; i++ {
-		convertedBlob := kzg4844.Blob(blobs[i])
-		proof, err := kzg4844.ComputeCells(&convertedBlob)
-		if err != nil {
-			panic(err)
-		}
-		denebProofs := make([]deneb.KZGProof, len(proof))
-		for j := 0; j < len(proof); j++ {
-			denebProofs[j] = deneb.KZGProof(proof[j])
-		}
-		proofs = append(proofs, denebProofs...)
-	}
-
 	return &builderApiFulu.ExecutionPayloadAndBlobsBundle{
 		ExecutionPayload: &deneb.ExecutionPayload{
 			ParentHash:    header.ParentHash,
@@ -1508,21 +1475,6 @@ func fuluExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, kz
 			Blobs:       blobs,
 		},
 	}
-}
-
-// randomBlobData generates cryptographically secure random blob data of the specified size.
-// Uses crypto/rand for secure random number generation.
-// Returns an error if the random data generation fails or doesn't produce the requested size.
-func randomBlobData(size int) ([]byte, error) {
-	data := make([]byte, size)
-	n, err := rand.Read(data)
-	if err != nil {
-		return nil, err
-	}
-	if n != size {
-		return nil, fmt.Errorf("could not create random blob data with size %d: %v", size, err)
-	}
-	return data, nil
 }
 
 func TestGetPayloadForks(t *testing.T) {

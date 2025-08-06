@@ -62,4 +62,5 @@ require (
 )
 
 replace github.com/attestantio/go-builder-client => github.com/jtraglia/go-builder-client v0.4.6-0.20250410195459-42a3ff7f1546
+
 replace github.com/ethereum/go-ethereum => github.com/MariusVanDerWijden/go-ethereum v0.0.0-20250401090816-5ab5127f5408

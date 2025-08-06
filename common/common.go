@@ -16,10 +16,15 @@ const (
 	BlobExpansionFactor = 2
 	// FieldElementsPerCell is the number of field elements in a cell.
 	FieldElementsPerCell = 64
+	BytesPerFieldElement = 32
 	// FieldElementsPerExtBlob is the number of field elements needed to represent an extended blob.
 	FieldElementsPerExtBlob = FieldElementsPerBlob * BlobExpansionFactor
 	// CellsPerExtBlob is the number of cells in an extended blob.
 	CellsPerExtBlob = FieldElementsPerExtBlob / FieldElementsPerCell
+	// BytesPerBlob is the number of bytes in a blob.
+	BytesPerBlob = FieldElementsPerBlob * BytesPerFieldElement
+	// BytesPerCell is the number of bytes in a cell.
+	BytesPerCell = FieldElementsPerCell * BytesPerFieldElement
 )
 
 func GetEnv(key, defaultValue string) string {
