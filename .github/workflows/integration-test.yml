@@ -174,9 +174,6 @@ jobs:
         
         echo "Contender transaction spammer started"
         
-        # Wait a bit for transactions to start flowing
-        sleep 20
-        
     - name: Run MEV-Boost integration tests
       run: |
         echo "Running MEV-boost integration tests..."
