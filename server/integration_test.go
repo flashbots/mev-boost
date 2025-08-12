@@ -215,7 +215,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 
 	// Test 3: Validate active builder and relay activity
 	t.Run("Builder and relay activity validation", func(t *testing.T) {
-		t.Logf("🔍 Validating active builder and relay activity...")
+		t.Logf("Validating active builder and relay activity...")
 		// check if relay has delivered payloads (should be active)
 		resp, err := relayClient.Get(RelayURL + "/relay/v1/data/bidtraces/proposer_payload_delivered")
 		require.NoError(t, err, "Relay should be reachable for payload delivery data")
