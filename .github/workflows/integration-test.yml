@@ -65,17 +65,6 @@ jobs:
         tar -xzf ${{ env.RBUILDER_VERSION }}.tar.gz
         mv rbuilder-* rbuilder
 
-    - name: Clone and build contender
-      run: |
-        git clone --depth 1 https://github.com/flashbots/contender.git
-        cd contender
-        
-        # Pre-compile contender in release mode for better performance
-        echo "Building contender (this may take a few minutes)..."
-        cargo build --release --bin contender
-        
-        echo "Contender build completed"
-
     - name: Start playground environment
       run: |
         cd builder-playground
@@ -86,7 +75,8 @@ jobs:
           --log-level debug \
           --use-native-reth \
           --use-separate-mev-boost \
-          --override mev-boost=my-mev-boost:latest &
+          --override mev-boost=my-mev-boost:latest \
+          --contender &
         
         PLAYGROUND_PID=$!
         echo "PLAYGROUND_PID=$PLAYGROUND_PID" >> $GITHUB_ENV
@@ -155,45 +145,7 @@ jobs:
         sleep 30
         
         echo "rbuilder started"
-
-    - name: Start contender transaction spammer
-      run: |
-        cd contender
-        
-        # Start contender in background
-        ./target/release/contender spam \
-          --tps 10 \
-          -r http://localhost:8545 \
-          -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-          --min-balance 0.5eth \
-          --tx-type legacy \
-          transfers &
-        
-        CONTENDER_PID=$!
-        echo "CONTENDER_PID=$CONTENDER_PID" >> $GITHUB_ENV
-        
-        echo "Contender transaction spammer started"
-        
-        # Wait for contender to finish initialization and start spamming
-        echo "Waiting for contender to finish initialization and start spamming..."
-        sleep 30  # Give time for funding transactions
-        
-        # Wait for actual transaction spamming to begin
-        for i in {1..30}; do
-          # Check transaction pool for pending transactions
-          PENDING=$(curl -s -X POST -H "Content-Type: application/json" \
-            --data '{"jsonrpc":"2.0","method":"txpool_status","params":[],"id":1}' \
-            http://localhost:8545 2>/dev/null | jq -r '.result.pending // "0x0"' | sed 's/0x//' | xargs printf "%d" 2>/dev/null || echo "0")
-          
-          if [ "$PENDING" -gt 5 ]; then
-            echo "✅ Contender is actively spamming transactions (pending: $PENDING)"
-            break
-          fi
-          
-          echo "Waiting for transaction spamming... ($i/30, pending: $PENDING)"
-          sleep 3
-        done
-        
+ 
     - name: Run MEV-Boost integration tests
       run: |
         echo "Running MEV-boost integration tests..."
@@ -223,7 +175,6 @@ jobs:
         # Kill all background processes
         [ ! -z "$PLAYGROUND_PID" ] && kill $PLAYGROUND_PID 2>/dev/null || true
         [ ! -z "$RBUILDER_PID" ] && kill $RBUILDER_PID 2>/dev/null || true
-        [ ! -z "$CONTENDER_PID" ] && kill $CONTENDER_PID 2>/dev/null || true
         
         # Stop all docker containers
         docker stop $(docker ps -q) 2>/dev/null || true
@@ -231,7 +182,6 @@ jobs:
         
         # Kill any remaining processes
         pkill -f "rbuilder" 2>/dev/null || true
-        pkill -f "contender" 2>/dev/null || true
         pkill -f "playground" 2>/dev/null || true
         
         echo "Cleanup completed"
