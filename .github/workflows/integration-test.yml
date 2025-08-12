@@ -65,9 +65,16 @@ jobs:
         tar -xzf ${{ env.RBUILDER_VERSION }}.tar.gz
         mv rbuilder-* rbuilder
 
-    - name: Clone contender
+    - name: Clone and build contender
       run: |
         git clone --depth 1 https://github.com/flashbots/contender.git
+        cd contender
+        
+        # Pre-compile contender in release mode for better performance
+        echo "Building contender (this may take a few minutes)..."
+        cargo build --release --bin contender
+        
+        echo "Contender build completed"
 
     - name: Start playground environment
       run: |
@@ -154,9 +161,8 @@ jobs:
         cd contender
         
         # Start contender in background
-        cargo run --bin contender -- spam \
+        ./target/release/contender spam \
           --tps 10 \
-          -d 100 \
           -r http://localhost:8545 \
           -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
           --min-balance 0.5eth \
