@@ -1,0 +1,215 @@
+name: MEV-Boost Integration Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+env:
+  RBUILDER_VERSION: v1.2.6
+  PLAYGROUND_TIMEOUT: 300s
+  TEST_TIMEOUT: 600s
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout mev-boost
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24'
+
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build MEV-Boost Docker image
+      run: |
+        docker build -t my-mev-boost:latest .
+
+    - name: Clone builder-playground
+      run: |
+        git clone https://github.com/flashbots/builder-playground.git
+        cd builder-playground
+        go mod download
+
+    - name: Download rbuilder
+      run: |
+        cd /tmp
+        wget https://github.com/flashbots/rbuilder/archive/refs/tags/${{ env.RBUILDER_VERSION }}.tar.gz
+        tar -xzf ${{ env.RBUILDER_VERSION }}.tar.gz
+        mv rbuilder-* rbuilder
+
+    - name: Clone contender
+      run: |
+        git clone https://github.com/flashbots/contender.git
+        cd contender
+        cargo build --release
+
+    - name: Start playground environment
+      run: |
+        cd builder-playground
+        
+        # Start the playground in background
+        timeout ${{ env.PLAYGROUND_TIMEOUT }} go run main.go cook l1 \
+          --genesis-delay 15 \
+          --log-level debug \
+          --use-native-reth \
+          --use-separate-mev-boost \
+          --override mev-boost=my-mev-boost:latest &
+        
+        PLAYGROUND_PID=$!
+        echo "PLAYGROUND_PID=$PLAYGROUND_PID" >> $GITHUB_ENV
+        
+        # Wait for services to be ready
+        echo "Waiting for services to start..."
+        
+        # Wait for beacon node
+        for i in {1..60}; do
+          if curl -s http://localhost:3500/eth/v1/beacon/headers/head > /dev/null 2>&1; then
+            echo "Beacon node is ready"
+            break
+          fi
+          echo "Waiting for beacon node... ($i/60)"
+          sleep 5
+        done
+        
+        # Wait for execution layer
+        for i in {1..60}; do
+          if curl -s -X POST -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+            http://localhost:8545 > /dev/null 2>&1; then
+            echo "Execution layer is ready"
+            break
+          fi
+          echo "Waiting for execution layer... ($i/60)"
+          sleep 5
+        done
+        
+        # Wait for MEV-boost
+        for i in {1..60}; do
+          if curl -s http://localhost:18550/eth/v1/builder/status > /dev/null 2>&1; then
+            echo "MEV-boost is ready"
+            break
+          fi
+          echo "Waiting for MEV-boost... ($i/60)"
+          sleep 5
+        done
+        
+        # Wait for relay
+        for i in {1..60}; do
+          if curl -s http://localhost:5555/eth/v1/builder/status > /dev/null 2>&1; then
+            echo "Relay is ready"
+            break
+          fi
+          echo "Waiting for relay... ($i/60)"
+          sleep 5
+        done
+        
+        echo "All services are ready!"
+
+    - name: Start rbuilder
+      run: |
+        cd /tmp/rbuilder
+        
+        # Update config-playground.toml with correct paths
+        sed -i "s|\$HOME|$HOME|g" config-playground.toml
+        
+        # Start rbuilder in background
+        cargo run --bin rbuilder run config-playground.toml &
+        RBUILDER_PID=$!
+        echo "RBUILDER_PID=$RBUILDER_PID" >> $GITHUB_ENV
+        
+        # Wait for rbuilder to be ready
+        echo "Waiting for rbuilder to start..."
+        sleep 30
+        
+        echo "rbuilder started"
+
+    - name: Start contender transaction spammer
+      run: |
+        cd contender
+        
+        # Start contender in background
+        ./target/release/contender spam \
+          --tps 10 \
+          -d 100 \
+          -r http://localhost:8545 \
+          -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+          --min-balance 0.5eth \
+          --tx-type legacy \
+          transfers &
+        
+        CONTENDER_PID=$!
+        echo "CONTENDER_PID=$CONTENDER_PID" >> $GITHUB_ENV
+        
+        echo "Contender transaction spammer started"
+        
+        # Wait a bit for transactions to start flowing
+        sleep 20
+
+    - name: Wait for system to stabilize
+      run: |
+        echo "Waiting for the complete system to stabilize..."
+        echo "   - Playground services running"
+        echo "   - rbuilder building blocks"
+        echo "   - contender generating transactions"
+        
+        # Wait for a few blocks to be produced with transactions
+        sleep 60
+        
+        echo "System should be stable and producing MEV blocks"
+
+    - name: Run MEV-Boost integration tests
+      run: |
+        echo "Running MEV-boost integration tests..."
+        
+        # Set environment for tests
+        export MEV_BOOST_URL="http://localhost:18550"
+        export BEACON_NODE_URL="http://localhost:3500"
+        export RELAY_URL="http://localhost:5555"
+        
+        # Run the integration tests with timeout
+        timeout ${{ env.TEST_TIMEOUT }} go test -v ./server -run TestMEVBoostIntegration -timeout=10m
+        TEST_EXIT_CODE=$?
+        
+        if [ $TEST_EXIT_CODE -eq 0 ]; then
+          echo "Integration tests passed!"
+        else
+          echo "Integration tests failed with exit code $TEST_EXIT_CODE"
+          exit $TEST_EXIT_CODE
+        fi
+
+
+    - name: Cleanup
+      if: always()
+      run: |
+        echo "Cleaning up processes..."
+        
+        # Kill all background processes
+        [ ! -z "$PLAYGROUND_PID" ] && kill $PLAYGROUND_PID 2>/dev/null || true
+        [ ! -z "$RBUILDER_PID" ] && kill $RBUILDER_PID 2>/dev/null || true
+        [ ! -z "$CONTENDER_PID" ] && kill $CONTENDER_PID 2>/dev/null || true
+        
+        # Stop all docker containers
+        docker stop $(docker ps -q) 2>/dev/null || true
+        docker rm $(docker ps -aq) 2>/dev/null || true
+        
+        # Kill any remaining processes
+        pkill -f "rbuilder" 2>/dev/null || true
+        pkill -f "contender" 2>/dev/null || true
+        pkill -f "playground" 2>/dev/null || true
+        
+        echo "Cleanup completed"
