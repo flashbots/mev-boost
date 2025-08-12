@@ -153,7 +153,7 @@ jobs:
       run: |
         cd contender
         
-        # Start contender in background using cargo run (no duration limit - runs indefinitely)
+        # Start contender in background
         cargo run --bin contender -- spam \
           --tps 10 \
           -d 100 \
@@ -168,8 +168,8 @@ jobs:
         
         echo "Contender transaction spammer started"
         
-        # Wait briefly for contender to start generating transactions
-        sleep 3
+        # Wait a bit for transactions to start flowing
+        sleep 20
         
     - name: Run MEV-Boost integration tests
       run: |
