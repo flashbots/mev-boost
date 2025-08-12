@@ -156,6 +156,7 @@ jobs:
         # Start contender in background using cargo run (no duration limit - runs indefinitely)
         cargo run --bin contender -- spam \
           --tps 10 \
+          -d 100 \
           -r http://localhost:8545 \
           -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
           --min-balance 0.5eth \
