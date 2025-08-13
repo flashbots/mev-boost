@@ -8,27 +8,28 @@ on:
 
 env:
   RBUILDER_VERSION: v1.2.6
-  PLAYGROUND_TIMEOUT: 300s
-  TEST_TIMEOUT: 600s
+  PLAYGROUND_TIMEOUT: 180s  # Reduced from 300s
+  TEST_TIMEOUT: 300s        # Reduced from 600s
 
 jobs:
   integration-test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-latest-4-cores  # Use larger runner
+    timeout-minutes: 20             # Reduced from 30
 
     steps:
     - name: Checkout mev-boost
       uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5    # Updated to v5
       with:
         go-version: '1.24'
+        cache: true                # Enable Go module caching
 
     - name: Set up Rust
       uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: ${{ matrix.toolchain }}
+        toolchain: stable
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
