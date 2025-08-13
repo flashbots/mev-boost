@@ -184,6 +184,31 @@ jobs:
         echo "Final IPC file check:"
         ls -la "$HOME/.playground/devnet/volume-el-data/reth.ipc" || echo "IPC file still not found"
         
+        # CRITICAL: Check why execution layer didn't start
+        echo "🚨 DEBUGGING: Why is execution layer not running?"
+        
+        echo "All docker containers (including stopped):"
+        docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+        
+        echo "Checking docker-compose services in playground:"
+        cd $HOME/.playground/devnet
+        if [ -f "docker-compose.yaml" ]; then
+          echo "Docker compose file exists, checking services:"
+          docker-compose ps
+          echo "Checking for failed services:"
+          docker-compose logs --tail=20 || echo "No compose logs available"
+        else
+          echo "No docker-compose.yaml found"
+        fi
+        
+        echo "Checking if execution layer service should be running:"
+        grep -i "execution\|reth\|el" docker-compose.yaml || echo "No EL service found in compose"
+        
+        echo "Manual check if EL is accessible via HTTP:"
+        curl -s -X POST -H "Content-Type: application/json" \
+          --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+          http://localhost:8545 || echo "EL not accessible via HTTP either"
+        
         # Start rbuilder using pre-built binary
         ./target/release/rbuilder run config-playground.toml &
         RBUILDER_PID=$!
