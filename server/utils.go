@@ -194,7 +194,7 @@ func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phas
 		return false, err
 	}
 	signingData := phase0.SigningData{ObjectRoot: root, Domain: domain}
-	msg, err := dynSSZ.HashTreeRoot(signingData)
+	msg, err := dynSSZ.HashTreeRoot(&signingData)
 	if err != nil {
 		return false, err
 	}

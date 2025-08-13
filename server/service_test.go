@@ -131,6 +131,7 @@ func TestNewBoostServiceErrors(t *testing.T) {
 			RequestTimeoutGetPayload: time.Second,
 			RequestTimeoutRegVal:     time.Second,
 			RequestMaxRetries:        1,
+			MinimalPreset:            false,
 		})
 		require.Error(t, err)
 	})
