@@ -157,7 +157,7 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 				if parsedProposerContentType == MediaTypeOctetStream && !relaySupportsSSZ {
 					requestContentType = MediaTypeJSON
 					startTime := time.Now()
-					requestBytes, err = m.convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
+					requestBytes, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes, m.dynSSZ)
 					if err != nil {
 						log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
 						return nil, err
@@ -378,7 +378,7 @@ type canUnmarshalSSZ interface {
 }
 
 // convertSSZToJSON converts SSZ-encoded bytes to JSON based on the given ethConsensusVersion
-func (m *BoostService) convertSSZToJSON(ethConsensusVersion string, sszBytes []byte) ([]byte, error) {
+func convertSSZToJSON(ethConsensusVersion string, sszBytes []byte, dynSSZ *dynssz.DynSsz) ([]byte, error) {
 	var block canUnmarshalSSZ
 	switch ethConsensusVersion {
 	case EthConsensusVersionBellatrix:
@@ -393,7 +393,7 @@ func (m *BoostService) convertSSZToJSON(ethConsensusVersion string, sszBytes []b
 		return nil, errInvalidForkVersion
 	}
 	// Unmarshal the SSZ-encoded bytes into the block
-	if err := m.dynSSZ.UnmarshalSSZ(block, sszBytes); err != nil {
+	if err := dynSSZ.UnmarshalSSZ(block, sszBytes); err != nil {
 		return nil, err
 	}
 
