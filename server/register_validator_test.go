@@ -10,9 +10,11 @@ import (
 	"time"
 
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
+	eth2client "github.com/attestantio/go-eth2-client"
 	"github.com/flashbots/mev-boost/server/mock"
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
+	dynssz "github.com/pk910/dynamic-ssz"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
@@ -26,6 +28,7 @@ func TestHandleRegisterValidator_EmptyList(t *testing.T) {
 		relays:           []types.RelayEntry{relay.RelayEntry},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
+		dynSSZ:           dynssz.NewDynSsz(eth2client.MainnetPreset),
 	}
 
 	reqBody := bytes.NewBufferString("[]")
@@ -50,6 +53,7 @@ func TestHandleRegisterValidator_NotEmptyList(t *testing.T) {
 		relays:           []types.RelayEntry{relay.RelayEntry},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
+		dynSSZ:           dynssz.NewDynSsz(eth2client.MainnetPreset),
 	}
 
 	validatorRegistrations := []builderApiV1.SignedValidatorRegistration{
@@ -90,6 +94,7 @@ func TestHandleRegisterValidator_InvalidJSON(t *testing.T) {
 		relays:           []types.RelayEntry{relay.RelayEntry},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
+		dynSSZ:           dynssz.NewDynSsz(eth2client.MainnetPreset),
 	}
 
 	reqBody := bytes.NewBufferString("invalid json")
@@ -114,6 +119,7 @@ func TestHandleRegisterValidator_ValidSSZ(t *testing.T) {
 		relays:           []types.RelayEntry{relay.RelayEntry},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
+		dynSSZ:           dynssz.NewDynSsz(eth2client.MainnetPreset),
 	}
 
 	validatorRegistrations := builderApiV1.SignedValidatorRegistrations{
@@ -156,6 +162,7 @@ func TestHandleRegisterValidator_InvalidSSZ(t *testing.T) {
 		relays:           []types.RelayEntry{relay.RelayEntry},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
+		dynSSZ:           dynssz.NewDynSsz(eth2client.MainnetPreset),
 	}
 
 	reqBody := bytes.NewBufferString("invalid ssz")
@@ -186,6 +193,7 @@ func TestHandleRegisterValidator_MultipleRelaysOneSuccess(t *testing.T) {
 		relays:           []types.RelayEntry{badRelay.RelayEntry, relaySuccess.RelayEntry},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
+		dynSSZ:           dynssz.NewDynSsz(eth2client.MainnetPreset),
 	}
 
 	reqBody := bytes.NewBufferString("[]")
@@ -221,6 +229,7 @@ func TestHandleRegisterValidator_AllFail(t *testing.T) {
 		relays:           []types.RelayEntry{badRelay1.RelayEntry, badRelay2.RelayEntry},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
+		dynSSZ:           dynssz.NewDynSsz(eth2client.MainnetPreset),
 	}
 
 	reqBody := bytes.NewBufferString("[]")
@@ -247,6 +256,7 @@ func TestHandleRegisterValidator_RelayNetworkError(t *testing.T) {
 		relays:           []types.RelayEntry{relay.RelayEntry},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
+		dynSSZ:           dynssz.NewDynSsz(eth2client.MainnetPreset),
 	}
 
 	reqBody := bytes.NewBufferString("[]")
@@ -275,6 +285,7 @@ func TestHandleRegisterValidator_HeaderPropagation(t *testing.T) {
 		relays:           []types.RelayEntry{relay.RelayEntry},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
+		dynSSZ:           dynssz.NewDynSsz(eth2client.MainnetPreset),
 	}
 
 	reqBody := bytes.NewBufferString("[]")

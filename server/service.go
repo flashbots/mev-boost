@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	eth2client "github.com/attestantio/go-eth2-client"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-utils/httplogger"
@@ -21,6 +22,7 @@ import (
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	dynssz "github.com/pk910/dynamic-ssz"
 	"github.com/sirupsen/logrus"
 	goacceptheaders "github.com/timewasted/go-accept-headers"
 )
@@ -63,6 +65,7 @@ type BoostServiceOpts struct {
 	RequestTimeoutGetPayload time.Duration
 	RequestTimeoutRegVal     time.Duration
 	RequestMaxRetries        int
+	MinimalPreset            bool
 }
 
 // BoostService - the mev-boost service
@@ -86,6 +89,8 @@ type BoostService struct {
 
 	slotUID     *slotUID
 	slotUIDLock sync.Mutex
+
+	dynSSZ *dynssz.DynSsz
 }
 
 // NewBoostService created a new BoostService
@@ -99,6 +104,11 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		return nil, err
 	}
 
+	preset := eth2client.MainnetPreset
+	if opts.MinimalPreset {
+		preset = eth2client.MinimalPreset
+	}
+
 	return &BoostService{
 		listenAddr:  opts.ListenAddr,
 		relays:      opts.Relays,
@@ -108,6 +118,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		genesisTime: opts.GenesisTime,
 		bids:        make(map[string]bidResp),
 		slotUID:     &slotUID{},
+		dynSSZ:      dynssz.NewDynSsz(preset),
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{

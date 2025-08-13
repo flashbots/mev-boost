@@ -26,6 +26,7 @@ var flags = []cli.Flag{
 	sepoliaFlag,
 	holeskyFlag,
 	hoodiFlag,
+	minimalPresetFlag,
 	// relay
 	relaysFlag,
 	deprecatedRelayMonitorFlag,
@@ -120,6 +121,13 @@ var (
 		Name:     "hoodi",
 		Sources:  cli.EnvVars("HOODI"),
 		Usage:    "use Hoodi",
+		Category: GenesisCategory,
+	}
+	minimalPresetFlag = &cli.BoolFlag{
+		Name:     "minimal-preset",
+		Sources:  cli.EnvVars("MINIMAL_PRESET"),
+		Usage:    "use Minimal preset",
+		Value:    false,
 		Category: GenesisCategory,
 	}
 	// Relay
