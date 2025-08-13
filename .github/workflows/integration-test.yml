@@ -234,6 +234,22 @@ jobs:
         done
         
         echo "rbuilder started successfully"
+        
+        # Give rbuilder time to fully initialize and start monitoring
+        echo "Allowing rbuilder to fully initialize..."
+        sleep 10
+        
+        # Check rbuilder status and logs before running tests
+        echo "Checking rbuilder status before tests:"
+        if ps -p $RBUILDER_PID > /dev/null 2>&1; then
+          echo "✅ rbuilder is still running"
+          echo "Recent rbuilder logs:"
+          tail -20 rbuilder.log || echo "No recent logs"
+        else
+          echo "❌ rbuilder died after startup"
+          cat rbuilder.log
+          exit 1
+        fi
  
     - name: Run MEV-Boost integration tests
       run: |
@@ -252,6 +268,28 @@ jobs:
           echo "Integration tests passed!"
         else
           echo "Integration tests failed with exit code $TEST_EXIT_CODE"
+          
+          # Debug why tests failed
+          echo "=== POST-TEST DEBUGGING ==="
+          
+          echo "rbuilder process status:"
+          if ps -p $RBUILDER_PID > /dev/null 2>&1; then
+            echo "✅ rbuilder still running"
+          else
+            echo "❌ rbuilder died during tests"
+          fi
+          
+          echo "Recent rbuilder logs (last 50 lines):"
+          tail -50 /tmp/rbuilder/rbuilder.log || echo "No rbuilder logs found"
+          
+          echo "Checking relay for any bid activity:"
+          curl -s "http://localhost:5555/relay/v1/data/bidtraces/builder_blocks_received" | jq '.[0:3]' || echo "No relay bid data"
+          
+          echo "Checking if transactions reached rbuilder:"
+          curl -s -X POST -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","method":"txpool_status","params":[],"id":1}' \
+            http://localhost:8545 | jq . || echo "No txpool data"
+          
           exit $TEST_EXIT_CODE
         fi
     - name: Cleanup
