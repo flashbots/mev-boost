@@ -185,6 +185,13 @@ jobs:
         echo "All docker containers (including stopped):"
         docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
 
+        # Start rbuilder using pre-built binary
+        echo "Starting rbuilder..."
+        ./target/release/rbuilder run config-playground.toml &
+        RBUILDER_PID=$!
+        echo "RBUILDER_PID=$RBUILDER_PID" >> $GITHUB_ENV
+        echo "Started rbuilder with PID: $RBUILDER_PID"
+
         # Wait for rbuilder to actually start and begin processing
         echo "Waiting for rbuilder to start and connect to services..."
         sleep 15  # Brief wait for startup
