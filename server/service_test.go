@@ -1218,7 +1218,7 @@ func TestGetPayloadV2(t *testing.T) {
 		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
 
 		count := 0
-		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, req *http.Request) {
+		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
 			if count > 0 {
 				// success response on the second attempt
 				backend.relays[0].DefaultHandleGetPayloadV2(w)
@@ -1250,7 +1250,7 @@ func TestGetPayloadV2(t *testing.T) {
 		count := 0
 		maxRetries := 5
 
-		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, req *http.Request) {
+		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
 			count++
 			if count > maxRetries {
 				// success response after max retry attempts

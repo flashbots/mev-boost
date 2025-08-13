@@ -495,7 +495,7 @@ func (m *Relay) OverrideHandleGetPayload(method func(w http.ResponseWriter, req 
 	m.handlerOverrideGetPayload = method
 }
 
-func (m *Relay) OverrideHandleGetPayloadV2(method func(w http.ResponseWriter, _ *http.Request)) {
+func (m *Relay) OverrideHandleGetPayloadV2(method func(w http.ResponseWriter, req *http.Request)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
