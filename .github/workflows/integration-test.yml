@@ -151,6 +151,19 @@ jobs:
         echo "Looking for any reth-related files:"
         find $HOME/.playground/devnet/ -name "*reth*" 2>/dev/null || echo "No reth files found"
         
+        # Look for ALL IPC files anywhere in the system
+        echo "Searching for ANY IPC socket files:"
+        find $HOME/.playground/ -name "*.ipc" -type s 2>/dev/null || echo "No .ipc socket files found"
+        find /tmp -name "*.ipc" -type s 2>/dev/null || echo "No .ipc files in /tmp"
+        
+        # Check if reth process is actually running
+        echo "Checking if reth process is running:"
+        ps aux | grep reth || echo "No reth process found"
+        
+        # Check docker containers that might be running reth
+        echo "Checking docker containers:"
+        docker ps | grep -E "(reth|el)" || echo "No reth/el containers found"
+        
         # Start rbuilder using pre-built binary
         ./target/release/rbuilder run config-playground.toml &
         RBUILDER_PID=$!
