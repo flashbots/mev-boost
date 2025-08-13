@@ -164,6 +164,26 @@ jobs:
         echo "Checking docker containers:"
         docker ps | grep -E "(reth|el)" || echo "No reth/el containers found"
         
+        # If reth is in docker, check if IPC is mounted/accessible
+        echo "Checking docker volume mounts for IPC:"
+        docker inspect $(docker ps -q) 2>/dev/null | grep -A 5 -B 5 "ipc\|reth" || echo "No IPC mounts found"
+        
+        # Wait a bit more for IPC file to be created
+        echo "Waiting for IPC file to be created..."
+        for i in {1..30}; do
+          if [ -S "$HOME/.playground/devnet/volume-el-data/reth.ipc" ]; then
+            echo "✅ Found IPC file at attempt $i"
+            ls -la "$HOME/.playground/devnet/volume-el-data/reth.ipc"
+            break
+          fi
+          echo "Waiting for IPC file... ($i/30)"
+          sleep 2
+        done
+        
+        # Final check - what's the actual IPC path we should use?
+        echo "Final IPC file check:"
+        ls -la "$HOME/.playground/devnet/volume-el-data/reth.ipc" || echo "IPC file still not found"
+        
         # Start rbuilder using pre-built binary
         ./target/release/rbuilder run config-playground.toml &
         RBUILDER_PID=$!
