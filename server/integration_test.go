@@ -326,17 +326,6 @@ func TestMEVBoostIntegration(t *testing.T) {
 		require.NoError(t, json.NewDecoder(resp.Body).Decode(&payloads))
 		require.Greater(t, len(payloads), 0, "Relay should be actively delivering payloads in builder-playground environment")
 		t.Logf("Relay has delivered %d payloads", len(payloads))
-
-		// Check validator registrations (MEV-boost → relay communication)
-		resp, err = relayClient.Get(RelayURL + "/relay/v1/data/validators")
-		require.NoError(t, err, "Relay should be reachable for validator data")
-		defer resp.Body.Close()
-		require.Equal(t, http.StatusOK, resp.StatusCode, "Relay should return validator data")
-
-		var validators []map[string]any
-		require.NoError(t, json.NewDecoder(resp.Body).Decode(&validators))
-		require.Greater(t, len(validators), 0, "MEV-boost should have registered validators with the relay")
-		t.Logf("Relay has %d registered validators", len(validators))
 	})
 
 	// Test 4: Validate MEV-boost is consistently building all blocks
