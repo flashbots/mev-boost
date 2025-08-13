@@ -199,9 +199,9 @@ jobs:
         echo "Testing IPC connection:"
         timeout 5 socat - UNIX-CONNECT:"${HOME}/.playground/devnet/volume-el-data/reth.ipc" <<< '{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":1}' || echo "IPC connection test failed"
         
-        # Start rbuilder using pre-built binary with logging
-        echo "Starting rbuilder with full logging..."
-        ./target/release/rbuilder run config-playground.toml 2>&1 | tee rbuilder.log &
+        # Start rbuilder using pre-built binary with logging (run as root to access reth db)
+        echo "Starting rbuilder with full logging (as root for db access)..."
+        sudo ./target/release/rbuilder run config-playground.toml 2>&1 | tee rbuilder.log &
         RBUILDER_PID=$!
         echo "RBUILDER_PID=$RBUILDER_PID" >> $GITHUB_ENV
         echo "Started rbuilder with PID: $RBUILDER_PID"
