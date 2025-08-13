@@ -13,8 +13,13 @@ env:
 
 jobs:
   integration-test:
-    runs-on: ubuntu-latest-4-cores  # Use larger runner
-    timeout-minutes: 20             # Reduced from 30
+    runs-on: warp-ubuntu-latest-x64-32x
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+        features:
+          - ""
 
     steps:
     - name: Checkout mev-boost
