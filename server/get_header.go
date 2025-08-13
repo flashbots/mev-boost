@@ -279,6 +279,10 @@ func decodeBid(respBytes []byte, respContentType, ethConsensusVersion string, bi
 				bid.Version = spec.DataVersionElectra
 				bid.Electra = new(builderApiElectra.SignedBuilderBid)
 				return bid.Electra.UnmarshalSSZ(respBytes)
+			case EthConsensusVersionFulu:
+				bid.Version = spec.DataVersionFulu
+				bid.Fulu = new(builderApiElectra.SignedBuilderBid)
+				return bid.Fulu.UnmarshalSSZ(respBytes)
 			default:
 				return errInvalidForkVersion
 			}
@@ -322,6 +326,9 @@ func (m *BoostService) respondGetHeaderSSZ(w http.ResponseWriter, result *bidRes
 	case spec.DataVersionElectra:
 		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionElectra)
 		sszData, err = result.response.Electra.MarshalSSZ()
+	case spec.DataVersionFulu:
+		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionFulu)
+		sszData, err = result.response.Fulu.MarshalSSZ()
 	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
 		err = errInvalidForkVersion
 	}

@@ -64,6 +64,7 @@ type Relay struct {
 	handlerOverrideRegisterValidator func(w http.ResponseWriter, req *http.Request)
 	handlerOverrideGetHeader         func(w http.ResponseWriter, req *http.Request)
 	handlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
+	handlerOverrideGetPayloadV2      func(w http.ResponseWriter, req *http.Request)
 
 	// Default responses placeholders, used if overrider does not exist
 	GetHeaderResponse  *builderSpec.VersionedSignedBuilderBid
@@ -127,6 +128,7 @@ func (m *Relay) getRouter() http.Handler {
 	r.HandleFunc(params.PathRegisterValidator, m.handleRegisterValidator).Methods(http.MethodPost)
 	r.HandleFunc(params.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	r.HandleFunc(params.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
+	r.HandleFunc(params.PathGetPayloadV2, m.handleGetPayloadV2).Methods(http.MethodPost)
 
 	return m.newTestMiddleware(r)
 }
@@ -272,6 +274,31 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 				Signature: signature,
 			},
 		}
+	case spec.DataVersionFulu:
+		message := &builderApiElectra.BuilderBid{
+			Header: &deneb.ExecutionPayloadHeader{
+				BlockHash:       HexToHash(blockHash),
+				ParentHash:      HexToHash(parentHash),
+				WithdrawalsRoot: phase0.Root{},
+				BaseFeePerGas:   uint256.NewInt(0),
+			},
+			BlobKZGCommitments: make([]deneb.KZGCommitment, 0),
+			ExecutionRequests:  &electra.ExecutionRequests{},
+			Value:              uint256.NewInt(value),
+			Pubkey:             HexToPubkey(publicKey),
+		}
+
+		// Sign the message.
+		signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
+		require.NoError(m.t, err)
+
+		return &builderSpec.VersionedSignedBuilderBid{
+			Version: spec.DataVersionFulu,
+			Fulu: &builderApiElectra.SignedBuilderBid{
+				Message:   message,
+				Signature: signature,
+			},
+		}
 	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix:
 		return nil
 	}
@@ -378,6 +405,18 @@ func (m *Relay) handleGetPayload(w http.ResponseWriter, req *http.Request) {
 	m.DefaultHandleGetPayload(w, req)
 }
 
+// handleGetPayloadV2 handles incoming requests to server.pathGetPayloadV2
+func (m *Relay) handleGetPayloadV2(w http.ResponseWriter, req *http.Request) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// Try to override default behavior is custom handler is specified.
+	if m.handlerOverrideGetPayloadV2 != nil {
+		m.handlerOverrideGetPayloadV2(w, req)
+		return
+	}
+	m.DefaultHandleGetPayloadV2(w)
+}
+
 // DefaultHandleGetPayload returns the default handler for handleGetPayload
 func (m *Relay) DefaultHandleGetPayload(w http.ResponseWriter, req *http.Request) {
 	// Build the default response.
@@ -436,6 +475,12 @@ func (m *Relay) DefaultHandleGetPayload(w http.ResponseWriter, req *http.Request
 	}
 }
 
+// DefaultHandleGetPayloadV2 returns the default handler for handleGetPayload
+func (m *Relay) DefaultHandleGetPayloadV2(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+}
+
 func (m *Relay) OverrideHandleRegisterValidator(method func(w http.ResponseWriter, req *http.Request)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -448,4 +493,11 @@ func (m *Relay) OverrideHandleGetPayload(method func(w http.ResponseWriter, req 
 	defer m.mu.Unlock()
 
 	m.handlerOverrideGetPayload = method
+}
+
+func (m *Relay) OverrideHandleGetPayloadV2(method func(w http.ResponseWriter, req *http.Request)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.handlerOverrideGetPayloadV2 = method
 }

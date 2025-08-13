@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +19,7 @@ import (
 
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	builderApiFulu "github.com/attestantio/go-builder-client/api/fulu"
 	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
 	eth2Api "github.com/attestantio/go-eth2-client/api"
@@ -32,6 +34,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	eth2UtilBellatrix "github.com/attestantio/go-eth2-client/util/bellatrix"
+	"github.com/flashbots/mev-boost/common"
 	"github.com/flashbots/mev-boost/server/mock"
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
@@ -797,6 +800,7 @@ func TestGetPayload(t *testing.T) {
 	t.Run("Okay response from relay in JSON", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
 
 		backend := newTestBackend(t, 1, time.Second)
 
@@ -1022,6 +1026,7 @@ func TestGetPayload(t *testing.T) {
 	t.Run("Bad response from relays", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
 
 		backend := newTestBackend(t, 2, time.Second)
 
@@ -1070,6 +1075,7 @@ func TestGetPayload(t *testing.T) {
 	t.Run("Retries on error from relay", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
 
 		backend := newTestBackend(t, 1, 2*time.Second)
 
@@ -1099,6 +1105,7 @@ func TestGetPayload(t *testing.T) {
 	t.Run("Error after max retries are reached", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
 
 		backend := newTestBackend(t, 1, time.Second)
 
@@ -1117,6 +1124,137 @@ func TestGetPayload(t *testing.T) {
 			if count > maxRetries {
 				// success response after max retry attempts
 				backend.relays[0].DefaultHandleGetPayload(w, req)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
+				require.NoError(t, err, "failed to write error response") //nolint:testifylint // if we fail here the test is compromised
+			}
+		})
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, 5, backend.relays[0].GetRequestCount(path))
+		require.JSONEq(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
+		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
+}
+
+func TestGetPayloadV2(t *testing.T) {
+	path := params.PathGetPayloadV2
+	blockHash := mock.HexToHash("0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46")
+	payload := &eth2ApiV1Deneb.SignedBlindedBeaconBlock{
+		Signature: mock.HexToSignature(
+			"0x8c795f751f812eabbabdee85100a06730a9904a4b53eedaa7f546fe0e23cd75125e293c6b0d007aa68a9da4441929d16072668abb4323bb04ac81862907357e09271fe414147b3669509d91d8ffae2ec9c789a5fcd4519629b8f2c7de8d0cce9"),
+		Message: &eth2ApiV1Deneb.BlindedBeaconBlock{
+			Slot:          1,
+			ProposerIndex: 1,
+			ParentRoot:    phase0.Root{0x01},
+			StateRoot:     phase0.Root{0x02},
+			Body: &eth2ApiV1Deneb.BlindedBeaconBlockBody{
+				RANDAOReveal: phase0.BLSSignature{0xa1},
+				ETH1Data: &phase0.ETH1Data{
+					BlockHash: blockHash[:],
+				},
+				Graffiti: phase0.Hash32{0xa2},
+				SyncAggregate: &altair.SyncAggregate{
+					SyncCommitteeBits: bitfield.NewBitvector512(),
+				},
+				ProposerSlashings: []*phase0.ProposerSlashing{},
+				AttesterSlashings: []*phase0.AttesterSlashing{},
+				Attestations:      []*phase0.Attestation{},
+				Deposits:          []*phase0.Deposit{},
+				VoluntaryExits:    []*phase0.SignedVoluntaryExit{},
+				ExecutionPayloadHeader: &deneb.ExecutionPayloadHeader{
+					ParentHash:    mock.HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7"),
+					BlockHash:     blockHash,
+					BlockNumber:   12345,
+					FeeRecipient:  mock.HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+					BaseFeePerGas: uint256.NewInt(100),
+				},
+			},
+		},
+	}
+
+	t.Run("Returns accepted response without payload", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Empty(t, rr.Body.String(), "v2 endpoint should not return payload")
+	})
+
+	t.Run("Returns error when no relay responds", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusBadGateway, rr.Code)
+		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Retries on error from relay", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 1, 2*time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		count := 0
+		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
+			if count > 0 {
+				// success response on the second attempt
+				backend.relays[0].DefaultHandleGetPayloadV2(w)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
+				require.NoError(t, err, "failed to write error response") //nolint:testifylint // if we fail here the test is compromised
+			}
+			count++
+		})
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
+	})
+
+	t.Run("Error after max retries are reached", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		count := 0
+		maxRetries := 5
+
+		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
+			count++
+			if count > maxRetries {
+				// success response after max retry attempts
+				backend.relays[0].DefaultHandleGetPayloadV2(w)
 			} else {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
@@ -1175,9 +1313,13 @@ func TestEmptyTxRoot(t *testing.T) {
 	require.Equal(t, "0x7ffe241ea60187fdb0187bfa22de35d1f9bed7ab061d9401fd47e34a54fbede1", txRootHex)
 }
 
-func blindedBlockToBlockResponse(signedBlock any) *builderApi.VersionedSubmitBlindedBlockResponse {
-	switch block := signedBlock.(type) {
-	case *eth2ApiV1Bellatrix.SignedBlindedBeaconBlock:
+func blindedBlockToBlockResponse(signedBlock any, version spec.DataVersion) *builderApi.VersionedSubmitBlindedBlockResponse {
+	switch version {
+	case spec.DataVersionBellatrix:
+		block, ok := signedBlock.(*eth2ApiV1Bellatrix.SignedBlindedBeaconBlock)
+		if !ok {
+			panic("failed to convert block")
+		}
 		header := block.Message.Body.ExecutionPayloadHeader
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionBellatrix,
@@ -1198,7 +1340,11 @@ func blindedBlockToBlockResponse(signedBlock any) *builderApi.VersionedSubmitBli
 				Transactions:  make([]bellatrix.Transaction, 0),
 			},
 		}
-	case *eth2ApiV1Capella.SignedBlindedBeaconBlock:
+	case spec.DataVersionCapella:
+		block, ok := signedBlock.(*eth2ApiV1Capella.SignedBlindedBeaconBlock)
+		if !ok {
+			panic("failed to convert block")
+		}
 		header := block.Message.Body.ExecutionPayloadHeader
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionCapella,
@@ -1220,20 +1366,41 @@ func blindedBlockToBlockResponse(signedBlock any) *builderApi.VersionedSubmitBli
 				Withdrawals:   make([]*capella.Withdrawal, 0),
 			},
 		}
-	case *eth2ApiV1Deneb.SignedBlindedBeaconBlock:
+	case spec.DataVersionDeneb:
+		block, ok := signedBlock.(*eth2ApiV1Deneb.SignedBlindedBeaconBlock)
+		if !ok {
+			panic("failed to convert block")
+		}
 		header := block.Message.Body.ExecutionPayloadHeader
 		commitments := block.Message.Body.BlobKZGCommitments
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionDeneb,
 			Deneb:   denebExecutionPayloadAndBlobsBundle(header, commitments),
 		}
-	case *eth2ApiV1Electra.SignedBlindedBeaconBlock:
+	case spec.DataVersionElectra:
+		block, ok := signedBlock.(*eth2ApiV1Electra.SignedBlindedBeaconBlock)
+		if !ok {
+			panic("failed to convert block")
+		}
 		header := block.Message.Body.ExecutionPayloadHeader
 		commitments := block.Message.Body.BlobKZGCommitments
 		return &builderApi.VersionedSubmitBlindedBlockResponse{
 			Version: spec.DataVersionElectra,
 			Electra: denebExecutionPayloadAndBlobsBundle(header, commitments),
 		}
+	case spec.DataVersionFulu:
+		block, ok := signedBlock.(*eth2ApiV1Electra.SignedBlindedBeaconBlock)
+		if !ok {
+			panic("failed to convert block")
+		}
+		header := block.Message.Body.ExecutionPayloadHeader
+		commitments := block.Message.Body.BlobKZGCommitments
+		return &builderApi.VersionedSubmitBlindedBlockResponse{
+			Version: spec.DataVersionFulu,
+			Fulu:    fuluExecutionPayloadAndBlobsBundle(header, commitments),
+		}
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+		panic("unknown data version")
 	}
 	return nil
 }
@@ -1245,6 +1412,7 @@ func denebExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, k
 	// For testing, proofs and blobs are not populated
 	proofs := make([]deneb.KZGProof, numBlobs)
 	blobs := make([]deneb.Blob, numBlobs)
+
 	return &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
 		ExecutionPayload: &deneb.ExecutionPayload{
 			ParentHash:    header.ParentHash,
@@ -1273,11 +1441,44 @@ func denebExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, k
 	}
 }
 
+func fuluExecutionPayloadAndBlobsBundle(header *deneb.ExecutionPayloadHeader, kzgCommitments []deneb.KZGCommitment) *builderApiFulu.ExecutionPayloadAndBlobsBundle {
+	numBlobs := len(kzgCommitments)
+	commitments := make([]deneb.KZGCommitment, numBlobs)
+	copy(commitments, kzgCommitments)
+	// For testing, proofs and blobs are not populated
+	proofs := make([]deneb.KZGProof, 0, numBlobs*common.CellsPerExtBlob)
+	blobs := make([]deneb.Blob, numBlobs)
+
+	return &builderApiFulu.ExecutionPayloadAndBlobsBundle{
+		ExecutionPayload: &deneb.ExecutionPayload{
+			ParentHash:    header.ParentHash,
+			FeeRecipient:  header.FeeRecipient,
+			StateRoot:     header.StateRoot,
+			ReceiptsRoot:  header.ReceiptsRoot,
+			LogsBloom:     header.LogsBloom,
+			PrevRandao:    header.PrevRandao,
+			BlockNumber:   header.BlockNumber,
+			GasLimit:      header.GasLimit,
+			GasUsed:       header.GasUsed,
+			Timestamp:     header.Timestamp,
+			ExtraData:     header.ExtraData,
+			BaseFeePerGas: header.BaseFeePerGas,
+			BlockHash:     header.BlockHash,
+			Transactions:  make([]bellatrix.Transaction, 0),
+			Withdrawals:   make([]*capella.Withdrawal, 0),
+			BlobGasUsed:   header.BlobGasUsed,
+			ExcessBlobGas: header.ExcessBlobGas,
+		},
+		BlobsBundle: &builderApiFulu.BlobsBundle{
+			Commitments: commitments,
+			Proofs:      proofs,
+			Blobs:       blobs,
+		},
+	}
+}
+
 func TestGetPayloadForks(t *testing.T) {
 	t.Parallel()
-
-	header := http.Header{}
-	header.Set("Accept", "application/json")
 
 	// Get a list of testdata files
 	pattern := "../testdata/signed-blinded-beacon-block-*.json"
@@ -1294,12 +1495,22 @@ func TestGetPayloadForks(t *testing.T) {
 			jsonBytes, err := os.ReadFile(file)
 			require.NoError(t, err)
 
+			re := regexp.MustCompile(`^.*signed-blinded-beacon-block-(.+)\.json$`)
+			matches := re.FindStringSubmatch(file)
+			require.Len(t, matches, 2, "filename did not match expected pattern")
+			consensusVersion := matches[1]
+
+			header := http.Header{}
+			header.Set("Accept", "application/json")
+			header.Set("Content-Type", "application/json")
+			header.Set("Eth-Consensus-Version", consensusVersion)
+
 			// Create a new backend
 			backend := newTestBackend(t, 1, time.Second)
 
 			// Decode the block
 			block := new(eth2Api.VersionedSignedBlindedBeaconBlock)
-			err = decodeSignedBlindedBeaconBlock(jsonBytes, MediaTypeJSON, "", block)
+			err = decodeSignedBlindedBeaconBlock(jsonBytes, MediaTypeJSON, consensusVersion, block)
 			require.NoError(t, err)
 
 			// Get the request slot and block hash
@@ -1326,12 +1537,14 @@ func TestGetPayloadForks(t *testing.T) {
 				payload = block.Deneb
 			case spec.DataVersionElectra:
 				payload = block.Electra
+			case spec.DataVersionFulu:
+				payload = block.Fulu
 			case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
 				require.Fail(t, "unsupported version")
 			}
 
 			// Configure the relay's expected response and send the request
-			backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(payload)
+			backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(payload, block.Version)
 			rr := backend.request(t, http.MethodPost, params.PathGetPayload, header, payload)
 
 			// Validate the response
@@ -1349,6 +1562,7 @@ func TestGetPayloadForks(t *testing.T) {
 func TestGetPayloadToAllRelays(t *testing.T) {
 	header := make(http.Header)
 	header.Set(HeaderAccept, MediaTypeJSON)
+	header.Set("Eth-Consensus-Version", "deneb")
 
 	// Load the signed blinded beacon block used for getPayload
 	jsonFile, err := os.Open("../testdata/signed-blinded-beacon-block-deneb.json")
@@ -1382,7 +1596,7 @@ func TestGetPayloadToAllRelays(t *testing.T) {
 	require.Equal(t, 1, backend.relays[1].GetRequestCount(getHeaderPath))
 
 	// Prepare getPayload response
-	backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(signedBlindedBeaconBlock)
+	backend.relays[0].GetPayloadResponse = blindedBlockToBlockResponse(signedBlindedBeaconBlock, spec.DataVersionDeneb)
 
 	// call getPayload, ensure it's called to all relays
 	rr = backend.request(t, http.MethodPost, params.PathGetPayload, header, signedBlindedBeaconBlock)
