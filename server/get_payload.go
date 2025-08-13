@@ -227,7 +227,7 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 
 			// Decode response
 			response := new(builderApi.VersionedSubmitBlindedBlockResponse)
-			err = m.decodeSubmitBlindedBlockResponse(respBytes, respContentType, respEthConsensusVersion, response)
+			err = decodeSubmitBlindedBlockResponse(respBytes, respContentType, respEthConsensusVersion, response, m.dynSSZ)
 			if err != nil {
 				log.WithError(err).Warn("error decoding bid")
 				return
@@ -466,7 +466,7 @@ func decodeSignedBlindedBeaconBlock(in []byte, contentType, ethConsensusVersion 
 }
 
 // decodeSubmitBlindedBlockResponse will decode the response contents in either JSON or SSZ
-func (m *BoostService) decodeSubmitBlindedBlockResponse(in []byte, contentType, ethConsensusVersion string, out *builderApi.VersionedSubmitBlindedBlockResponse) error {
+func decodeSubmitBlindedBlockResponse(in []byte, contentType, ethConsensusVersion string, out *builderApi.VersionedSubmitBlindedBlockResponse, dynSSZ *dynssz.DynSsz) error {
 	switch contentType {
 	case MediaTypeOctetStream:
 		if ethConsensusVersion != "" {
@@ -474,19 +474,19 @@ func (m *BoostService) decodeSubmitBlindedBlockResponse(in []byte, contentType, 
 			case EthConsensusVersionBellatrix:
 				out.Version = spec.DataVersionBellatrix
 				out.Bellatrix = new(bellatrix.ExecutionPayload)
-				return m.dynSSZ.UnmarshalSSZ(out.Bellatrix, in)
+				return dynSSZ.UnmarshalSSZ(out.Bellatrix, in)
 			case EthConsensusVersionCapella:
 				out.Version = spec.DataVersionCapella
 				out.Capella = new(capella.ExecutionPayload)
-				return m.dynSSZ.UnmarshalSSZ(out.Capella, in)
+				return dynSSZ.UnmarshalSSZ(out.Capella, in)
 			case EthConsensusVersionDeneb:
 				out.Version = spec.DataVersionDeneb
 				out.Deneb = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
-				return m.dynSSZ.UnmarshalSSZ(out.Deneb, in)
+				return dynSSZ.UnmarshalSSZ(out.Deneb, in)
 			case EthConsensusVersionElectra:
 				out.Version = spec.DataVersionElectra
 				out.Electra = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
-				return m.dynSSZ.UnmarshalSSZ(out.Electra, in)
+				return dynSSZ.UnmarshalSSZ(out.Electra, in)
 			default:
 				return errInvalidForkVersion
 			}
