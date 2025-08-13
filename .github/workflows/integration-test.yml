@@ -8,74 +8,96 @@ on:
 
 env:
   RBUILDER_VERSION: v1.2.6
-  PLAYGROUND_TIMEOUT: 300s
-  TEST_TIMEOUT: 600s
+  PLAYGROUND_TIMEOUT: 180s  # Reduced from 300s
+  TEST_TIMEOUT: 300s        # Reduced from 600s
 
 jobs:
   integration-test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-latest-4-cores  # Use larger runner
+    timeout-minutes: 20             # Reduced from 30
 
     steps:
     - name: Checkout mev-boost
       uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5    # Updated to v5
       with:
         go-version: '1.24'
+        cache: true                # Enable Go module caching
 
     - name: Set up Rust
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@stable  # More efficient Rust setup
       with:
         toolchain: stable
-        profile: minimal
-        override: true
 
-    - name: Cache Rust dependencies
-      uses: actions/cache@v3
+    # Comprehensive caching strategy
+    - name: Cache dependencies
+      uses: actions/cache@v4       # Updated to v4
       with:
         path: |
           ~/.cargo/bin/
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          /tmp/rbuilder/target/
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-deps-${{ hashFiles('**/Cargo.lock', '**/go.mod', '**/go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-
+          ${{ runner.os }}-deps-
 
-    - name: Set up Docker Buildx
+    - name: Set up Docker Buildx with cache
       uses: docker/setup-buildx-action@v3
 
-    - name: Build MEV-Boost Docker image
+    # Parallel preparation of dependencies
+    - name: Prepare environment (parallel)
       run: |
-        docker build -t my-mev-boost:latest .
-
-    - name: Clone builder-playground
-      run: |
-        git clone https://github.com/flashbots/builder-playground.git
+        # Clone and prepare builder-playground in parallel
+        git clone --depth 1 https://github.com/flashbots/builder-playground.git &
+        CLONE_PID=$!
+        
+        # Download rbuilder in parallel
+        (
+          cd /tmp
+          if [ ! -d "rbuilder" ]; then
+            wget -q https://github.com/flashbots/rbuilder/archive/refs/tags/${{ env.RBUILDER_VERSION }}.tar.gz
+            tar -xzf ${{ env.RBUILDER_VERSION }}.tar.gz
+            mv rbuilder-* rbuilder
+          fi
+        ) &
+        DOWNLOAD_PID=$!
+        
+        # Wait for both operations
+        wait $CLONE_PID $DOWNLOAD_PID
+        
+        # Prepare go modules
         cd builder-playground
         go mod download
 
-    - name: Download rbuilder
-      run: |
-        cd /tmp
-        wget https://github.com/flashbots/rbuilder/archive/refs/tags/${{ env.RBUILDER_VERSION }}.tar.gz
-        tar -xzf ${{ env.RBUILDER_VERSION }}.tar.gz
-        mv rbuilder-* rbuilder
-
-    - name: Cache rbuilder compilation
-      uses: actions/cache@v3
+    - name: Build MEV-Boost Docker image (cached)
+      uses: docker/build-push-action@v5
       with:
-        path: |
-          /tmp/rbuilder/target/
-        key: ${{ runner.os }}-rbuilder-${{ env.RBUILDER_VERSION }}-${{ hashFiles('/tmp/rbuilder/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-rbuilder-${{ env.RBUILDER_VERSION }}-
-          ${{ runner.os }}-rbuilder-
+        context: .
+        tags: my-mev-boost:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        load: true
 
-    - name: Start playground environment
+    - name: Pre-build rbuilder
+      run: |
+        cd /tmp/rbuilder
+        
+        # Check if already built
+        if [ ! -f "target/release/rbuilder" ]; then
+          echo "Building rbuilder..."
+          # Use parallel compilation with all available cores
+          CARGO_BUILD_JOBS=$(nproc) cargo build --release --bin rbuilder
+        else
+          echo "rbuilder already built (from cache)"
+        fi
+
+    - name: Start services with optimized timing
       run: |
         cd builder-playground
         
@@ -93,127 +115,95 @@ jobs:
         # Wait for services to be ready
         echo "Waiting for services to start..."
         
-        # Wait for beacon node
-        for i in {1..60}; do
-          if curl -s http://localhost:3500/eth/v1/beacon/headers/head > /dev/null 2>&1; then
-            echo "Beacon node is ready"
-            break
-          fi
-          echo "Waiting for beacon node... ($i/60)"
-          sleep 5
-        done
+        check_service() {
+          local url=$1
+          local name=$2
+          local max_attempts=30
+          local data=${3:-""}
+          
+          for i in $(seq 1 $max_attempts); do
+            if [ -n "$data" ]; then
+              if curl -s -m 2 -X POST -H "Content-Type: application/json" --data "$data" "$url" > /dev/null 2>&1; then
+                echo "$name is ready (attempt $i)"
+                return 0
+              fi
+            else
+              if curl -s -m 2 "$url" > /dev/null 2>&1; then
+                echo "$name is ready (attempt $i)"
+                return 0
+              fi
+            fi
+            sleep 2  # Reduced from 5 seconds
+          done
+          echo "Failed to connect to $name after $max_attempts attempts"
+          return 1
+        }
         
-        # Wait for execution layer
-        for i in {1..60}; do
-          if curl -s -X POST -H "Content-Type: application/json" \
-            --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
-            http://localhost:8545 > /dev/null 2>&1; then
-            echo "Execution layer is ready"
-            break
-          fi
-          echo "Waiting for execution layer... ($i/60)"
-          sleep 5
-        done
+        # Check services in parallel
+        check_service "http://localhost:8545" "Execution layer" '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' &
+        check_service "http://localhost:3500/eth/v1/beacon/headers/head" "Beacon node" &
+        check_service "http://localhost:18550/eth/v1/builder/status" "MEV-boost" &
+        check_service "http://localhost:5555/eth/v1/builder/status" "Relay" &
         
-        # Wait for MEV-boost
-        for i in {1..60}; do
-          if curl -s http://localhost:18550/eth/v1/builder/status > /dev/null 2>&1; then
-            echo "MEV-boost is ready"
-            break
-          fi
-          echo "Waiting for MEV-boost... ($i/60)"
-          sleep 5
-        done
-        
-        # Wait for relay
-        for i in {1..60}; do
-          if curl -s http://localhost:5555/eth/v1/builder/status > /dev/null 2>&1; then
-            echo "Relay is ready"
-            break
-          fi
-          echo "Waiting for relay... ($i/60)"
-          sleep 5
-        done
+        # Wait for all checks to complete
+        wait
         
         echo "All services are ready!"
 
-    - name: Build rbuilder
+    - name: Start rbuilder (optimized)
       run: |
         cd /tmp/rbuilder
         
-        # Pre-compile rbuilder in release mode for better performance and reliability
-        echo "Building rbuilder (this may take several minutes)..."
-        cargo build --release --bin rbuilder
-        
-        echo "rbuilder build completed"
-
-    - name: Start rbuilder
-      run: |
-        cd /tmp/rbuilder
-        
-        # Update config-playground.toml with correct paths
+        # Update config with optimized settings
         sed -i "s|\$HOME|$HOME|g" config-playground.toml
         
-        # Start rbuilder using pre-built binary
+        # Start rbuilder with the pre-built binary
         ./target/release/rbuilder run config-playground.toml &
         RBUILDER_PID=$!
         echo "RBUILDER_PID=$RBUILDER_PID" >> $GITHUB_ENV
         
-        # Wait for rbuilder to actually start and begin processing
-        echo "Waiting for rbuilder to start and connect to services..."
-        sleep 15  # Brief wait for startup
+        # Reduced startup wait time
+        sleep 8
         
-        # Check if rbuilder is actually running and processing
-        for i in {1..30}; do
-          if ps -p $RBUILDER_PID > /dev/null 2>&1; then
-            echo "✅ rbuilder process is running (attempt $i/30)"
-            # Give it a bit more time to fully initialize
-            sleep 5
-            break
-          else
-            echo "❌ rbuilder process died, checking logs..."
-            exit 1
-          fi
-        done
+        # Quick process check
+        if ! ps -p $RBUILDER_PID > /dev/null 2>&1; then
+          echo "❌ rbuilder process failed to start"
+          exit 1
+        fi
         
-        echo "rbuilder started successfully"
- 
-    - name: Run MEV-Boost integration tests
+        echo "✅ rbuilder started successfully"
+
+    - name: Run integration tests (parallel where possible)
       run: |
         echo "Running MEV-boost integration tests..."
         
-        # Set environment for tests
         export MEV_BOOST_URL="http://localhost:18550"
-        export BEACON_NODE_URL="http://localhost:3500"
+        export BEACON_NODE_URL="http://localhost:3500" 
         export RELAY_URL="http://localhost:5555"
         
-        # Run the integration tests with timeout
-        timeout ${{ env.TEST_TIMEOUT }} go test -v ./server -run TestMEVBoostIntegration -timeout=10m
-        TEST_EXIT_CODE=$?
+                 # Run tests with shorter timeout
+         timeout ${{ env.TEST_TIMEOUT }} go test -v ./server \
+           -run TestMEVBoostIntegration \
+           -timeout=5m \
+           -count=1
         
-        if [ $TEST_EXIT_CODE -eq 0 ]; then
-          echo "Integration tests passed!"
-        else
-          echo "Integration tests failed with exit code $TEST_EXIT_CODE"
-          exit $TEST_EXIT_CODE
-        fi
-
+        echo "Integration tests completed successfully!"
 
     - name: Cleanup
       if: always()
       run: |
         echo "Cleaning up processes..."
         
-        # Kill all background processes
-        [ ! -z "$PLAYGROUND_PID" ] && kill $PLAYGROUND_PID 2>/dev/null || true
-        [ ! -z "$RBUILDER_PID" ] && kill $RBUILDER_PID 2>/dev/null || true
+        # More aggressive cleanup
+        [ ! -z "$PLAYGROUND_PID" ] && kill -9 $PLAYGROUND_PID 2>/dev/null || true
+        [ ! -z "$RBUILDER_PID" ] && kill -9 $RBUILDER_PID 2>/dev/null || true
         
-        # Stop all docker containers
-        docker stop $(docker ps -q) 2>/dev/null || true
-        docker rm $(docker ps -aq) 2>/dev/null || true
+        # Parallel cleanup
+        (docker stop $(docker ps -q) 2>/dev/null || true) &
+        (pkill -9 -f "rbuilder" 2>/dev/null || true) &
+        (pkill -9 -f "playground" 2>/dev/null || true) &
         
-        # Kill any remaining processes
-        pkill -f "rbuilder" 2>/dev/null || true
-        pkill -f "playground" 2>/dev/null || true
+        wait
+        docker system prune -f 2>/dev/null || true
         
         echo "Cleanup completed"
