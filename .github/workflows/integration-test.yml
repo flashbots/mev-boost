@@ -71,12 +71,12 @@ jobs:
         
         # Start the playground in background
         timeout ${{ env.PLAYGROUND_TIMEOUT }} go run main.go cook l1 \
+          --contender \
           --genesis-delay 15 \
           --log-level debug \
           --use-native-reth \
           --use-separate-mev-boost \
-          --override mev-boost=my-mev-boost:latest \
-          --contender &
+          --override mev-boost=my-mev-boost:latest &
         
         PLAYGROUND_PID=$!
         echo "PLAYGROUND_PID=$PLAYGROUND_PID" >> $GITHUB_ENV
