@@ -134,6 +134,13 @@ jobs:
         # Update config-playground.toml with correct paths
         sed -i "s|\$HOME|$HOME|g" config-playground.toml
         
+        # Update reth datadir and IPC paths to match playground structure (with actual expanded paths)
+        sed -i "s|reth_datadir = \".*\"|reth_datadir = \"${HOME}/.playground/devnet/volume-el-data\"|g" config-playground.toml
+        sed -i "s|el_node_ipc_path = \".*\"|el_node_ipc_path = \"${HOME}/.playground/devnet/volume-el-data/reth.ipc\"|g" config-playground.toml
+        
+        echo "Updated rbuilder config paths:"
+        grep -E "(reth_datadir|el_node_ipc_path)" config-playground.toml
+        
         # Start rbuilder using pre-built binary
         ./target/release/rbuilder run config-playground.toml &
         RBUILDER_PID=$!
