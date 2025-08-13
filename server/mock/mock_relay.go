@@ -414,7 +414,7 @@ func (m *Relay) handleGetPayloadV2(w http.ResponseWriter, req *http.Request) {
 		m.handlerOverrideGetPayloadV2(w, req)
 		return
 	}
-	m.DefaultHandleGetPayloadV2(w, req)
+	m.DefaultHandleGetPayloadV2(w)
 }
 
 // DefaultHandleGetPayload returns the default handler for handleGetPayload
@@ -495,7 +495,7 @@ func (m *Relay) OverrideHandleGetPayload(method func(w http.ResponseWriter, req 
 	m.handlerOverrideGetPayload = method
 }
 
-func (m *Relay) OverrideHandleGetPayloadV2(method func(w http.ResponseWriter, req *http.Request)) {
+func (m *Relay) OverrideHandleGetPayloadV2(method func(w http.ResponseWriter, _ *http.Request)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
