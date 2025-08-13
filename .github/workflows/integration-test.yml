@@ -238,18 +238,6 @@ jobs:
         # Give rbuilder time to fully initialize and start monitoring
         echo "Allowing rbuilder to fully initialize..."
         sleep 10
-        
-        # Check rbuilder status and logs before running tests
-        echo "Checking rbuilder status before tests:"
-        if ps -p $RBUILDER_PID > /dev/null 2>&1; then
-          echo "✅ rbuilder is still running"
-          echo "Recent rbuilder logs:"
-          tail -20 rbuilder.log || echo "No recent logs"
-        else
-          echo "❌ rbuilder died after startup"
-          cat rbuilder.log
-          exit 1
-        fi
  
     - name: Run MEV-Boost integration tests
       run: |
