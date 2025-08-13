@@ -65,6 +65,16 @@ jobs:
         tar -xzf ${{ env.RBUILDER_VERSION }}.tar.gz
         mv rbuilder-* rbuilder
 
+    - name: Cache rbuilder compilation
+      uses: actions/cache@v3
+      with:
+        path: |
+          /tmp/rbuilder/target/
+        key: ${{ runner.os }}-rbuilder-${{ env.RBUILDER_VERSION }}-${{ hashFiles('/tmp/rbuilder/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-rbuilder-${{ env.RBUILDER_VERSION }}-
+          ${{ runner.os }}-rbuilder-
+
     - name: Start playground environment
       run: |
         cd builder-playground
@@ -127,6 +137,16 @@ jobs:
         
         echo "All services are ready!"
 
+    - name: Build rbuilder
+      run: |
+        cd /tmp/rbuilder
+        
+        # Pre-compile rbuilder in release mode for better performance and reliability
+        echo "Building rbuilder (this may take several minutes)..."
+        cargo build --release --bin rbuilder
+        
+        echo "rbuilder build completed"
+
     - name: Start rbuilder
       run: |
         cd /tmp/rbuilder
@@ -134,16 +154,29 @@ jobs:
         # Update config-playground.toml with correct paths
         sed -i "s|\$HOME|$HOME|g" config-playground.toml
         
-        # Start rbuilder in background
-        cargo run --bin rbuilder run config-playground.toml &
+        # Start rbuilder using pre-built binary
+        ./target/release/rbuilder run config-playground.toml &
         RBUILDER_PID=$!
         echo "RBUILDER_PID=$RBUILDER_PID" >> $GITHUB_ENV
         
-        # Wait for rbuilder to be ready
-        echo "Waiting for rbuilder to start..."
-        sleep 30
+        # Wait for rbuilder to actually start and begin processing
+        echo "Waiting for rbuilder to start and connect to services..."
+        sleep 15  # Brief wait for startup
         
-        echo "rbuilder started"
+        # Check if rbuilder is actually running and processing
+        for i in {1..30}; do
+          if ps -p $RBUILDER_PID > /dev/null 2>&1; then
+            echo "✅ rbuilder process is running (attempt $i/30)"
+            # Give it a bit more time to fully initialize
+            sleep 5
+            break
+          else
+            echo "❌ rbuilder process died, checking logs..."
+            exit 1
+          fi
+        done
+        
+        echo "rbuilder started successfully"
  
     - name: Run MEV-Boost integration tests
       run: |
