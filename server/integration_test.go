@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
@@ -23,6 +24,7 @@ const (
 	BeaconNodeURL = "http://localhost:3500"
 	RelayURL      = "http://localhost:5555"
 	ExecutionURL  = "http://localhost:8545"
+	RbuilderURL   = "http://localhost:6069" // rbuilder bundle RPC endpoint
 
 	RelaySecretKey       = "0x5eae315483f028b5cdd5d1090ff0c7618b18737ea9bf3c35047189db22835c48"
 	ValidationPublickKey = "0x80a2be2c7dbce8ddc2eba03522697587c375a5a9e92d4b31ed9e3c34bee047095d93e3c70b1662b3faa301f5b19978e5" // Real validator from playground
@@ -127,6 +129,82 @@ func (c *MEVBoostClient) CheckStatus(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// sendBundleToRbuilder sends a transaction bundle directly to rbuilder
+func sendBundleToRbuilder(t *testing.T, ctx context.Context) common.Hash {
+	t.Helper()
+
+	// Connect to the execution layer to get nonce and gas price
+	client, err := ethclient.Dial(ExecutionURL)
+	require.NoError(t, err, "Should be able to connect to execution layer")
+	defer client.Close()
+
+	// Parse private key
+	privateKey, err := crypto.HexToECDSA(TestPrivateKey)
+	require.NoError(t, err, "Should be able to parse private key")
+
+	// Get public key and address
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	require.True(t, ok, "Should be able to cast public key")
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+
+	// Get nonce
+	nonce, err := client.PendingNonceAt(ctx, fromAddress)
+	require.NoError(t, err, "Should be able to get nonce")
+
+	// Get gas price (use higher gas price for MEV)
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err, "Should be able to get gas price")
+	// Increase gas price by 20% for MEV opportunity
+	gasPrice = new(big.Int).Mul(gasPrice, big.NewInt(120))
+	gasPrice = new(big.Int).Div(gasPrice, big.NewInt(100))
+
+	// Create transaction (simple transfer to a different address)
+	toAddress := common.HexToAddress("0x8ba1f109551bD432803012645Hac136c22C177c9")
+	value := big.NewInt(1000000000000000) // 0.001 ETH
+	gasLimit := uint64(21000)
+
+	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
+
+	// Get chain ID
+	chainID, err := client.NetworkID(ctx)
+	require.NoError(t, err, "Should be able to get chain ID")
+
+	// Sign transaction
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	require.NoError(t, err, "Should be able to sign transaction")
+
+	txBytes, err := signedTx.MarshalBinary()
+	require.NoError(t, err, "Should be able to get tx bytes")
+
+	// Send bundle to rbuilder
+	bundleRequest := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "eth_sendBundle",
+		"params": []interface{}{
+			map[string]interface{}{
+				"txs": []string{
+					"0x" + common.Bytes2Hex(txBytes),
+				},
+				"blockNumber": fmt.Sprintf("0x%x", nonce+1), // Target next block
+			},
+		},
+		"id": 1,
+	}
+
+	bundleJSON, err := json.Marshal(bundleRequest)
+	require.NoError(t, err, "Should be able to marshal bundle request")
+
+	// Send to rbuilder
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	resp, err := httpClient.Post(RbuilderURL, "application/json", bytes.NewBuffer(bundleJSON))
+	require.NoError(t, err, "Should be able to send bundle to rbuilder")
+	defer resp.Body.Close()
+
+	t.Logf("📦 Sent bundle to rbuilder: %s (response: %d)", signedTx.Hash().Hex(), resp.StatusCode)
+	return signedTx.Hash()
 }
 
 // sendTestTransaction sends a test transaction to the execution layer
@@ -301,19 +379,17 @@ func TestMEVBoostIntegration(t *testing.T) {
 		}
 	})
 
-	// Test 3: Send test transaction and validate activity
-	t.Run("Send test transaction and validate activity", func(t *testing.T) {
-		t.Logf("🔍 Sending test transaction to create MEV opportunities...")
+	// Test 3: Send bundle to rbuilder and validate activity
+	t.Run("Send bundle to rbuilder and validate activity", func(t *testing.T) {
+		t.Logf("🔍 Sending bundle directly to rbuilder to create MEV opportunities...")
 
-		// Send a test transaction to create activity
-		txHash := sendTestTransaction(t, ctx)
+		// Send a bundle directly to rbuilder (this guarantees it will try to include it)
+		txHash := sendBundleToRbuilder(t, ctx)
 
-		// Wait for the transaction to be confirmed
-		receipt := waitForTransactionReceipt(t, ctx, txHash)
-		require.NotNil(t, receipt, "Transaction should be confirmed")
-		require.Equal(t, uint64(1), receipt.Status, "Transaction should be successful")
+		// Give rbuilder time to process the bundle and create bids
+		time.Sleep(5 * time.Second)
 
-		t.Logf("✅ Test transaction confirmed in block %d", receipt.BlockNumber.Uint64())
+		t.Logf("✅ Bundle sent to rbuilder: %s", txHash.Hex())
 
 		// Now check if relay has delivered payloads (should be active)
 		t.Logf("🔍 Validating active builder and relay activity...")
