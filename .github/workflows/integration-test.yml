@@ -13,7 +13,7 @@ env:
 
 jobs:
   integration-test:
-    runs-on: ubuntu-latest-4-cores  # Use larger runner
+    runs-on: ubuntu-latest  # Use larger runner
     timeout-minutes: 20             # Reduced from 30
 
     steps:
