@@ -141,6 +141,16 @@ jobs:
         echo "Updated rbuilder config paths:"
         grep -E "(reth_datadir|el_node_ipc_path)" config-playground.toml
         
+        # Debug: Check what actually exists in the playground directory
+        echo "Debugging playground directory structure:"
+        ls -la $HOME/.playground/devnet/ || echo "devnet directory not found"
+        ls -la $HOME/.playground/devnet/volume-el-data/ || echo "volume-el-data directory not found"
+        find $HOME/.playground/devnet/ -name "*.ipc" -type s 2>/dev/null || echo "No IPC files found"
+        
+        # Check if reth is using a different path structure
+        echo "Looking for any reth-related files:"
+        find $HOME/.playground/devnet/ -name "*reth*" 2>/dev/null || echo "No reth files found"
+        
         # Start rbuilder using pre-built binary
         ./target/release/rbuilder run config-playground.toml &
         RBUILDER_PID=$!
