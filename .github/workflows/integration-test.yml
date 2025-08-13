@@ -37,20 +37,17 @@ jobs:
     - name: Build MEV-Boost Docker image
       run: |
         docker build -t my-mev-boost:latest .
-
     - name: Clone builder-playground
       run: |
         git clone https://github.com/flashbots/builder-playground.git
         cd builder-playground
         go mod download
-
     - name: Download rbuilder
       run: |
         cd /tmp
         wget https://github.com/flashbots/rbuilder/archive/refs/tags/${{ env.RBUILDER_VERSION }}.tar.gz
         tar -xzf ${{ env.RBUILDER_VERSION }}.tar.gz
         mv rbuilder-* rbuilder
-
     - name: Cache rbuilder compilation
       uses: actions/cache@v3
       with:
@@ -60,7 +57,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-rbuilder-${{ env.RBUILDER_VERSION }}-
           ${{ runner.os }}-rbuilder-
-
     - name: Start playground environment
       run: |
         cd builder-playground
@@ -122,7 +118,6 @@ jobs:
         done
         
         echo "All services are ready!"
-
     - name: Build rbuilder
       run: |
         cd /tmp/rbuilder
@@ -132,7 +127,6 @@ jobs:
         cargo build --release --bin rbuilder
         
         echo "rbuilder build completed"
-
     - name: Start rbuilder
       run: |
         cd /tmp/rbuilder
@@ -183,8 +177,6 @@ jobs:
           echo "Integration tests failed with exit code $TEST_EXIT_CODE"
           exit $TEST_EXIT_CODE
         fi
-
-
     - name: Cleanup
       if: always()
       run: |
