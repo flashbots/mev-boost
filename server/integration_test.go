@@ -304,17 +304,17 @@ func TestMEVBoostIntegration(t *testing.T) {
 	// Test 3: Send test transaction and validate activity
 	t.Run("Send test transaction and validate activity", func(t *testing.T) {
 		t.Logf("🔍 Sending test transaction to create MEV opportunities...")
-		
+
 		// Send a test transaction to create activity
 		txHash := sendTestTransaction(t, ctx)
-		
+
 		// Wait for the transaction to be confirmed
 		receipt := waitForTransactionReceipt(t, ctx, txHash)
 		require.NotNil(t, receipt, "Transaction should be confirmed")
 		require.Equal(t, uint64(1), receipt.Status, "Transaction should be successful")
-		
+
 		t.Logf("✅ Test transaction confirmed in block %d", receipt.BlockNumber.Uint64())
-		
+
 		// Now check if relay has delivered payloads (should be active)
 		t.Logf("🔍 Validating active builder and relay activity...")
 		resp, err := relayClient.Get(RelayURL + "/relay/v1/data/bidtraces/proposer_payload_delivered")

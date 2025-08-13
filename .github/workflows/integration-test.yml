@@ -71,7 +71,6 @@ jobs:
         
         # Start the playground in background
         timeout ${{ env.PLAYGROUND_TIMEOUT }} go run main.go cook l1 \
-          --contender \
           --genesis-delay 15 \
           --log-level debug \
           --use-native-reth \
