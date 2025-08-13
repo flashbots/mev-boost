@@ -184,7 +184,7 @@ func parseBidInfo(bid *builderSpec.VersionedSignedBuilderBid) (bidInfo, error) {
 	}, nil
 }
 
-func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phase0.Domain, pubKey phase0.BLSPubKey, preset map[string]interface{}) (bool, error) {
+func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phase0.Domain, pubKey phase0.BLSPubKey, dynSSZ *dynssz.DynSsz) (bool, error) {
 	root, err := bid.MessageHashTreeRoot()
 	if err != nil {
 		return false, err
@@ -194,7 +194,6 @@ func checkRelaySignature(bid *builderSpec.VersionedSignedBuilderBid, domain phas
 		return false, err
 	}
 	signingData := phase0.SigningData{ObjectRoot: root, Domain: domain}
-	dynSSZ := dynssz.NewDynSsz(preset)
 	msg, err := dynSSZ.HashTreeRoot(signingData)
 	if err != nil {
 		return false, err

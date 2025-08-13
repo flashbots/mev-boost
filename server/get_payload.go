@@ -57,7 +57,7 @@ func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockByt
 
 	// Decode the request
 	request := new(eth2Api.VersionedSignedBlindedBeaconBlock)
-	err = m.decodeSignedBlindedBeaconBlock(signedBlindedBeaconBlockBytes, parsedProposerContentType, proposerEthConsensusVersion, request)
+	err = decodeSignedBlindedBeaconBlock(signedBlindedBeaconBlockBytes, parsedProposerContentType, proposerEthConsensusVersion, request, m.dynSSZ)
 	if err != nil {
 		log.WithError(err).Error("failed to decode signed blinded beacon block")
 		return nil, bidResp{}
@@ -392,9 +392,8 @@ func (m *BoostService) convertSSZToJSON(ethConsensusVersion string, sszBytes []b
 	default:
 		return nil, errInvalidForkVersion
 	}
-	dynSSZ := dynssz.NewDynSsz(m.preset)
 	// Unmarshal the SSZ-encoded bytes into the block
-	if err := dynSSZ.UnmarshalSSZ(block, sszBytes); err != nil {
+	if err := m.dynSSZ.UnmarshalSSZ(block, sszBytes); err != nil {
 		return nil, err
 	}
 
@@ -404,12 +403,10 @@ func (m *BoostService) convertSSZToJSON(ethConsensusVersion string, sszBytes []b
 
 // decodeSignedBlindedBeaconBlock will decode the request block in either JSON or SSZ.
 // Note: when decoding JSON, we must attempt decoding from newest to oldest fork version.
-func (m *BoostService) decodeSignedBlindedBeaconBlock(in []byte, contentType, ethConsensusVersion string, out *eth2Api.VersionedSignedBlindedBeaconBlock) error {
+func decodeSignedBlindedBeaconBlock(in []byte, contentType, ethConsensusVersion string, out *eth2Api.VersionedSignedBlindedBeaconBlock, dynSSZ *dynssz.DynSsz) error {
 	switch contentType {
 	case MediaTypeOctetStream:
 		if ethConsensusVersion != "" {
-			dynSSZ := dynssz.NewDynSsz(m.preset)
-
 			switch ethConsensusVersion {
 			case EthConsensusVersionBellatrix:
 				out.Version = spec.DataVersionBellatrix
@@ -473,25 +470,23 @@ func (m *BoostService) decodeSubmitBlindedBlockResponse(in []byte, contentType, 
 	switch contentType {
 	case MediaTypeOctetStream:
 		if ethConsensusVersion != "" {
-			dynSSZ := dynssz.NewDynSsz(m.preset)
-
 			switch ethConsensusVersion {
 			case EthConsensusVersionBellatrix:
 				out.Version = spec.DataVersionBellatrix
 				out.Bellatrix = new(bellatrix.ExecutionPayload)
-				return dynSSZ.UnmarshalSSZ(out.Bellatrix, in)
+				return m.dynSSZ.UnmarshalSSZ(out.Bellatrix, in)
 			case EthConsensusVersionCapella:
 				out.Version = spec.DataVersionCapella
 				out.Capella = new(capella.ExecutionPayload)
-				return dynSSZ.UnmarshalSSZ(out.Capella, in)
+				return m.dynSSZ.UnmarshalSSZ(out.Capella, in)
 			case EthConsensusVersionDeneb:
 				out.Version = spec.DataVersionDeneb
 				out.Deneb = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
-				return dynSSZ.UnmarshalSSZ(out.Deneb, in)
+				return m.dynSSZ.UnmarshalSSZ(out.Deneb, in)
 			case EthConsensusVersionElectra:
 				out.Version = spec.DataVersionElectra
 				out.Electra = new(builderApiDeneb.ExecutionPayloadAndBlobsBundle)
-				return dynSSZ.UnmarshalSSZ(out.Electra, in)
+				return m.dynSSZ.UnmarshalSSZ(out.Electra, in)
 			default:
 				return errInvalidForkVersion
 			}

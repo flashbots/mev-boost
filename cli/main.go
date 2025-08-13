@@ -68,6 +68,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 		genesisForkVersion, genesisTime = setupGenesis(cmd)
 		relays, minBid, relayCheck      = setupRelays(cmd)
 		listenAddr                      = cmd.String(addrFlag.Name)
+		minimalPreset                   = cmd.Bool(minimalPresetFlag.Name)
 	)
 
 	opts := server.BoostServiceOpts{
@@ -82,6 +83,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 		RequestTimeoutGetPayload: time.Duration(cmd.Int(timeoutGetPayloadFlag.Name)) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(cmd.Int(timeoutRegValFlag.Name)) * time.Millisecond,
 		RequestMaxRetries:        cmd.Int(maxRetriesFlag.Name),
+		MinimalPreset:            minimalPreset,
 	}
 	service, err := server.NewBoostService(opts)
 	if err != nil {

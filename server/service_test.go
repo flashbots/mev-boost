@@ -70,6 +70,7 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		RequestTimeoutGetPayload: relayTimeout,
 		RequestTimeoutRegVal:     relayTimeout,
 		RequestMaxRetries:        5,
+		MinimalPreset:            false,
 	}
 	service, err := NewBoostService(opts)
 	require.NoError(t, err)
@@ -1299,7 +1300,7 @@ func TestGetPayloadForks(t *testing.T) {
 
 			// Decode the block
 			block := new(eth2Api.VersionedSignedBlindedBeaconBlock)
-			err = decodeSignedBlindedBeaconBlock(jsonBytes, MediaTypeJSON, "", block)
+			err = decodeSignedBlindedBeaconBlock(jsonBytes, MediaTypeJSON, "", block, backend.boost.dynSSZ)
 			require.NoError(t, err)
 
 			// Get the request slot and block hash
