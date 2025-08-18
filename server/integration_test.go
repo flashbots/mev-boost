@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -250,7 +251,14 @@ func TestMEVBoostIntegration(t *testing.T) {
 	beaconClient := NewBeaconNodeClient(BeaconNodeURL)
 	relayClient := &http.Client{Timeout: 10 * time.Second}
 
+	// Get testing fork from environment (set by CI matrix)
+	testingFork := os.Getenv("TESTING_FORK")
+	if testingFork == "" {
+		testingFork = "unknown"
+	}
+
 	t.Logf("Starting MEV-boost integration test by observing live system...")
+	t.Logf("Testing Fork: %s", testingFork)
 	t.Logf("Services: Beacon (%s), MEV-boost (%s), Relay (%s)", BeaconNodeURL, MEVBoostURL, RelayURL)
 
 	// Test 1: Verify all services are healthy

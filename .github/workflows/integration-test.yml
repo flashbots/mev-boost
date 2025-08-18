@@ -13,8 +13,13 @@ env:
 
 jobs:
   integration-test:
+    name: "Integration Test (${{ matrix.fork }} fork)"
     runs-on: ubuntu-latest  # Use larger runner
     timeout-minutes: 40
+    strategy:
+      matrix:
+        fork: [deneb, electra]
+      fail-fast: false  # Continue testing other forks even if one fails
 
     steps:
     - name: Checkout mev-boost
@@ -65,20 +70,29 @@ jobs:
           ~/.cargo/git
           /tmp/rbuilder/target/
           /tmp/contender/target/
-        key: ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ hashFiles('/tmp/rbuilder/Cargo.lock') }}
+        key: ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ matrix.fork }}-${{ hashFiles('/tmp/rbuilder/Cargo.lock') }}
         restore-keys: |
+          ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ matrix.fork }}-
           ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-
           ${{ runner.os }}-rust-
     - name: Start playground environment
       run: |
         cd builder-playground
         
-        # Start the playground in background
+        # Start the playground in background (conditionally enable latest fork)
+        echo "Starting playground with ${{ matrix.fork }} fork..."
+        if [ "${{ matrix.fork }}" = "electra" ]; then
+          FORK_FLAG="--latest-fork"
+        else
+          FORK_FLAG=""
+        fi
+        
         timeout ${{ env.PLAYGROUND_TIMEOUT }} go run main.go cook l1 \
           --genesis-delay 15 \
           --log-level debug \
           --use-separate-mev-boost \
-          --override mev-boost=my-mev-boost:latest &
+          --override mev-boost=my-mev-boost:latest \
+          $FORK_FLAG &
         
         PLAYGROUND_PID=$!
         echo "PLAYGROUND_PID=$PLAYGROUND_PID" >> $GITHUB_ENV
@@ -326,6 +340,9 @@ jobs:
         export MEV_BOOST_URL="http://localhost:18550"
         export BEACON_NODE_URL="http://localhost:3500"
         export RELAY_URL="http://localhost:5555"
+        export TESTING_FORK="${{ matrix.fork }}"
+        
+        echo "Running MEV-boost integration tests for ${{ matrix.fork }} fork..."
         
         # Run the integration tests with timeout
         timeout ${{ env.TEST_TIMEOUT }} go test -v ./server -run TestMEVBoostIntegration -timeout=10m
