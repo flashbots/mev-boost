@@ -14,7 +14,7 @@ env:
 jobs:
   integration-test:
     runs-on: ubuntu-latest  # Use larger runner
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
     - name: Checkout mev-boost
@@ -48,15 +48,18 @@ jobs:
         wget https://github.com/flashbots/rbuilder/archive/refs/tags/${{ env.RBUILDER_VERSION }}.tar.gz
         tar -xzf ${{ env.RBUILDER_VERSION }}.tar.gz
         mv rbuilder-* rbuilder
-    - name: Cache rbuilder compilation
+    - name: Cache Rust dependencies
       uses: actions/cache@v3
       with:
         path: |
+          ~/.cargo/registry
+          ~/.cargo/git
           /tmp/rbuilder/target/
-        key: ${{ runner.os }}-rbuilder-${{ env.RBUILDER_VERSION }}-${{ hashFiles('/tmp/rbuilder/Cargo.lock') }}
+          /tmp/contender/target/
+        key: ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ hashFiles('/tmp/rbuilder/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-rbuilder-${{ env.RBUILDER_VERSION }}-
-          ${{ runner.os }}-rbuilder-
+          ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-
+          ${{ runner.os }}-rust-
     - name: Start playground environment
       run: |
         cd builder-playground
@@ -238,6 +241,62 @@ jobs:
         # Give rbuilder time to fully initialize and start monitoring
         echo "Allowing rbuilder to fully initialize..."
         sleep 10
+
+    - name: Start contender (transaction spammer)
+      run: |
+        echo "Cloning and building contender..."
+        git clone https://github.com/flashbots/contender.git /tmp/contender
+        cd /tmp/contender
+        
+        # Build contender
+        cargo build --release --bin contender
+        
+        echo "Starting contender to spam transactions..."
+        # Run contender to generate continuous transaction flow
+        ./target/release/contender spam \
+          --tps 5 \
+          -r http://localhost:8545 \
+          -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+          --min-balance 0.5eth \
+          --tx-type legacy \
+          transfers &
+        
+        CONTENDER_PID=$!
+        echo "CONTENDER_PID=$CONTENDER_PID" >> $GITHUB_ENV
+        echo "Started contender with PID: $CONTENDER_PID"
+        
+        # Wait for transactions to start flowing
+        echo "Waiting for transaction activity to begin..."
+        for i in {1..30}; do
+          # Check if transactions are appearing in execution layer mempool
+          TX_COUNT=$(curl -s -X POST -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","method":"txpool_status","params":[],"id":1}' \
+            http://localhost:8545 | jq -r '.result.pending // "0"' | sed 's/0x//' | xargs printf "%d")
+          
+          if [ "$TX_COUNT" -gt 0 ]; then
+            echo "✅ Transaction activity detected ($TX_COUNT pending transactions)"
+            break
+          fi
+          
+          echo "Waiting for transaction activity... ($i/30)"
+          sleep 2
+        done
+        
+        # Give rbuilder time to process transactions and create bids
+        echo "Allowing rbuilder to process transactions and create bids..."
+        sleep 15
+        
+        # Validate that rbuilder is seeing transactions
+        echo "Checking rbuilder activity..."
+        if ps -p $RBUILDER_PID > /dev/null 2>&1; then
+          echo "✅ rbuilder is still running"
+          echo "Recent rbuilder logs (checking for transaction activity):"
+          tail -20 /tmp/rbuilder/rbuilder.log | grep -E "(tx_count|bundle_count|Building|bid)" || echo "No transaction/bid activity in recent logs"
+        else
+          echo "❌ rbuilder died"
+          cat /tmp/rbuilder/rbuilder.log
+          exit 1
+        fi
  
     - name: Run MEV-Boost integration tests
       run: |
@@ -260,11 +319,17 @@ jobs:
           # Debug why tests failed
           echo "=== POST-TEST DEBUGGING ==="
           
-          echo "rbuilder process status:"
+          echo "Process status:"
           if ps -p $RBUILDER_PID > /dev/null 2>&1; then
             echo "✅ rbuilder still running"
           else
             echo "❌ rbuilder died during tests"
+          fi
+          
+          if ps -p $CONTENDER_PID > /dev/null 2>&1; then
+            echo "✅ contender still running"
+          else
+            echo "❌ contender died during tests"
           fi
           
           echo "Recent rbuilder logs (last 50 lines):"
@@ -273,10 +338,20 @@ jobs:
           echo "Checking relay for any bid activity:"
           curl -s "http://localhost:5555/relay/v1/data/bidtraces/builder_blocks_received" | jq '.[0:3]' || echo "No relay bid data"
           
-          echo "Checking if transactions reached rbuilder:"
+          echo "Checking payload deliveries:"
+          curl -s "http://localhost:5555/relay/v1/data/bidtraces/proposer_payload_delivered" | jq 'length' || echo "No payload delivery data"
+          
+          echo "Checking transaction flow:"
+          echo "1. Execution layer transaction pool:"
           curl -s -X POST -H "Content-Type: application/json" \
             --data '{"jsonrpc":"2.0","method":"txpool_status","params":[],"id":1}' \
             http://localhost:8545 | jq . || echo "No txpool data"
+          
+          echo "2. Recent rbuilder logs for transaction processing:"
+          tail -30 /tmp/rbuilder/rbuilder.log | grep -E "(tx_count|bundle_count|orderpool|simulation)" || echo "No transaction processing logs"
+          
+          echo "3. Checking if rbuilder is receiving transactions via IPC:"
+          tail -30 /tmp/rbuilder/rbuilder.log | grep -E "(IPC|connection|Cleaned orderpool)" || echo "No IPC logs"
           
           exit $TEST_EXIT_CODE
         fi
@@ -288,6 +363,7 @@ jobs:
         # Kill all background processes
         [ ! -z "$PLAYGROUND_PID" ] && kill $PLAYGROUND_PID 2>/dev/null || true
         [ ! -z "$RBUILDER_PID" ] && kill $RBUILDER_PID 2>/dev/null || true
+        [ ! -z "$CONTENDER_PID" ] && kill $CONTENDER_PID 2>/dev/null || true
         
         # Stop all docker containers
         docker stop $(docker ps -q) 2>/dev/null || true
@@ -296,5 +372,6 @@ jobs:
         # Kill any remaining processes
         pkill -f "rbuilder" 2>/dev/null || true
         pkill -f "playground" 2>/dev/null || true
+        pkill -f "contender" 2>/dev/null || true
         
         echo "Cleanup completed"
