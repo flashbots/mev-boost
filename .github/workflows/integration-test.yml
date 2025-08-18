@@ -44,12 +44,16 @@ jobs:
         docker build -t my-mev-boost:latest .
     - name: Clone builder-playground
       run: |
+        # Clean up any existing builder-playground directory
+        rm -rf builder-playground
         git clone https://github.com/flashbots/builder-playground.git
         cd builder-playground
         go mod download
     - name: Download rbuilder
       run: |
         cd /tmp
+        # Clean up any existing rbuilder directory
+        rm -rf rbuilder
         wget https://github.com/flashbots/rbuilder/archive/refs/tags/${{ env.RBUILDER_VERSION }}.tar.gz
         tar -xzf ${{ env.RBUILDER_VERSION }}.tar.gz
         mv rbuilder-* rbuilder
@@ -250,6 +254,8 @@ jobs:
     - name: Start contender (transaction spammer)
       run: |
         echo "Cloning and building contender..."
+        # Clean up any existing contender directory
+        rm -rf /tmp/contender
         git clone https://github.com/flashbots/contender.git /tmp/contender
         cd /tmp/contender
         
