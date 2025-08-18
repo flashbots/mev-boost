@@ -13,13 +13,27 @@ env:
 
 jobs:
   integration-test:
-    name: "Integration Test (${{ matrix.fork }} fork)"
+    name: "Integration Test (${{ matrix.fork }} fork, ${{ matrix.tx_type }} txs)"
     runs-on: ubuntu-latest  # Use larger runner
     timeout-minutes: 40
     strategy:
       matrix:
-        fork: [deneb, electra]
-      fail-fast: false  # Continue testing other forks even if one fails
+        include:
+          # Test legacy transactions on both forks
+          - fork: deneb
+            tx_type: legacy
+            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy transfers"
+          - fork: electra  
+            tx_type: legacy
+            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy transfers"
+          # Test blob transactions (only on Deneb+ since blobs were introduced then)
+          - fork: deneb
+            tx_type: blobs
+            contender_cmd: "spam scenario:blobs.toml --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+          - fork: electra
+            tx_type: blobs  
+            contender_cmd: "spam scenario:blobs.toml --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+      fail-fast: false  # Continue testing other combinations even if one fails
 
     steps:
     - name: Checkout mev-boost
@@ -70,8 +84,9 @@ jobs:
           ~/.cargo/git
           /tmp/rbuilder/target/
           /tmp/contender/target/
-        key: ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ matrix.fork }}-${{ hashFiles('/tmp/rbuilder/Cargo.lock') }}
+        key: ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ matrix.fork }}-${{ matrix.tx_type }}-${{ hashFiles('/tmp/rbuilder/Cargo.lock') }}
         restore-keys: |
+          ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ matrix.fork }}-${{ matrix.tx_type }}-
           ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ matrix.fork }}-
           ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-
           ${{ runner.os }}-rust-
@@ -80,7 +95,7 @@ jobs:
         cd builder-playground
         
         # Start the playground in background (conditionally enable latest fork)
-        echo "Starting playground with ${{ matrix.fork }} fork..."
+        echo "Starting playground with ${{ matrix.fork }} fork for ${{ matrix.tx_type }} transaction testing..."
         if [ "${{ matrix.fork }}" = "electra" ]; then
           FORK_FLAG="--latest-fork"
         else
@@ -276,15 +291,9 @@ jobs:
         # Build contender
         cargo build --release --bin contender
         
-        echo "Starting contender to spam transactions..."
-        # Run contender to generate continuous transaction flow
-        ./target/release/contender spam \
-          --tps 5 \
-          -r http://localhost:8545 \
-          -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-          --min-balance 0.5eth \
-          --tx-type legacy \
-          transfers &
+        echo "Starting contender to spam ${{ matrix.tx_type }} transactions..."
+        # Run contender with matrix-specific command
+        ./target/release/contender ${{ matrix.contender_cmd }} &
         
         CONTENDER_PID=$!
         echo "CONTENDER_PID=$CONTENDER_PID" >> $GITHUB_ENV
@@ -341,8 +350,9 @@ jobs:
         export BEACON_NODE_URL="http://localhost:3500"
         export RELAY_URL="http://localhost:5555"
         export TESTING_FORK="${{ matrix.fork }}"
+        export TESTING_TX_TYPE="${{ matrix.tx_type }}"
         
-        echo "Running MEV-boost integration tests for ${{ matrix.fork }} fork..."
+        echo "Running MEV-boost integration tests for ${{ matrix.fork }} fork with ${{ matrix.tx_type }} transactions..."
         
         # Run the integration tests with timeout
         timeout ${{ env.TEST_TIMEOUT }} go test -v ./server -run TestMEVBoostIntegration -timeout=10m

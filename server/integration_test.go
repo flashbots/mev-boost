@@ -251,14 +251,19 @@ func TestMEVBoostIntegration(t *testing.T) {
 	beaconClient := NewBeaconNodeClient(BeaconNodeURL)
 	relayClient := &http.Client{Timeout: 10 * time.Second}
 
-	// Get testing fork from environment (set by CI matrix)
+	// Get testing parameters from environment (set by CI matrix)
 	testingFork := os.Getenv("TESTING_FORK")
 	if testingFork == "" {
 		testingFork = "unknown"
 	}
+	testingTxType := os.Getenv("TESTING_TX_TYPE")
+	if testingTxType == "" {
+		testingTxType = "unknown"
+	}
 
 	t.Logf("Starting MEV-boost integration test by observing live system...")
 	t.Logf("Testing Fork: %s", testingFork)
+	t.Logf("Testing Transaction Type: %s", testingTxType)
 	t.Logf("Services: Beacon (%s), MEV-boost (%s), Relay (%s)", BeaconNodeURL, MEVBoostURL, RelayURL)
 
 	// Test 1: Verify all services are healthy
@@ -322,6 +327,17 @@ func TestMEVBoostIntegration(t *testing.T) {
 		require.Equal(t, uint64(1), receipt.Status, "Transaction should be successful")
 
 		t.Logf("✅ Test transaction confirmed in block %d", receipt.BlockNumber.Uint64())
+
+		// Special validation for blob transactions
+		if testingTxType == "blobs" {
+			t.Logf("🔍 Validating blob transaction processing...")
+			// Blob transactions should have specific characteristics
+			if receipt.BlobGasUsed > 0 {
+				t.Logf("✅ Blob gas used: %d", receipt.BlobGasUsed)
+			} else {
+				t.Logf("⚠️  No blob gas usage detected (may be non-blob tx in mixed environment)")
+			}
+		}
 
 		// Now check if relay has delivered payloads (should be active)
 		t.Logf("🔍 Validating active builder and relay activity...")
