@@ -29,10 +29,10 @@ jobs:
           # Test blob transactions (only on Deneb+ since blobs were introduced then)
           - fork: deneb
             tx_type: blobs
-            contender_cmd: "spam scenario:blobs.toml --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+            contender_cmd: "spam scenario:blobs.toml --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -t eip4844"
           - fork: electra
             tx_type: blobs  
-            contender_cmd: "spam scenario:blobs.toml --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+            contender_cmd: "spam scenario:blobs.toml --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -t eip4844"
       fail-fast: false  # Continue testing other combinations even if one fails
 
     steps:
