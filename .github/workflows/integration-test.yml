@@ -34,6 +34,11 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1
+      with:
+        version: nightly
+
     - name: Build MEV-Boost Docker image
       run: |
         docker build -t my-mev-boost:latest .
@@ -264,6 +269,15 @@ jobs:
         CONTENDER_PID=$!
         echo "CONTENDER_PID=$CONTENDER_PID" >> $GITHUB_ENV
         echo "Started contender with PID: $CONTENDER_PID"
+        
+        # Check if contender started successfully
+        sleep 3
+        if ps -p $CONTENDER_PID > /dev/null 2>&1; then
+          echo "✅ Contender process is running"
+        else
+          echo "❌ Contender process died immediately, checking for error..."
+          # contender might have exited with error
+        fi
         
         # Wait for transactions to start flowing
         echo "Waiting for transaction activity to begin..."
