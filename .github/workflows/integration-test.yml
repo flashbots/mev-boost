@@ -306,9 +306,9 @@ jobs:
           sleep 15
           kill $FUNDING_PID 2>/dev/null || true
           
-          # Phase 2: Start blob transaction spam
+          # Phase 2: Start blob transaction spam (let scenario handle transaction type)
           echo "Phase 2: Starting blob transaction spam..."
-          ./target/release/contender spam --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -t eip4844 scenario:blobs.toml &
+          ./target/release/contender spam --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.001eth scenario:blobs.toml &
         else
           # Regular transaction spam
           ./target/release/contender ${{ matrix.contender_cmd }} &
