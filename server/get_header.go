@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -89,6 +90,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			req.Header.Set(HeaderKeySlotUID, slotUID.String())
 			req.Header.Set(HeaderUserAgent, userAgent)
 			req.Header.Set(HeaderDateMilliseconds, startTime)
+			req.Header.Set(HeaderTimeoutMs, strconv.FormatInt(m.httpClientGetHeader.Timeout.Milliseconds(), 10))
 
 			// Send the request
 			log.Debug("requesting header")
