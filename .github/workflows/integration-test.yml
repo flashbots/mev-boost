@@ -29,10 +29,10 @@ jobs:
           # Test blob transactions (only on Deneb+ since blobs were introduced then)
           - fork: deneb
             tx_type: blobs
-            contender_cmd: "# Handled by two-phase approach in script"
+            contender_cmd: "spam --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 blobs"
           - fork: electra
             tx_type: blobs  
-            contender_cmd: "# Handled by two-phase approach in script"
+            contender_cmd: "spam --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 blobs"
       fail-fast: false  # Continue testing other combinations even if one fails
 
     steps:
@@ -292,27 +292,8 @@ jobs:
         cargo build --release --bin contender
         
         echo "Starting contender to spam ${{ matrix.tx_type }} transactions..."
-        
-        # Handle blob transactions differently (two-phase approach)
-        if [ "${{ matrix.tx_type }}" = "blobs" ]; then
-          echo "🔥 Setting up blob transaction environment..."
-          
-          # Phase 1: Fund accounts with regular transactions first
-          echo "Phase 1: Funding accounts with legacy transactions..."
-          ./target/release/contender spam --tps 1 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 1eth --tx-type legacy transfers --duration 10 &
-          FUNDING_PID=$!
-          
-          # Wait for funding to complete
-          sleep 15
-          kill $FUNDING_PID 2>/dev/null || true
-          
-          # Phase 2: Start blob transaction spam (let scenario handle transaction type)
-          echo "Phase 2: Starting blob transaction spam..."
-          ./target/release/contender spam --tps 10 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.001eth scenario:blobs.toml &
-        else
-          # Regular transaction spam
-          ./target/release/contender ${{ matrix.contender_cmd }} &
-        fi
+        # Run contender with matrix-specific command
+        ./target/release/contender ${{ matrix.contender_cmd }} &
         
         CONTENDER_PID=$!
         echo "CONTENDER_PID=$CONTENDER_PID" >> $GITHUB_ENV
