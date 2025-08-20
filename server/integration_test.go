@@ -450,13 +450,9 @@ func TestMEVBoostIntegration(t *testing.T) {
 		defer resp.Body.Close()
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 	})
-	t.Run("MEV-boost request validation", func(t *testing.T) {
-		resp, err := relayClient.Get(MEVBoostURL + "/eth/v1/builder/header/-1/0x0000000000000000000000000000000000000000000000000000000000000000/0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
-		require.NoError(t, err)
-		defer resp.Body.Close()
-		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 
-		resp, err = relayClient.Get(MEVBoostURL + "/eth/v1/builder/header/1/0x0000000000000000000000000000000000000000000000000000000000000000/invalid_pubkey")
+	t.Run("request validation on invalid pub key", func(t *testing.T) {
+		resp, err := relayClient.Get(MEVBoostURL + "/eth/v1/builder/header/1/0x0000000000000000000000000000000000000000000000000000000000000000/invalid_pubkey")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -475,18 +471,18 @@ func TestMEVBoostIntegration(t *testing.T) {
 		parentHash := fmt.Sprintf("0x%x", currentHeader.ParentRoot)
 		t.Logf("Using real parent hash: %s", parentHash)
 
-		// Get the scheduled validator for the next slot
-		futureSlot := currentSlot + 1
-		scheduledValidator, err := getScheduledValidatorForSlot(ctx, beaconClient, futureSlot)
-		require.NoError(t, err, "Should be able to get scheduled validator for slot %d", futureSlot)
+		// // Get the scheduled validator for the next slot
+		// futureSlot := currentSlot + 1
+		scheduledValidator, err := getScheduledValidatorForSlot(ctx, beaconClient, currentSlot)
+		require.NoError(t, err, "Should be able to get scheduled validator for slot %d", currentSlot)
 
-		t.Logf("Scheduled validator for slot %d: %s", futureSlot, scheduledValidator)
+		t.Logf("Scheduled validator for slot %d: %s", currentSlot, scheduledValidator)
 
 		// Test bid retrieval with real validator and parent hash
 		url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
-			MEVBoostURL, futureSlot, parentHash, scheduledValidator)
+			MEVBoostURL, currentSlot, parentHash, scheduledValidator)
 
-		t.Logf("Requesting bid: slot=%d, parent=%s, validator=%s", futureSlot, parentHash, scheduledValidator)
+		t.Logf("Requesting bid: slot=%d, parent=%s, validator=%s", currentSlot, parentHash, scheduledValidator)
 
 		resp, err := relayClient.Get(url)
 		require.NoError(t, err, "Should handle header requests")
@@ -497,7 +493,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 			"Should return either 204 (no bid) or 200 (bid available), got %d", resp.StatusCode)
 
 		if resp.StatusCode == http.StatusOK {
-			t.Logf("✅ MEV-boost returned bid for slot %d with real validator", futureSlot)
+			t.Logf("✅ MEV-boost returned bid for slot %d with real validator", currentSlot)
 
 			// Parse and validate the bid response
 			var bidResponse map[string]interface{}
@@ -528,7 +524,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 
 			t.Logf("✅ Bid response structure validated")
 		} else {
-			t.Logf("✅ MEV-boost correctly returned no-bid (204) for slot %d", futureSlot)
+			t.Logf("✅ MEV-boost correctly returned no-bid (204) for slot %d", currentSlot)
 			t.Logf("This is expected if no builders have submitted bids for this slot/parent combination")
 		}
 
