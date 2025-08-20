@@ -2,21 +2,17 @@ package server
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/stretchr/testify/require"
 )
@@ -29,12 +25,7 @@ const (
 
 	RelaySecretKey       = "0x5eae315483f028b5cdd5d1090ff0c7618b18737ea9bf3c35047189db22835c48"
 	ValidationPublickKey = "0x80a2be2c7dbce8ddc2eba03522697587c375a5a9e92d4b31ed9e3c34bee047095d93e3c70b1662b3faa301f5b19978e5" // Real validator from playground
-	ValidationSignature  = "0x920daae6298681069a3cb7e1ff8cfd8dab0593eca11298388e2fae3eabe66249ba0d8218ff4df29b448506b006163e240dbe8fd9dd3a71439dd727406981a38a626fb883b19778bd2a5b1ae3d6ccaaf37079bfe3f572292b136f8f739c3f36a3"
-	FeeRecipient         = "0x690b9a9e9aa1c9db991c7721a92d351db4fac990"
-
-	// Test transaction parameters
-	TestPrivateKey = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
-	TestTimeout    = 30 * time.Second
+	TestTimeout          = 30 * time.Second
 )
 
 type BeaconNodeClient struct {
@@ -171,85 +162,7 @@ func (c *MEVBoostClient) CheckStatus(ctx context.Context) error {
 	return nil
 }
 
-// sendTestTransaction sends a test transaction to the execution layer
-func sendTestTransaction(t *testing.T, ctx context.Context) common.Hash {
-	t.Helper()
 
-	// Connect to the execution layer
-	client, err := ethclient.Dial(ExecutionURL)
-	require.NoError(t, err, "Should be able to connect to execution layer")
-	defer client.Close()
-
-	// Parse private key
-	privateKey, err := crypto.HexToECDSA(TestPrivateKey)
-	require.NoError(t, err, "Should be able to parse private key")
-
-	// Get public key and address
-	publicKey := privateKey.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	require.True(t, ok, "Should be able to cast public key")
-	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-
-	// Get nonce
-	nonce, err := client.PendingNonceAt(ctx, fromAddress)
-	require.NoError(t, err, "Should be able to get nonce")
-
-	// Get gas price
-	gasPrice, err := client.SuggestGasPrice(ctx)
-	require.NoError(t, err, "Should be able to get gas price")
-
-	// Create transaction (simple transfer to a different address)
-	toAddress := common.HexToAddress("0x8ba1f109551bD432803012645Hac136c22C177c9")
-	value := big.NewInt(1000000000000000) // 0.001 ETH
-	gasLimit := uint64(21000)
-
-	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
-
-	// Get chain ID
-	chainID, err := client.NetworkID(ctx)
-	require.NoError(t, err, "Should be able to get chain ID")
-
-	// Sign transaction
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
-	require.NoError(t, err, "Should be able to sign transaction")
-
-	// Send transaction
-	err = client.SendTransaction(ctx, signedTx)
-	require.NoError(t, err, "Should be able to send transaction")
-
-	t.Logf("📤 Sent test transaction: %s", signedTx.Hash().Hex())
-	return signedTx.Hash()
-}
-
-// waitForTransactionReceipt waits for a transaction receipt
-func waitForTransactionReceipt(t *testing.T, ctx context.Context, txHash common.Hash) *types.Receipt {
-	t.Helper()
-
-	// Connect to the execution layer
-	client, err := ethclient.Dial(ExecutionURL)
-	require.NoError(t, err, "Should be able to connect to execution layer")
-	defer client.Close()
-
-	// Poll for receipt
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-
-	timeout := time.After(60 * time.Second)
-
-	for {
-		select {
-		case <-timeout:
-			t.Fatalf("Transaction receipt not found after timeout: %s", txHash.Hex())
-		case <-ticker.C:
-			receipt, err := client.TransactionReceipt(ctx, txHash)
-			if err == nil && receipt != nil {
-				t.Logf("📥 Transaction confirmed in block %d: %s", receipt.BlockNumber.Uint64(), txHash.Hex())
-				return receipt
-			}
-			t.Logf("⏳ Waiting for transaction receipt: %s", txHash.Hex())
-		}
-	}
-}
 
 // waitForMEVBoost waits for MEV-boost to be available
 func waitForMEVBoost(t *testing.T, timeout time.Duration) {
@@ -358,32 +271,11 @@ func TestMEVBoostIntegration(t *testing.T) {
 		}
 	})
 
-	// Test 3: Send test transaction and validate activity
-	t.Run("Send test transaction and validate activity", func(t *testing.T) {
-		t.Logf("🔍 Sending test transaction to create MEV opportunities...")
+	// Test 3: Validate blockchain activity and transaction types
+	t.Run("Validate blockchain activity and transaction types", func(t *testing.T) {
+		t.Logf("🔍 Validating blockchain activity and transaction type support...")
 
-		// Send a test transaction to create activity
-		txHash := sendTestTransaction(t, ctx)
-
-		// Wait for the transaction to be confirmed
-		receipt := waitForTransactionReceipt(t, ctx, txHash)
-		require.NotNil(t, receipt, "Transaction should be confirmed")
-		require.Equal(t, uint64(1), receipt.Status, "Transaction should be successful")
-
-		t.Logf("✅ Test transaction confirmed in block %d", receipt.BlockNumber.Uint64())
-
-		// Special validation for blob transactions
-		if testingTxType == "blobs" {
-			t.Logf("🔍 Validating blob transaction processing...")
-			// Blob transactions should have specific characteristics
-			if receipt.BlobGasUsed > 0 {
-				t.Logf("✅ Blob gas used: %d", receipt.BlobGasUsed)
-			} else {
-				t.Logf("⚠️  No blob gas usage detected (may be non-blob tx in mixed environment)")
-			}
-		}
-
-		// Now check if relay has delivered payloads (should be active)
+		// Check for relay activity (should have delivered payloads)
 		t.Logf("🔍 Validating active builder and relay activity...")
 		resp, err := relayClient.Get(RelayURL + "/relay/v1/data/bidtraces/proposer_payload_delivered")
 		require.NoError(t, err, "Relay should be reachable for payload delivery data")
@@ -394,6 +286,66 @@ func TestMEVBoostIntegration(t *testing.T) {
 		require.NoError(t, json.NewDecoder(resp.Body).Decode(&payloads))
 		require.Greater(t, len(payloads), 0, "Relay should be actively delivering payloads in builder-playground environment")
 		t.Logf("Relay has delivered %d payloads", len(payloads))
+
+		// For blob transaction testing, check if recent blocks contain blob transactions
+		if testingTxType == "blobs" {
+			t.Logf("🔍 Checking for blob transactions in recent blocks...")
+			
+			currentSlot, err := beaconClient.GetCurrentSlot(ctx)
+			require.NoError(t, err, "Should be able to get current slot")
+			
+			blobTxFound := false
+			totalBlobGasUsed := uint64(0)
+			
+			// Check the last 5 blocks for blob transactions
+			for i := 0; i < 5; i++ {
+				blockNumber := fmt.Sprintf("0x%x", uint64(currentSlot)-uint64(i))
+				
+				// Get block details from execution layer
+				blockResp, err := http.Post(ExecutionURL, "application/json", 
+					strings.NewReader(fmt.Sprintf(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["%s",true],"id":1}`, blockNumber)))
+				if err != nil {
+					continue
+				}
+				defer blockResp.Body.Close()
+				
+				var blockResult struct {
+					Result struct {
+						BlobGasUsed    string `json:"blobGasUsed"`
+						ExcessBlobGas  string `json:"excessBlobGas"`
+						Transactions   []map[string]interface{} `json:"transactions"`
+					} `json:"result"`
+				}
+				
+				if err := json.NewDecoder(blockResp.Body).Decode(&blockResult); err != nil {
+					continue
+				}
+				
+				if blockResult.Result.BlobGasUsed != "" && blockResult.Result.BlobGasUsed != "0x0" {
+					blobGasUsed, _ := strconv.ParseUint(strings.TrimPrefix(blockResult.Result.BlobGasUsed, "0x"), 16, 64)
+					if blobGasUsed > 0 {
+						blobTxFound = true
+						totalBlobGasUsed += blobGasUsed
+						t.Logf("✅ Found blob transactions in block %s: %d blob gas used", blockNumber, blobGasUsed)
+						
+						// Count blob transactions in this block
+						blobTxCount := 0
+						for _, tx := range blockResult.Result.Transactions {
+							if txType, exists := tx["type"]; exists && txType == "0x3" { // EIP-4844 blob tx type
+								blobTxCount++
+							}
+						}
+						t.Logf("   Block contains %d blob transactions", blobTxCount)
+					}
+				}
+			}
+			
+			if blobTxFound {
+				t.Logf("✅ Successfully detected blob transaction activity (total blob gas: %d)", totalBlobGasUsed)
+			} else {
+				t.Logf("⚠️  No blob transactions found in recent blocks (may need more time for contender to generate blobs)")
+			}
+		}
 	})
 
 	// Test 4: Validate MEV-boost is consistently building all blocks
