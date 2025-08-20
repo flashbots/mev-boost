@@ -7,11 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math/big"
 	"net/http"
 	"strings"
 	"time"
 
+	"encoding/hex"
+
+	"github.com/OffchainLabs/prysm/v6/runtime/interop"
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
 	"github.com/attestantio/go-eth2-client/spec"
@@ -231,4 +235,69 @@ func getPayloadResponseIsEmpty(payload *builderApi.VersionedSubmitBlindedBlockRe
 
 func wrapUserAgent(ua UserAgent) string {
 	return strings.TrimSpace(fmt.Sprintf("mev-boost/%s %s", config.Version, ua))
+}
+
+// ValidatorKeyMap stores public key -> private key mapping
+type ValidatorKeyMap struct {
+	keys map[string][]byte // public key hex -> private key bytes
+}
+
+// NewValidatorKeyMap creates a new validator key map
+func NewValidatorKeyMap() *ValidatorKeyMap {
+	return &ValidatorKeyMap{
+		keys: make(map[string][]byte),
+	}
+}
+
+// GetSigningKey returns the private key for a given public key
+func (vkm *ValidatorKeyMap) GetSigningKey(publicKeyHex string) ([]byte, bool) {
+	privateKey, exists := vkm.keys[publicKeyHex]
+	return privateKey, exists
+}
+
+// GetSigningKeyHex returns the private key as hex string for a given public key
+func (vkm *ValidatorKeyMap) GetSigningKeyHex(publicKeyHex string) (string, bool) {
+	privateKey, exists := vkm.keys[publicKeyHex]
+	if !exists {
+		return "", false
+	}
+	return hex.EncodeToString(privateKey), true
+}
+
+// GetAllPublicKeys returns all public keys in the map
+func (vkm *ValidatorKeyMap) GetAllPublicKeys() []string {
+	keys := make([]string, 0, len(vkm.keys))
+	for pubKey := range vkm.keys {
+		keys = append(keys, pubKey)
+	}
+	return keys
+}
+
+// Count returns the total number of validators
+func (vkm *ValidatorKeyMap) Count() int {
+	return len(vkm.keys)
+}
+
+func initValidators() {
+	// Create validator key map
+	keyMap := NewValidatorKeyMap()
+
+	// Generate the same 100 validator keys as builder playground
+	privKeys, pubKeys, err := interop.DeterministicallyGenerateKeys(0, 100)
+	if err != nil {
+		log.Fatalf("Failed to generate keys: %v", err)
+	}
+
+	// Store keys in the map
+	for i, privKey := range privKeys {
+		pubKey := pubKeys[i]
+
+		// Convert public key to hex string
+		pubKeyHex := "0x" + hex.EncodeToString(pubKey.Marshal())
+
+		// Store private key in the map
+		keyMap.keys[pubKeyHex] = privKey.Marshal()
+
+		fmt.Printf("Stored validator %d: %s\n", i, pubKeyHex)
+	}
 }

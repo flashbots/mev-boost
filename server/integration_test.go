@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/flashbots/mev-boost/server/params"
 	"github.com/stretchr/testify/require"
 )
 
@@ -97,6 +99,45 @@ func (c *BeaconNodeClient) GetBlockHeader(ctx context.Context, slot phase0.Slot)
 	}
 
 	return result.Data.Header.Message, nil
+}
+
+// getScheduledValidatorForSlot gets the validator public key scheduled to propose for a specific slot
+func getScheduledValidatorForSlot(ctx context.Context, client *BeaconNodeClient, slot phase0.Slot) (string, error) {
+	// Calculate epoch from slot (32 slots per epoch)
+	epoch := slot / 32
+
+	// Get validator duties for the epoch
+	url := fmt.Sprintf("%s/eth/v1/validator/duties/proposer/%d", client.baseURL, epoch)
+	resp, err := client.client.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("failed to get proposer duties: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("proposer duties request failed with status: %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Data []struct {
+			Pubkey string `json:"pubkey"`
+			Slot   string `json:"slot"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode proposer duties: %w", err)
+	}
+
+	// Find the duty for our specific slot
+	targetSlotStr := fmt.Sprintf("%d", slot)
+	for _, duty := range result.Data {
+		if duty.Slot == targetSlotStr {
+			return duty.Pubkey, nil
+		}
+	}
+
+	return "", fmt.Errorf("no proposer found for slot %d", slot)
 }
 
 type MEVBoostClient struct {
@@ -266,6 +307,8 @@ func TestMEVBoostIntegration(t *testing.T) {
 	t.Logf("Testing Transaction Type: %s", testingTxType)
 	t.Logf("Services: Beacon (%s), MEV-boost (%s), Relay (%s)", BeaconNodeURL, MEVBoostURL, RelayURL)
 
+	initValidators()
+
 	// Test 1: Verify all services are healthy
 	t.Run("Service health checks", func(t *testing.T) {
 		// Check MEV-boost
@@ -398,5 +441,159 @@ func TestMEVBoostIntegration(t *testing.T) {
 
 		require.Greater(t, totalBlocks, 0, "Should have at least one block in recent slots")
 		require.Equal(t, mevBoostBlocks, totalBlocks, "All blocks should be built via MEV-boost in builder-playground environment (no local fallback expected)")
+	})
+
+	t.Run("status check", func(t *testing.T) {
+		resp, err := relayClient.Get(MEVBoostURL + params.PathStatus)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+	t.Run("MEV-boost request validation", func(t *testing.T) {
+		resp, err := relayClient.Get(MEVBoostURL + "/eth/v1/builder/header/-1/0x0000000000000000000000000000000000000000000000000000000000000000/0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+		resp, err = relayClient.Get(MEVBoostURL + "/eth/v1/builder/header/1/0x0000000000000000000000000000000000000000000000000000000000000000/invalid_pubkey")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("MEV-boost bid selection", func(t *testing.T) {
+		t.Logf("Testing MEV-boost bid selection with real validator and parent hash...")
+
+		currentSlot, err := beaconClient.GetCurrentSlot(ctx)
+		require.NoError(t, err, "Should be able to get current slot")
+
+		// Get the actual parent hash from the current block
+		currentHeader, err := beaconClient.GetBlockHeader(ctx, currentSlot)
+		require.NoError(t, err, "Should be able to get current block header")
+
+		parentHash := fmt.Sprintf("0x%x", currentHeader.ParentRoot)
+		t.Logf("Using real parent hash: %s", parentHash)
+
+		// Get the scheduled validator for the next slot
+		futureSlot := currentSlot + 1
+		scheduledValidator, err := getScheduledValidatorForSlot(ctx, beaconClient, futureSlot)
+		require.NoError(t, err, "Should be able to get scheduled validator for slot %d", futureSlot)
+
+		t.Logf("Scheduled validator for slot %d: %s", futureSlot, scheduledValidator)
+
+		// Test bid retrieval with real validator and parent hash
+		url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
+			MEVBoostURL, futureSlot, parentHash, scheduledValidator)
+
+		t.Logf("Requesting bid: slot=%d, parent=%s, validator=%s", futureSlot, parentHash, scheduledValidator)
+
+		resp, err := relayClient.Get(url)
+		require.NoError(t, err, "Should handle header requests")
+		defer resp.Body.Close()
+
+		// Response can be 204 (no bid) or 200 (bid available)
+		require.True(t, resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK,
+			"Should return either 204 (no bid) or 200 (bid available), got %d", resp.StatusCode)
+
+		if resp.StatusCode == http.StatusOK {
+			t.Logf("✅ MEV-boost returned bid for slot %d with real validator", futureSlot)
+
+			// Parse and validate the bid response
+			var bidResponse map[string]interface{}
+			err := json.NewDecoder(resp.Body).Decode(&bidResponse)
+			require.NoError(t, err, "Should be able to parse bid response")
+
+			// Validate bid structure
+			require.Contains(t, bidResponse, "data", "Bid response should contain data field")
+
+			data, ok := bidResponse["data"].(map[string]interface{})
+			require.True(t, ok, "Data field should be an object")
+
+			// Check for key bid fields
+			if message, exists := data["message"]; exists {
+				messageObj, ok := message.(map[string]interface{})
+				require.True(t, ok, "Message field should be an object")
+
+				// Validate bid contains expected fields
+				require.Contains(t, messageObj, "header", "Bid should contain header")
+				require.Contains(t, messageObj, "value", "Bid should contain value")
+				require.Contains(t, messageObj, "pubkey", "Bid should contain pubkey")
+
+				// Log bid value for debugging
+				if value, exists := messageObj["value"]; exists {
+					t.Logf("Bid value: %v", value)
+				}
+			}
+
+			t.Logf("✅ Bid response structure validated")
+		} else {
+			t.Logf("✅ MEV-boost correctly returned no-bid (204) for slot %d", futureSlot)
+			t.Logf("This is expected if no builders have submitted bids for this slot/parent combination")
+		}
+
+		// Test with current slot too (should typically have no bid since it's already being built)
+		url = fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
+			MEVBoostURL, currentSlot, parentHash, scheduledValidator)
+
+		resp, err = relayClient.Get(url)
+		require.NoError(t, err, "Should handle header requests for current slot")
+		defer resp.Body.Close()
+
+		// Current slot should typically return 204 (no bid) since it's being built already
+		t.Logf("Current slot %d bid status: %d", currentSlot, resp.StatusCode)
+	})
+
+	// t.Run("MEV-boost payload delivery", func(t *testing.T) {
+	// 	t.Logf("Testing MEV-boost payload delivery mechanism...")
+
+	// 	// Test the payload delivery endpoint structure
+	// 	// Note: We're not actually submitting a blind block, just testing the endpoint exists
+	// 	url := MEVBoostURL + "/eth/v1/builder/blinded_blocks"
+
+	// 	// Make a HEAD request to check if endpoint exists without actually submitting
+	// 	req, err := http.NewRequest("HEAD", url, nil)
+	// 	require.NoError(t, err, "Should be able to create HEAD request")
+
+	// 	resp, err := relayClient.Do(req)
+	// 	require.NoError(t, err, "Should be able to reach payload delivery endpoint")
+	// 	defer resp.Body.Close()
+
+	// 	// Endpoint should exist (even if it returns error for empty request)
+	// 	require.True(t, resp.StatusCode != http.StatusNotFound, "Payload delivery endpoint should exist")
+	// 	t.Logf("✅ MEV-boost payload delivery endpoint is accessible")
+	// })
+
+	t.Run("MEV-boost performance", func(t *testing.T) {
+		// testing concurrent calls
+		concurrentRequests := 5
+		var wg sync.WaitGroup
+		errors := make(chan error, concurrentRequests)
+
+		for i := 0; i < concurrentRequests; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				resp, err := relayClient.Get(MEVBoostURL + "/eth/v1/builder/status")
+				if err != nil {
+					errors <- err
+					return
+				}
+				defer resp.Body.Close()
+				if resp.StatusCode != http.StatusOK {
+					errors <- fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+				}
+			}()
+		}
+
+		wg.Wait()
+		close(errors)
+
+		errorCount := 0
+		for err := range errors {
+			errorCount++
+			t.Logf("Concurrent request error: %v", err)
+		}
+
+		require.Equal(t, 0, errorCount)
 	})
 }
