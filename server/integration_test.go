@@ -307,8 +307,8 @@ func TestMEVBoostIntegration(t *testing.T) {
 	t.Logf("Testing Transaction Type: %s", testingTxType)
 	t.Logf("Services: Beacon (%s), MEV-boost (%s), Relay (%s)", BeaconNodeURL, MEVBoostURL, RelayURL)
 
-	// Initialize validator keys for testing
-	initValidators()
+	// Initialize validator keys for testing (BLS version for tests)
+	initValidatorsWithBLS()
 
 	// Test 1: Verify all services are healthy
 	t.Run("Service health checks", func(t *testing.T) {
