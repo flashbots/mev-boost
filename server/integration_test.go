@@ -464,6 +464,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 		currentSlot, err := beaconClient.GetCurrentSlot(ctx)
 		require.NoError(t, err, "Should be able to get current slot")
 
+		currentSlot = currentSlot - 1
 		// Get the actual parent hash from the current block
 		currentHeader, err := beaconClient.GetBlockHeader(ctx, currentSlot)
 		require.NoError(t, err, "Should be able to get current block header")
