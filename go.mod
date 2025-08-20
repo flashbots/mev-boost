@@ -3,6 +3,7 @@ module github.com/flashbots/mev-boost
 go 1.24.0
 
 require (
+	github.com/OffchainLabs/prysm/v6 v6.0.4
 	github.com/ethereum/go-ethereum v1.15.9
 	github.com/flashbots/go-boost-utils v1.9.0
 	github.com/flashbots/go-utils v0.10.0
@@ -19,7 +20,6 @@ require (
 require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/OffchainLabs/prysm/v6 v6.0.4 // indirect
 	github.com/VictoriaMetrics/fastcache v1.12.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.22.0 // indirect
