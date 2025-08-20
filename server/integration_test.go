@@ -434,6 +434,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 
 			var deliveries []map[string]any
 			require.NoError(t, json.NewDecoder(resp.Body).Decode(&deliveries))
+			t.Logf("deliveries %d: length", len(deliveries))
 			require.Greater(t, len(deliveries), 0, "Slot %d should have been built via MEV-boost (builder-playground should provide bids)", slotToCheck)
 
 			mevBoostBlocks++
