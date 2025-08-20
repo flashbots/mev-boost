@@ -162,8 +162,6 @@ func (c *MEVBoostClient) CheckStatus(ctx context.Context) error {
 	return nil
 }
 
-
-
 // waitForMEVBoost waits for MEV-boost to be available
 func waitForMEVBoost(t *testing.T, timeout time.Duration) {
 	t.Helper()
@@ -290,44 +288,46 @@ func TestMEVBoostIntegration(t *testing.T) {
 		// For blob transaction testing, check if recent blocks contain blob transactions
 		if testingTxType == "blobs" {
 			t.Logf("🔍 Checking for blob transactions in recent blocks...")
-			
+
 			currentSlot, err := beaconClient.GetCurrentSlot(ctx)
 			require.NoError(t, err, "Should be able to get current slot")
-			
+
 			blobTxFound := false
 			totalBlobGasUsed := uint64(0)
-			
+
 			// Check the last 5 blocks for blob transactions
-			for i := 0; i < 5; i++ {
+			for i := 0; i < 15; i++ {
 				blockNumber := fmt.Sprintf("0x%x", uint64(currentSlot)-uint64(i))
-				
+
 				// Get block details from execution layer
-				blockResp, err := http.Post(ExecutionURL, "application/json", 
+				blockResp, err := http.Post(ExecutionURL, "application/json",
 					strings.NewReader(fmt.Sprintf(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["%s",true],"id":1}`, blockNumber)))
 				if err != nil {
+					t.Errorf("err encountered while tryong to look for block", err)
 					continue
 				}
 				defer blockResp.Body.Close()
-				
+
 				var blockResult struct {
 					Result struct {
-						BlobGasUsed    string `json:"blobGasUsed"`
-						ExcessBlobGas  string `json:"excessBlobGas"`
-						Transactions   []map[string]interface{} `json:"transactions"`
+						BlobGasUsed   string                   `json:"blobGasUsed"`
+						ExcessBlobGas string                   `json:"excessBlobGas"`
+						Transactions  []map[string]interface{} `json:"transactions"`
 					} `json:"result"`
 				}
-				
+
 				if err := json.NewDecoder(blockResp.Body).Decode(&blockResult); err != nil {
+					t.Errorf("err encountered while decoding block response", err)
 					continue
 				}
-				
+
 				if blockResult.Result.BlobGasUsed != "" && blockResult.Result.BlobGasUsed != "0x0" {
 					blobGasUsed, _ := strconv.ParseUint(strings.TrimPrefix(blockResult.Result.BlobGasUsed, "0x"), 16, 64)
 					if blobGasUsed > 0 {
 						blobTxFound = true
 						totalBlobGasUsed += blobGasUsed
 						t.Logf("✅ Found blob transactions in block %s: %d blob gas used", blockNumber, blobGasUsed)
-						
+
 						// Count blob transactions in this block
 						blobTxCount := 0
 						for _, tx := range blockResult.Result.Transactions {
@@ -337,9 +337,11 @@ func TestMEVBoostIntegration(t *testing.T) {
 						}
 						t.Logf("   Block contains %d blob transactions", blobTxCount)
 					}
+				} else {
+					t.Logf("no blobs for found for blockNumber %d", blockNumber)
 				}
 			}
-			
+
 			if blobTxFound {
 				t.Logf("✅ Successfully detected blob transaction activity (total blob gas: %d)", totalBlobGasUsed)
 			} else {
