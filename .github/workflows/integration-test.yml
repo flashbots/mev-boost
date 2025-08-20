@@ -292,69 +292,8 @@ jobs:
         cargo build --release --bin contender
         
         echo "Starting contender to spam ${{ matrix.tx_type }} transactions..."
-        
-        # For blob transactions, debug the blob gas pricing first
-        if [ "${{ matrix.tx_type }}" = "blobs" ]; then
-          echo "🔍 Debugging blob gas pricing..."
-          
-          # Check if eth_blobBaseFee RPC method is available
-          echo "1. Checking eth_blobBaseFee RPC method:"
-          BLOB_BASE_FEE=$(curl -s -X POST -H "Content-Type: application/json" \
-            --data '{"jsonrpc":"2.0","method":"eth_blobBaseFee","params":[],"id":1}' \
-            http://localhost:8545)
-          echo "Raw response: $BLOB_BASE_FEE"
-          
-          # Parse the blob base fee value
-          BLOB_FEE_HEX=$(echo "$BLOB_BASE_FEE" | jq -r '.result // "null"')
-          echo "Blob base fee (hex): $BLOB_FEE_HEX"
-          
-          if [ "$BLOB_FEE_HEX" != "null" ] && [ "$BLOB_FEE_HEX" != "" ]; then
-            # Convert hex to decimal for human readable value
-            BLOB_FEE_DECIMAL=$(printf "%d" "$BLOB_FEE_HEX" 2>/dev/null || echo "conversion_failed")
-            echo "Blob base fee (decimal): $BLOB_FEE_DECIMAL wei"
-            
-            # Calculate suggested max fee (base fee + buffer)
-            if [ "$BLOB_FEE_DECIMAL" != "conversion_failed" ]; then
-              SUGGESTED_FEE=$((BLOB_FEE_DECIMAL * 2))  # 2x base fee as buffer
-              echo "Suggested max-fee-per-blob-gas: $SUGGESTED_FEE wei"
-              
-              # Use the calculated fee in contender command
-              echo "Using calculated blob gas fee: $SUGGESTED_FEE"
-              ./target/release/contender spam --tps 5 \
-                -r http://localhost:8545 \
-                -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-                --max-fee-per-blob-gas "$SUGGESTED_FEE" \
-                blobs &
-            else
-              echo "⚠️  Could not parse blob base fee, using default high value"
-              ./target/release/contender spam --tps 5 \
-                -r http://localhost:8545 \
-                -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-                --max-fee-per-blob-gas 10000000000 \
-                blobs &
-            fi
-          else
-            echo "⚠️  eth_blobBaseFee not available or returned null, using high default"
-            ./target/release/contender spam --tps 5 \
-              -r http://localhost:8545 \
-              -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-              --max-fee-per-blob-gas 10000000000 \
-              blobs &
-          fi
-          
-          echo "2. Additional debugging - checking latest block for blob gas info:"
-          LATEST_BLOCK=$(curl -s -X POST -H "Content-Type: application/json" \
-            --data '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest",false],"id":1}' \
-            http://localhost:8545)
-          echo "Latest block blob gas used:" 
-          echo "$LATEST_BLOCK" | jq '.result.blobGasUsed // "not_present"'
-          echo "Latest block excess blob gas:"
-          echo "$LATEST_BLOCK" | jq '.result.excessBlobGas // "not_present"'
-          
-        else
-          # Run regular contender command for non-blob transactions
-          ./target/release/contender ${{ matrix.contender_cmd }} &
-        fi
+        # Run contender with matrix-specific command
+        ./target/release/contender ${{ matrix.contender_cmd }} &
         
         CONTENDER_PID=$!
         echo "CONTENDER_PID=$CONTENDER_PID" >> $GITHUB_ENV
