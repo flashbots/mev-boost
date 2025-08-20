@@ -278,14 +278,19 @@ func (vkm *ValidatorKeyMap) Count() int {
 	return len(vkm.keys)
 }
 
+// Global validator key map for integration tests
+var globalValidatorKeyMap *ValidatorKeyMap
+
+// initValidators initializes validator keys for integration testing
 func initValidators() {
 	// Create validator key map
-	keyMap := NewValidatorKeyMap()
+	globalValidatorKeyMap = NewValidatorKeyMap()
 
 	// Generate the same 100 validator keys as builder playground
 	privKeys, pubKeys, err := interop.DeterministicallyGenerateKeys(0, 100)
 	if err != nil {
-		log.Fatalf("Failed to generate keys: %v", err)
+		log.Printf("Warning: Failed to generate keys: %v", err)
+		return
 	}
 
 	// Store keys in the map
@@ -296,8 +301,16 @@ func initValidators() {
 		pubKeyHex := "0x" + hex.EncodeToString(pubKey.Marshal())
 
 		// Store private key in the map
-		keyMap.keys[pubKeyHex] = privKey.Marshal()
+		globalValidatorKeyMap.keys[pubKeyHex] = privKey.Marshal()
 
-		fmt.Printf("Stored validator %d: %s\n", i, pubKeyHex)
+		if i < 5 { // Only log first 5 to avoid spam
+			log.Printf("Stored validator %d: %s\n", i, pubKeyHex)
+		}
 	}
+	log.Printf("Initialized %d validator keys", globalValidatorKeyMap.Count())
+}
+
+// GetValidatorKeyMap returns the global validator key map
+func GetValidatorKeyMap() *ValidatorKeyMap {
+	return globalValidatorKeyMap
 }
