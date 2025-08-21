@@ -1,38 +1,182 @@
 package server
 
 import (
-	"encoding/hex"
-	"log"
+	"bytes"
+	"compress/gzip"
+	"fmt"
+	"math/big"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 
-	"github.com/OffchainLabs/prysm/v6/runtime/interop"
+	builderApi "github.com/attestantio/go-builder-client/api"
+	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
+	"github.com/attestantio/go-eth2-client/spec"
+	"github.com/attestantio/go-eth2-client/spec/deneb"
+	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/flashbots/mev-boost/config"
+	"github.com/stretchr/testify/require"
 )
 
-// initValidatorsWithBLS initializes validator keys using BLS for integration testing
-// This is only available in test builds
-func initValidatorsWithBLS() {
-	// Create validator key map
-	globalValidatorKeyMap = NewValidatorKeyMap()
+func TestMakePostRequest(t *testing.T) {
+	// Test errors
+	var x chan bool
+	code, err := SendHTTPRequest(t.Context(), *http.DefaultClient, http.MethodGet, "", "test", nil, x, nil)
+	require.Error(t, err)
+	require.Equal(t, 0, code)
+}
 
-	// Generate the same 100 validator keys as builder playground
-	privKeys, pubKeys, err := interop.DeterministicallyGenerateKeys(0, 100)
-	if err != nil {
-		log.Printf("Warning: Failed to generate keys: %v", err)
-		return
+func TestDecodeJSON(t *testing.T) {
+	// test disallows unknown fields
+	var x struct {
+		A int `json:"a"`
+		B int `json:"b"`
+	}
+	payload := bytes.NewReader([]byte(`{"a":1,"b":2,"c":3}`))
+	err := DecodeJSON(payload, &x)
+	require.Error(t, err)
+	require.Equal(t, "json: unknown field \"c\"", err.Error())
+}
+
+func TestSendHTTPRequestUserAgent(t *testing.T) {
+	done := make(chan bool, 1)
+
+	// Test with custom UA
+	customUA := "test-user-agent"
+	expectedUA := fmt.Sprintf("mev-boost/%s %s", config.Version, customUA)
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		require.Equal(t, expectedUA, r.Header.Get("User-Agent")) //nolint:testifylint // if we fail here the test has failed
+		done <- true
+	}))
+	code, err := SendHTTPRequest(t.Context(), *http.DefaultClient, http.MethodGet, ts.URL, UserAgent(customUA), nil, nil, nil)
+	ts.Close()
+	require.NoError(t, err)
+	require.Equal(t, 200, code)
+	<-done
+
+	// Test without custom UA
+	expectedUA = fmt.Sprintf("mev-boost/%s", config.Version)
+	ts = httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		require.Equal(t, expectedUA, r.Header.Get("User-Agent")) //nolint:testifylint  // if we fail here the test has failed
+		done <- true
+	}))
+	code, err = SendHTTPRequest(t.Context(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, nil, nil)
+	ts.Close()
+	require.NoError(t, err)
+	require.Equal(t, 200, code)
+	<-done
+}
+
+func TestSendHTTPRequestGzip(t *testing.T) {
+	// Test with gzip response
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	_, err := zw.Write([]byte(`{ "msg": "test-message" }`))
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "gzip", r.Header.Get("Accept-Encoding")) //nolint:testifylint // if this fails the test is invalid
+		w.Header().Set("Content-Encoding", "gzip")
+		_, _ = w.Write(buf.Bytes())
+	}))
+	resp := struct{ Msg string }{}
+	code, err := SendHTTPRequest(t.Context(), *http.DefaultClient, http.MethodGet, ts.URL, "", nil, nil, &resp)
+	ts.Close()
+	require.NoError(t, err)
+	require.Equal(t, 200, code)
+	require.Equal(t, "test-message", resp.Msg)
+}
+
+func TestWeiBigIntToEthBigFloat(t *testing.T) {
+	// test with valid input
+	i := big.NewInt(1)
+	f := weiBigIntToEthBigFloat(i)
+	require.Equal(t, "0.000000000000000001", f.Text('f', 18))
+
+	// test with nil, which results on invalid big.Int input
+	f = weiBigIntToEthBigFloat(nil)
+	require.Equal(t, "0.000000000000000000", f.Text('f', 18))
+}
+
+func TestGetPayloadResponseIsEmpty(t *testing.T) {
+	testCases := []struct {
+		name     string
+		payload  *builderApi.VersionedSubmitBlindedBlockResponse
+		expected bool
+	}{
+		{
+			name: "Non-empty deneb payload response",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionDeneb,
+				Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+					ExecutionPayload: &deneb.ExecutionPayload{
+						BlockHash: phase0.Hash32{0x1},
+					},
+					BlobsBundle: &builderApiDeneb.BlobsBundle{
+						Blobs:       make([]deneb.Blob, 0),
+						Commitments: make([]deneb.KZGCommitment, 0),
+						Proofs:      make([]deneb.KZGProof, 0),
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Empty deneb payload response",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionDeneb,
+			},
+			expected: true,
+		},
+		{
+			name: "Empty deneb execution payload",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionDeneb,
+				Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+					BlobsBundle: &builderApiDeneb.BlobsBundle{
+						Blobs:       make([]deneb.Blob, 0),
+						Commitments: make([]deneb.KZGCommitment, 0),
+						Proofs:      make([]deneb.KZGProof, 0),
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Empty deneb blobs bundle",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+					ExecutionPayload: &deneb.ExecutionPayload{
+						BlockHash: phase0.Hash32{0x1},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Nil block hash for deneb payload response",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Deneb: &builderApiDeneb.ExecutionPayloadAndBlobsBundle{
+					ExecutionPayload: &deneb.ExecutionPayload{
+						BlockHash: nilHash,
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Unsupported payload version",
+			payload: &builderApi.VersionedSubmitBlindedBlockResponse{
+				Version: spec.DataVersionAltair,
+			},
+			expected: true,
+		},
 	}
 
-	// Store keys in the map
-	for i, privKey := range privKeys {
-		pubKey := pubKeys[i]
-
-		// Convert public key to hex string
-		pubKeyHex := "0x" + hex.EncodeToString(pubKey.Marshal())
-
-		// Store private key in the map
-		globalValidatorKeyMap.keys[pubKeyHex] = privKey.Marshal()
-
-		if i < 5 { // Only log first 5 to avoid spam
-			log.Printf("Stored validator %d: %s\n", i, pubKeyHex)
-		}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, getPayloadResponseIsEmpty(tt.payload))
+		})
 	}
-	log.Printf("Initialized %d validator keys with BLS", globalValidatorKeyMap.Count())
 }

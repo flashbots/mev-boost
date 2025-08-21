@@ -7,13 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"net/http"
 	"strings"
 	"time"
-
-	"encoding/hex"
 
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderSpec "github.com/attestantio/go-builder-client/spec"
@@ -234,61 +231,4 @@ func getPayloadResponseIsEmpty(payload *builderApi.VersionedSubmitBlindedBlockRe
 
 func wrapUserAgent(ua UserAgent) string {
 	return strings.TrimSpace(fmt.Sprintf("mev-boost/%s %s", config.Version, ua))
-}
-
-// ValidatorKeyMap stores public key -> private key mapping
-type ValidatorKeyMap struct {
-	keys map[string][]byte // public key hex -> private key bytes
-}
-
-// NewValidatorKeyMap creates a new validator key map
-func NewValidatorKeyMap() *ValidatorKeyMap {
-	return &ValidatorKeyMap{
-		keys: make(map[string][]byte),
-	}
-}
-
-// GetSigningKey returns the private key for a given public key
-func (vkm *ValidatorKeyMap) GetSigningKey(publicKeyHex string) ([]byte, bool) {
-	privateKey, exists := vkm.keys[publicKeyHex]
-	return privateKey, exists
-}
-
-// GetSigningKeyHex returns the private key as hex string for a given public key
-func (vkm *ValidatorKeyMap) GetSigningKeyHex(publicKeyHex string) (string, bool) {
-	privateKey, exists := vkm.keys[publicKeyHex]
-	if !exists {
-		return "", false
-	}
-	return hex.EncodeToString(privateKey), true
-}
-
-// GetAllPublicKeys returns all public keys in the map
-func (vkm *ValidatorKeyMap) GetAllPublicKeys() []string {
-	keys := make([]string, 0, len(vkm.keys))
-	for pubKey := range vkm.keys {
-		keys = append(keys, pubKey)
-	}
-	return keys
-}
-
-// Count returns the total number of validators
-func (vkm *ValidatorKeyMap) Count() int {
-	return len(vkm.keys)
-}
-
-// Global validator key map for integration tests
-var globalValidatorKeyMap *ValidatorKeyMap
-
-// initValidators initializes validator keys for integration testing
-// This is a no-op in the main build to avoid BLS dependency issues
-func initValidators() {
-	// Create empty validator key map to avoid nil pointer issues
-	globalValidatorKeyMap = NewValidatorKeyMap()
-	log.Printf("initValidators: BLS key generation disabled in main build")
-}
-
-// GetValidatorKeyMap returns the global validator key map
-func GetValidatorKeyMap() *ValidatorKeyMap {
-	return globalValidatorKeyMap
 }
