@@ -349,7 +349,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 	})
 
 	t.Run("request validation on invalid pub key", func(t *testing.T) {
-		resp, err := httpClient.Get(MEVBoostURL + "/eth/v1/builder/header/1/0x0000000000000000000000000000000000000000000000000000000000000000/invalid_pubkey")
+		resp, err := httpClient.Get(MEVBoostURL + "/eth/v1/builder/header/1/0x0000000000000000000000000000000000000000000000000000000000000000/0x000000")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
