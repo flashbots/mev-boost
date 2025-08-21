@@ -17,6 +17,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// ProposerPayloadDelivered models the relay payload delivery response
+// Fields are strings to be lenient across fork variations
+type ProposerPayloadDelivered struct {
+	Slot                 string `json:"slot"`
+	ProposerPubkey       string `json:"proposer_pubkey"`
+	BuilderPubkey        string `json:"builder_pubkey"`
+	ProposerFeeRecipient string `json:"proposer_fee_recipient"`
+	ParentHash           string `json:"parent_hash"`
+	BlockHash            string `json:"block_hash"`
+	BlockNumber          string `json:"block_number"`
+	Value                string `json:"value"`
+	NumTx                string `json:"num_tx"`
+	Timestamp            string `json:"timestamp"`
+}
+
 const (
 	MEVBoostURL   = "http://localhost:18550"
 	BeaconNodeURL = "http://localhost:3500"
@@ -388,9 +403,19 @@ func TestMEVBoostIntegration(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, resp.StatusCode, "Relay should return payload delivery data for slot %d", slotToCheck)
 
-			var deliveries []map[string]any
+			var deliveries []ProposerPayloadDelivered
 			require.NoError(t, json.NewDecoder(resp.Body).Decode(&deliveries))
-			t.Logf("deliveries %d: length", len(deliveries))
+			t.Logf("deliveries length: %d", len(deliveries))
+			// Log first few deliveries for visibility
+			maxLog := 3
+			if len(deliveries) < maxLog {
+				maxLog = len(deliveries)
+			}
+			for i := 0; i < maxLog; i++ {
+				d := deliveries[i]
+				t.Logf("delivery[%d]: slot=%s blockNumber=%s value=%s proposer=%s builder=%s blockHash=%s parentHash=%s numTx=%s",
+					i, d.Slot, d.BlockNumber, d.Value, d.ProposerPubkey, d.BuilderPubkey, d.BlockHash, d.ParentHash, d.NumTx)
+			}
 			require.Greater(t, len(deliveries), 0, "Slot %d should have been built via MEV-boost (builder-playground should provide bids)", slotToCheck)
 
 			mevBoostBlocks++
