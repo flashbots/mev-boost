@@ -328,6 +328,8 @@ func TestMEVBoostIntegration(t *testing.T) {
 				continue
 			}
 
+			totalBlocks++
+
 			// payload for this block must have been delivered by the relay
 			resp, err := httpClient.Get(fmt.Sprintf("%s/relay/v1/data/bidtraces/proposer_payload_delivered?slot=%d", RelayURL, slotToCheck))
 			require.NoError(t, err)
