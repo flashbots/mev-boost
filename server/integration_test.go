@@ -340,7 +340,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 						t.Logf("   Block contains %d blob transactions", blobTxCount)
 					}
 				} else {
-					t.Logf("no blobs for found for blockNumber %d", blockNumber)
+					t.Logf("no blobs found for blockNumber %s", blockNumber)
 				}
 			}
 
