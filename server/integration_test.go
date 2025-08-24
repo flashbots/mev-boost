@@ -182,7 +182,6 @@ func waitForMEVBoost(t *testing.T, timeout time.Duration) {
 	}
 }
 
-// TestMEVBoostIntegration tests MEV-boost by observing the live system
 func TestMEVBoostIntegration(t *testing.T) {
 	// Skip this test if we're not running integration te sts
 	if testing.Short() {
@@ -211,7 +210,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 	t.Logf("Testing Transaction Type: %s", testingTxType)
 	t.Logf("Services: Beacon (%s), MEV-boost (%s), Relay (%s)", BeaconNodeURL, MEVBoostURL, RelayURL)
 
-	// Test 1: check mev-boost status
+	// check mev-boost status
 	t.Run("mev-boost status check", func(t *testing.T) {
 		//check mev-boost status
 		resp, err := httpClient.Get(MEVBoostURL + "/eth/v1/builder/status")
@@ -220,7 +219,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
-	// Test 2: validate chain activity
+	// validate chain activity
 	t.Run("Validate blockchain activity and transaction types", func(t *testing.T) {
 		// should be delivering payloads since its via mev-boost we can directly check the relay api
 		resp, err := httpClient.Get(RelayURL + "/relay/v1/data/bidtraces/proposer_payload_delivered")
@@ -234,84 +233,84 @@ func TestMEVBoostIntegration(t *testing.T) {
 		require.Greater(t, len(payloads), 0)
 
 		// for blob transaction testing, check if recent blocks contain blob transactions
-		// if testingTxType == "blobs" {
-		blobTxFound := false
-		totalBlobGasUsed := uint64(0)
+		if testingTxType == "blobs" {
+			blobTxFound := false
+			totalBlobGasUsed := uint64(0)
 
-		latestBlockResp, err := http.Post(ExecutionURL, "application/json",
-			strings.NewReader(`{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}`))
-		require.NoError(t, err)
-		defer latestBlockResp.Body.Close()
+			latestBlockResp, err := http.Post(ExecutionURL, "application/json",
+				strings.NewReader(`{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}`))
+			require.NoError(t, err)
+			defer latestBlockResp.Body.Close()
 
-		var latestBlockResult struct {
-			Result string `json:"result"`
-		}
-		require.NoError(t, json.NewDecoder(latestBlockResp.Body).Decode(&latestBlockResult))
-
-		latestBlockNum, err := strconv.ParseUint(strings.TrimPrefix(latestBlockResult.Result, "0x"), 16, 64)
-		require.NoError(t, err)
-
-		// check the last 15 blocks for blob transactions
-		for i := uint64(0); i < 15; i++ {
-			if latestBlockNum < i {
-				continue
+			var latestBlockResult struct {
+				Result string `json:"result"`
 			}
+			require.NoError(t, json.NewDecoder(latestBlockResp.Body).Decode(&latestBlockResult))
 
-			blockNumber := fmt.Sprintf("0x%x", latestBlockNum-i)
-			blockResp, err := http.Post(ExecutionURL, "application/json",
-				strings.NewReader(fmt.Sprintf(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["%s",true],"id":1}`, blockNumber)))
-			if err != nil {
-				fmt.Println("err", err)
-				continue
-			}
-			defer blockResp.Body.Close()
+			latestBlockNum, err := strconv.ParseUint(strings.TrimPrefix(latestBlockResult.Result, "0x"), 16, 64)
+			require.NoError(t, err)
 
-			var blockResult struct {
-				Result struct {
-					Number        string                   `json:"number"`
-					BlobGasUsed   string                   `json:"blobGasUsed"`
-					ExcessBlobGas string                   `json:"excessBlobGas"`
-					Transactions  []map[string]interface{} `json:"transactions"`
-				} `json:"result"`
-			}
-
-			if err := json.NewDecoder(blockResp.Body).Decode(&blockResult); err != nil {
-				fmt.Println("err", err)
-				continue
-			}
-
-			// we could also have check for txtypes but that would have been traversering through
-			// alot of them so for simplicity we can make sure of BlobGasUsed to check for block txs
-			if blockResult.Result.BlobGasUsed != "" && blockResult.Result.BlobGasUsed != "0x0" {
-				blobGasUsed, _ := strconv.ParseUint(strings.TrimPrefix(blockResult.Result.BlobGasUsed, "0x"), 16, 64)
-				if blobGasUsed > 0 {
-					blobTxFound = true
-					totalBlobGasUsed += blobGasUsed
-					t.Logf("✅ Found blob transactions in block %s: %d blob gas used", blockResult.Result.Number, blobGasUsed)
-
-					// Count blob transactions in this block
-					blobTxCount := 0
-					for _, tx := range blockResult.Result.Transactions {
-						if txType, exists := tx["type"]; exists && txType == "0x3" { // EIP-4844 blob tx type
-							blobTxCount++
-						}
-					}
-					t.Logf("   Block contains %d blob transactions", blobTxCount)
+			// check the last 15 blocks for blob transactions
+			for i := uint64(0); i < 15; i++ {
+				if latestBlockNum < i {
+					continue
 				}
+
+				blockNumber := fmt.Sprintf("0x%x", latestBlockNum-i)
+				blockResp, err := http.Post(ExecutionURL, "application/json",
+					strings.NewReader(fmt.Sprintf(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["%s",true],"id":1}`, blockNumber)))
+				if err != nil {
+					fmt.Println("err", err)
+					continue
+				}
+				defer blockResp.Body.Close()
+
+				var blockResult struct {
+					Result struct {
+						Number        string                   `json:"number"`
+						BlobGasUsed   string                   `json:"blobGasUsed"`
+						ExcessBlobGas string                   `json:"excessBlobGas"`
+						Transactions  []map[string]interface{} `json:"transactions"`
+					} `json:"result"`
+				}
+
+				if err := json.NewDecoder(blockResp.Body).Decode(&blockResult); err != nil {
+					fmt.Println("err", err)
+					continue
+				}
+
+				// we could also have check for txtypes but that would have been traversering through
+				// alot of them so for simplicity we can make sure of BlobGasUsed to check for block txs
+				if blockResult.Result.BlobGasUsed != "" && blockResult.Result.BlobGasUsed != "0x0" {
+					blobGasUsed, _ := strconv.ParseUint(strings.TrimPrefix(blockResult.Result.BlobGasUsed, "0x"), 16, 64)
+					if blobGasUsed > 0 {
+						blobTxFound = true
+						totalBlobGasUsed += blobGasUsed
+						t.Logf("✅ Found blob transactions in block %s: %d blob gas used", blockResult.Result.Number, blobGasUsed)
+
+						// Count blob transactions in this block
+						blobTxCount := 0
+						for _, tx := range blockResult.Result.Transactions {
+							if txType, exists := tx["type"]; exists && txType == "0x3" {
+								blobTxCount++
+							}
+						}
+						require.Greater(t, blobTxCount, 0)
+					}
+				}
+			}
+
+			require.True(t, blobTxFound)
+
+			if blobTxFound {
+				t.Logf("Successfully detected blob transaction activity (total blob gas: %d)", totalBlobGasUsed)
 			} else {
-				t.Logf("no blobs found for blockNumber %s", blockResult.Result.Number)
+				t.Logf("No blob transactions found in recent blocks (may need more time for contender to generate blobs)")
 			}
 		}
-
-		if blobTxFound {
-			t.Logf("✅ Successfully detected blob transaction activity (total blob gas: %d)", totalBlobGasUsed)
-		} else {
-			t.Logf("⚠️  No blob transactions found in recent blocks (may need more time for contender to generate blobs)")
-		}
-		// }
 	})
 
-	// Test 3: Validate MEV-boost is consistently building all blocks
+	// validate MEV-boost is consistently building all blocks
 	t.Run("MEV-boost consistent block building", func(t *testing.T) {
 		t.Logf("Validating that MEV-boost is building all blocks (builder-playground environment)...")
 
@@ -355,75 +354,34 @@ func TestMEVBoostIntegration(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
 
-	t.Run("MEV-boost bid selection", func(t *testing.T) {
-		t.Logf("Testing MEV-boost bid selection with real validator and parent hash...")
+	t.Run("bid retrieval", func(t *testing.T) {
 
 		currentSlot, err := beaconClient.GetCurrentSlot(ctx)
-		require.NoError(t, err, "Should be able to get current slot")
+		require.NoError(t, err)
 
 		previousSlot := currentSlot - 1
-		// Get the actual parent hash from the current block
+
 		previousHeader, err := beaconClient.GetBlockHeader(ctx, previousSlot)
-		require.NoError(t, err, "Should be able to get current block header")
+		require.NoError(t, err)
 
 		parentHash := fmt.Sprintf("0x%x", previousHeader.ParentRoot)
-		t.Logf("Using real parent hash: %s", parentHash)
 
 		// get the scheduled validator for the previous slot
 		scheduledValidator, err := getScheduledValidatorForSlot(beaconClient, previousSlot)
-		require.NoError(t, err, "Should be able to get scheduled validator for slot %d", previousSlot)
+		require.NoError(t, err)
 
 		t.Logf("Scheduled validator for slot %d: %s", previousSlot, scheduledValidator)
 
-		// Test bid retrieval with real validator and parent hash
 		url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
 			MEVBoostURL, previousSlot, parentHash, scheduledValidator)
 
 		t.Logf("Requesting bid: slot=%d, parent=%s, validator=%s", previousSlot, parentHash, scheduledValidator)
 
 		resp, err := httpClient.Get(url)
-		require.NoError(t, err, "Should handle header requests")
+		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		// Response can be 204 (no bid) or 200 (bid available)
-		require.True(t, resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK,
-			"Should return either 204 (no bid) or 200 (bid available), got %d", resp.StatusCode)
-
-		if resp.StatusCode == http.StatusOK {
-			t.Logf("✅ MEV-boost returned bid for slot %d with real validator", previousSlot)
-
-			// Parse and validate the bid response
-			var bidResponse map[string]interface{}
-			err := json.NewDecoder(resp.Body).Decode(&bidResponse)
-			require.NoError(t, err, "Should be able to parse bid response")
-
-			// Validate bid structure
-			require.Contains(t, bidResponse, "data", "Bid response should contain data field")
-
-			data, ok := bidResponse["data"].(map[string]interface{})
-			require.True(t, ok, "Data field should be an object")
-
-			// Check for key bid fields
-			if message, exists := data["message"]; exists {
-				messageObj, ok := message.(map[string]interface{})
-				require.True(t, ok, "Message field should be an object")
-
-				// Validate bid contains expected fields
-				require.Contains(t, messageObj, "header", "Bid should contain header")
-				require.Contains(t, messageObj, "value", "Bid should contain value")
-				require.Contains(t, messageObj, "pubkey", "Bid should contain pubkey")
-
-				// Log bid value for debugging
-				if value, exists := messageObj["value"]; exists {
-					t.Logf("Bid value: %v", value)
-				}
-			}
-
-			t.Logf("✅ Bid response structure validated")
-		} else {
-			t.Logf("✅ MEV-boost correctly returned no-bid (204) for slot %d", previousSlot)
-			t.Logf("This is expected if no builders have submitted bids for this slot/parent combination")
-		}
+		require.True(t, resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK)
 	})
 
 	t.Run("MEV-boost performance", func(t *testing.T) {

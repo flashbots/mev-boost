@@ -8,42 +8,42 @@ on:
 
 env:
   RBUILDER_VERSION: v1.2.6
-  PLAYGROUND_TIMEOUT: 180s  # Reduced from 300s
-  TEST_TIMEOUT: 300s        # Reduced from 600s
+  PLAYGROUND_TIMEOUT: 180s
+  TEST_TIMEOUT: 300s
 
 jobs:
   integration-test:
     name: "Integration Test (${{ matrix.fork }} fork, ${{ matrix.tx_type }} txs)"
-    runs-on: ubuntu-latest  # Use larger runner
+    runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
       matrix:
         include:
-          # Test legacy transactions on both forks
+          # test legacy transactions on forks
           - fork: deneb
             tx_type: legacy
-            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy transfers blobs"
+            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy transfers"
           - fork: electra  
             tx_type: legacy
-            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy transfers blobs"
-          # Test blob transactions (only on Deneb+ since blobs were introduced then)
+            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy transfers"
+          # test blob transactions on forks
           - fork: deneb
             tx_type: blobs
             contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 blobs"
           - fork: electra
             tx_type: blobs  
             contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 blobs"
-      fail-fast: false  # Continue testing other combinations even if one fails
+      fail-fast: false
 
     steps:
     - name: Checkout mev-boost
       uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v5    # Updated to v5
+      uses: actions/setup-go@v5
       with:
         go-version: '1.24'
-        cache: true                # Enable Go module caching
+        cache: true
 
     - name: Set up Rust
       uses: dtolnay/rust-toolchain@stable
