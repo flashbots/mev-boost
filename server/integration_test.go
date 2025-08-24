@@ -234,81 +234,81 @@ func TestMEVBoostIntegration(t *testing.T) {
 		require.Greater(t, len(payloads), 0)
 
 		// for blob transaction testing, check if recent blocks contain blob transactions
-		if testingTxType == "blobs" {
-			blobTxFound := false
-			totalBlobGasUsed := uint64(0)
+		// if testingTxType == "blobs" {
+		blobTxFound := false
+		totalBlobGasUsed := uint64(0)
 
-			latestBlockResp, err := http.Post(ExecutionURL, "application/json",
-				strings.NewReader(`{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}`))
-			require.NoError(t, err)
-			defer latestBlockResp.Body.Close()
+		latestBlockResp, err := http.Post(ExecutionURL, "application/json",
+			strings.NewReader(`{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}`))
+		require.NoError(t, err)
+		defer latestBlockResp.Body.Close()
 
-			var latestBlockResult struct {
-				Result string `json:"result"`
+		var latestBlockResult struct {
+			Result string `json:"result"`
+		}
+		require.NoError(t, json.NewDecoder(latestBlockResp.Body).Decode(&latestBlockResult))
+
+		latestBlockNum, err := strconv.ParseUint(strings.TrimPrefix(latestBlockResult.Result, "0x"), 16, 64)
+		require.NoError(t, err)
+
+		// check the last 15 blocks for blob transactions
+		for i := uint64(0); i < 15; i++ {
+			if latestBlockNum < i {
+				continue
 			}
-			require.NoError(t, json.NewDecoder(latestBlockResp.Body).Decode(&latestBlockResult))
 
-			latestBlockNum, err := strconv.ParseUint(strings.TrimPrefix(latestBlockResult.Result, "0x"), 16, 64)
-			require.NoError(t, err)
+			blockNumber := fmt.Sprintf("0x%x", latestBlockNum-i)
+			blockResp, err := http.Post(ExecutionURL, "application/json",
+				strings.NewReader(fmt.Sprintf(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["%s",true],"id":1}`, blockNumber)))
+			if err != nil {
+				fmt.Println("err", err)
+				continue
+			}
+			defer blockResp.Body.Close()
 
-			// check the last 15 blocks for blob transactions
-			for i := uint64(0); i < 15; i++ {
-				if latestBlockNum < i {
-					continue
-				}
+			var blockResult struct {
+				Result struct {
+					Number        string                   `json:"number"`
+					BlobGasUsed   string                   `json:"blobGasUsed"`
+					ExcessBlobGas string                   `json:"excessBlobGas"`
+					Transactions  []map[string]interface{} `json:"transactions"`
+				} `json:"result"`
+			}
 
-				blockNumber := fmt.Sprintf("0x%x", latestBlockNum-i)
-				blockResp, err := http.Post(ExecutionURL, "application/json",
-					strings.NewReader(fmt.Sprintf(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["%s",true],"id":1}`, blockNumber)))
-				if err != nil {
-					fmt.Println("err", err)
-					continue
-				}
-				defer blockResp.Body.Close()
+			if err := json.NewDecoder(blockResp.Body).Decode(&blockResult); err != nil {
+				fmt.Println("err", err)
+				continue
+			}
 
-				var blockResult struct {
-					Result struct {
-						Number        string                   `json:"number"`
-						BlobGasUsed   string                   `json:"blobGasUsed"`
-						ExcessBlobGas string                   `json:"excessBlobGas"`
-						Transactions  []map[string]interface{} `json:"transactions"`
-					} `json:"result"`
-				}
+			// we could also have check for txtypes but that would have been traversering through
+			// alot of them so for simplicity we can make sure of BlobGasUsed to check for block txs
+			if blockResult.Result.BlobGasUsed != "" && blockResult.Result.BlobGasUsed != "0x0" {
+				blobGasUsed, _ := strconv.ParseUint(strings.TrimPrefix(blockResult.Result.BlobGasUsed, "0x"), 16, 64)
+				if blobGasUsed > 0 {
+					blobTxFound = true
+					totalBlobGasUsed += blobGasUsed
+					t.Logf("✅ Found blob transactions in block %s: %d blob gas used", blockResult.Result.Number, blobGasUsed)
 
-				if err := json.NewDecoder(blockResp.Body).Decode(&blockResult); err != nil {
-					fmt.Println("err", err)
-					continue
-				}
-
-				// we could also have check for txtypes but that would have been traversering through
-				// alot of them so for simplicity we can make sure of BlobGasUsed to check for block txs
-				if blockResult.Result.BlobGasUsed != "" && blockResult.Result.BlobGasUsed != "0x0" {
-					blobGasUsed, _ := strconv.ParseUint(strings.TrimPrefix(blockResult.Result.BlobGasUsed, "0x"), 16, 64)
-					if blobGasUsed > 0 {
-						blobTxFound = true
-						totalBlobGasUsed += blobGasUsed
-						t.Logf("✅ Found blob transactions in block %s: %d blob gas used", blockResult.Result.Number, blobGasUsed)
-
-						// Count blob transactions in this block
-						blobTxCount := 0
-						for _, tx := range blockResult.Result.Transactions {
-							if txType, exists := tx["type"]; exists && txType == "0x3" { // EIP-4844 blob tx type
-								blobTxCount++
-							}
+					// Count blob transactions in this block
+					blobTxCount := 0
+					for _, tx := range blockResult.Result.Transactions {
+						if txType, exists := tx["type"]; exists && txType == "0x3" { // EIP-4844 blob tx type
+							blobTxCount++
 						}
-						t.Logf("   Block contains %d blob transactions", blobTxCount)
 					}
-				} else {
-					t.Logf("no blobs found for blockNumber %s", blockResult.Result.Number)
+					t.Logf("   Block contains %d blob transactions", blobTxCount)
 				}
-			}
-
-			if blobTxFound {
-				t.Logf("✅ Successfully detected blob transaction activity (total blob gas: %d)", totalBlobGasUsed)
 			} else {
-				t.Logf("⚠️  No blob transactions found in recent blocks (may need more time for contender to generate blobs)")
+				t.Logf("no blobs found for blockNumber %s", blockResult.Result.Number)
 			}
 		}
+
+		if blobTxFound {
+			t.Logf("✅ Successfully detected blob transaction activity (total blob gas: %d)", totalBlobGasUsed)
+		} else {
+			t.Logf("⚠️  No blob transactions found in recent blocks (may need more time for contender to generate blobs)")
+		}
+		// }
 	})
 
 	// Test 3: Validate MEV-boost is consistently building all blocks

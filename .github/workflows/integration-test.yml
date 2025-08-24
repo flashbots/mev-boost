@@ -22,10 +22,10 @@ jobs:
           # Test legacy transactions on both forks
           - fork: deneb
             tx_type: legacy
-            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy transfers"
+            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy transfers blobs"
           - fork: electra  
             tx_type: legacy
-            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy transfers"
+            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy transfers blobs"
           # Test blob transactions (only on Deneb+ since blobs were introduced then)
           - fork: deneb
             tx_type: blobs
