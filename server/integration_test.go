@@ -364,39 +364,12 @@ func TestMEVBoostIntegration(t *testing.T) {
 	})
 
 	t.Run("bid retrieval", func(t *testing.T) {
-		currentSlot, err := beaconClient.GetCurrentSlot()
-		require.NoError(t, err)
-
-		previousSlot := currentSlot - 1
-
-		previousHeader, err := beaconClient.GetBlockHeader(previousSlot)
-		require.NoError(t, err)
-
-		parentHash := fmt.Sprintf("0x%x", previousHeader.ParentRoot)
-
-		// get the scheduled validator for the previous slot
-		scheduledValidator, err := getScheduledValidatorForSlot(beaconClient, previousSlot)
-		require.NoError(t, err)
-
-		t.Logf("scheduled validator for slot %d: %s", previousSlot, scheduledValidator)
-
-		url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
-			MEVBoostURL, previousSlot, parentHash, scheduledValidator)
-
-		t.Logf("requesting bid: slot=%d, parent=%s, validator=%s", previousSlot, parentHash, scheduledValidator)
-
-		resp, err := httpClient.Get(url)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
-		require.True(t, resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK)
-
 		// payload for this block must have been delivered by the relay
-		resp, err = httpClient.Get(fmt.Sprintf("%s/relay/v1/data/bidtraces/proposer_payload_delivered", RelayURL))
+		resp, err := httpClient.Get(fmt.Sprintf("%s/relay/v1/data/bidtraces/proposer_payload_delivered", RelayURL))
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		require.Equal(t, resp.StatusCode, http.StatusOK)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
@@ -408,35 +381,28 @@ func TestMEVBoostIntegration(t *testing.T) {
 			t.Logf("delivered payload: slot=%s, parent=%s, validator=%s",
 				payload.Slot, payload.ParentHash, payload.ProposerPubkey)
 
-			// Validate payload structure instead of requesting historical bids
 			require.NotEmpty(t, payload.Slot)
 			require.NotEmpty(t, payload.ParentHash)
 			require.NotEmpty(t, payload.ProposerPubkey)
 
-			// If you want to test bid requests, use current or future slots:
 			currentSlot, _ := beaconClient.GetCurrentSlot()
-			if currentSlot > 0 {
-				nextSlot := currentSlot + 1
-				nextValidator, err := getScheduledValidatorForSlot(beaconClient, nextSlot)
-				if err == nil {
-					nextHeader, err := beaconClient.GetBlockHeader(currentSlot)
-					if err == nil {
-						nextParentHash := fmt.Sprintf("0x%x", nextHeader.ParentRoot)
-						url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
-							MEVBoostURL, nextSlot, nextParentHash, nextValidator)
+			nextSlot := currentSlot + 1
+			nextValidator, err := getScheduledValidatorForSlot(beaconClient, nextSlot)
+			require.NoError(t, err)
+			nextHeader, err := beaconClient.GetBlockHeader(currentSlot)
+			require.NoError(t, err)
 
-						t.Logf("delivered payload: slot=%d, parent=%s, validator=%s",
-							nextSlot, nextParentHash, nextValidator)
-						resp, err := httpClient.Get(url)
-						if err == nil {
-							defer resp.Body.Close()
-							// This should work for future slots
-							require.True(t, resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK)
-						}
-					}
-				}
-			}
+			nextParentHash := fmt.Sprintf("0x%x", nextHeader.ParentRoot)
+			url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
+				MEVBoostURL, nextSlot, nextParentHash, nextValidator)
 
+			t.Logf("delivered payload: slot=%d, parent=%s, validator=%s",
+				nextSlot, nextParentHash, nextValidator)
+			resp, err := httpClient.Get(url)
+			require.NoError(t, err)
+
+			defer resp.Body.Close()
+			require.Equal(t, http.StatusOK, resp.StatusCode)
 		}
 	})
 
