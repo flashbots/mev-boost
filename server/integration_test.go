@@ -182,9 +182,8 @@ func waitForMEVBoost(t *testing.T, timeout time.Duration) {
 }
 
 func TestMEVBoostIntegration(t *testing.T) {
-	// Skip this test if we're not running integration te sts
 	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
+		t.Skip("skipping integration test in short mode")
 	}
 
 	ctx := context.Background()
@@ -202,10 +201,8 @@ func TestMEVBoostIntegration(t *testing.T) {
 		testingTxType = "unknown"
 	}
 
-	t.Logf("Starting MEV-boost integration test by observing live system...")
 	t.Logf("Testing Fork: %s", testingFork)
-	t.Logf("Testing Transaction Type: %s", testingTxType)
-	t.Logf("Services: Beacon (%s), MEV-boost (%s), Relay (%s)", BeaconNodeURL, MEVBoostURL, RelayURL)
+	t.Logf("services: Beacon (%s), MEV-boost (%s), Relay (%s)", BeaconNodeURL, MEVBoostURL, RelayURL)
 
 	// check mev-boost status
 	t.Run("mev-boost status check", func(t *testing.T) {
