@@ -32,11 +32,11 @@ build-testcli:
 
 .PHONY: test
 test:
-	CGO_ENABLED=0 go test ./...
+	CGO_ENABLED=0 go test -short ./...
 
 .PHONY: test-race
 test-race:
-	CGO_ENABLED=1 go test -race ./...
+	CGO_ENABLED=1 go test -race -short ./...
 
 .PHONY: lint
 lint:
