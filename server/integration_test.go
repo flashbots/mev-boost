@@ -336,8 +336,15 @@ func TestMEVBoostIntegration(t *testing.T) {
 		require.Equal(t, mevBoostBlocks, totalBlocks)
 	})
 
-	t.Run("request validation on invalid pub key", func(t *testing.T) {
+	t.Run("request header on invalid parent hash and pubkey", func(t *testing.T) {
+		// invalid pubkey
 		resp, err := httpClient.Get(MEVBoostURL + "/eth/v1/builder/header/1/0x0000000000000000000000000000000000000000000000000000000000000000/0x000000")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+		// invalid parent hash
+		resp, err = httpClient.Get(MEVBoostURL + "/eth/v1/builder/header/1/0x0000/0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
