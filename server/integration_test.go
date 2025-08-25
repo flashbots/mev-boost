@@ -300,7 +300,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 		}
 	})
 
-	// validate MEV-boost is consistently building all blocks
+	// validate mev-boost is consistently building all blocks
 	t.Run("MEV-boost consistent block building", func(t *testing.T) {
 		t.Logf("Validating that MEV-boost is building all blocks (builder-playground environment)...")
 
@@ -372,8 +372,8 @@ func TestMEVBoostIntegration(t *testing.T) {
 		require.True(t, resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK)
 	})
 
-	t.Run("MEV-boost performance", func(t *testing.T) {
-		// testing concurrent calls
+	// testing concurrent calls
+	t.Run("mev-boost performance", func(t *testing.T) {
 		concurrentRequests := 5
 		var wg sync.WaitGroup
 		errors := make(chan error, concurrentRequests)
