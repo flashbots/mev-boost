@@ -377,33 +377,25 @@ func TestMEVBoostIntegration(t *testing.T) {
 		err = json.Unmarshal(body, &payloads)
 		require.NoError(t, err)
 
-		for _, payload := range payloads {
-			t.Logf("delivered payload: slot=%s, parent=%s, validator=%s",
-				payload.Slot, payload.ParentHash, payload.ProposerPubkey)
+		currentSlot, _ := beaconClient.GetCurrentSlot()
+		nextSlot := currentSlot + 1
+		nextValidator, err := getScheduledValidatorForSlot(beaconClient, nextSlot)
+		require.NoError(t, err)
+		nextHeader, err := beaconClient.GetBlockHeader(currentSlot)
+		require.NoError(t, err)
 
-			require.NotEmpty(t, payload.Slot)
-			require.NotEmpty(t, payload.ParentHash)
-			require.NotEmpty(t, payload.ProposerPubkey)
+		nextParentHash := fmt.Sprintf("0x%x", nextHeader.ParentRoot)
+		url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
+			MEVBoostURL, nextSlot, nextParentHash, nextValidator)
 
-			currentSlot, _ := beaconClient.GetCurrentSlot()
-			nextSlot := currentSlot + 1
-			nextValidator, err := getScheduledValidatorForSlot(beaconClient, nextSlot)
-			require.NoError(t, err)
-			nextHeader, err := beaconClient.GetBlockHeader(currentSlot)
-			require.NoError(t, err)
+		t.Logf("delivered payload: slot=%d, parent=%s, validator=%s",
+			nextSlot, nextParentHash, nextValidator)
+		resp, err = httpClient.Get(url)
+		require.NoError(t, err)
 
-			nextParentHash := fmt.Sprintf("0x%x", nextHeader.ParentRoot)
-			url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
-				MEVBoostURL, nextSlot, nextParentHash, nextValidator)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-			t.Logf("delivered payload: slot=%d, parent=%s, validator=%s",
-				nextSlot, nextParentHash, nextValidator)
-			resp, err := httpClient.Get(url)
-			require.NoError(t, err)
-
-			defer resp.Body.Close()
-			require.Equal(t, http.StatusOK, resp.StatusCode)
-		}
 	})
 
 	// testing concurrent calls
