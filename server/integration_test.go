@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -25,6 +26,20 @@ var (
 
 	RelaySecretKey = "0x5eae315483f028b5cdd5d1090ff0c7618b18737ea9bf3c35047189db22835c48"
 )
+
+type ProposerPayloadDelivered struct {
+	Slot                 string `json:"slot"`
+	ParentHash           string `json:"parent_hash"`
+	BlockHash            string `json:"block_hash"`
+	BuilderPubkey        string `json:"builder_pubkey"`
+	ProposerPubkey       string `json:"proposer_pubkey"`
+	ProposerFeeRecipient string `json:"proposer_fee_recipient"`
+	GasLimit             string `json:"gas_limit"`
+	GasUsed              string `json:"gas_used"`
+	Value                string `json:"value"`
+	BlockNumber          string `json:"block_number"`
+	NumTx                string `json:"num_tx"`
+}
 
 type BeaconNodeClient struct {
 	baseURL string
@@ -200,7 +215,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 		testingTxType = "unknown"
 	}
 
-	t.Logf("Testing Fork: %s", testingFork)
+	t.Logf("testing Fork: %s", testingFork)
 	t.Logf("services: Beacon (%s), MEV-boost (%s), Relay (%s)", BeaconNodeURL, MEVBoostURL, RelayURL)
 
 	// check mev-boost status
@@ -212,7 +227,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 	})
 
 	// validate chain activity
-	t.Run("Validate blockchain activity and transaction types", func(t *testing.T) {
+	t.Run("validate chain activity", func(t *testing.T) {
 		// should be delivering payloads since its via mev-boost we can directly check the relay api
 		resp, err := httpClient.Get(RelayURL + "/relay/v1/data/bidtraces/proposer_payload_delivered")
 		require.NoError(t, err)
@@ -301,9 +316,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 	})
 
 	// validate mev-boost is consistently building all blocks
-	t.Run("MEV-boost consistent block building", func(t *testing.T) {
-		t.Logf("Validating that MEV-boost is building all blocks (builder-playground environment)...")
-
+	t.Run("mev-boost consistent block building", func(t *testing.T) {
 		currentSlot, err := beaconClient.GetCurrentSlot()
 		require.NoError(t, err, "Should be able to get current slot")
 
@@ -377,6 +390,32 @@ func TestMEVBoostIntegration(t *testing.T) {
 		defer resp.Body.Close()
 
 		require.True(t, resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK)
+
+		// payload for this block must have been delivered by the relay
+		resp, err = httpClient.Get(fmt.Sprintf("%s/relay/v1/data/bidtraces/proposer_payload_delivered", RelayURL))
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Equal(t, resp.StatusCode, http.StatusOK)
+
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		var payloads []ProposerPayloadDelivered
+		err = json.Unmarshal(body, &payloads)
+		require.NoError(t, err)
+
+		for _, payload := range payloads {
+			url := fmt.Sprintf("%s/eth/v1/builder/header/%s/%s/%s",
+				MEVBoostURL, payload.Slot, payload.ParentHash, payload.ProposerPubkey)
+
+			t.Logf("requesting bid: slot=%s, parent=%s, validator=%s", payload.Slot, payload.ParentHash, payload.ProposerPubkey)
+
+			resp, err := httpClient.Get(url)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			require.True(t, resp.StatusCode == http.StatusOK)
+		}
 	})
 
 	// testing concurrent calls
