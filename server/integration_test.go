@@ -293,7 +293,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 			require.True(t, blobTxFound)
 
 			if blobTxFound {
-				t.Logf("successfully detected blob transactions (total blob gas: %d)", totalBlobGasUsed)
+				t.Logf("successfully detected blob transactions, total blob gas: %d", totalBlobGasUsed)
 			} else {
 				t.Logf("no blob transactions found")
 			}
