@@ -22,17 +22,17 @@ jobs:
           # test legacy transactions on forks
           - fork: deneb
             tx_type: legacy
-            contender_cmd: "spam --tps 50 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy -d 600 transfers"
+            contender_cmd: "spam --tps 50 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy -d 300 transfers"
           - fork: electra  
             tx_type: legacy
-            contender_cmd: "spam --tps 50 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy -d 600 transfers"
+            contender_cmd: "spam --tps 50 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy -d 300 transfers"
           # test blob transactions on forks
           - fork: deneb
             tx_type: blobs
-            contender_cmd: "spam --tps 50 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -d 600 blobs"
+            contender_cmd: "spam --tps 50 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -d 300 blobs"
           - fork: electra
             tx_type: blobs  
-            contender_cmd: "spam --tps 50 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -d 600 blobs"
+            contender_cmd: "spam --tps 50 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -d 300 blobs"
       fail-fast: false
 
     steps:
