@@ -172,10 +172,10 @@ func waitForMEVBoost(t *testing.T, timeout time.Duration) {
 	for {
 		select {
 		case <-ctx.Done():
-			t.Fatalf("MEV-boost not available at %s after %v", MEVBoostURL, timeout)
+			t.Fatalf("mev-boost not available at %s after %v", MEVBoostURL, timeout)
 		case <-ticker.C:
 			if err := client.CheckStatus(ctx); err == nil {
-				t.Logf("MEV-boost is available at %s", MEVBoostURL)
+				t.Logf("mev-boost is available at %s", MEVBoostURL)
 				return
 			}
 		}
