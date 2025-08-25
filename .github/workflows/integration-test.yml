@@ -216,7 +216,7 @@ jobs:
         done
         
         # Give rbuilder time to process transactions and create bids
-        echo "Allowing rbuilder to process transactions and create bids..."
+        echo "allowing rbuilder to process transactions and create bids..."
         sleep 15
  
     - name: Run mev-boost integration tests
