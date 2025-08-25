@@ -2,9 +2,9 @@ name: MEV-Boost Integration Tests
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [develop]
   push:
-    branches: [main, develop]
+    branches: [develop]
 
 env:
   RBUILDER_VERSION: v1.2.6
@@ -94,8 +94,7 @@ jobs:
       run: |
         cd builder-playground
         
-        # Start the playground in background (conditionally enable latest fork)
-        echo "Starting playground with ${{ matrix.fork }} fork for ${{ matrix.tx_type }} transaction testing..."
+        echo "starting playground with ${{ matrix.fork }} fork for ${{ matrix.tx_type }} transaction testing..."
         if [ "${{ matrix.fork }}" = "electra" ]; then
           FORK_FLAG="--latest-fork"
         else
@@ -111,11 +110,8 @@ jobs:
         
         PLAYGROUND_PID=$!
         echo "PLAYGROUND_PID=$PLAYGROUND_PID" >> $GITHUB_ENV
-        
-        # Wait for services to be ready
-        echo "Waiting for services to start..."
-        
-        # Wait for beacon node
+
+        # wait for beacon node
         for i in {1..60}; do
           if curl -s http://localhost:3500/eth/v1/beacon/headers/head > /dev/null 2>&1; then
             echo "beacon node is ready"
@@ -125,7 +121,7 @@ jobs:
           sleep 5
         done
         
-        # Wait for execution layer
+        # wait for execution layer
         for i in {1..60}; do
           if curl -s -X POST -H "Content-Type: application/json" \
             --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
@@ -179,7 +175,7 @@ jobs:
 
         echo "rbuilder started successfully"
 
-    - name: Start contender (transaction spammer)
+    - name: Start contender
       run: |
         rm -rf /tmp/contender
         git clone https://github.com/flashbots/contender.git /tmp/contender
@@ -223,84 +219,46 @@ jobs:
         echo "Allowing rbuilder to process transactions and create bids..."
         sleep 15
  
-    - name: Run MEV-Boost integration tests
+    - name: Run mev-boost integration tests
       run: |
         echo "Running MEV-boost integration tests..."
         
-        # Set environment for tests
+        # set environment for tests
         export MEV_BOOST_URL="http://localhost:18550"
         export BEACON_NODE_URL="http://localhost:3500"
         export RELAY_URL="http://localhost:5555"
         export TESTING_FORK="${{ matrix.fork }}"
         export TESTING_TX_TYPE="${{ matrix.tx_type }}"
         
-        echo "Running MEV-boost integration tests for ${{ matrix.fork }} fork with ${{ matrix.tx_type }} transactions..."
+        echo "running mev-boost integration tests for ${{ matrix.fork }} fork with ${{ matrix.tx_type }} transactions..."
         
-        # Run the integration tests with timeout
+        # run the integration tests with timeout
         timeout ${{ env.TEST_TIMEOUT }} go test -v ./server -run TestMEVBoostIntegration -timeout=10m
         TEST_EXIT_CODE=$?
         
         if [ $TEST_EXIT_CODE -eq 0 ]; then
-          echo "Integration tests passed!"
+          echo "integration tests passed!"
         else
-          echo "Integration tests failed with exit code $TEST_EXIT_CODE"
-          
-          # Debug why tests failed
-          echo "=== POST-TEST DEBUGGING ==="
-          
-          echo "Process status:"
-          if ps -p $RBUILDER_PID > /dev/null 2>&1; then
-            echo "✅ rbuilder still running"
-          else
-            echo "❌ rbuilder died during tests"
-          fi
-          
-          if ps -p $CONTENDER_PID > /dev/null 2>&1; then
-            echo "✅ contender still running"
-          else
-            echo "❌ contender died during tests"
-          fi
-          
-          echo "Recent rbuilder logs (last 50 lines):"
-          tail -50 /tmp/rbuilder/rbuilder.log || echo "No rbuilder logs found"
-          
-          echo "Checking relay for any bid activity:"
-          curl -s "http://localhost:5555/relay/v1/data/bidtraces/builder_blocks_received" | jq '.[0:3]' || echo "No relay bid data"
-          
-          echo "Checking payload deliveries:"
-          curl -s "http://localhost:5555/relay/v1/data/bidtraces/proposer_payload_delivered" | jq 'length' || echo "No payload delivery data"
-          
-          echo "Checking transaction flow:"
-          echo "1. Execution layer transaction pool:"
-          curl -s -X POST -H "Content-Type: application/json" \
-            --data '{"jsonrpc":"2.0","method":"txpool_status","params":[],"id":1}' \
-            http://localhost:8545 | jq . || echo "No txpool data"
-          
-          echo "2. Recent rbuilder logs for transaction processing:"
-          tail -30 /tmp/rbuilder/rbuilder.log | grep -E "(tx_count|bundle_count|orderpool|simulation)" || echo "No transaction processing logs"
-          
-          echo "3. Checking if rbuilder is receiving transactions via IPC:"
-          tail -30 /tmp/rbuilder/rbuilder.log | grep -E "(IPC|connection|Cleaned orderpool)" || echo "No IPC logs"
-          
+          echo "integration tests failed with exit code $TEST_EXIT_CODE"
           exit $TEST_EXIT_CODE
         fi
     - name: Cleanup
       if: always()
       run: |
-        echo "Cleaning up processes..."
+        echo "cleaning up processes"
         
-        # Kill all background processes
+        # kill all background processes
         [ ! -z "$PLAYGROUND_PID" ] && kill $PLAYGROUND_PID 2>/dev/null || true
         [ ! -z "$RBUILDER_PID" ] && kill $RBUILDER_PID 2>/dev/null || true
         [ ! -z "$CONTENDER_PID" ] && kill $CONTENDER_PID 2>/dev/null || true
         
-        # Stop all docker containers
+        # stop all docker containers
         docker stop $(docker ps -q) 2>/dev/null || true
         docker rm $(docker ps -aq) 2>/dev/null || true
         
-        # Kill any remaining processes
+        # kill any remaining processes
         pkill -f "rbuilder" 2>/dev/null || true
         pkill -f "playground" 2>/dev/null || true
         pkill -f "contender" 2>/dev/null || true
         
-        echo "Cleanup completed"
+        echo "cleanup completed"
