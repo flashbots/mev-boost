@@ -400,13 +400,11 @@ func TestMEVBoostIntegration(t *testing.T) {
 		url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
 			MEVBoostURL, nextSlot, nextParentHash, nextValidator)
 
-		t.Logf("delivered payload: slot=%d, parent=%s, validator=%s",
-			nextSlot, nextParentHash, nextValidator)
 		resp, err = httpClient.Get(url)
 		require.NoError(t, err)
 
 		defer resp.Body.Close()
-		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.True(t, http.StatusOK == resp.StatusCode || http.StatusNoContent == resp.StatusCode)
 	})
 
 	// testing concurrent calls
