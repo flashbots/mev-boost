@@ -414,7 +414,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 			require.NoError(t, err)
 			defer resp.Body.Close()
 
-			require.True(t, resp.StatusCode == http.StatusOK)
+			require.Equal(t, resp.StatusCode, http.StatusOK)
 		}
 	})
 
