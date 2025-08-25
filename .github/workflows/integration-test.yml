@@ -118,10 +118,10 @@ jobs:
         # Wait for beacon node
         for i in {1..60}; do
           if curl -s http://localhost:3500/eth/v1/beacon/headers/head > /dev/null 2>&1; then
-            echo "Beacon node is ready"
+            echo "beacon node is ready"
             break
           fi
-          echo "Waiting for beacon node... ($i/60)"
+          echo "waiting for beacon node... ($i/60)"
           sleep 5
         done
         
@@ -130,39 +130,28 @@ jobs:
           if curl -s -X POST -H "Content-Type: application/json" \
             --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
             http://localhost:8545 > /dev/null 2>&1; then
-            echo "Execution layer is ready"
+            echo "execution layer is ready"
             break
           fi
-          echo "Waiting for execution layer... ($i/60)"
+          echo "waiting for execution layer... ($i/60)"
           sleep 5
         done
         
-        # Wait for MEV-boost
+        # wait for mev-boost
         for i in {1..60}; do
           if curl -s http://localhost:18550/eth/v1/builder/status > /dev/null 2>&1; then
-            echo "MEV-boost is ready"
+            echo "mev-boost is ready"
             break
           fi
-          echo "Waiting for MEV-boost... ($i/60)"
+          echo "waiting for mev-boost... ($i/60)"
           sleep 5
         done
         
-        # Wait for relay
-        for i in {1..60}; do
-          if curl -s http://localhost:5555/eth/v1/builder/status > /dev/null 2>&1; then
-            echo "Relay is ready"
-            break
-          fi
-          echo "Waiting for relay... ($i/60)"
-          sleep 5
-        done
-        
-        echo "All services are ready!"
+        echo "all services are ready!"
     - name: Build rbuilder
       run: |
         cd /tmp/rbuilder
         
-        # Pre-compile rbuilder in release mode for better performance and reliability
         echo "Building rbuilder (this may take several minutes)..."
         cargo build --release --bin rbuilder
         
@@ -171,76 +160,13 @@ jobs:
       run: |
         cd /tmp/rbuilder
         
-        # Update config-playground.toml with correct paths
+        # update config-playground.toml with correct paths
         sed -i "s|\$HOME|$HOME|g" config-playground.toml
         # Update reth datadir and IPC paths to match playground structure  
         sed -i "s|reth_datadir = \".*\"|reth_datadir = \"${HOME}/.playground/devnet/volume-el-data\"|g" config-playground.toml
         sed -i "s|el_node_ipc_path = \".*\"|el_node_ipc_path = \"${HOME}/.playground/devnet/volume-el-data/reth.ipc\"|g" config-playground.toml
 
-        echo "Updated rbuilder config paths:"
-        grep -E "(reth_datadir|el_node_ipc_path)" config-playground.toml
-        
-        # Debug: Check what actually exists in the playground directory
-        echo "Debugging playground directory structure:"
-        ls -la $HOME/.playground/devnet/ || echo "devnet directory not found"
-        ls -la $HOME/.playground/devnet/volume-el-data/ || echo "volume-el-data directory not found"
-        find $HOME/.playground/devnet/ -name "*.ipc" -type s 2>/dev/null || echo "No IPC files found"
-        
-        # Check if reth is using a different path structure
-        echo "Looking for any reth-related files:"
-        find $HOME/.playground/devnet/ -name "*reth*" 2>/dev/null || echo "No reth files found"
-        
-        # Look for ALL IPC files anywhere in the system
-        echo "Searching for ANY IPC socket files:"
-        find $HOME/.playground/ -name "*.ipc" -type s 2>/dev/null || echo "No .ipc socket files found"
-        find /tmp -name "*.ipc" -type s 2>/dev/null || echo "No .ipc files in /tmp"
-        
-        # Check if reth process is actually running
-        echo "Checking if reth process is running:"
-        ps aux | grep reth || echo "No reth process found"
-        
-        # Check docker containers that might be running reth
-        echo "Checking docker containers:"
-        docker ps | grep -E "(reth|el)" || echo "No reth/el containers found"
-        
-        # If reth is in docker, check if IPC is mounted/accessible
-        echo "Checking docker volume mounts for IPC:"
-        docker inspect $(docker ps -q) 2>/dev/null | grep -A 5 -B 5 "ipc\|reth" || echo "No IPC mounts found"
-        
-        # Wait a bit more for IPC file to be created
-        echo "Waiting for IPC file to be created..."
-        for i in {1..30}; do
-          if [ -S "$HOME/.playground/devnet/volume-el-data/reth.ipc" ]; then
-            echo "✅ Found IPC file at attempt $i"
-            ls -la "$HOME/.playground/devnet/volume-el-data/reth.ipc"
-            break
-          fi
-          echo "Waiting for IPC file... ($i/30)"
-          sleep 2
-        done
-        
-        # Final check - what's the actual IPC path we should use?
-        echo "Final IPC file check:"
-        ls -la "$HOME/.playground/devnet/volume-el-data/reth.ipc" || echo "IPC file still not found"
-
-        echo "All docker containers (including stopped):"
-        docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
-
-        # Final config check before starting rbuilder
-        echo "Final rbuilder config:"
-        cat config-playground.toml | grep -A 1 -B 1 -E "(reth_datadir|el_node_ipc_path)"
-        
-        # Test IPC connection before starting rbuilder
-        echo "Testing IPC file accessibility:"
-        ls -la "${HOME}/.playground/devnet/volume-el-data/reth.ipc"
-        echo "IPC file permissions and ownership:"
-        stat "${HOME}/.playground/devnet/volume-el-data/reth.ipc"
-        
-        # Try to connect to IPC as a test
-        echo "Testing IPC connection:"
-        timeout 5 socat - UNIX-CONNECT:"${HOME}/.playground/devnet/volume-el-data/reth.ipc" <<< '{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":1}' || echo "IPC connection test failed"
-        
-        # Start rbuilder using pre-built binary with logging (run as root to access reth db)
+        # start rbuilder using pre-built binary with logging (run as root to access reth db)
         echo "Starting rbuilder with full logging (as root for db access)..."
         sudo ./target/release/rbuilder run config-playground.toml 2>&1 | tee rbuilder.log &
         RBUILDER_PID=$!
