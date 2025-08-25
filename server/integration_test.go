@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -37,7 +38,7 @@ func NewBeaconNodeClient(baseURL string) *BeaconNodeClient {
 	}
 }
 
-func (c *BeaconNodeClient) GetCurrentSlot(ctx context.Context) (phase0.Slot, error) {
+func (c *BeaconNodeClient) GetCurrentSlot() (phase0.Slot, error) {
 	resp, err := c.client.Get(c.baseURL + "/eth/v1/beacon/headers/head")
 	if err != nil {
 		return 0, err
@@ -66,7 +67,7 @@ func (c *BeaconNodeClient) GetCurrentSlot(ctx context.Context) (phase0.Slot, err
 	return slot, nil
 }
 
-func (c *BeaconNodeClient) GetBlockHeader(ctx context.Context, slot phase0.Slot) (*phase0.BeaconBlockHeader, error) {
+func (c *BeaconNodeClient) GetBlockHeader(slot phase0.Slot) (*phase0.BeaconBlockHeader, error) {
 	url := fmt.Sprintf("%s/eth/v1/beacon/headers/%d", c.baseURL, slot)
 	resp, err := c.client.Get(url)
 	if err != nil {
@@ -101,7 +102,7 @@ func getScheduledValidatorForSlot(client *BeaconNodeClient, slot phase0.Slot) (s
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("proposer duties request failed with status: %d", resp.StatusCode)
+		return "", errors.New("failed to request proposer duties") //nolint:err113
 	}
 
 	var result struct {
@@ -112,7 +113,7 @@ func getScheduledValidatorForSlot(client *BeaconNodeClient, slot phase0.Slot) (s
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("failed to decode proposer duties: %w", err)
+		return "", errors.New("failed to decode proposer duties") //nolint:err113
 	}
 
 	// check for the required slot
@@ -123,7 +124,7 @@ func getScheduledValidatorForSlot(client *BeaconNodeClient, slot phase0.Slot) (s
 		}
 	}
 
-	return "", fmt.Errorf("no proposer found for slot %d", slot)
+	return "", fmt.Errorf("no proposer found for slot %d", slot) //nolint:err113
 }
 
 type MEVBoostClient struct {
@@ -151,7 +152,7 @@ func (c *MEVBoostClient) CheckStatus(ctx context.Context) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("status check failed with status: %d", resp.StatusCode)
+		return fmt.Errorf("status check failed with status: %d", resp.StatusCode) //nolint:err113
 	}
 
 	return nil
@@ -162,7 +163,7 @@ func waitForMEVBoost(t *testing.T, timeout time.Duration) {
 	t.Helper()
 
 	client := NewMEVBoostClient(MEVBoostURL)
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
 	defer cancel()
 
 	ticker := time.NewTicker(500 * time.Millisecond)
@@ -185,8 +186,6 @@ func TestMEVBoostIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
-
-	ctx := context.Background()
 	waitForMEVBoost(t, 10*time.Second)
 
 	beaconClient := NewBeaconNodeClient(BeaconNodeURL)
@@ -206,7 +205,6 @@ func TestMEVBoostIntegration(t *testing.T) {
 
 	// check mev-boost status
 	t.Run("mev-boost status check", func(t *testing.T) {
-		//check mev-boost status
 		resp, err := httpClient.Get(MEVBoostURL + "/eth/v1/builder/status")
 		require.NoError(t, err)
 		resp.Body.Close()
@@ -224,10 +222,10 @@ func TestMEVBoostIntegration(t *testing.T) {
 		var payloads []map[string]any
 		require.NoError(t, json.NewDecoder(resp.Body).Decode(&payloads))
 		// since payloads are being requested via mev-boost their length being greater shows its working
-		require.Greater(t, len(payloads), 0)
+		require.NotEmpty(t, payloads)
 
 		// for blob transaction testing, check if recent blocks contain blob transactions
-		if testingTxType == "blobs" {
+		if testingTxType == "blobs" { //nolint:nestif
 			blobTxFound := false
 			totalBlobGasUsed := uint64(0)
 
@@ -254,7 +252,6 @@ func TestMEVBoostIntegration(t *testing.T) {
 				blockResp, err := http.Post(ExecutionURL, "application/json",
 					strings.NewReader(fmt.Sprintf(`{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["%s",true],"id":1}`, blockNumber)))
 				if err != nil {
-					fmt.Println("err", err)
 					continue
 				}
 				defer blockResp.Body.Close()
@@ -269,7 +266,6 @@ func TestMEVBoostIntegration(t *testing.T) {
 				}
 
 				if err := json.NewDecoder(blockResp.Body).Decode(&blockResult); err != nil {
-					fmt.Println("err", err)
 					continue
 				}
 
@@ -289,7 +285,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 								blobTxCount++
 							}
 						}
-						require.Greater(t, blobTxCount, 0)
+						require.Positive(t, blobTxCount)
 					}
 				}
 			}
@@ -308,10 +304,9 @@ func TestMEVBoostIntegration(t *testing.T) {
 	t.Run("MEV-boost consistent block building", func(t *testing.T) {
 		t.Logf("Validating that MEV-boost is building all blocks (builder-playground environment)...")
 
-		currentSlot, err := beaconClient.GetCurrentSlot(ctx)
+		currentSlot, err := beaconClient.GetCurrentSlot()
 		require.NoError(t, err, "Should be able to get current slot")
 
-		fmt.Println("current slot ==>", currentSlot)
 		mevBoostBlocks := 0
 		totalBlocks := 0
 
@@ -332,12 +327,12 @@ func TestMEVBoostIntegration(t *testing.T) {
 			var deliveries []map[string]any
 			require.NoError(t, json.NewDecoder(resp.Body).Decode(&deliveries))
 			t.Logf("deliveries %d: length", len(deliveries))
-			require.Greater(t, len(deliveries), 0)
+			require.NotEmpty(t, deliveries)
 
 			mevBoostBlocks++
 		}
 
-		require.Greater(t, totalBlocks, 0)
+		require.Positive(t, totalBlocks)
 		require.Equal(t, mevBoostBlocks, totalBlocks)
 	})
 
@@ -349,13 +344,12 @@ func TestMEVBoostIntegration(t *testing.T) {
 	})
 
 	t.Run("bid retrieval", func(t *testing.T) {
-
-		currentSlot, err := beaconClient.GetCurrentSlot(ctx)
+		currentSlot, err := beaconClient.GetCurrentSlot()
 		require.NoError(t, err)
 
 		previousSlot := currentSlot - 1
 
-		previousHeader, err := beaconClient.GetBlockHeader(ctx, previousSlot)
+		previousHeader, err := beaconClient.GetBlockHeader(previousSlot)
 		require.NoError(t, err)
 
 		parentHash := fmt.Sprintf("0x%x", previousHeader.ParentRoot)
@@ -395,7 +389,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 				}
 				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusOK {
-					errors <- fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+					errors <- fmt.Errorf("unexpected status code: %d", resp.StatusCode) //nolint:err113
 				}
 			}()
 		}
