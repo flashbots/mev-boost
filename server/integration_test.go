@@ -286,7 +286,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 					if blobGasUsed > 0 {
 						blobTxFound = true
 						totalBlobGasUsed += blobGasUsed
-						t.Logf("✅ Found blob transactions in block %s: %d blob gas used", blockResult.Result.Number, blobGasUsed)
+						t.Logf("found blob transactions in block %s: %d blob gas used", blockResult.Result.Number, blobGasUsed)
 
 						// Count blob transactions in this block
 						blobTxCount := 0
@@ -303,9 +303,9 @@ func TestMEVBoostIntegration(t *testing.T) {
 			require.True(t, blobTxFound)
 
 			if blobTxFound {
-				t.Logf("Successfully detected blob transaction activity (total blob gas: %d)", totalBlobGasUsed)
+				t.Logf("successfully detected blob transactions (total blob gas: %d)", totalBlobGasUsed)
 			} else {
-				t.Logf("No blob transactions found in recent blocks (may need more time for contender to generate blobs)")
+				t.Logf("no blob transactions found")
 			}
 		}
 	})
@@ -370,12 +370,12 @@ func TestMEVBoostIntegration(t *testing.T) {
 		scheduledValidator, err := getScheduledValidatorForSlot(beaconClient, previousSlot)
 		require.NoError(t, err)
 
-		t.Logf("Scheduled validator for slot %d: %s", previousSlot, scheduledValidator)
+		t.Logf("scheduled validator for slot %d: %s", previousSlot, scheduledValidator)
 
 		url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
 			MEVBoostURL, previousSlot, parentHash, scheduledValidator)
 
-		t.Logf("Requesting bid: slot=%d, parent=%s, validator=%s", previousSlot, parentHash, scheduledValidator)
+		t.Logf("requesting bid: slot=%d, parent=%s, validator=%s", previousSlot, parentHash, scheduledValidator)
 
 		resp, err := httpClient.Get(url)
 		require.NoError(t, err)
@@ -412,7 +412,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 		errorCount := 0
 		for err := range errors {
 			errorCount++
-			t.Logf("Concurrent request error: %v", err)
+			t.Logf("concurrent request error: %v", err)
 		}
 
 		require.Equal(t, 0, errorCount)
