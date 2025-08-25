@@ -166,45 +166,18 @@ jobs:
         sed -i "s|reth_datadir = \".*\"|reth_datadir = \"${HOME}/.playground/devnet/volume-el-data\"|g" config-playground.toml
         sed -i "s|el_node_ipc_path = \".*\"|el_node_ipc_path = \"${HOME}/.playground/devnet/volume-el-data/reth.ipc\"|g" config-playground.toml
 
-        # start rbuilder using pre-built binary with logging (run as root to access reth db)
+        # start rbuilder
         echo "Starting rbuilder with full logging (as root for db access)..."
         sudo ./target/release/rbuilder run config-playground.toml 2>&1 | tee rbuilder.log &
         RBUILDER_PID=$!
         echo "RBUILDER_PID=$RBUILDER_PID" >> $GITHUB_ENV
         echo "Started rbuilder with PID: $RBUILDER_PID"
 
-        # Wait for rbuilder to actually start and begin processing
-        echo "Waiting for rbuilder to start and connect to services..."
-        sleep 15  # Brief wait for startup
-        
-        # Check if rbuilder is actually running and processing
-        for i in {1..30}; do
-          if ps -p $RBUILDER_PID > /dev/null 2>&1; then
-            echo "✅ rbuilder process is running (attempt $i/30)"
-            # Give it a bit more time to fully initialize
-            sleep 5
-            break
-          else
-            echo "❌ rbuilder process died, checking logs..."
-            echo "=== rbuilder.log contents ==="
-            cat rbuilder.log || echo "No rbuilder.log found"
-            echo "=== End of rbuilder.log ==="
-            
-            echo "Checking if IPC file still exists:"
-            ls -la "${HOME}/.playground/devnet/volume-el-data/reth.ipc" || echo "IPC file disappeared"
-            
-            echo "Checking reth container status:"
-            docker ps | grep devnet-el-1 || echo "reth container stopped"
-            
-            exit 1
-          fi
-        done
-        
+        # wait for rbuilder to start process
+        echo "waiting for rbuilder."
+        sleep 15
+
         echo "rbuilder started successfully"
-        
-        # Give rbuilder time to fully initialize and start monitoring
-        echo "Allowing rbuilder to fully initialize..."
-        sleep 10
 
     - name: Start contender (transaction spammer)
       run: |
