@@ -388,6 +388,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 		var payloads []ProposerPayloadDelivered
 		err = json.Unmarshal(body, &payloads)
 		require.NoError(t, err)
+		require.NotEmpty(t, payloads)
 
 		currentSlot, _ := beaconClient.GetCurrentSlot()
 		nextSlot := currentSlot + 1
