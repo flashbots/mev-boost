@@ -41,6 +41,12 @@ type ProposerPayloadDelivered struct {
 	NumTx                string `json:"num_tx"`
 }
 
+type BlockHeaderResponse struct {
+	Root      string                    `json:"root"`
+	Canonical bool                      `json:"canonical"`
+	Header    *phase0.BeaconBlockHeader `json:"header"`
+}
+
 type BeaconNodeClient struct {
 	baseURL string
 	client  *http.Client
@@ -82,7 +88,7 @@ func (c *BeaconNodeClient) GetCurrentSlot() (phase0.Slot, error) {
 	return slot, nil
 }
 
-func (c *BeaconNodeClient) GetBlockHeader(slot phase0.Slot) (*phase0.BeaconBlockHeader, error) {
+func (c *BeaconNodeClient) GetBlockHeader(slot phase0.Slot) (*BlockHeaderResponse, error) {
 	url := fmt.Sprintf("%s/eth/v1/beacon/headers/%d", c.baseURL, slot)
 	resp, err := c.client.Get(url)
 	if err != nil {
@@ -92,7 +98,9 @@ func (c *BeaconNodeClient) GetBlockHeader(slot phase0.Slot) (*phase0.BeaconBlock
 
 	var result struct {
 		Data struct {
-			Header struct {
+			Root      string `json:"root"`
+			Canonical bool   `json:"canonical"`
+			Header    struct {
 				Message *phase0.BeaconBlockHeader `json:"message"`
 			} `json:"header"`
 		} `json:"data"`
@@ -102,7 +110,11 @@ func (c *BeaconNodeClient) GetBlockHeader(slot phase0.Slot) (*phase0.BeaconBlock
 		return nil, err
 	}
 
-	return result.Data.Header.Message, nil
+	return &BlockHeaderResponse{
+		Root:      result.Data.Root,
+		Canonical: result.Data.Canonical,
+		Header:    result.Data.Header.Message,
+	}, nil
 }
 
 func getScheduledValidatorForSlot(client *BeaconNodeClient, slot phase0.Slot) (string, error) {
@@ -381,10 +393,10 @@ func TestMEVBoostIntegration(t *testing.T) {
 		nextSlot := currentSlot + 1
 		nextValidator, err := getScheduledValidatorForSlot(beaconClient, nextSlot)
 		require.NoError(t, err)
-		nextHeader, err := beaconClient.GetBlockHeader(currentSlot)
+		currentBlockData, err := beaconClient.GetBlockHeader(currentSlot)
 		require.NoError(t, err)
 
-		nextParentHash := fmt.Sprintf("0x%x", nextHeader.ParentRoot)
+		nextParentHash := currentBlockData.Root
 		url := fmt.Sprintf("%s/eth/v1/builder/header/%d/%s/%s",
 			MEVBoostURL, nextSlot, nextParentHash, nextValidator)
 
@@ -395,7 +407,6 @@ func TestMEVBoostIntegration(t *testing.T) {
 
 		defer resp.Body.Close()
 		require.Equal(t, http.StatusOK, resp.StatusCode)
-
 	})
 
 	// testing concurrent calls
