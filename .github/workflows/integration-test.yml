@@ -1,0 +1,265 @@
+name: MEV-Boost Integration Tests
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+env:
+  RBUILDER_VERSION: v1.2.6
+  PLAYGROUND_TIMEOUT: 180s
+  TEST_TIMEOUT: 300s
+
+jobs:
+  integration-test:
+    name: "Integration Test (${{ matrix.fork }} fork, ${{ matrix.tx_type }} txs)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        include:
+          # test legacy transactions on forks
+          - fork: deneb
+            tx_type: legacy
+            contender_cmd: "spam --tps 50 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy -d 100 transfers"
+          - fork: electra  
+            tx_type: legacy
+            contender_cmd: "spam --tps 50 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --min-balance 0.5eth --tx-type legacy -d 100 transfers"
+          # test blob transactions on forks
+          - fork: deneb
+            tx_type: blobs
+            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -d 100 blobs"
+          - fork: electra
+            tx_type: blobs  
+            contender_cmd: "spam --tps 5 -r http://localhost:8545 -p 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -d 100 blobs"
+      fail-fast: false
+
+    steps:
+    - name: Checkout mev-boost
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        cache: true
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1
+      with:
+        version: nightly
+
+    - name: Build MEV-Boost Docker image
+      run: |
+        docker build -t my-mev-boost:latest .
+    - name: Clone builder-playground
+      run: |
+        # Clean up any existing builder-playground directory
+        rm -rf builder-playground
+        git clone https://github.com/flashbots/builder-playground.git
+        cd builder-playground
+        go mod download
+    - name: Download rbuilder
+      run: |
+        cd /tmp
+        # Clean up any existing rbuilder directory
+        rm -rf rbuilder
+        wget https://github.com/flashbots/rbuilder/archive/refs/tags/${{ env.RBUILDER_VERSION }}.tar.gz
+        tar -xzf ${{ env.RBUILDER_VERSION }}.tar.gz
+        mv rbuilder-* rbuilder
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          /tmp/rbuilder/target/
+          /tmp/contender/target/
+        key: ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ matrix.fork }}-${{ matrix.tx_type }}-${{ hashFiles('/tmp/rbuilder/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ matrix.fork }}-${{ matrix.tx_type }}-
+          ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-${{ matrix.fork }}-
+          ${{ runner.os }}-rust-${{ env.RBUILDER_VERSION }}-
+          ${{ runner.os }}-rust-
+    - name: Start playground environment
+      run: |
+        cd builder-playground
+        
+        echo "starting playground with ${{ matrix.fork }} fork for ${{ matrix.tx_type }} transaction testing..."
+        if [ "${{ matrix.fork }}" = "electra" ]; then
+          FORK_FLAG="--latest-fork"
+        else
+          FORK_FLAG=""
+        fi
+        
+        timeout ${{ env.PLAYGROUND_TIMEOUT }} go run main.go cook l1 \
+          --genesis-delay 15 \
+          --log-level debug \
+          --use-separate-mev-boost \
+          --override mev-boost=my-mev-boost:latest \
+          $FORK_FLAG &
+        
+        PLAYGROUND_PID=$!
+        echo "PLAYGROUND_PID=$PLAYGROUND_PID" >> $GITHUB_ENV
+
+        # wait for beacon node
+        for i in {1..60}; do
+          if curl -s http://localhost:3500/eth/v1/beacon/headers/head > /dev/null 2>&1; then
+            echo "beacon node is ready"
+            break
+          fi
+          echo "waiting for beacon node... ($i/60)"
+          sleep 5
+        done
+        
+        # wait for execution layer
+        for i in {1..60}; do
+          if curl -s -X POST -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+            http://localhost:8545 > /dev/null 2>&1; then
+            echo "execution layer is ready"
+            break
+          fi
+          echo "waiting for execution layer... ($i/60)"
+          sleep 5
+        done
+        
+        # wait for mev-boost
+        for i in {1..60}; do
+          if curl -s http://localhost:18550/eth/v1/builder/status > /dev/null 2>&1; then
+            echo "mev-boost is ready"
+            break
+          fi
+          echo "waiting for mev-boost... ($i/60)"
+          sleep 5
+        done
+        
+        echo "all services are ready!"
+    - name: Build rbuilder
+      run: |
+        cd /tmp/rbuilder
+        
+        echo "Building rbuilder (this may take several minutes)..."
+        cargo build --release --bin rbuilder
+        
+        echo "rbuilder build completed"
+    - name: Start rbuilder
+      run: |
+        cd /tmp/rbuilder
+        
+        # update config-playground.toml with correct paths
+        sed -i "s|\$HOME|$HOME|g" config-playground.toml
+        # Update reth datadir and IPC paths to match playground structure  
+        sed -i "s|reth_datadir = \".*\"|reth_datadir = \"${HOME}/.playground/devnet/volume-el-data\"|g" config-playground.toml
+        sed -i "s|el_node_ipc_path = \".*\"|el_node_ipc_path = \"${HOME}/.playground/devnet/volume-el-data/reth.ipc\"|g" config-playground.toml
+
+        # start rbuilder
+        echo "Starting rbuilder with full logging (as root for db access)..."
+        sudo ./target/release/rbuilder run config-playground.toml 2>&1 | tee rbuilder.log &
+        RBUILDER_PID=$!
+        echo "RBUILDER_PID=$RBUILDER_PID" >> $GITHUB_ENV
+        echo "Started rbuilder with PID: $RBUILDER_PID"
+
+        # wait for rbuilder to start process
+        echo "waiting for rbuilder."
+        sleep 15
+
+        echo "rbuilder started successfully"
+
+    - name: Start contender
+      run: |
+        rm -rf /tmp/contender
+        git clone https://github.com/flashbots/contender.git /tmp/contender
+        cd /tmp/contender
+        
+        cargo build --release --bin contender
+        
+        echo "starting contender to spam ${{ matrix.tx_type }} transactions"
+        ./target/release/contender ${{ matrix.contender_cmd }} &
+        
+        CONTENDER_PID=$!
+        echo "CONTENDER_PID=$CONTENDER_PID" >> $GITHUB_ENV
+        echo "started contender with PID: $CONTENDER_PID"
+        
+        # check if contender started successfully
+        sleep 3
+        if ps -p $CONTENDER_PID > /dev/null 2>&1; then
+          echo "contender process running"
+        else
+          echo "contender process died immediately"
+          # contender exited with error
+        fi
+        
+        # wait for transactions to start flowing
+        echo "waiting for transaction activity to begin"
+        for i in {1..30}; do
+          TX_COUNT=$(curl -s -X POST -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","method":"txpool_status","params":[],"id":1}' \
+            http://localhost:8545 | jq -r '.result.pending // "0"' | sed 's/0x//' | xargs printf "%d")
+          
+          if [ "$TX_COUNT" -gt 0 ]; then
+            echo "transaction activity detected ($TX_COUNT pending transactions)"
+            break
+          fi
+          
+          echo "waiting for transaction activity... ($i/30)"
+          sleep 2
+        done
+        
+        # Give rbuilder time to process transactions and create bids
+        echo "allowing rbuilder to process transactions and create bids..."
+        sleep 15
+ 
+    - name: Run mev-boost integration tests
+      run: |
+        echo "Running MEV-boost integration tests..."
+        
+        # set environment for tests
+        export MEV_BOOST_URL="http://localhost:18550"
+        export BEACON_NODE_URL="http://localhost:3500"
+        export RELAY_URL="http://localhost:5555"
+        export EXECUTION_URL=""http://localhost:8545""
+        export TESTING_FORK="${{ matrix.fork }}"
+        export TESTING_TX_TYPE="${{ matrix.tx_type }}"
+        
+        echo "running mev-boost integration tests for ${{ matrix.fork }} fork with ${{ matrix.tx_type }} transactions..."
+        
+        # run the integration tests with timeout
+        timeout ${{ env.TEST_TIMEOUT }} go test -v ./server -run TestMEVBoostIntegration -timeout=10m
+        TEST_EXIT_CODE=$?
+        
+        if [ $TEST_EXIT_CODE -eq 0 ]; then
+          echo "integration tests passed!"
+        else
+          echo "integration tests failed with exit code $TEST_EXIT_CODE"
+          exit $TEST_EXIT_CODE
+        fi
+    - name: Cleanup
+      if: always()
+      run: |
+        echo "cleaning up processes"
+        
+        # kill all background processes
+        [ ! -z "$PLAYGROUND_PID" ] && kill $PLAYGROUND_PID 2>/dev/null || true
+        [ ! -z "$RBUILDER_PID" ] && kill $RBUILDER_PID 2>/dev/null || true
+        [ ! -z "$CONTENDER_PID" ] && kill $CONTENDER_PID 2>/dev/null || true
+        
+        # stop all docker containers
+        docker stop $(docker ps -q) 2>/dev/null || true
+        docker rm $(docker ps -aq) 2>/dev/null || true
+        
+        # kill any remaining processes
+        pkill -f "rbuilder" 2>/dev/null || true
+        pkill -f "playground" 2>/dev/null || true
+        pkill -f "contender" 2>/dev/null || true
+        
+        echo "cleanup completed"
