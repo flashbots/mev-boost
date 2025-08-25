@@ -19,7 +19,7 @@ import (
 var (
 	MEVBoostURL   = os.Getenv("MEV_BOOST_URL")
 	BeaconNodeURL = os.Getenv("BEACON_NODE_URL")
-	RelayURL      = os.Getenv("http://localhost:5555")
+	RelayURL      = os.Getenv("RELAY_URL")
 	ExecutionURL  = os.Getenv("EXECUTION_URL")
 
 	RelaySecretKey = "0x5eae315483f028b5cdd5d1090ff0c7618b18737ea9bf3c35047189db22835c48"
