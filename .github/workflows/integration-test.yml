@@ -227,6 +227,7 @@ jobs:
         export MEV_BOOST_URL="http://localhost:18550"
         export BEACON_NODE_URL="http://localhost:3500"
         export RELAY_URL="http://localhost:5555"
+        export EXECUTION_URL=""http://localhost:8545""
         export TESTING_FORK="${{ matrix.fork }}"
         export TESTING_TX_TYPE="${{ matrix.tx_type }}"
         

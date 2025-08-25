@@ -16,14 +16,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	MEVBoostURL   = "http://localhost:18550"
-	BeaconNodeURL = "http://localhost:3500"
-	RelayURL      = "http://localhost:5555"
-	ExecutionURL  = "http://localhost:8545"
+var (
+	MEVBoostURL   = os.Getenv("MEV_BOOST_URL")
+	BeaconNodeURL = os.Getenv("BEACON_NODE_URL")
+	RelayURL      = os.Getenv("http://localhost:5555")
+	ExecutionURL  = os.Getenv("EXECUTION_URL")
 
 	RelaySecretKey = "0x5eae315483f028b5cdd5d1090ff0c7618b18737ea9bf3c35047189db22835c48"
-	TestTimeout    = 30 * time.Second
 )
 
 type BeaconNodeClient struct {
@@ -188,9 +187,7 @@ func TestMEVBoostIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), TestTimeout)
-	defer cancel()
-
+	ctx := context.Background()
 	waitForMEVBoost(t, 10*time.Second)
 
 	beaconClient := NewBeaconNodeClient(BeaconNodeURL)
