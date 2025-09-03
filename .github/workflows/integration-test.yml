@@ -8,7 +8,7 @@ on:
 
 env:
   TEST_TIMEOUT: 300s
-  KURTOSIS_VERSION: 1.11.1
+  KURTOSIS_VERSION: 0.89.2
 
 jobs:
   integration-test:
