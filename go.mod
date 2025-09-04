@@ -36,8 +36,8 @@ require (
 )
 
 require (
-	github.com/attestantio/go-builder-client v0.6.1
-	github.com/attestantio/go-eth2-client v0.25.1-0.20250603135601-6ac0bfda7fda
+	github.com/attestantio/go-builder-client v0.6.5-0.20250901141559-94d1ecfeeb53
+	github.com/attestantio/go-eth2-client v0.26.1-0.20250829122455-ff89a2135a43
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/ferranbt/fastssz v0.1.4 // indirect
@@ -60,5 +60,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/attestantio/go-builder-client => github.com/jtraglia/go-builder-client v0.4.6-0.20250410195459-42a3ff7f1546
