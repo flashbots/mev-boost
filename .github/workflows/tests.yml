@@ -18,7 +18,7 @@ jobs:
         id: go
 
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 #4.3.0
 
       - name: Run unit tests and generate the coverage report
         run: make test-coverage
