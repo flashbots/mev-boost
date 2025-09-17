@@ -76,6 +76,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 
 	var (
 		genesisForkVersion, genesisTime = setupGenesis(cmd)
+		muxConfig                       = setupMuxConfig(cmd)
 		listenAddr                      = cmd.String(addrFlag.Name)
 		metricsEnabled                  = cmd.Bool(metricsFlag.Name)
 		metricsAddr                     = cmd.String(metricsAddrFlag.Name)
@@ -90,6 +91,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 		Log:                      log,
 		ListenAddr:               listenAddr,
 		RelayConfigs:             relaySetup.RelayConfigs,
+		MuxConfig:                muxConfig,
 		GenesisForkVersionHex:    genesisForkVersion,
 		GenesisTime:              genesisTime,
 		RelayCheck:               relaySetup.RelayCheck,
@@ -290,4 +292,19 @@ func sanitizeMinBid(minBid float64) (*types.U256Str, error) {
 		return nil, errLargeMinBid
 	}
 	return common.FloatEthTo256Wei(minBid)
+}
+
+func setupMuxConfig(cmd *cli.Command) *config.MuxConfig {
+	configPath := cmd.String(muxConfigFlag.Name)
+	if configPath == "" {
+		log.Info("no mux config file specified, using default relay selection for all validators")
+		return nil
+	}
+	muxConfig, err := config.LoadMuxConfig(configPath)
+	if err != nil {
+		log.WithError(err).Fatal("failed to load mux configuration")
+		return nil
+	}
+
+	return muxConfig
 }
