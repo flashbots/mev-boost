@@ -117,3 +117,41 @@ func (c *MuxConfig) validate() error {
 
 	return nil
 }
+
+// GetPolicyForValidator returns the policy name for a given validator public key
+// Returns empty string if no specific mapping is found (should use default behavior)
+func (c *MuxConfig) GetPolicyForValidator(pubkey string) string {
+	for _, mapping := range c.Mappings {
+		for _, filterKey := range mapping.Filters.PublicKeys {
+			if filterKey == pubkey {
+				return mapping.Policy
+			}
+		}
+	}
+	return ""
+}
+
+func (c *MuxConfig) GetRelaysForPolicy(policyName string) ([]types.RelayEntry, error) {
+	for _, policy := range c.Policies {
+		if policy.Name == policyName {
+			relays := make([]types.RelayEntry, 0, len(policy.Relayers))
+			for _, relayer := range policy.Relayers {
+				relay, err := types.NewRelayEntry(relayer.URL)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create relay entry for %s: %w", relayer.URL, err)
+				}
+				relays = append(relays, relay)
+			}
+			return relays, nil
+		}
+	}
+	return nil, fmt.Errorf("policy not found: %s", policyName)
+}
+
+func (c *MuxConfig) GetAllPolicies() []string {
+	policies := make([]string, len(c.Policies))
+	for _, policy := range c.Policies {
+		policies = append(policies, policy.Name)
+	}
+	return policies
+}
