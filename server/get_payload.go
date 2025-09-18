@@ -144,12 +144,20 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 		log.Warn("bid found but no associated relays")
 	}
 
+	relays := m.relays
+	if len(originalBid.relays) > 0 {
+		// substitute to use originalBid relays since they are def going to contain policy based relays
+		// which are the only ones we want to request the payload from and not from all the relays.
+		relays = originalBid.relays
+	}
+
 	// Prepare for requests
 	m.relayConfigsLock.RLock()
 	relayConfigs := m.relayConfigs
 	m.relayConfigsLock.RUnlock()
 
 	resultCh := make(chan payloadResult, len(relayConfigs))
+	resultCh := make(chan payloadResult, len(relays))
 	var received atomic.Bool
 	go func() {
 		// Make sure we receive a response within the timeout
@@ -163,6 +171,8 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 	for _, relayConfig := range m.relayConfigs {
 		go func(relay types.RelayEntry, versionToUse GetPayloadVersion) {
+	for _, relay := range relays {
+		go func(relay types.RelayEntry) {
 			var url string
 			if versionToUse == GetPayloadV1 {
 				url = relay.GetURI(params.PathGetPayload)

@@ -123,6 +123,10 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 	// Request a bid from each relay
 	for _, relayConfig := range relayConfigs {
+	relaysForValidator := m.getRelaysForValidator(pubkey)
+
+	// Request a bid from each relay
+	for _, relay := range relaysForValidator {
 		wg.Add(1)
 		go func(relayConfig types.RelayConfig) {
 			relay := relayConfig.RelayEntry

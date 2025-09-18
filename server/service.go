@@ -56,6 +56,8 @@ type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
 	RelayConfigs          []types.RelayConfig
+	Relays                []types.RelayEntry
+	MuxConfig             *config.MuxConfig
 	GenesisForkVersionHex string
 	GenesisTime           uint64
 	RelayCheck            bool
@@ -81,6 +83,14 @@ type BoostService struct {
 	relayCheck   bool
 	relayMinBid  types.U256Str
 	genesisTime  uint64
+	listenAddr  string
+	relays      []types.RelayEntry
+	muxConfig   *config.MuxConfig
+	log         *logrus.Entry
+	srv         *http.Server
+	relayCheck  bool
+	relayMinBid types.U256Str
+	genesisTime uint64
 
 	builderSigningDomain phase0.Domain
 	httpClientGetHeader  http.Client
@@ -123,6 +133,16 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		bids:         make(map[string]bidResp),
 		slotUID:      &slotUID{},
 		metricsAddr:  opts.MetricsAddr,
+		listenAddr:  opts.ListenAddr,
+		relays:      opts.Relays,
+		muxConfig:   opts.MuxConfig,
+		log:         opts.Log,
+		relayCheck:  opts.RelayCheck,
+		relayMinBid: opts.RelayMinBid,
+		genesisTime: opts.GenesisTime,
+		bids:        make(map[string]bidResp),
+		slotUID:     &slotUID{},
+		metricsAddr: opts.MetricsAddr,
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
@@ -554,4 +574,19 @@ func (m *BoostService) UpdateConfig(relayConfigs []types.RelayConfig, timeoutGet
 	m.relayConfigs = relayConfigs
 	m.timeoutGetHeaderMs = timeoutGetHeaderMs
 	m.lateInSlotTimeMs = lateInSlotTimeMs
+func (m *BoostService) getRelaysForValidator(pubkey string) []types.RelayEntry {
+	if m.muxConfig == nil {
+		return m.relays
+	}
+
+	policyName := m.muxConfig.GetPolicyForValidator(pubkey)
+	if policyName == "" {
+		return m.relays
+	}
+
+	policyRelays, err := m.muxConfig.GetRelaysForPolicy(policyName)
+	if err != nil {
+		return m.relays
+	}
+	return policyRelays
 }
