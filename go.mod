@@ -37,7 +37,7 @@ require (
 
 require (
 	github.com/attestantio/go-builder-client v0.6.5-0.20250901141559-94d1ecfeeb53
-	github.com/attestantio/go-eth2-client v0.26.1-0.20250829122455-ff89a2135a43
+	github.com/attestantio/go-eth2-client v0.27.0
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/ferranbt/fastssz v0.1.4 // indirect
