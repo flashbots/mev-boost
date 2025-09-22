@@ -1,9 +1,9 @@
 github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjCM7NQbSmF7WI=
 github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkThDcMsQicp4xDukwJYI=
-github.com/attestantio/go-builder-client v0.6.5-0.20250901141559-94d1ecfeeb53 h1:cKIZhhu11jC390ReL4/hWxS+YXnMESoou/UIMQ6HgpM=
-github.com/attestantio/go-builder-client v0.6.5-0.20250901141559-94d1ecfeeb53/go.mod h1:66Sj0omUS6/j2G9SrBp5tpwkU+Qkds2CNbbRoaGojpY=
-github.com/attestantio/go-eth2-client v0.26.1-0.20250829122455-ff89a2135a43 h1:v5l00W4U5WuYz6+Cux0URjN/VBKCupwzG6gCgRdn6Wo=
-github.com/attestantio/go-eth2-client v0.26.1-0.20250829122455-ff89a2135a43/go.mod h1:fvULSL9WtNskkOB4i+Yyr6BKpNHXvmpGZj9969fCrfY=
+github.com/attestantio/go-builder-client v0.7.0 h1:Kxf5eTKQlU4syv3Uzt8v3vKKm7im1W4CjRAZiPYoqTQ=
+github.com/attestantio/go-builder-client v0.7.0/go.mod h1:wGZ0U3QX8/F4lWwieJpqCPgXIl8gbfBxm8iViznrTFQ=
+github.com/attestantio/go-eth2-client v0.27.0 h1:zOXtDVnMNRwX6GjpJYgXUNsXckEx76pGRDi76i7xhSI=
+github.com/attestantio/go-eth2-client v0.27.0/go.mod h1:fvULSL9WtNskkOB4i+Yyr6BKpNHXvmpGZj9969fCrfY=
 github.com/bits-and-blooms/bitset v1.22.0 h1:Tquv9S8+SGaS3EhyA+up3FXzmkhxPGjQQCkcs2uw7w4=
 github.com/bits-and-blooms/bitset v1.22.0/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6a/7QIWpPxHddWR8=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
