@@ -7,6 +7,7 @@ const (
 	GenesisCategory = "GENESIS"
 	RelayCategory   = "RELAYS"
 	GeneralCategory = "GENERAL"
+	Metrics         = "METRICS"
 )
 
 var flags = []cli.Flag{
@@ -35,6 +36,10 @@ var flags = []cli.Flag{
 	timeoutGetPayloadFlag,
 	timeoutRegValFlag,
 	maxRetriesFlag,
+
+	//metrics
+	metricsFlag,
+	metricsAddrFlag,
 }
 
 var (
@@ -177,5 +182,20 @@ var (
 		Usage:    "maximum number of retries for a relay get payload request",
 		Value:    5,
 		Category: RelayCategory,
+	}
+
+	//metrics
+	metricsFlag = &cli.BoolFlag{
+		Name:     "metrics",
+		Sources:  cli.EnvVars("METRICS_ENABLED"),
+		Usage:    "enables a metrics server",
+		Category: Metrics,
+	}
+	metricsAddrFlag = &cli.StringFlag{
+		Name:     "metrics-addr",
+		Sources:  cli.EnvVars("METRICS_ADDR"),
+		Value:    "localhost:18551",
+		Usage:    "listening address for the metrics server",
+		Category: Metrics,
 	}
 )
