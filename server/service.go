@@ -545,7 +545,11 @@ func (m *BoostService) CheckRelays() int {
 			log := m.log.WithField("url", url)
 			log.Debug("checking relay status")
 
+			start := time.Now()
 			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil, nil)
+			if RelayLatency != nil {
+				RelayLatency.WithLabelValues(params.PathStatus, relay.String()).Observe(float64(time.Since(start).Milliseconds()))
+			}
 			if err != nil {
 				log.WithError(err).Error("relay status error - request failed")
 				return

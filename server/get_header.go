@@ -19,6 +19,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -94,7 +95,11 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 			// Send the request
 			log.Debug("requesting header")
+			start := time.Now()
 			resp, err := m.httpClientGetHeader.Do(req)
+			if RelayLatency != nil {
+				RelayLatency.WithLabelValues(params.PathGetHeader, relay.String()).Observe(float64(time.Since(start).Milliseconds()))
+			}
 			if err != nil {
 				log.WithError(err).Warn("error calling getHeader on relay")
 				return

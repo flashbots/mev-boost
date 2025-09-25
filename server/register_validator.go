@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
@@ -45,7 +46,11 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 			}).Debug("sending the registerValidator request")
 
 			// Send the request
+			start := time.Now()
 			resp, err := m.httpClientRegVal.Do(req)
+			if RelayLatency != nil {
+				RelayLatency.WithLabelValues(params.PathRegisterValidator, relay.String()).Observe(float64(time.Since(start).Milliseconds()))
+			}
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
 				respErrCh <- err

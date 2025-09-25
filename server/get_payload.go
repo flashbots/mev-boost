@@ -212,9 +212,17 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				req.Header.Set(HeaderDateMilliseconds, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
 				req.Header.Set(HeaderUserAgent, userAgent)
 
-				// Send the request
+				// Send the request and record latency
 				log.Debug("submitting signed blinded block")
+				start := time.Now()
 				resp, err := m.httpClientGetPayload.Do(req)
+				if RelayLatency != nil {
+					endpoint := params.PathGetPayload
+					if version == GetPayloadV2 {
+						endpoint = params.PathGetPayloadV2
+					}
+					RelayLatency.WithLabelValues(endpoint, relay.String()).Observe(float64(time.Since(start).Milliseconds()))
+				}
 				if err != nil {
 					log.WithError(err).Warnf("error calling getPayload%s on relay", version)
 					return nil, err
