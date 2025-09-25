@@ -235,14 +235,10 @@ func (m *BoostService) handleRoot(w http.ResponseWriter, _ *http.Request) {
 func (m *BoostService) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set(HeaderKeyVersion, config.Version)
 	if !m.relayCheck || m.CheckRelays() > 0 {
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusOK), params.PathStatus).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusOK), params.PathStatus)
 		m.respondOK(w, nilResponse)
 	} else {
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusServiceUnavailable), params.PathStatus).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusServiceUnavailable), params.PathStatus)
 		m.respondError(w, http.StatusServiceUnavailable, "all relays are unavailable")
 	}
 }
@@ -266,9 +262,7 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	// Read the validator registrations
 	regBytes, err := io.ReadAll(req.Body)
 	if err != nil {
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusInternalServerError), params.PathRegisterValidator).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusInternalServerError), params.PathRegisterValidator)
 		m.respondError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -278,15 +272,11 @@ func (m *BoostService) handleRegisterValidator(w http.ResponseWriter, req *http.
 	err = m.registerValidator(log, regBytes, header)
 	if err == nil {
 		// One of the relays responded OK
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusOK), params.PathRegisterValidator).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusOK), params.PathRegisterValidator)
 		m.respondOK(w, nilResponse)
 	} else {
 		// None of the relays responded OK
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusBadGateway), params.PathRegisterValidator).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusBadGateway), params.PathRegisterValidator)
 		m.respondError(w, http.StatusBadGateway, err.Error())
 	}
 }
@@ -306,9 +296,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// Parse the slot
 	slotValue, err := strconv.ParseUint(vars["slot"], 10, 64)
 	if err != nil {
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusBadRequest), params.PathGetHeader).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusBadRequest), params.PathGetHeader)
 		m.respondError(w, http.StatusBadRequest, errInvalidSlot.Error())
 		return
 	}
@@ -328,9 +316,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// Query the relays for the header
 	result, err := m.getHeader(log, slot, pubkey, parentHashHex, ua, rawProposerAcceptContentTypes)
 	if err != nil {
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusBadRequest), params.PathGetHeader).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusBadRequest), params.PathGetHeader)
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -338,9 +324,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// Bail if none of the relays returned a bid
 	if result.response.IsEmpty() {
 		log.Info("no bid received")
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusNoContent), params.PathGetHeader).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusNoContent), params.PathGetHeader)
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -376,22 +360,16 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	// Respond appropriately
 	switch proposerPreferredContentType {
 	case MediaTypeJSON:
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusOK), params.PathGetHeader).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusOK), params.PathGetHeader)
 		log.Debug("responding with JSON")
 		m.respondGetHeaderJSON(w, &result)
 
 	case MediaTypeOctetStream:
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusOK), params.PathGetHeader).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusOK), params.PathGetHeader)
 		log.Debug("responding with SSZ")
 		m.respondGetHeaderSSZ(w, &result)
 	default:
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusNotAcceptable), params.PathGetHeader).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusNotAcceptable), params.PathGetHeader)
 		message := fmt.Sprintf("unsupported media type: %s", proposerPreferredContentType)
 		log.Error(message)
 		m.respondError(w, http.StatusNotAcceptable, message)
@@ -422,9 +400,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// Read the body first, so we can log it later on error
 	signedBlindedBlockBytes, err := io.ReadAll(req.Body)
 	if err != nil {
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusBadRequest), params.PathGetPayload).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusBadRequest), params.PathGetPayload)
 		log.WithError(err).Error("could not read body of request from the beacon node")
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -435,9 +411,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 
 	// If no payload has been received from relay, log loudly about withholding!
 	if result == nil || getPayloadResponseIsEmpty(result) {
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusBadGateway), params.PathGetPayload).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusBadGateway), params.PathGetPayload)
 		originRelays := types.RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
@@ -460,21 +434,15 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	// Respond appropriately
 	switch proposerPreferredContentType {
 	case MediaTypeJSON:
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusOK), params.PathGetPayload).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusOK), params.PathGetPayload)
 		log.Debug("responding with JSON")
 		m.respondGetPayloadJSON(w, result)
 	case MediaTypeOctetStream:
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusOK), params.PathGetPayload).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusOK), params.PathGetPayload)
 		log.Debug("responding with SSZ")
 		m.respondGetPayloadSSZ(w, result)
 	default:
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusNotAcceptable), params.PathGetPayload).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusNotAcceptable), params.PathGetPayload)
 		message := fmt.Sprintf("unsupported media type: %s", proposerPreferredContentType)
 		log.Error(message)
 		m.respondError(w, http.StatusNotAcceptable, message)
@@ -502,9 +470,7 @@ func (m *BoostService) handleGetPayloadV2(w http.ResponseWriter, req *http.Reque
 	// Read the body first, so we can log it later on error
 	signedBlindedBlockBytes, err := io.ReadAll(req.Body)
 	if err != nil {
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusBadRequest), params.PathGetPayloadV2).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusBadRequest), params.PathGetPayloadV2)
 		log.WithError(err).Error("could not read body of request from the beacon node")
 		m.respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -515,18 +481,14 @@ func (m *BoostService) handleGetPayloadV2(w http.ResponseWriter, req *http.Reque
 
 	// If no relay accepted the submission, log about the failure
 	if !success {
-		if BeaconNodeStatus != nil {
-			BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusBadGateway), params.PathGetPayloadV2).Inc()
-		}
+		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusBadGateway), params.PathGetPayloadV2)
 		originRelays := types.RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no relay accepted the signed blinded beacon block submission!")
 		m.respondError(w, http.StatusBadGateway, errNoSuccessfulRelayResponse.Error())
 		return
 	}
 
-	if BeaconNodeStatus != nil {
-		BeaconNodeStatus.WithLabelValues(strconv.Itoa(http.StatusAccepted), params.PathGetPayloadV2).Inc()
-	}
+	IncrementBeaconNodeStatus(strconv.Itoa(http.StatusAccepted), params.PathGetPayloadV2)
 	log.Info("successfully submitted signed blinded beacon block to relay")
 	w.WriteHeader(http.StatusAccepted)
 }
@@ -547,16 +509,12 @@ func (m *BoostService) CheckRelays() int {
 
 			start := time.Now()
 			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil, nil)
-			if RelayLatency != nil {
-				RelayLatency.WithLabelValues(params.PathStatus, relay.String()).Observe(float64(time.Since(start).Milliseconds()))
-			}
+			RecordRelayLatency(params.PathStatus, relay.String(), float64(time.Since(start).Microseconds()))
 			if err != nil {
 				log.WithError(err).Error("relay status error - request failed")
 				return
 			}
-			if RelayStatusCode != nil {
-				RelayStatusCode.WithLabelValues(strconv.Itoa(code), params.PathStatus, relay.String()).Inc()
-			}
+			RecordRelayStatusCode(strconv.Itoa(code), params.PathStatus, relay.String())
 			if code == http.StatusOK {
 				log.Debug("relay status OK")
 			} else {

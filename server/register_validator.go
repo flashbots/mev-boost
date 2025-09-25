@@ -49,9 +49,7 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 			// Send the request
 			start := time.Now()
 			resp, err := m.httpClientRegVal.Do(req)
-			if RelayLatency != nil {
-				RelayLatency.WithLabelValues(params.PathRegisterValidator, relay.String()).Observe(float64(time.Since(start).Milliseconds()))
-			}
+			RecordRelayLatency(params.PathRegisterValidator, relay.String(), float64(time.Since(start).Microseconds()))
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
 				respErrCh <- err
@@ -59,9 +57,7 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 			}
 			resp.Body.Close()
 
-			if RelayStatusCode != nil {
-				RelayStatusCode.WithLabelValues(strconv.Itoa(resp.StatusCode), params.PathRegisterValidator, relay.String()).Inc()
-			}
+			RecordRelayStatusCode(strconv.Itoa(resp.StatusCode), params.PathRegisterValidator, relay.String())
 			// Check if response is successful
 			if resp.StatusCode == http.StatusOK {
 				log.Debug("relay accepted registrations")
