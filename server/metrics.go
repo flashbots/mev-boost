@@ -21,7 +21,7 @@ func RegisterMetrics(registry *prometheus.Registry) {
 		BeaconNodeStatus = prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: Namespace,
-				Name:      "beacon_node_status_code",
+				Name:      "beacon_node_status_code_total",
 				Help:      "http status code returned to beacon node",
 			},
 			[]string{"http_status_code", "endpoint"},
@@ -48,7 +48,7 @@ func RegisterMetrics(registry *prometheus.Registry) {
 		RelayStatusCode = prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: Namespace,
-				Name:      "relay_status_code",
+				Name:      "relay_status_code_total",
 				Help:      "http status code received by relay",
 			},
 			[]string{"http_status_code", "endpoint", "relay"},
