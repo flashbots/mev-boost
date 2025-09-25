@@ -37,7 +37,7 @@ var flags = []cli.Flag{
 	timeoutRegValFlag,
 	maxRetriesFlag,
 
-	// metrics
+	//metrics
 	metricsFlag,
 	metricsAddrFlag,
 }
@@ -184,7 +184,7 @@ var (
 		Category: RelayCategory,
 	}
 
-	// metrics
+	//metrics
 	metricsFlag = &cli.BoolFlag{
 		Name:     "metrics",
 		Sources:  cli.EnvVars("METRICS_ENABLED"),
