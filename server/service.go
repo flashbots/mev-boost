@@ -554,6 +554,9 @@ func (m *BoostService) CheckRelays() int {
 				log.WithError(err).Error("relay status error - request failed")
 				return
 			}
+			if RelayStatusCode != nil {
+				RelayStatusCode.WithLabelValues(strconv.Itoa(code), params.PathStatus, relay.String()).Inc()
+			}
 			if code == http.StatusOK {
 				log.Debug("relay status OK")
 			} else {

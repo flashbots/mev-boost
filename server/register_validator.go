@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/flashbots/mev-boost/server/params"
@@ -58,6 +59,9 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 			}
 			resp.Body.Close()
 
+			if RelayStatusCode != nil {
+				RelayStatusCode.WithLabelValues(strconv.Itoa(resp.StatusCode), params.PathRegisterValidator, relay.String()).Inc()
+			}
 			// Check if response is successful
 			if resp.StatusCode == http.StatusOK {
 				log.Debug("relay accepted registrations")

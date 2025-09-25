@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net/http"
 	"slices"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -212,15 +213,17 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				req.Header.Set(HeaderDateMilliseconds, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
 				req.Header.Set(HeaderUserAgent, userAgent)
 
+				statusCode := http.StatusOK
+				endpoint := params.PathGetPayload
+				if version == GetPayloadV2 {
+					statusCode = http.StatusAccepted
+					endpoint = params.PathGetPayloadV2
+				}
 				// Send the request and record latency
 				log.Debug("submitting signed blinded block")
 				start := time.Now()
 				resp, err := m.httpClientGetPayload.Do(req)
 				if RelayLatency != nil {
-					endpoint := params.PathGetPayload
-					if version == GetPayloadV2 {
-						endpoint = params.PathGetPayloadV2
-					}
 					RelayLatency.WithLabelValues(endpoint, relay.String()).Observe(float64(time.Since(start).Milliseconds()))
 				}
 				if err != nil {
@@ -228,11 +231,8 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 					return nil, err
 				}
 
-				var statusCode int
-				if version == GetPayloadV1 {
-					statusCode = http.StatusOK
-				} else {
-					statusCode = http.StatusAccepted
+				if RelayStatusCode != nil {
+					RelayStatusCode.WithLabelValues(strconv.Itoa(statusCode), endpoint, relay.String()).Inc()
 				}
 				// Check that the response was successful
 				if resp.StatusCode != statusCode {

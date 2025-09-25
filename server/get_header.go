@@ -106,6 +106,9 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			}
 			defer resp.Body.Close()
 
+			if RelayStatusCode != nil {
+				RelayStatusCode.WithLabelValues(strconv.Itoa(resp.StatusCode), params.PathGetHeader, relay.String()).Inc()
+			}
 			// Check if no header is available
 			if resp.StatusCode == http.StatusNoContent {
 				log.Debug("no-content response")
