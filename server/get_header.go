@@ -207,6 +207,11 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 			log.Debug("bid received")
 
+			if RelayHeaderValue != nil {
+				valueEthFloat64, _ := valueEth.Float64()
+				RelayHeaderValue.WithLabelValues(relay.String()).Set(valueEthFloat64)
+			}
+
 			// Skip if value is lower than the minimum bid
 			if bidInfo.value.CmpBig(m.relayMinBid.BigInt()) == -1 {
 				log.Debug("ignoring bid below min-bid value")

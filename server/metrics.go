@@ -31,7 +31,7 @@ func RegisterMetrics(registry *prometheus.Registry) {
 			prometheus.GaugeOpts{
 				Namespace: Namespace,
 				Name:      "relay_header_value",
-				Help:      "header value in gwei delivered by relay",
+				Help:      "header value delivered by relay",
 			},
 			[]string{"relay"},
 		)
