@@ -270,6 +270,10 @@ Usage of mev-boost:
         use Sepolia
   -version
         only print version
+  -metrics
+        enables a metrics server (default: false)
+  -metrics-addr string
+        listening address for the metrics server (default: "localhost:18551")
 ```
 
 ### `-relays` vs `-relay`
@@ -308,6 +312,11 @@ Example for setting a minimum bid value of 0.06 ETH:
     -relay $YOUR_RELAY_CHOICE_B \
     -relay $YOUR_RELAY_CHOICE_C
 ```
+
+
+### Enabling metrics
+
+Optionally, the `-metrics` flag can be provided to expose a prometheus metrics server. The metrics server address/port can be changed with the `-metrics-addr` (e.g., `-metrics-addr localhost:9009`) flag.
 
 ---
 
