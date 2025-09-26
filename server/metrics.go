@@ -25,6 +25,7 @@ var (
 	RelayLatency     *prometheus.HistogramVec
 	RelayStatusCode  *prometheus.CounterVec
 	RelayLastSlot    *prometheus.GaugeVec
+    MsIntoSlot       *prometheus.HistogramVec
 )
 
 func RegisterMetrics(registry *prometheus.Registry) {
@@ -92,6 +93,14 @@ func RegisterMetrics(registry *prometheus.Registry) {
 			[]string{Relay},
 		)
 
+		MsIntoSlot = prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Namespace: Namespace,
+				Name:      "millisec_into_slot",
+				Help:      "Milliseconds into the slot when endpoint was called",
+			},
+			[]string{Endpoint},
+		)
 		registry.MustRegister(
 			BeaconNodeStatus,
 			BidValues,
@@ -100,6 +109,7 @@ func RegisterMetrics(registry *prometheus.Registry) {
 			RelayLatency,
 			RelayStatusCode,
 			RelayLastSlot,
+            MsIntoSlot,
 		)
 	})
 }

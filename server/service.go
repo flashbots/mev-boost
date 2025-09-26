@@ -115,6 +115,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		genesisTime: opts.GenesisTime,
 		bids:        make(map[string]bidResp),
 		slotUID:     &slotUID{},
+		metricsAddr: opts.MetricsAddr,
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
