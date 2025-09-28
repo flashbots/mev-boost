@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/go-utils/httplogger"
@@ -21,9 +22,6 @@ import (
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	goacceptheaders "github.com/timewasted/go-accept-headers"
 )
@@ -195,22 +193,12 @@ func (m *BoostService) StartHTTPServer() error {
 	return err
 }
 
-// StartMetricsServer starts the HTTP server for exporting open-metrics
+// StartMetricsServer starts the HTTP server for exporting metrics
 func (m *BoostService) StartMetricsServer() error {
-	prometheusRegistry := prometheus.NewRegistry()
-	if err := prometheusRegistry.Register(collectors.NewGoCollector()); err != nil {
-		m.log.WithError(err).Error("failed to register metrics for GoCollector")
-	}
-	if err := prometheusRegistry.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
-		m.log.WithError(err).Error("failed to register ProcessCollector")
-	}
-	RegisterMetrics(prometheusRegistry)
-
 	serveMux := http.NewServeMux()
-	serveMux.Handle("/metrics", promhttp.HandlerFor(prometheusRegistry, promhttp.HandlerOpts{
-		ErrorLog:          m.log,
-		EnableOpenMetrics: true,
-	}))
+	serveMux.HandleFunc("/metrics", func(w http.ResponseWriter, _ *http.Request) {
+		metrics.WritePrometheus(w, true)
+	})
 	return http.ListenAndServe(m.metricsAddr, serveMux)
 }
 
