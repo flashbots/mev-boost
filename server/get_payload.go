@@ -137,9 +137,9 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 	originalBid := m.bids[bidKey(slot, blockHash)]
 	m.bidsLock.Unlock()
 	if originalBid.response.IsEmpty() {
-		log.Warn("no bid for this payload found, was getHeader called before?")
+		log.Debug("no bid for this getPayload request found")
 	} else if len(originalBid.relays) == 0 {
-		log.Warn("bid found but no associated relays")
+		log.Debug("bid found but no associated relays")
 	}
 
 	// Prepare for requests
