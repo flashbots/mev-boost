@@ -3,7 +3,7 @@ module github.com/flashbots/mev-boost
 go 1.24.0
 
 require (
-	github.com/VictoriaMetrics/metrics v1.40.1
+	github.com/VictoriaMetrics/metrics v1.40.2
 	github.com/ethereum/go-ethereum v1.15.9
 	github.com/flashbots/go-boost-utils v1.9.0
 	github.com/flashbots/go-utils v0.10.0
