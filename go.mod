@@ -3,6 +3,7 @@ module github.com/flashbots/mev-boost
 go 1.24.0
 
 require (
+	github.com/VictoriaMetrics/metrics v1.40.1
 	github.com/ethereum/go-ethereum v1.15.9
 	github.com/flashbots/go-boost-utils v1.9.0
 	github.com/flashbots/go-utils v0.10.0
@@ -30,6 +31,8 @@ require (
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/supranational/blst v0.3.14 // indirect
+	github.com/valyala/fastrand v1.1.0 // indirect
+	github.com/valyala/histogram v1.2.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/sync v0.13.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect

@@ -68,6 +68,8 @@ func start(_ context.Context, cmd *cli.Command) error {
 		genesisForkVersion, genesisTime = setupGenesis(cmd)
 		relays, minBid, relayCheck      = setupRelays(cmd)
 		listenAddr                      = cmd.String(addrFlag.Name)
+		metricsEnabled                  = cmd.Bool(metricsFlag.Name)
+		metricsAddr                     = cmd.String(metricsAddrFlag.Name)
 	)
 
 	opts := server.BoostServiceOpts{
@@ -82,6 +84,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 		RequestTimeoutGetPayload: time.Duration(cmd.Int(timeoutGetPayloadFlag.Name)) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(cmd.Int(timeoutRegValFlag.Name)) * time.Millisecond,
 		RequestMaxRetries:        cmd.Int(maxRetriesFlag.Name),
+		MetricsAddr:              metricsAddr,
 	}
 	service, err := server.NewBoostService(opts)
 	if err != nil {
@@ -90,6 +93,15 @@ func start(_ context.Context, cmd *cli.Command) error {
 
 	if relayCheck && service.CheckRelays() == 0 {
 		log.Error("no relay passed the health-check!")
+	}
+
+	if metricsEnabled {
+		go func() {
+			log.Infof("metrics server listening on %v", opts.MetricsAddr)
+			if err := service.StartMetricsServer(); err != nil {
+				log.WithError(err).Error("metrics server exited with error")
+			}
+		}()
 	}
 
 	log.Infof("listening on %v", listenAddr)

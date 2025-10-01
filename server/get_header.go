@@ -19,6 +19,7 @@ import (
 	"github.com/attestantio/go-eth2-client/spec"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/mev-boost/config"
+	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -94,13 +95,16 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 			// Send the request
 			log.Debug("requesting header")
+			start := time.Now()
 			resp, err := m.httpClientGetHeader.Do(req)
+			RecordRelayLatency(params.PathGetHeader, relay.String(), float64(time.Since(start).Microseconds()))
 			if err != nil {
 				log.WithError(err).Warn("error calling getHeader on relay")
 				return
 			}
 			defer resp.Body.Close()
 
+			RecordRelayStatusCode(strconv.Itoa(resp.StatusCode), params.PathGetHeader, relay.String())
 			// Check if no header is available
 			if resp.StatusCode == http.StatusNoContent {
 				log.Debug("no-content response")
@@ -207,9 +211,15 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 			log.Debug("bid received")
 
+			RecordRelayLastSlot(relay.String(), uint64(slot))
+
+			valueEthFloat64, _ := valueEth.Float64()
+			RecordBidValue(relay.String(), valueEthFloat64)
+
 			// Skip if value is lower than the minimum bid
 			if bidInfo.value.CmpBig(m.relayMinBid.BigInt()) == -1 {
 				log.Debug("ignoring bid below min-bid value")
+				IncrementBidBelowMinBid(relay.String())
 				return
 			}
 
@@ -248,13 +258,18 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			log.Debug("new best bid")
 			result.response = *bid
 			result.bidInfo = bidInfo
+
 			result.t = time.Now()
 		}(relay)
 	}
 	wg.Wait()
-
 	// Set the winning relays before returning
 	result.relays = relays[BlockHashHex(result.bidInfo.blockHash.String())]
+
+	if len(result.relays) > 0 {
+		RecordWinningBidValue(result.bidInfo.value.Float64())
+	}
+
 	return result, nil
 }
 
