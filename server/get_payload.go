@@ -146,7 +146,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 	relays := m.relays
 	if len(originalBid.relays) > 0 {
-		// substitute to use originalBid relays since they are def going to contain policy based relays
+		// substitute to use originalBid relays since they are definitely going to contain policy based relays
 		// which are the only ones we want to request the payload from and not from all the relays.
 		relays = originalBid.relays
 	}

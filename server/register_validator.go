@@ -17,7 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var ErrUnsupportedContentType = errors.New("unsupported content typee")
+var ErrUnsupportedContentType = errors.New("unsupported content type")
 
 func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, header http.Header) error {
 	m.relayConfigsLock.RLock()
