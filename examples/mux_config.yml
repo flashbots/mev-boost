@@ -1,0 +1,34 @@
+# muxing config example
+# its following the example specified in the flashbots forum: https://collective.flashbots.net/t/muxing-in-mev-boost-to-handle-diverse-relay-sets/5231/2
+
+policies:
+  - name: "lido-policy"
+    relayers:
+      - name: "relayer-1"
+        url: "0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer1.net"
+      - name: "relayer-2"
+        url: "0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer2.com"
+        http-header:
+          X-Custom-Header: "custom-value"
+  - name: "rocket-pool-policy"
+    relayers:
+      - name: "relayer-1"
+        url: "0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer1.io"
+      - name: "relayer-2"
+        url: "0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer2.com"
+
+mappings:
+  - name: "lido-validators"
+    policy: "lido-policy"
+    filters:
+      public_keys:
+        - "0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"
+        - "0x8b1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca250"
+        - "0x8c1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca251"
+  - name: "rocket-pool-validators"
+    policy: "rocket-pool-policy"
+    filters:
+      public_keys:
+        - "0x8d1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca252"
+        - "0x8e1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca253"
+        - "0x8f1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca254"
