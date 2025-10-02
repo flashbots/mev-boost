@@ -11,7 +11,7 @@ permissions:
 jobs:
   docker-image:
     name: Publish Docker Image
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-16x
 
     steps:
       - name: Checkout sources
@@ -60,7 +60,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   build-all:
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-16x
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -90,7 +90,7 @@ jobs:
 
   release:
     needs: build-all
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-16x
     steps:
       - name: Checkout
         uses: actions/checkout@v3
