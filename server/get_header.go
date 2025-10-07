@@ -184,7 +184,7 @@ func (m *BoostService) handleTimingGamesGetHeader(
 	}
 
 	// send multiple requests at frequency intervals
-	if relayConfig.FrequencyGetHeaderMs > 0 {
+	if relayConfig.FrequencyGetHeaderMs > 0 { //nolint:nestif
 		log.WithFields(logrus.Fields{
 			"frequencyMs":   relayConfig.FrequencyGetHeaderMs,
 			"timeoutLeftMs": timeoutLeftMs,
@@ -220,7 +220,7 @@ func (m *BoostService) handleTimingGamesGetHeader(
 		}
 		wg.Wait()
 
-		// select only the bid which was most recently recieved
+		// select only the bid which was most recently received
 		if len(bidResults) > 0 {
 			log.WithField("totalBids", len(bidResults)).Debug("received headers from relay via timing games")
 			var latestBid *builderSpec.VersionedSignedBuilderBid

@@ -137,7 +137,6 @@ func setupRelays(cmd *cli.Command) ([]serverTypes.RelayConfig, types.U256Str, bo
 		if err != nil {
 			log.WithError(err).Fatal("failed to load relay config file")
 		}
-
 	}
 	relayConfigs := MergeRelayConfigs(relays, configMap)
 
