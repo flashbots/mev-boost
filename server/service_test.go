@@ -55,17 +55,17 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relays: make([]*mock.Relay, numRelays),
 	}
 
-	relayEntries := make([]types.RelayEntry, numRelays)
+	relayConfigs := make([]types.RelayConfig, numRelays)
 	for i := 0; i < numRelays; i++ {
 		// Create a mock relay
 		backend.relays[i] = mock.NewRelay(t)
-		relayEntries[i] = backend.relays[i].RelayEntry
+		relayConfigs[i] = types.NewRelayConfig(backend.relays[i].RelayEntry)
 	}
 
 	opts := BoostServiceOpts{
 		Log:                      mock.TestLog,
 		ListenAddr:               "localhost:12345",
-		Relays:                   relayEntries,
+		RelayConfigs:             relayConfigs,
 		GenesisForkVersionHex:    "0x00000000",
 		RelayCheck:               true,
 		RelayMinBid:              types.IntToU256(12345),
@@ -124,7 +124,7 @@ func TestNewBoostServiceErrors(t *testing.T) {
 		_, err := NewBoostService(BoostServiceOpts{
 			Log:                      mock.TestLog,
 			ListenAddr:               ":123",
-			Relays:                   []types.RelayEntry{},
+			RelayConfigs:             []types.RelayConfig{},
 			GenesisForkVersionHex:    "0x00000000",
 			GenesisTime:              0,
 			RelayCheck:               true,
@@ -502,7 +502,7 @@ func TestGetHeader(t *testing.T) {
 
 		// Simulate a different public key registered to mev-boost
 		pk := phase0.BLSPubKey{}
-		backend.boost.relays[0].PublicKey = pk
+		backend.boost.relayConfigs[0].RelayEntry.PublicKey = pk
 
 		rr := backend.request(t, http.MethodGet, path, header, nil)
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
@@ -1363,7 +1363,7 @@ func TestCheckRelays(t *testing.T) {
 
 		url, err := url.ParseRequestURI(backend.relays[0].Server.URL)
 		require.NoError(t, err)
-		backend.boost.relays[0].URL = url
+		backend.boost.relayConfigs[0].RelayEntry.URL = url
 		numHealthyRelays := backend.boost.CheckRelays()
 		require.Equal(t, 0, numHealthyRelays)
 	})

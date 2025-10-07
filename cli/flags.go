@@ -29,6 +29,7 @@ var flags = []cli.Flag{
 	hoodiFlag,
 	// relay
 	relaysFlag,
+	relayConfigFlag,
 	deprecatedRelayMonitorFlag,
 	minBidFlag,
 	relayCheckFlag,
@@ -133,6 +134,12 @@ var (
 		Aliases:  []string{"relays"},
 		Sources:  cli.EnvVars("RELAYS"),
 		Usage:    "relay urls - single entry or comma-separated list (scheme://pubkey@host)",
+		Category: RelayCategory,
+	}
+	relayConfigFlag = &cli.StringFlag{
+		Name:     "relay-config",
+		Sources:  cli.EnvVars("RELAY_CONFIG_FILE"),
+		Usage:    "path to YAML file with relay timing games configuration",
 		Category: RelayCategory,
 	}
 	deprecatedRelayMonitorFlag = &cli.StringSliceFlag{

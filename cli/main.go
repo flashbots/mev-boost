@@ -13,6 +13,7 @@ import (
 	"github.com/flashbots/mev-boost/common"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server"
+	serverTypes "github.com/flashbots/mev-boost/server/types"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 )
@@ -65,17 +66,17 @@ func start(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var (
-		genesisForkVersion, genesisTime = setupGenesis(cmd)
-		relays, minBid, relayCheck      = setupRelays(cmd)
-		listenAddr                      = cmd.String(addrFlag.Name)
-		metricsEnabled                  = cmd.Bool(metricsFlag.Name)
-		metricsAddr                     = cmd.String(metricsAddrFlag.Name)
+		genesisForkVersion, genesisTime  = setupGenesis(cmd)
+		relayConfigs, minBid, relayCheck = setupRelays(cmd)
+		listenAddr                       = cmd.String(addrFlag.Name)
+		metricsEnabled                   = cmd.Bool(metricsFlag.Name)
+		metricsAddr                      = cmd.String(metricsAddrFlag.Name)
 	)
 
 	opts := server.BoostServiceOpts{
 		Log:                      log,
 		ListenAddr:               listenAddr,
-		Relays:                   relays,
+		RelayConfigs:             relayConfigs,
 		GenesisForkVersionHex:    genesisForkVersion,
 		GenesisTime:              genesisTime,
 		RelayCheck:               relayCheck,
@@ -108,7 +109,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 	return service.StartHTTPServer()
 }
 
-func setupRelays(cmd *cli.Command) (relayList, types.U256Str, bool) {
+func setupRelays(cmd *cli.Command) ([]serverTypes.RelayConfig, types.U256Str, bool) {
 	// For backwards compatibility with the -relays flag.
 	var relays relayList
 	if cmd.IsSet(relaysFlag.Name) {
@@ -125,9 +126,28 @@ func setupRelays(cmd *cli.Command) (relayList, types.U256Str, bool) {
 	if len(relays) == 0 {
 		log.Fatal("no relays specified")
 	}
-	log.Infof("using %d relays", len(relays))
-	for index, relay := range relays {
-		log.Infof("relay #%d: %s", index+1, relay.String())
+
+	// load relays via config file
+	var configMap map[string]serverTypes.RelayConfig
+	if cmd.IsSet(relayConfigFlag.Name) {
+		configPath := cmd.String(relayConfigFlag.Name)
+		log.Infof("loading relay config from: %s", configPath)
+		var err error
+		configMap, err = LoadRelayConfigFile(configPath)
+		if err != nil {
+			log.WithError(err).Fatal("failed to load relay config file")
+		}
+
+	}
+	relayConfigs := MergeRelayConfigs(relays, configMap)
+
+	log.Infof("using %d relays", len(relayConfigs))
+	for index, config := range relayConfigs {
+		if config.EnableTimingGames {
+			log.Infof("relay #%d: %s timing games: enabled", index+1, config.RelayEntry.String())
+		} else {
+			log.Infof("relay #%d: %s", index+1, config.RelayEntry.String())
+		}
 	}
 
 	relayMinBidWei, err := sanitizeMinBid(cmd.Float(minBidFlag.Name))
@@ -137,7 +157,7 @@ func setupRelays(cmd *cli.Command) (relayList, types.U256Str, bool) {
 	if relayMinBidWei.BigInt().Sign() > 0 {
 		log.Infof("min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
-	return relays, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
+	return relayConfigs, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
 }
 
 func setupGenesis(cmd *cli.Command) (string, uint64) {

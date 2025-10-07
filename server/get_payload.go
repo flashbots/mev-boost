@@ -143,7 +143,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 	}
 
 	// Prepare for requests
-	resultCh := make(chan payloadResult, len(m.relays))
+	resultCh := make(chan payloadResult, len(m.relayConfigs))
 	var received atomic.Bool
 	go func() {
 		// Make sure we receive a response within the timeout
@@ -155,7 +155,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), m.httpClientGetPayload.Timeout)
 	defer requestCtxCancel()
 
-	for _, relay := range m.relays {
+	for _, relayConfig := range m.relayConfigs {
 		go func(relay types.RelayEntry, versionToUse GetPayloadVersion) {
 			var url string
 			if versionToUse == GetPayloadV1 {
@@ -320,7 +320,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 			} else {
 				log.Trace("discarding response, already received a correct response")
 			}
-		}(relay, version)
+		}(relayConfig.RelayEntry, version)
 	}
 
 	// Wait for the first request to complete

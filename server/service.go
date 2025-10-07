@@ -55,7 +55,7 @@ type slotUID struct {
 type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
-	Relays                []types.RelayEntry
+	RelayConfigs          []types.RelayConfig
 	GenesisForkVersionHex string
 	GenesisTime           uint64
 	RelayCheck            bool
@@ -71,13 +71,13 @@ type BoostServiceOpts struct {
 
 // BoostService - the mev-boost service
 type BoostService struct {
-	listenAddr  string
-	relays      []types.RelayEntry
-	log         *logrus.Entry
-	srv         *http.Server
-	relayCheck  bool
-	relayMinBid types.U256Str
-	genesisTime uint64
+	listenAddr   string
+	relayConfigs []types.RelayConfig
+	log          *logrus.Entry
+	srv          *http.Server
+	relayCheck   bool
+	relayMinBid  types.U256Str
+	genesisTime  uint64
 
 	builderSigningDomain phase0.Domain
 	httpClientGetHeader  http.Client
@@ -96,7 +96,7 @@ type BoostService struct {
 
 // NewBoostService created a new BoostService
 func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
-	if len(opts.Relays) == 0 {
+	if len(opts.RelayConfigs) == 0 {
 		return nil, errNoRelays
 	}
 
@@ -106,15 +106,15 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	}
 
 	return &BoostService{
-		listenAddr:  opts.ListenAddr,
-		relays:      opts.Relays,
-		log:         opts.Log,
-		relayCheck:  opts.RelayCheck,
-		relayMinBid: opts.RelayMinBid,
-		genesisTime: opts.GenesisTime,
-		bids:        make(map[string]bidResp),
-		slotUID:     &slotUID{},
-		metricsAddr: opts.MetricsAddr,
+		listenAddr:   opts.ListenAddr,
+		relayConfigs: opts.RelayConfigs,
+		log:          opts.Log,
+		relayCheck:   opts.RelayCheck,
+		relayMinBid:  opts.RelayMinBid,
+		genesisTime:  opts.GenesisTime,
+		bids:         make(map[string]bidResp),
+		slotUID:      &slotUID{},
+		metricsAddr:  opts.MetricsAddr,
 
 		builderSigningDomain: builderSigningDomain,
 		httpClientGetHeader: http.Client{
@@ -281,6 +281,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 		rawProposerAcceptContentTypes    = req.Header.Get(HeaderAccept)
 		parsedProposerAcceptContentTypes = goacceptheaders.Parse(rawProposerAcceptContentTypes)
+		headerTimeoutString              = req.Header.Get(HeaderTimeoutMs)
 	)
 
 	// Parse the slot
@@ -303,8 +304,17 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 	})
 	log.Debug("handling request")
 
+	if headerTimeoutString == "" {
+		headerTimeoutString = "0"
+	}
+
+	headerTimeout, err := strconv.ParseUint(headerTimeoutString, 10, 64)
+	if err != nil {
+		m.respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	// Query the relays for the header
-	result, err := m.getHeader(log, slot, pubkey, parentHashHex, ua, rawProposerAcceptContentTypes)
+	result, err := m.getHeader(log, slot, pubkey, parentHashHex, ua, rawProposerAcceptContentTypes, headerTimeout)
 	if err != nil {
 		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusBadRequest), params.PathGetHeader)
 		m.respondError(w, http.StatusBadRequest, err.Error())
@@ -488,7 +498,7 @@ func (m *BoostService) CheckRelays() int {
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
 
-	for _, r := range m.relays {
+	for _, relayConfig := range m.relayConfigs {
 		wg.Add(1)
 
 		go func(relay types.RelayEntry) {
@@ -514,7 +524,7 @@ func (m *BoostService) CheckRelays() int {
 
 			// Success: increase counter and cancel all pending requests to other relays
 			atomic.AddUint32(&numSuccessRequestsToRelay, 1)
-		}(r)
+		}(relayConfig.RelayEntry)
 	}
 
 	// At the end, wait for every routine and return status according to relay's ones.
