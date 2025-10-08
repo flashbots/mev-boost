@@ -33,7 +33,7 @@ var (
 	errInvalidPubkey             = errors.New("invalid pubkey")
 	errNoSuccessfulRelayResponse = errors.New("no successful relay response")
 	errServerAlreadyRunning      = errors.New("server already running")
-	errRetryWithV1API            = errors.New("relay may not support V2 API, retrying with v1 API")
+	errRetryWithV1API            = errors.New("relay may not support V2 API, retrying with V1 API")
 )
 
 var (

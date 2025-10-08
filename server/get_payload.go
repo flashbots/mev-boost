@@ -71,7 +71,7 @@ func (m *BoostService) getPayloadV2(log *logrus.Entry, signedBlindedBeaconBlockB
 	return result, bid
 }
 
-func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string, version GetPayloadVersion) (payloadResult, bidResp) {
+func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string, versionToUse GetPayloadVersion) (payloadResult, bidResp) {
 	// Get the request's content type
 	parsedProposerContentType, _, err := mime.ParseMediaType(proposerContentType)
 	if err != nil {
@@ -157,14 +157,11 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 	for _, relay := range m.relays {
 		go func(relay types.RelayEntry) {
-			var versionToUse GetPayloadVersion
 			var url string
-			if version == GetPayloadV1 {
+			if versionToUse == GetPayloadV1 {
 				url = relay.GetURI(params.PathGetPayload)
-				versionToUse = GetPayloadV1
 			} else {
 				url = relay.GetURI(params.PathGetPayloadV2)
-				versionToUse = GetPayloadV2
 			}
 
 			// If the request fails, try again a few times with 100ms between tries
