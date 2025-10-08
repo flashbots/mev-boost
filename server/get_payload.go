@@ -60,15 +60,15 @@ type payloadResult struct {
 
 // Deprecated: For reference: https://github.com/ethereum/builder-specs/issues/119
 // getPayload requests the payload (execution payload, blobs bundle, etc) from the relays
-func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string) (*builderApi.VersionedSubmitBlindedBlockResponse, bidResp) {
+func (m *BoostService) getPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string) (payloadResult, bidResp) {
 	result, bid := m.innerGetPayload(log, signedBlindedBeaconBlockBytes, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion, GetPayloadV1)
-	return result.response, bid
+	return result, bid
 }
 
 // getPayloadV2 submits the signed blinded beacon block to relays for submission without returning the payload and blobs
-func (m *BoostService) getPayloadV2(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string) (bool, bidResp) {
+func (m *BoostService) getPayloadV2(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string) (payloadResult, bidResp) {
 	result, bid := m.innerGetPayload(log, signedBlindedBeaconBlockBytes, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion, GetPayloadV2)
-	return result.success, bid
+	return result, bid
 }
 
 func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string, version GetPayloadVersion) (payloadResult, bidResp) {
@@ -157,14 +157,17 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 	for _, relay := range m.relays {
 		go func(relay types.RelayEntry) {
+
+			var versionToUse GetPayloadVersion
 			var url string
 			if version == GetPayloadV1 {
 				url = relay.GetURI(params.PathGetPayload)
+				versionToUse = GetPayloadV1
 			} else {
 				url = relay.GetURI(params.PathGetPayloadV2)
+				versionToUse = GetPayloadV2
 			}
-			log := log.WithField("url", url)
-			log.Debugf("calling getPayload%s", version)
+
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
@@ -198,6 +201,11 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 					}).Info("Converted request from SSZ to JSON for relay")
 				}
 
+				log.WithFields(logrus.Fields{
+					"url": url,
+					"version": versionToUse,
+				}).Info("calling getPayload")
+
 				// Make a new request
 				req, err := http.NewRequestWithContext(requestCtx, http.MethodPost, url, bytes.NewReader(requestBytes))
 				if err != nil {
@@ -215,7 +223,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 				statusCode := http.StatusOK
 				endpoint := params.PathGetPayload
-				if version == GetPayloadV2 {
+				if versionToUse == GetPayloadV2 {
 					statusCode = http.StatusAccepted
 					endpoint = params.PathGetPayloadV2
 				}
@@ -225,12 +233,20 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				resp, err := m.httpClientGetPayload.Do(req)
 				RecordRelayLatency(endpoint, relay.String(), float64(time.Since(start).Microseconds()))
 				if err != nil {
-					log.WithError(err).Warnf("error calling getPayload%s on relay", version)
+					log.WithError(err).Warnf("error calling getPayload%s on relay", versionToUse)
 					return nil, err
 				}
 
 				RecordRelayStatusCode(strconv.Itoa(statusCode), endpoint, relay.String())
 				// Check that the response was successful
+
+				if resp.StatusCode == http.StatusNotFound && url == relay.GetURI(params.PathGetPayloadV2) {
+					log.Warn("relay may not support V2 API, Retrying with v1 API")
+					// retry with v1 api
+					url = relay.GetURI(params.PathGetPayload)
+					versionToUse = GetPayloadV1
+					return nil, fmt.Errorf("relay may not support V2 API, Retrying with v1 API")
+				}
 				if resp.StatusCode != statusCode {
 					err = fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
 					log.WithError(err).Warn("error status code")
@@ -248,7 +264,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 			var result payloadResult
 			result.success = true
 
-			if version == GetPayloadV1 {
+			if versionToUse == GetPayloadV1 {
 				// Get the resp body content
 				respBytes, err := io.ReadAll(resp.Body)
 				if err != nil {
