@@ -157,7 +157,6 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 	for _, relay := range m.relays {
 		go func(relay types.RelayEntry) {
-
 			var versionToUse GetPayloadVersion
 			var url string
 			if version == GetPayloadV1 {
@@ -167,7 +166,6 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				url = relay.GetURI(params.PathGetPayloadV2)
 				versionToUse = GetPayloadV2
 			}
-
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
@@ -202,7 +200,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				}
 
 				log.WithFields(logrus.Fields{
-					"url": url,
+					"url":     url,
 					"version": versionToUse,
 				}).Info("calling getPayload")
 
@@ -245,7 +243,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 					// retry with v1 api
 					url = relay.GetURI(params.PathGetPayload)
 					versionToUse = GetPayloadV1
-					return nil, fmt.Errorf("relay may not support V2 API, Retrying with v1 API")
+					return nil, errRetryWithV1API
 				}
 				if resp.StatusCode != statusCode {
 					err = fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
