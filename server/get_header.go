@@ -140,7 +140,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 		relays = make(map[BlockHashHex][]types.RelayEntry)
 	)
 
-	// process the bids and select the one with the best valiue
+	// process the bids and select the one with the best value
 	for _, rb := range relayBids {
 		m.processBid(log, rb.relay, rb.bid, rb.contentType, parentHashHex, &result, relays, slot)
 	}
@@ -235,7 +235,7 @@ func (m *BoostService) handleTimingGamesGetHeader(
 			}
 			return latestBid, latestContentType
 		}
-		log.Warn("no headers received via timing fames")
+		log.Warn("no headers received via timing games")
 		return nil, ""
 	}
 

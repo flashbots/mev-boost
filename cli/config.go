@@ -15,6 +15,10 @@ type RelayConfigYAML struct {
 	FrequencyGetHeaderMs uint64 `yaml:"frequency_getheader_ms"`
 }
 
+type TimingGamesConfig struct {
+	Relays []RelayConfigYAML `yaml:"relays"`
+}
+
 // LoadRelayConfigFile loads relay configurations from a YAML file
 func LoadRelayConfigFile(configPath string) (map[string]types.RelayConfig, error) {
 	data, err := os.ReadFile(configPath)
@@ -22,13 +26,13 @@ func LoadRelayConfigFile(configPath string) (map[string]types.RelayConfig, error
 		return nil, err
 	}
 
-	var relays []RelayConfigYAML
-	if err := yaml.Unmarshal(data, &relays); err != nil {
+	var config TimingGamesConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, err
 	}
 
 	configMap := make(map[string]types.RelayConfig)
-	for _, relay := range relays {
+	for _, relay := range config.Relays {
 		relayEntry, err := types.NewRelayEntry(strings.TrimSpace(relay.URL))
 		if err != nil {
 			return nil, err
