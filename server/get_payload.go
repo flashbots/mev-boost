@@ -236,9 +236,9 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				// Check that the response was successful
 
 				// If the relay does not support V2 API, retry with V1 API
-				// we can fallback to V1 API if the status code returned >= 400. There is no harm 
-				// falling back to the V1 API, falling back to the V1 API in the case of any error 
-				// can be beneficial to the proposer to avoid a missed slot. 
+				// we can fallback to V1 API if the status code returned >= 400. There is no harm
+				// falling back to the V1 API, falling back to the V1 API in the case of any error
+				// can be beneficial to the proposer to avoid a missed slot.
 				if resp.StatusCode >= http.StatusBadRequest && url == relay.GetURI(params.PathGetPayloadV2) {
 					log.Warn("relay may not support V2 API, Retrying with V1 API")
 					// retry with v1 api
