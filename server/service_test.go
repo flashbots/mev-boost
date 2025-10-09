@@ -1251,7 +1251,7 @@ func TestGetPayloadV2(t *testing.T) {
 		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			_, err := w.Write([]byte(`{"code":400,"message":"bad request"}`))
-			require.NoError(t, err, "failed to write error response")
+			require.NoError(t, err, "failed to write error response") //nolint:testifylint // if we fail here the test is compromised
 		})
 
 		rr := backend.request(t, http.MethodPost, path, header, payload)
@@ -1280,7 +1280,7 @@ func TestGetPayloadV2(t *testing.T) {
 		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
-			require.NoError(t, err, "failed to write error response")
+			require.NoError(t, err, "failed to write error response") //nolint:testifylint // if we fail here the test is compromised
 		})
 
 		rr := backend.request(t, http.MethodPost, path, header, payload)
