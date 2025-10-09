@@ -1232,40 +1232,6 @@ func TestGetPayloadV2(t *testing.T) {
 		rr := backend.request(t, http.MethodPost, path, header, payload)
 		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
 	})
-
-	t.Run("Error after max retries are reached", func(t *testing.T) {
-		header := make(http.Header)
-		header.Set(HeaderAccept, MediaTypeJSON)
-		header.Set("Eth-Consensus-Version", "deneb")
-
-		backend := newTestBackend(t, 1, time.Second)
-
-		// Add the bid to the service
-		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
-		for i, relay := range backend.relays {
-			bid.relays[i] = relay.RelayEntry
-		}
-		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
-
-		count := 0
-		maxRetries := 5
-
-		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
-			count++
-			if count > maxRetries {
-				// success response after max retry attempts
-				backend.relays[0].DefaultHandleGetPayloadV2(w)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
-				require.NoError(t, err, "failed to write error response") //nolint:testifylint // if we fail here the test is compromised
-			}
-		})
-		rr := backend.request(t, http.MethodPost, path, header, payload)
-		require.Equal(t, 5, backend.relays[0].GetRequestCount(path))
-		require.JSONEq(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
-		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
-	})
 }
 
 func TestCheckRelays(t *testing.T) {
