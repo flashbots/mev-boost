@@ -1232,6 +1232,64 @@ func TestGetPayloadV2(t *testing.T) {
 		rr := backend.request(t, http.MethodPost, path, header, payload)
 		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
 	})
+
+	t.Run("Retries with V1 API when V2 API is not found", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 1, 2*time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		// Override V2 handler to return error, V1 handler to succeed
+		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, err := w.Write([]byte(`{"code":400,"message":"bad request"}`))
+			require.NoError(t, err, "failed to write error response")
+		})
+
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
+
+		// Verify both V2 and V1 endpoints were called
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayloadV2))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayload))
+	})
+
+	t.Run("Retries with V1 API when V2 API fails", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 1, 2*time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		// Override V2 handler to return error, V1 handler to succeed
+		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
+			require.NoError(t, err, "failed to write error response")
+		})
+
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
+
+		// Verify both V2 and V1 endpoints were called
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayloadV2))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayload))
+	})
 }
 
 func TestCheckRelays(t *testing.T) {
