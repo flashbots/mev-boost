@@ -66,6 +66,9 @@ type BoostServiceOpts struct {
 	RequestTimeoutRegVal     time.Duration
 	RequestMaxRetries        int
 
+	TimeoutGetHeaderMs uint64
+	LateInSlotTimeMs   uint64
+
 	MetricsAddr string
 }
 
@@ -84,6 +87,9 @@ type BoostService struct {
 	httpClientGetPayload http.Client
 	httpClientRegVal     http.Client
 	requestMaxRetries    int
+
+	timeoutGetHeaderMs uint64
+	lateInSlotTimeMs   uint64
 
 	bids     map[string]bidResp // keeping track of bids, to log the originating relay on withholding
 	bidsLock sync.Mutex
@@ -129,7 +135,9 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 			Timeout:       opts.RequestTimeoutRegVal,
 			CheckRedirect: httpClientDisallowRedirects,
 		},
-		requestMaxRetries: opts.RequestMaxRetries,
+		requestMaxRetries:  opts.RequestMaxRetries,
+		timeoutGetHeaderMs: opts.TimeoutGetHeaderMs,
+		lateInSlotTimeMs:   opts.LateInSlotTimeMs,
 	}, nil
 }
 

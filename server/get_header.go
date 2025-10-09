@@ -25,12 +25,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TODO: make them pass via config file too
-const (
-	TimeoutGetHeaderMs = 900  // timeout for get_header request in milliseconds
-	LateInSlotTimeMs   = 1000 // threshold that defines when in a slot is considered "too late"
-)
-
 type relayBid struct {
 	bid         *builderSpec.VersionedSignedBuilderBid
 	relay       types.RelayEntry
@@ -82,10 +76,10 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 		maxTimeoutMs uint64
 	)
 
-	if TimeoutGetHeaderMs < LateInSlotTimeMs-msIntoSlot {
-		maxTimeoutMs = TimeoutGetHeaderMs
+	if m.timeoutGetHeaderMs < m.lateInSlotTimeMs-msIntoSlot {
+		maxTimeoutMs = m.timeoutGetHeaderMs
 	} else {
-		maxTimeoutMs = LateInSlotTimeMs - msIntoSlot
+		maxTimeoutMs = m.lateInSlotTimeMs - msIntoSlot
 	}
 
 	if maxTimeoutMs == 0 {

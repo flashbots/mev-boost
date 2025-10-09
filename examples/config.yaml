@@ -1,4 +1,10 @@
-# Example relay configuration with timing games for mev-boost
+# Example configuration for mev-boost
+
+# timeout settings for get_header requests 
+timeout_get_header_ms: 900  # timeout for get_header request in milliseconds
+late_in_slot_time_ms: 1000  # threshold that defines when in a slot is considered "too late"
+
+# Relay configurations
 relays:
   # relay with timing games enabled
   - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer1.net

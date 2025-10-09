@@ -30,6 +30,14 @@ const (
 	genesisTimeHoodi   = 1742213400
 )
 
+type RelaySetupResult struct {
+	RelayConfigs       []serverTypes.RelayConfig
+	MinBid             types.U256Str
+	RelayCheck         bool
+	TimeoutGetHeaderMs uint64
+	LateInSlotTimeMs   uint64
+}
+
 var (
 	// errors
 	errInvalidLoglevel = errors.New("invalid loglevel")
@@ -66,33 +74,35 @@ func start(_ context.Context, cmd *cli.Command) error {
 	}
 
 	var (
-		genesisForkVersion, genesisTime  = setupGenesis(cmd)
-		relayConfigs, minBid, relayCheck = setupRelays(cmd)
-		listenAddr                       = cmd.String(addrFlag.Name)
-		metricsEnabled                   = cmd.Bool(metricsFlag.Name)
-		metricsAddr                      = cmd.String(metricsAddrFlag.Name)
+		genesisForkVersion, genesisTime = setupGenesis(cmd)
+		relaySetup                      = setupRelays(cmd)
+		listenAddr                      = cmd.String(addrFlag.Name)
+		metricsEnabled                  = cmd.Bool(metricsFlag.Name)
+		metricsAddr                     = cmd.String(metricsAddrFlag.Name)
 	)
 
 	opts := server.BoostServiceOpts{
 		Log:                      log,
 		ListenAddr:               listenAddr,
-		RelayConfigs:             relayConfigs,
+		RelayConfigs:             relaySetup.RelayConfigs,
 		GenesisForkVersionHex:    genesisForkVersion,
 		GenesisTime:              genesisTime,
-		RelayCheck:               relayCheck,
-		RelayMinBid:              minBid,
+		RelayCheck:               relaySetup.RelayCheck,
+		RelayMinBid:              relaySetup.MinBid,
 		RequestTimeoutGetHeader:  time.Duration(cmd.Int(timeoutGetHeaderFlag.Name)) * time.Millisecond,
 		RequestTimeoutGetPayload: time.Duration(cmd.Int(timeoutGetPayloadFlag.Name)) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(cmd.Int(timeoutRegValFlag.Name)) * time.Millisecond,
 		RequestMaxRetries:        cmd.Int(maxRetriesFlag.Name),
 		MetricsAddr:              metricsAddr,
+		TimeoutGetHeaderMs:       relaySetup.TimeoutGetHeaderMs,
+		LateInSlotTimeMs:         relaySetup.LateInSlotTimeMs,
 	}
 	service, err := server.NewBoostService(opts)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
 	}
 
-	if relayCheck && service.CheckRelays() == 0 {
+	if relaySetup.RelayCheck && service.CheckRelays() == 0 {
 		log.Error("no relay passed the health-check!")
 	}
 
@@ -109,7 +119,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 	return service.StartHTTPServer()
 }
 
-func setupRelays(cmd *cli.Command) ([]serverTypes.RelayConfig, types.U256Str, bool) {
+func setupRelays(cmd *cli.Command) RelaySetupResult {
 	// For backwards compatibility with the -relays flag.
 	var relays relayList
 	if cmd.IsSet(relaysFlag.Name) {
@@ -127,15 +137,20 @@ func setupRelays(cmd *cli.Command) ([]serverTypes.RelayConfig, types.U256Str, bo
 		log.Fatal("no relays specified")
 	}
 
-	// load relays via config file
+	// load configuration via config file
 	var configMap map[string]serverTypes.RelayConfig
+	var timeoutGetHeaderMs uint64 = 900
+	var lateInSlotTimeMs uint64 = 1000
 	if cmd.IsSet(relayConfigFlag.Name) {
 		configPath := cmd.String(relayConfigFlag.Name)
-		log.Infof("loading relay config from: %s", configPath)
-		var err error
-		configMap, err = LoadRelayConfigFile(configPath)
+		log.Infof("loading config from: %s", configPath)
+		configResult, err := LoadConfigFile(configPath)
 		if err != nil {
-			log.WithError(err).Fatal("failed to load relay config file")
+			log.WithError(err).Fatal("failed to load config file")
+		} else {
+			configMap = configResult.RelayConfigs
+			timeoutGetHeaderMs = configResult.TimeoutGetHeaderMs
+			lateInSlotTimeMs = configResult.LateInSlotTimeMs
 		}
 	}
 	relayConfigs := MergeRelayConfigs(relays, configMap)
@@ -156,7 +171,13 @@ func setupRelays(cmd *cli.Command) ([]serverTypes.RelayConfig, types.U256Str, bo
 	if relayMinBidWei.BigInt().Sign() > 0 {
 		log.Infof("min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
-	return relayConfigs, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
+	return RelaySetupResult{
+		RelayConfigs:       relayConfigs,
+		MinBid:             *relayMinBidWei,
+		RelayCheck:         cmd.Bool(relayCheckFlag.Name),
+		TimeoutGetHeaderMs: timeoutGetHeaderMs,
+		LateInSlotTimeMs:   lateInSlotTimeMs,
+	}
 }
 
 func setupGenesis(cmd *cli.Command) (string, uint64) {

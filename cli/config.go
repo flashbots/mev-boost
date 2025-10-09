@@ -15,20 +15,39 @@ type RelayConfigYAML struct {
 	FrequencyGetHeaderMs uint64 `yaml:"frequency_getheader_ms"`
 }
 
-type TimingGamesConfig struct {
-	Relays []RelayConfigYAML `yaml:"relays"`
+// Config holds all configuration settings from the config file
+type Config struct {
+	TimeoutGetHeaderMs uint64            `yaml:"timeout_get_header_ms"`
+	LateInSlotTimeMs   uint64            `yaml:"late_in_slot_time_ms"`
+	Relays             []RelayConfigYAML `yaml:"relays"`
 }
 
-// LoadRelayConfigFile loads relay configurations from a YAML file
-func LoadRelayConfigFile(configPath string) (map[string]types.RelayConfig, error) {
+type ConfigResult struct {
+	RelayConfigs       map[string]types.RelayConfig
+	TimeoutGetHeaderMs uint64
+	LateInSlotTimeMs   uint64
+}
+
+// LoadConfigFile loads configurations from a YAML file
+func LoadConfigFile(configPath string) (*ConfigResult, error) {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}
 
-	var config TimingGamesConfig
+	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, err
+	}
+
+	timeoutGetHeaderMs := config.TimeoutGetHeaderMs
+	if timeoutGetHeaderMs == 0 {
+		timeoutGetHeaderMs = 900
+	}
+
+	lateInSlotTimeMs := config.LateInSlotTimeMs
+	if lateInSlotTimeMs == 0 {
+		lateInSlotTimeMs = 1000
 	}
 
 	configMap := make(map[string]types.RelayConfig)
@@ -46,7 +65,11 @@ func LoadRelayConfigFile(configPath string) (map[string]types.RelayConfig, error
 		configMap[relayEntry.String()] = relayConfig
 	}
 
-	return configMap, nil
+	return &ConfigResult{
+		RelayConfigs:       configMap,
+		TimeoutGetHeaderMs: timeoutGetHeaderMs,
+		LateInSlotTimeMs:   lateInSlotTimeMs,
+	}, nil
 }
 
 // MergeRelayConfigs merges relays passed via --relays to config file settings.

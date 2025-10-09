@@ -137,9 +137,9 @@ var (
 		Category: RelayCategory,
 	}
 	relayConfigFlag = &cli.StringFlag{
-		Name:     "relay-config",
-		Sources:  cli.EnvVars("RELAY_CONFIG_FILE"),
-		Usage:    "path to YAML file with relay timing games configuration",
+		Name:     "config",
+		Sources:  cli.EnvVars("CONFIG_FILE"),
+		Usage:    "path to YAML configuration file",
 		Category: RelayCategory,
 	}
 	deprecatedRelayMonitorFlag = &cli.StringSliceFlag{
