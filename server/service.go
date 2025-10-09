@@ -33,6 +33,7 @@ var (
 	errInvalidPubkey             = errors.New("invalid pubkey")
 	errNoSuccessfulRelayResponse = errors.New("no successful relay response")
 	errServerAlreadyRunning      = errors.New("server already running")
+	errRetryWithV1API            = errors.New("relay may not support V2 API, retrying with V1 API")
 )
 
 var (
@@ -399,7 +400,7 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	result, originalBid := m.getPayload(log, signedBlindedBlockBytes, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion)
 
 	// If no payload has been received from relay, log loudly about withholding!
-	if result == nil || getPayloadResponseIsEmpty(result) {
+	if result.response == nil || getPayloadResponseIsEmpty(result.response) {
 		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusBadGateway), params.PathGetPayload)
 		originRelays := types.RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no payload received from relay!")
@@ -425,11 +426,11 @@ func (m *BoostService) handleGetPayload(w http.ResponseWriter, req *http.Request
 	case MediaTypeJSON:
 		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusOK), params.PathGetPayload)
 		log.Debug("responding with JSON")
-		m.respondGetPayloadJSON(w, result)
+		m.respondGetPayloadJSON(w, result.response)
 	case MediaTypeOctetStream:
 		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusOK), params.PathGetPayload)
 		log.Debug("responding with SSZ")
-		m.respondGetPayloadSSZ(w, result)
+		m.respondGetPayloadSSZ(w, result.response)
 	default:
 		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusNotAcceptable), params.PathGetPayload)
 		message := fmt.Sprintf("unsupported media type: %s", proposerPreferredContentType)
@@ -466,10 +467,10 @@ func (m *BoostService) handleGetPayloadV2(w http.ResponseWriter, req *http.Reque
 	}
 
 	// Submit the signed blinded beacon block to relays
-	success, originalBid := m.getPayloadV2(log, signedBlindedBlockBytes, userAgent, proposerContentType, acceptContentType, proposerEthConsensusVersion)
+	result, originalBid := m.getPayloadV2(log, signedBlindedBlockBytes, userAgent, proposerContentType, acceptContentType, proposerEthConsensusVersion)
 
 	// If no relay accepted the submission, log about the failure
-	if !success {
+	if !result.success {
 		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusBadGateway), params.PathGetPayloadV2)
 		originRelays := types.RelayEntriesToStrings(originalBid.relays)
 		log.WithField("relaysWithBid", strings.Join(originRelays, ", ")).Error("no relay accepted the signed blinded beacon block submission!")

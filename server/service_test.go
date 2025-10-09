@@ -1233,12 +1233,12 @@ func TestGetPayloadV2(t *testing.T) {
 		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
 	})
 
-	t.Run("Error after max retries are reached", func(t *testing.T) {
+	t.Run("Retries with V1 API when V2 API is not found", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
 		header.Set("Eth-Consensus-Version", "deneb")
 
-		backend := newTestBackend(t, 1, time.Second)
+		backend := newTestBackend(t, 1, 2*time.Second)
 
 		// Add the bid to the service
 		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
@@ -1247,24 +1247,48 @@ func TestGetPayloadV2(t *testing.T) {
 		}
 		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
 
-		count := 0
-		maxRetries := 5
-
+		// Override V2 handler to return error, V1 handler to succeed
 		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
-			count++
-			if count > maxRetries {
-				// success response after max retry attempts
-				backend.relays[0].DefaultHandleGetPayloadV2(w)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
-				_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
-				require.NoError(t, err, "failed to write error response") //nolint:testifylint // if we fail here the test is compromised
-			}
+			w.WriteHeader(http.StatusNotFound)
+			_, err := w.Write([]byte(`{"code":400,"message":"bad request"}`))
+			require.NoError(t, err, "failed to write error response") //nolint:testifylint // if we fail here the test is compromised
 		})
+
 		rr := backend.request(t, http.MethodPost, path, header, payload)
-		require.Equal(t, 5, backend.relays[0].GetRequestCount(path))
-		require.JSONEq(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
-		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
+
+		// Verify both V2 and V1 endpoints were called
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayloadV2))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayload))
+	})
+
+	t.Run("Retries with V1 API when V2 API fails", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 1, 2*time.Second)
+
+		// Add the bid to the service
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		// Override V2 handler to return error, V1 handler to succeed
+		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
+			require.NoError(t, err, "failed to write error response") //nolint:testifylint // if we fail here the test is compromised
+		})
+
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
+
+		// Verify both V2 and V1 endpoints were called
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayloadV2))
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayload))
 	})
 }
 
