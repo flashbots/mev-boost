@@ -763,6 +763,297 @@ func TestGetHeaderBids(t *testing.T) {
 	})
 }
 
+func TestGetHeaderTimingGames(t *testing.T) {
+	hash := mock.HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
+	pubkey := mock.HexToPubkey(
+		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
+	path := getHeaderPath(3, hash, pubkey)
+
+	t.Run("Relay with timing games sends multiple requests", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 50 // request every 50ms
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		// should have received multiple requests due to timing games
+		requestCount := backend.relays[0].GetRequestCount(path)
+		require.Greater(t, requestCount, 1)
+	})
+
+	t.Run("Relay with timing games delays first request", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 100 // wait 100ms from slot start
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 0   // no multiple requests
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		// with no frequency, should only send one request
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Mix of timing games and normal relays", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 3, time.Second)
+
+		// timing games enabled for only first relay
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 30
+
+		// second relay: without timing games enabled
+		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
+			12346,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			spec.DataVersionDeneb,
+		)
+
+		// third relay: without timing games enabled
+		backend.relays[2].GetHeaderResponse = backend.relays[2].MakeGetHeaderResponse(
+			12347,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			spec.DataVersionDeneb,
+		)
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		// relay1 should have received more then 1 request due to timing games
+		require.Greater(t, backend.relays[0].GetRequestCount(path), 1)
+		// relay 2 and 3 should have received exactly one request
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[2].GetRequestCount(path))
+
+		resp := new(builderSpec.VersionedSignedBuilderBid)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		value, err := resp.Value()
+		require.NoError(t, err)
+		require.Equal(t, uint256.NewInt(12347), value)
+	})
+
+	t.Run("Timing games relay with higher bid wins", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 2, time.Second)
+
+		// relay1: timing games with higher bid
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 40
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12350,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			spec.DataVersionDeneb,
+		)
+
+		// relay2: normal with lower bid
+		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
+			12348,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			spec.DataVersionDeneb,
+		)
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		// relay1's bid should win
+		resp := new(builderSpec.VersionedSignedBuilderBid)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		value, err := resp.Value()
+		require.NoError(t, err)
+		require.Equal(t, uint256.NewInt(12350), value)
+	})
+
+	t.Run("Timing games with SSZ encoding", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderEthConsensusVersion, "deneb")
+		header.Set(HeaderAccept, MediaTypeOctetStream)
+
+		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 50
+
+		backend.relays[0].ForceSSZ = true
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			spec.DataVersionDeneb,
+		)
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Greater(t, backend.relays[0].GetRequestCount(path), 1)
+		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType))
+
+		bid := new(builderApiDeneb.SignedBuilderBid)
+		err := bid.UnmarshalSSZ(rr.Body.Bytes())
+		require.NoError(t, err)
+	})
+
+	t.Run("Timing games respects timeout budget", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		backend.boost.timeoutGetHeaderMs = 100
+		backend.boost.lateInSlotTimeMs = 1000
+
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 20
+
+		start := time.Now()
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		elapsed := time.Since(start)
+
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.LessOrEqual(t, elapsed.Milliseconds(), int64(300))
+
+		requestCount := backend.relays[0].GetRequestCount(path)
+		require.Greater(t, requestCount, 1)
+		require.Equal(t, 5, requestCount) // 100ms / 20ms = 5 requests
+	})
+
+	t.Run("Multiple timing games relays compete", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 2, time.Second)
+
+		// both relays use timing games
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 40
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12345,
+			"0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			spec.DataVersionDeneb,
+		)
+
+		backend.boost.relayConfigs[1].EnableTimingGames = true
+		backend.boost.relayConfigs[1].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[1].FrequencyGetHeaderMs = 35
+		backend.relays[1].GetHeaderResponse = backend.relays[1].MakeGetHeaderResponse(
+			12345,
+			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			spec.DataVersionDeneb,
+		)
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		require.Greater(t, backend.relays[0].GetRequestCount(path), 1)
+		require.Greater(t, backend.relays[1].GetRequestCount(path), 1)
+
+		resp := new(builderSpec.VersionedSignedBuilderBid)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		blockHash, err := resp.BlockHash()
+		require.NoError(t, err)
+		require.Equal(t, "0xa18385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7", blockHash.String())
+	})
+
+	t.Run("Higher bid received on later request wins", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		// enable timing games for relay1
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 50 // request every 50ms
+
+		requestCount := 0
+
+		backend.relays[0].OverrideHandleGetHeader(func(w http.ResponseWriter, _ *http.Request) {
+			requestCount++
+
+			var resp *builderSpec.VersionedSignedBuilderBid
+			switch requestCount {
+			case 1:
+				// first request: lower bid
+				resp = backend.relays[0].MakeGetHeaderResponse(
+					12345,
+					"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+					"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+					"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+					spec.DataVersionDeneb,
+				)
+			case 2:
+				// second request: medium bid
+				resp = backend.relays[0].MakeGetHeaderResponse(
+					12400,
+					"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+					"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+					"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+					spec.DataVersionDeneb,
+				)
+			default:
+				resp = backend.relays[0].MakeGetHeaderResponse(
+					12500,
+					"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+					"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+					"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+					spec.DataVersionDeneb,
+				)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		})
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		finalCount := backend.relays[0].GetRequestCount(path)
+		require.Greater(t, finalCount, 2)
+
+		// should select the highest bid from the later request
+		bidResp := new(builderSpec.VersionedSignedBuilderBid)
+		err := json.Unmarshal(rr.Body.Bytes(), bidResp)
+		require.NoError(t, err)
+		value, err := bidResp.Value()
+		require.NoError(t, err)
+		require.Equal(t, uint256.NewInt(12500), value)
+	})
+}
+
 func TestGetPayload(t *testing.T) {
 	path := params.PathGetPayload
 	blockHash := mock.HexToHash("0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46")
