@@ -227,13 +227,13 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				innerLog.Debug("submitting signed blinded block")
 				start := time.Now()
 				resp, err := m.httpClientGetPayload.Do(req)
-				RecordRelayLatency(endpoint, relay.String(), float64(time.Since(start).Microseconds()))
+				RecordRelayLatency(endpoint, relay.GetID(), float64(time.Since(start).Microseconds()))
 				if err != nil {
 					innerLog.WithError(err).Warnf("error calling getPayload%s on relay", versionToUse)
 					return nil, err
 				}
 
-				RecordRelayStatusCode(strconv.Itoa(statusCode), endpoint, relay.String())
+				RecordRelayStatusCode(strconv.Itoa(statusCode), endpoint, relay.GetID())
 				// Check that the response was successful
 
 				// If the response status code doesn't match expected, read error body once

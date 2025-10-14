@@ -517,12 +517,12 @@ func (m *BoostService) CheckRelays() int {
 
 			start := time.Now()
 			code, err := SendHTTPRequest(context.Background(), m.httpClientGetHeader, http.MethodGet, url, "", nil, nil, nil)
-			RecordRelayLatency(params.PathStatus, relay.String(), float64(time.Since(start).Microseconds()))
+			RecordRelayLatency(params.PathStatus, relay.GetID(), float64(time.Since(start).Microseconds()))
 			if err != nil {
 				log.WithError(err).Error("relay status error - request failed")
 				return
 			}
-			RecordRelayStatusCode(strconv.Itoa(code), params.PathStatus, relay.String())
+			RecordRelayStatusCode(strconv.Itoa(code), params.PathStatus, relay.GetID())
 			if code == http.StatusOK {
 				log.Debug("relay status OK")
 			} else {

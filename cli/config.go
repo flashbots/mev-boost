@@ -10,6 +10,7 @@ import (
 
 type RelayConfigYAML struct {
 	URL                  string `yaml:"url"`
+	ID                   string `yaml:"id"`
 	EnableTimingGames    bool   `yaml:"enable_timing_games"`
 	TargetFirstRequestMs uint64 `yaml:"target_first_request_ms"`
 	FrequencyGetHeaderMs uint64 `yaml:"frequency_getheader_ms"`
@@ -55,6 +56,11 @@ func LoadConfigFile(configPath string) (*ConfigResult, error) {
 		relayEntry, err := types.NewRelayEntry(strings.TrimSpace(relay.URL))
 		if err != nil {
 			return nil, err
+		}
+		if relay.ID != "" {
+			relayEntry.ID = relay.ID
+		} else {
+			relayEntry.ID = relayEntry.URL.String()
 		}
 		relayConfig := types.RelayConfig{
 			RelayEntry:           relayEntry,

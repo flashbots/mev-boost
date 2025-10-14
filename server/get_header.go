@@ -118,7 +118,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 				if err == nil {
 					valueEth := weiBigIntToEthBigFloat(bidInfo.value.ToBig())
 					valueEthFloat64, _ := valueEth.Float64()
-					RecordBidValue(relay.String(), valueEthFloat64)
+					RecordBidValue(relay.GetID(), valueEthFloat64)
 				}
 
 				mu.Lock()
@@ -264,14 +264,14 @@ func (m *BoostService) sendGetHeaderRequest(
 	log.Debug("requesting header")
 	start := time.Now()
 	resp, err := m.httpClientGetHeader.Do(req)
-	RecordRelayLatency(params.PathGetHeader, relay.String(), float64(time.Since(start).Microseconds()))
+	RecordRelayLatency(params.PathGetHeader, relay.GetID(), float64(time.Since(start).Microseconds()))
 	if err != nil {
 		log.WithError(err).Warn("error calling getHeader on relay")
 		return nil, ""
 	}
 	defer resp.Body.Close()
 
-	RecordRelayStatusCode(strconv.Itoa(resp.StatusCode), params.PathGetHeader, relay.String())
+	RecordRelayStatusCode(strconv.Itoa(resp.StatusCode), params.PathGetHeader, relay.GetID())
 
 	// Check if no header is available
 	if resp.StatusCode == http.StatusNoContent {
@@ -393,15 +393,15 @@ func (m *BoostService) processBid(
 
 	log.Debug("bid received")
 
-	RecordRelayLastSlot(relay.String(), uint64(slot))
+	RecordRelayLastSlot(relay.GetID(), uint64(slot))
 
 	valueEthFloat64, _ := valueEth.Float64()
-	RecordBidValue(relay.String(), valueEthFloat64)
+	RecordBidValue(relay.GetID(), valueEthFloat64)
 
 	// Skip if value is lower than the minimum bid
 	if bidInfo.value.CmpBig(m.relayMinBid.BigInt()) == -1 {
 		log.Debug("ignoring bid below min-bid value")
-		IncrementBidBelowMinBid(relay.String())
+		IncrementBidBelowMinBid(relay.GetID())
 		return
 	}
 

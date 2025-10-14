@@ -8,6 +8,8 @@ late_in_slot_time_ms: 1000  # threshold that defines when in a slot is considere
 relays:
   # relay with timing games enabled
   - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer1.net
+    # id for identifying the relay. if not provided, the url will be used as the id
+    id: relay.relayer1.net
     enable_timing_games: true
     # time in ms from slot start for the first getHeader request
     target_first_request_ms: 200
@@ -16,6 +18,7 @@ relays:
 
   # relay with timing games disabled (standard behavior)
   - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer2.com
+    id: relay.relayer2.com
     enable_timing_games: false
     target_first_request_ms: 0
     frequency_getheader_ms: 0
