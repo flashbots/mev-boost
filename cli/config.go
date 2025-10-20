@@ -78,19 +78,27 @@ func LoadConfigFile(configPath string) (*ConfigResult, error) {
 	}, nil
 }
 
-// MergeRelayConfigs merges relays passed via --relays to config file settings.
+// MergeRelayConfigs merges relays passed via --relays with config file settings.
 // this allows the users to still use --relays if they dont want to provide a config file
 func MergeRelayConfigs(relays []types.RelayEntry, configMap map[string]types.RelayConfig) []types.RelayConfig {
-	configs := make([]types.RelayConfig, 0, len(relays))
+	configs := make([]types.RelayConfig, 0)
+	processedURLs := make(map[string]bool)
 
 	for _, entry := range relays {
-		if config, exists := configMap[entry.String()]; exists {
+		urlStr := entry.String()
+		if config, exists := configMap[urlStr]; exists {
 			config.RelayEntry = entry
 			configs = append(configs, config)
 		} else {
 			configs = append(configs, types.NewRelayConfig(entry))
 		}
+		processedURLs[urlStr] = true
 	}
 
+	for urlStr, config := range configMap {
+		if !processedURLs[urlStr] {
+			configs = append(configs, config)
+		}
+	}
 	return configs
 }
