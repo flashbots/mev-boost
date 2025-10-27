@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/VictoriaMetrics/metrics v1.40.1
 	github.com/ethereum/go-ethereum v1.15.9
-	github.com/flashbots/go-boost-utils v1.9.0
+	github.com/flashbots/go-boost-utils v1.10.0
 	github.com/flashbots/go-utils v0.10.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
