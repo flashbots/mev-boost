@@ -83,7 +83,7 @@ func NewConfigWatcher(configPath string, cliRelays []types.RelayEntry, log *logr
 func (cw *ConfigWatcher) Watch(onConfigChange func(*ConfigResult)) {
 	cw.onConfigChange = onConfigChange
 
-	cw.v.OnConfigChange(func(in fsnotify.Event) {
+	cw.v.OnConfigChange(func(_ fsnotify.Event) {
 		cw.log.Info("config file changed, reloading...")
 		var config Config
 		if err := cw.v.Unmarshal(&config); err != nil {
