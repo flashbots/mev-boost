@@ -36,6 +36,7 @@ type RelaySetupResult struct {
 	RelayCheck         bool
 	TimeoutGetHeaderMs uint64
 	LateInSlotTimeMs   uint64
+	CLIRelays          []serverTypes.RelayEntry // CLI-provided relays for hot-reload merging
 }
 
 var (
@@ -104,6 +105,21 @@ func start(_ context.Context, cmd *cli.Command) error {
 
 	if relaySetup.RelayCheck && service.CheckRelays() == 0 {
 		log.Error("no relay passed the health-check!")
+	}
+
+	// set up config file watcher if a config file is provided
+	if cmd.IsSet(relayConfigFlag.Name) {
+		configPath := cmd.String(relayConfigFlag.Name)
+		watcher, err := NewConfigWatcher(configPath, relaySetup.CLIRelays, log)
+		if err != nil {
+			log.WithError(err).Warn("failed to set up config watcher")
+		} else {
+			// register a callback which gets invoked when config file changes
+			watcher.Watch(func(newConfig *ConfigResult) {
+				mergedConfigs := MergeRelayConfigs(relaySetup.CLIRelays, newConfig.RelayConfigs)
+				service.UpdateConfig(mergedConfigs, newConfig.TimeoutGetHeaderMs, newConfig.LateInSlotTimeMs)
+			})
+		}
 	}
 
 	if metricsEnabled {
@@ -177,6 +193,7 @@ func setupRelays(cmd *cli.Command) RelaySetupResult {
 		RelayCheck:         cmd.Bool(relayCheckFlag.Name),
 		TimeoutGetHeaderMs: timeoutGetHeaderMs,
 		LateInSlotTimeMs:   lateInSlotTimeMs,
+		CLIRelays:          []serverTypes.RelayEntry(relays),
 	}
 }
 

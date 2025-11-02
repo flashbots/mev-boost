@@ -97,6 +97,8 @@ type BoostService struct {
 	slotUID     *slotUID
 	slotUIDLock sync.Mutex
 
+	relayConfigsLock sync.RWMutex
+
 	metricsAddr string
 }
 
@@ -506,7 +508,11 @@ func (m *BoostService) CheckRelays() int {
 	var wg sync.WaitGroup
 	var numSuccessRequestsToRelay uint32
 
-	for _, relayConfig := range m.relayConfigs {
+	m.relayConfigsLock.RLock()
+	relayConfigs := m.relayConfigs
+	m.relayConfigsLock.RUnlock()
+
+	for _, relayConfig := range relayConfigs {
 		wg.Add(1)
 
 		go func(relay types.RelayEntry) {
@@ -538,4 +544,14 @@ func (m *BoostService) CheckRelays() int {
 	// At the end, wait for every routine and return status according to relay's ones.
 	wg.Wait()
 	return int(numSuccessRequestsToRelay)
+}
+
+// UpdateConfig updates the relay configs and timeout settings
+func (m *BoostService) UpdateConfig(relayConfigs []types.RelayConfig, timeoutGetHeaderMs, lateInSlotTimeMs uint64) {
+	m.relayConfigsLock.Lock()
+	defer m.relayConfigsLock.Unlock()
+
+	m.relayConfigs = relayConfigs
+	m.timeoutGetHeaderMs = timeoutGetHeaderMs
+	m.lateInSlotTimeMs = lateInSlotTimeMs
 }

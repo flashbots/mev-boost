@@ -14,16 +14,20 @@ import (
 )
 
 func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, header http.Header) error {
-	respErrCh := make(chan error, len(m.relayConfigs))
+	m.relayConfigsLock.RLock()
+	relayConfigs := m.relayConfigs
+	m.relayConfigsLock.RUnlock()
+
+	respErrCh := make(chan error, len(relayConfigs))
 
 	log.WithFields(logrus.Fields{
 		"timeout":   m.httpClientRegVal.Timeout,
-		"numRelays": len(m.relayConfigs),
+		"numRelays": len(relayConfigs),
 		"regBytes":  len(regBytes),
 	}).Info("calling registerValidator on relays")
 
 	// Forward request to each relay
-	for _, relayConfig := range m.relayConfigs {
+	for _, relayConfig := range relayConfigs {
 		go func(relay types.RelayEntry) {
 			// Get the URL for this relay
 			requestURL := relay.GetURI(params.PathRegisterValidator)
@@ -72,7 +76,7 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 	}
 
 	// Return OK if any relay responds OK
-	for range m.relayConfigs {
+	for range relayConfigs {
 		respErr := <-respErrCh
 		if respErr == nil {
 			// Goroutines are independent, so if there are a lot of configured

@@ -76,10 +76,16 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 		maxTimeoutMs uint64
 	)
 
-	if m.timeoutGetHeaderMs < m.lateInSlotTimeMs-msIntoSlot {
-		maxTimeoutMs = m.timeoutGetHeaderMs
+	m.relayConfigsLock.RLock()
+	relayConfigs := m.relayConfigs
+	timeoutGetHeaderMs := m.timeoutGetHeaderMs
+	lateInSlotTimeMs := m.lateInSlotTimeMs
+	m.relayConfigsLock.RUnlock()
+
+	if timeoutGetHeaderMs < lateInSlotTimeMs-msIntoSlot {
+		maxTimeoutMs = timeoutGetHeaderMs
 	} else {
-		maxTimeoutMs = m.lateInSlotTimeMs - msIntoSlot
+		maxTimeoutMs = lateInSlotTimeMs - msIntoSlot
 	}
 
 	if maxTimeoutMs == 0 {
@@ -93,7 +99,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 	}
 
 	// Request a bid from each relay
-	for _, relayConfig := range m.relayConfigs {
+	for _, relayConfig := range relayConfigs {
 		wg.Add(1)
 		go func(relayConfig types.RelayConfig) {
 			relay := relayConfig.RelayEntry

@@ -143,7 +143,11 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 	}
 
 	// Prepare for requests
-	resultCh := make(chan payloadResult, len(m.relayConfigs))
+	m.relayConfigsLock.RLock()
+	relayConfigs := m.relayConfigs
+	m.relayConfigsLock.RUnlock()
+
+	resultCh := make(chan payloadResult, len(relayConfigs))
 	var received atomic.Bool
 	go func() {
 		// Make sure we receive a response within the timeout
