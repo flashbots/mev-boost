@@ -1290,6 +1290,45 @@ func TestGetPayloadV2(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayloadV2))
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(params.PathGetPayload))
 	})
+
+	t.Run("V2 requests to all relays continue in background after first 202 response", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 3, 5*time.Second)
+
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		backend.relays[0].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusAccepted)
+		})
+
+		delay := 200 * time.Millisecond
+		backend.relays[1].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
+			time.Sleep(delay)
+			w.WriteHeader(http.StatusAccepted)
+		})
+
+		backend.relays[2].OverrideHandleGetPayloadV2(func(w http.ResponseWriter, _ *http.Request) {
+			time.Sleep(delay)
+			w.WriteHeader(http.StatusAccepted)
+		})
+
+		startTime := time.Now()
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		firstResponseTime := time.Since(startTime)
+
+		require.Equal(t, http.StatusAccepted, rr.Code, rr.Body.String())
+		require.Less(t, firstResponseTime, delay)
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[1].GetRequestCount(path))
+		require.Equal(t, 1, backend.relays[2].GetRequestCount(path))
+	})
 }
 
 func TestCheckRelays(t *testing.T) {

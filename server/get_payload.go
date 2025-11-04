@@ -154,6 +154,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 	// Create a context with a timeout as configured in the http client
 	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), m.httpClientGetPayload.Timeout)
 	defer requestCtxCancel()
+	originalVersionToUse := versionToUse
 
 	for _, relay := range m.relays {
 		go func(relay types.RelayEntry, versionToUse GetPayloadVersion) {
@@ -301,10 +302,12 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				result.response = response
 			}
 
-			// The payload is valid, cancel the request for others
-			requestCtxCancel()
+			if originalVersionToUse == GetPayloadV1 {
+				// cancel other request only for v1 endpoints
+				requestCtxCancel()
+			}
 
-			// We have received a valid response, cancel other requests
+			// We have received a valid response, return the first one
 			if received.CompareAndSwap(false, true) {
 				resultCh <- result
 				log.Info("successfully submitted blinded block to relay")
