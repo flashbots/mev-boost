@@ -157,6 +157,8 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 	for _, relay := range m.relays {
 		go func(relay types.RelayEntry) {
+			// Capture the version for this specific goroutine to avoid race conditions
+			versionToUse := versionToUse
 			var url string
 			if versionToUse == GetPayloadV1 {
 				url = relay.GetURI(params.PathGetPayload)
