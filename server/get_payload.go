@@ -71,7 +71,7 @@ func (m *BoostService) getPayloadV2(log *logrus.Entry, signedBlindedBeaconBlockB
 	return result, bid
 }
 
-func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string, versionToUse GetPayloadVersion) (payloadResult, bidResp) {
+func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlockBytes []byte, userAgent, proposerContentType, proposerAcceptContentTypes, proposerEthConsensusVersion string, version GetPayloadVersion) (payloadResult, bidResp) {
 	// Get the request's content type
 	parsedProposerContentType, _, err := mime.ParseMediaType(proposerContentType)
 	if err != nil {
@@ -311,7 +311,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 			} else {
 				log.Trace("discarding response, already received a correct response")
 			}
-		}(relay, versionToUse)
+		}(relay, version)
 	}
 
 	// Wait for the first request to complete
