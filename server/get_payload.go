@@ -156,9 +156,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 	defer requestCtxCancel()
 
 	for _, relay := range m.relays {
-		go func(relay types.RelayEntry) {
-			// Capture the version for this specific goroutine to avoid race conditions
-			versionToUse := versionToUse
+		go func(relay types.RelayEntry, versionToUse GetPayloadVersion) {
 			var url string
 			if versionToUse == GetPayloadV1 {
 				url = relay.GetURI(params.PathGetPayload)
@@ -313,7 +311,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 			} else {
 				log.Trace("discarding response, already received a correct response")
 			}
-		}(relay)
+		}(relay, versionToUse)
 	}
 
 	// Wait for the first request to complete
