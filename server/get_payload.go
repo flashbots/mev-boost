@@ -166,6 +166,8 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
+				log = log.WithField("url", url)
+
 				// Default to the content from the proposer
 				requestContentType := parsedProposerContentType
 				requestBytes := signedBlindedBeaconBlockBytes
@@ -197,7 +199,6 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				}
 
 				log.WithFields(logrus.Fields{
-					"url":     url,
 					"version": versionToUse,
 				}).Info("calling getPayload")
 
@@ -236,10 +237,11 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				// Check that the response was successful
 
 				// If the relay does not support V2 API, retry with V1 API
-				// we can fallback to V1 API if the status code returned >= 400. There is no harm
+				// we can fallback to V1 API if the status code returned >= 404. There is no harm
 				// falling back to the V1 API, falling back to the V1 API in the case of any error
 				// can be beneficial to the proposer to avoid a missed slot.
-				if resp.StatusCode >= http.StatusBadRequest && url == relay.GetURI(params.PathGetPayloadV2) {
+				if resp.StatusCode >= http.StatusNotFound && url == relay.GetURI(params.PathGetPayloadV2) {
+					log.Warnf("unexpected status code %d", resp.StatusCode)
 					log.Warn("relay may not support V2 API, Retrying with V1 API")
 					// retry with v1 api
 					url = relay.GetURI(params.PathGetPayload)
@@ -248,7 +250,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				}
 				if resp.StatusCode != statusCode {
 					err = fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
-					log.WithError(err).Warn("error status code")
+					log.WithError(err).Warn("unexpected status code")
 					return nil, err
 				}
 
