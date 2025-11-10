@@ -166,6 +166,8 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
+				log = log.WithField("url", url)
+
 				// Default to the content from the proposer
 				requestContentType := parsedProposerContentType
 				requestBytes := signedBlindedBeaconBlockBytes
@@ -240,6 +242,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				// falling back to the V1 API, falling back to the V1 API in the case of any error
 				// can be beneficial to the proposer to avoid a missed slot.
 				if resp.StatusCode >= http.StatusBadRequest && url == relay.GetURI(params.PathGetPayloadV2) {
+					log.WithError(err).Warn("unexpected status code")
 					log.Warn("relay may not support V2 API, Retrying with V1 API")
 					// retry with v1 api
 					url = relay.GetURI(params.PathGetPayload)
@@ -248,7 +251,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				}
 				if resp.StatusCode != statusCode {
 					err = fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
-					log.WithError(err).Warn("error status code")
+					log.WithError(err).Warn("unexpected status code")
 					return nil, err
 				}
 
