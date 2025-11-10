@@ -154,7 +154,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 	// Create a context with a timeout as configured in the http client
 	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), m.httpClientGetPayload.Timeout)
 	defer requestCtxCancel()
-	originalVersionToUse := versionToUse
+	originalVersionToUse := version
 
 	for _, relay := range m.relays {
 		go func(relay types.RelayEntry, versionToUse GetPayloadVersion) {
