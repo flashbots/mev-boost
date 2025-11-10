@@ -199,7 +199,6 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				}
 
 				log.WithFields(logrus.Fields{
-					"url":     url,
 					"version": versionToUse,
 				}).Info("calling getPayload")
 
@@ -304,7 +303,9 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				result.response = response
 			}
 
-			// We have received a valid response, return the first one
+			// We have received a valid response, return the first one.
+			// The other requests will be running in the background to provide redundancy 
+			// in case the relay provider which returned the first request fails to broadcast the block.
 			if received.CompareAndSwap(false, true) {
 				resultCh <- result
 				log.Info("successfully submitted blinded block to relay")
