@@ -154,7 +154,6 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 	// Create a context with a timeout as configured in the http client
 	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), m.httpClientGetPayload.Timeout)
 	defer requestCtxCancel()
-	originalVersionToUse := version
 
 	for _, relay := range m.relays {
 		go func(relay types.RelayEntry, versionToUse GetPayloadVersion) {
@@ -300,11 +299,6 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				}
 
 				result.response = response
-			}
-
-			if originalVersionToUse == GetPayloadV1 {
-				// cancel other request only for v1 endpoints
-				requestCtxCancel()
 			}
 
 			// We have received a valid response, return the first one
