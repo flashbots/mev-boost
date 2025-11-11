@@ -163,11 +163,11 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 			} else {
 				url = relay.GetURI(params.PathGetPayloadV2)
 			}
+			innerLog := log.WithField("url", url)
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
-				log = log.WithField("url", url)
-
+				innerLog = innerLog.WithField("url", url)
 				// Default to the content from the proposer
 				requestContentType := parsedProposerContentType
 				requestBytes := signedBlindedBeaconBlockBytes
@@ -180,7 +180,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 						break
 					}
 				}
-				log.WithField("relaySupportsSSZ", relaySupportsSSZ).Debug("encoding preference")
+				innerLog.WithField("relaySupportsSSZ", relaySupportsSSZ).Debug("encoding preference")
 
 				// If the relay provided the bid in JSON or did not provide a bid for this payload,
 				// we must convert the signed blinded beacon block from SSZ to JSON for this relay
@@ -189,23 +189,23 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 					startTime := time.Now()
 					requestBytes, err = convertSSZToJSON(proposerEthConsensusVersion, signedBlindedBeaconBlockBytes)
 					if err != nil {
-						log.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
+						innerLog.WithError(errFailedToConvert).Error("failed to convert SSZ to JSON")
 						return nil, err
 					}
-					log.WithFields(logrus.Fields{
+					innerLog.WithFields(logrus.Fields{
 						"relayProvidedBid": slices.Contains(originalBid.relays, relay),
 						"conversionTime":   time.Since(startTime),
 					}).Info("Converted request from SSZ to JSON for relay")
 				}
 
-				log.WithFields(logrus.Fields{
+				innerLog.WithFields(logrus.Fields{
 					"version": versionToUse,
 				}).Info("calling getPayload")
 
 				// Make a new request
 				req, err := http.NewRequestWithContext(requestCtx, http.MethodPost, url, bytes.NewReader(requestBytes))
 				if err != nil {
-					log.WithError(err).Warn("error creating new request")
+					innerLog.WithError(err).Warn("error creating new request")
 					return nil, err
 				}
 
@@ -224,12 +224,12 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 					endpoint = params.PathGetPayloadV2
 				}
 				// Send the request and record latency
-				log.Debug("submitting signed blinded block")
+				innerLog.Debug("submitting signed blinded block")
 				start := time.Now()
 				resp, err := m.httpClientGetPayload.Do(req)
 				RecordRelayLatency(endpoint, relay.String(), float64(time.Since(start).Microseconds()))
 				if err != nil {
-					log.WithError(err).Warnf("error calling getPayload%s on relay", versionToUse)
+					innerLog.WithError(err).Warnf("error calling getPayload%s on relay", versionToUse)
 					return nil, err
 				}
 
@@ -240,18 +240,18 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				if resp.StatusCode != statusCode {
 					errorBody, err := io.ReadAll(resp.Body)
 					if err != nil {
-						log.WithError(err).Warn("error reading error body")
+						innerLog.WithError(err).Warn("error reading error body")
 						return nil, err
 					}
 					errorBodyStr := string(errorBody)
-					log.WithField("errorBody", errorBodyStr).Warnf("unexpected status code %d", resp.StatusCode)
+					innerLog.WithField("errorBody", errorBodyStr).Warnf("unexpected status code %d", resp.StatusCode)
 
 					// If the relay does not support V2 API, retry with V1 API
 					// we can fallback to V1 API if the status code returned >= 400. There is no harm
 					// falling back to the V1 API, falling back to the V1 API in the case of any error
 					// can be beneficial to the proposer to avoid a missed slot.
 					if resp.StatusCode >= http.StatusBadRequest && url == relay.GetURI(params.PathGetPayloadV2) {
-						log.Warn("relay may not support getPayloadV2 endpoint, retrying with getPayloadV1 endpoint")
+						innerLog.Warn("relay may not support getPayloadV2 endpoint, retrying with getPayloadV1 endpoint")
 						// retry with v1 api
 						url = relay.GetURI(params.PathGetPayload)
 						versionToUse = GetPayloadV1
@@ -265,7 +265,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				return resp, nil
 			})
 			if err != nil {
-				log.WithError(err).Warn("failed to submit signed blinded block after retries")
+				innerLog.WithError(err).Warn("failed to submit signed blinded block after retries")
 				return
 			}
 			defer resp.Body.Close()
@@ -277,34 +277,34 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				// Get the resp body content
 				respBytes, err := io.ReadAll(resp.Body)
 				if err != nil {
-					log.WithError(err).Warn("error reading response body")
+					innerLog.WithError(err).Warn("error reading response body")
 					return
 				}
 
 				// Get the response's content type
 				respContentType, _, err := mime.ParseMediaType(resp.Header.Get(HeaderContentType))
 				if err != nil {
-					log.WithError(err).Warn("error parsing response content type")
+					innerLog.WithError(err).Warn("error parsing response content type")
 					respContentType = MediaTypeJSON
 				}
-				log = log.WithField("respContentType", respContentType)
+				innerLog = innerLog.WithField("respContentType", respContentType)
 
 				// Get the response's eth consensus version
 				respEthConsensusVersion := resp.Header.Get(HeaderEthConsensusVersion)
-				log = log.WithField("respEthConsensusVersion", respEthConsensusVersion)
+				innerLog = innerLog.WithField("respEthConsensusVersion", respEthConsensusVersion)
 
 				// Decode response
 				response := new(builderApi.VersionedSubmitBlindedBlockResponse)
 				err = decodeSubmitBlindedBlockResponse(respBytes, respContentType, respEthConsensusVersion, response)
 				if err != nil {
-					log.WithError(err).Warn("error decoding bid")
+					innerLog.WithError(err).Warn("error decoding bid")
 					return
 				}
 
 				// Check that the payload matches our request
-				err = verifyPayload(log, request, response)
+				err = verifyPayload(innerLog, request, response)
 				if err != nil {
-					log.WithError(err).Warn("error verifying payload")
+					innerLog.WithError(err).Warn("error verifying payload")
 					return
 				}
 
