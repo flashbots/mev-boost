@@ -167,6 +167,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
+				innerLog = innerLog.WithField("url", url)
 				// Default to the content from the proposer
 				requestContentType := parsedProposerContentType
 				requestBytes := signedBlindedBeaconBlockBytes
