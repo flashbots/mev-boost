@@ -121,3 +121,9 @@ jobs:
           args: release --config .goreleaser-release.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mev-boost-release-artifacts
+          path: |
+            build/*
