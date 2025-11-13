@@ -53,11 +53,15 @@ jobs:
         with:
           context: .
           push: true
-          build-args: |
-            VERSION=${{ env.RELEASE_VERSION }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ env.RELEASE_VERSION }}
+          ldflags: |
+            -w
+            -s
+            -X github.com/flashbots/mev-boost/config.Version=${{ env.RELEASE_VERSION }}
 
   build-all:
     runs-on: warp-ubuntu-latest-x64-16x

@@ -41,26 +41,19 @@ curl localhost:18550/eth/v1/builder/status
 For example, creating a new release `v1.9`:
 
 1. Create a GitHub issue about the upcoming release ([example](https://github.com/flashbots/mev-boost/issues/524))
-2. Create a release branch: `release/v1.9` (note: use the target version as branch name, don't add the `-alpha` suffix)
-3. Tag an alpha version: `v1.9-alpha1`
-4. Test in testnets, iterate as needed, create more alpha versions if needed
-5. When tests are complete, create the final tag and release
-6.
+2. Tag an alpha version: `v1.9-alpha1`
+3. Test in testnets, iterate as needed, create more alpha versions if needed
+4. When tests are complete, create the final tag and release
 
 ```bash
-# create a new branch
-git checkout -b release/v1.9
-
-# set and commit the correct version as described below, and create a signed tag
-vim config/vars.go
-git commit -am "v1.9-alpha1"
-git tag -s v1.9-alpha1  # without a tag, the Docker image would include the wrong version number
+# create a signed tag
+git tag -s v1.9-alpha1
 
 # now push to Github (CI will build the Docker image: https://github.com/flashbots/mev-boost/actions)
 git push origin --tags
 
 # other parties can now test the release candidate from Docker like this:
-docker pull flashbots/mev-boost:v1.9a1
+docker pull flashbots/mev-boost:v1.9-alpha1
 ```
 
 ## Ask node operators to test this RC (on Sepolia or Holesky)
@@ -81,8 +74,6 @@ docker pull flashbots/mev-boost:v1.9a1
 
 To create a new version (with tag), follow all these steps! They are necessary to have the correct build version inside, and work with `go install`.
 
-* In the release branch
-* Update [`Version`](/config/vars.go) to final version to `v1.9`, and commit
 * Create final tags, both semver and pep440:
   * `git tag -s v1.9`
   * `git tag -s v1.9.0`
@@ -92,7 +83,6 @@ To create a new version (with tag), follow all these steps! They are necessary t
 * Update the `develop` branch:
   * `git checkout develop`
   * `git merge tags/v1.9 --ff-only`
-* Update `Version` in `config/vars.go` to next patch with `dev` suffix (e.g. `v1.10-dev`) and commit to `develop` branch
 * Now push the `develop` and `stable` branches, as well as the tag: `git push origin develop stable --tags`
 
 Now check the GitHub CI actions for release activity: https://github.com/flashbots/mev-boost/actions
