@@ -3,8 +3,9 @@
 #
 
 [![Goreport status](https://goreportcard.com/badge/github.com/flashbots/mev-boost)](https://goreportcard.com/report/github.com/flashbots/mev-boost)
-[![Test status](https://github.com/flashbots/mev-boost/workflows/Tests/badge.svg?branch=develop)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Tests%22)
-[![Docker hub](https://badgen.net/docker/size/flashbots/mev-boost?icon=docker&label=image)](https://hub.docker.com/r/flashbots/mev-boost/tags)
+[![Test status](https://github.com/flashbots/mev-boost/actions/workflows/tests.yml/badge.svg?branch=develop)](https://github.com/flashbots/mev-boost/actions?query=workflow%3A%22Tests%22)
+[![Docker hub](https://img.shields.io/docker/image-size/flashbots/mev-boost
+)](https://hub.docker.com/r/flashbots/mev-boost/tags)
 
 ## What is MEV-Boost?
 
@@ -40,19 +41,30 @@ See also:
 
 # Table of Contents
 
+- [](#)
+  - [What is MEV-Boost?](#what-is-mev-boost)
+  - [How does MEV-Boost work?](#how-does-mev-boost-work)
+  - [Who can run MEV-Boost?](#who-can-run-mev-boost)
+- [Table of Contents](#table-of-contents)
 - [Background](#background)
 - [Installing](#installing)
   - [Binaries](#binaries)
   - [From source](#from-source)
+    - [`go install`](#go-install)
+    - [Clone and Build](#clone-and-build)
   - [From Docker image](#from-docker-image)
   - [Systemd configuration](#systemd-configuration)
 - [Usage](#usage)
+  - [Note on usage documentation](#note-on-usage-documentation)
   - [Mainnet](#mainnet)
   - [Sepolia testnet](#sepolia-testnet)
   - [Holesky testnet](#holesky-testnet)
   - [Hoodi testnet](#hoodi-testnet)
   - [`test-cli`](#test-cli)
   - [mev-boost cli arguments](#mev-boost-cli-arguments)
+    - [`-relays` vs `-relay`](#-relays-vs--relay)
+    - [Setting a minimum bid value with `-min-bid`](#setting-a-minimum-bid-value-with--min-bid)
+    - [Enabling metrics](#enabling-metrics)
 - [API](#api)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)

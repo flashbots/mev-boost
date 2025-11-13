@@ -23,26 +23,25 @@ go mod tidy
 git status # should be no changes
 
 # Start mev-boost with relay check and -relays
-go run . -mainnet -relay-check -min-bid 0.12345 -debug -relays https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com,https://0xb3ee7afcf27f1f1259ac1787876318c6584ee353097a50ed84f51a1f21a323b3736f271a895c7ce918c038e4265918be@relay.edennetwork.io,https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money
+go run . -mainnet -relay-check -min-bid 0.12345 -debug -relays https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com,https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money
 
 # Start mev-boost with relay check and multiple -relay flags
 go run . -mainnet -relay-check -debug -min-bid 0.12345 \
     -relay https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net \
     -relay https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com \
-    -relay https://0xb3ee7afcf27f1f1259ac1787876318c6584ee353097a50ed84f51a1f21a323b3736f271a895c7ce918c038e4265918be@relay.edennetwork.io \
     -relay https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money
 
 # Call the status endpoint
 curl localhost:18550/eth/v1/builder/status
 ```
 
-## Prepare a release candidate build and Docker image
+## Prepare a Release Candidate (RC) build and Docker image
 
-For example, creating a new release `v1.9`:
+Let's release `v1.9`:
 
 1. Create a GitHub issue about the upcoming release ([example](https://github.com/flashbots/mev-boost/issues/524))
-2. Create a release branch: `release/v1.9` (note: use the target version as branch name, don't add the `-alpha` suffix)
-3. Tag an alpha version: `v1.9-alpha1`
+2. Tag a rc (or alpha) version: `v1.9-rc1`
+3. Push the new tag to the repository (`git push origin tags/v1.9-rc1`)
 4. Test in testnets, iterate as needed, create more alpha versions if needed
 5. When tests are complete, create the final tag and release
 6.

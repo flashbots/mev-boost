@@ -60,6 +60,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   build-all:
+    name: Build Binaries
     runs-on: warp-ubuntu-latest-x64-16x
     steps:
       - name: Checkout
@@ -89,6 +90,7 @@ jobs:
             dist/mev-boost*.txt
 
   release:
+    name: Prepare Github Release
     needs: build-all
     runs-on: warp-ubuntu-latest-x64-16x
     steps:
