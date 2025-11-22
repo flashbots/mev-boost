@@ -12,7 +12,6 @@ import (
 type RelayEntry struct {
 	PublicKey   phase0.BLSPubKey
 	URL         *url.URL
-	ID          string
 	SupportsSSZ bool
 }
 
@@ -30,13 +29,6 @@ func NewRelayConfig(entry RelayEntry) RelayConfig {
 }
 
 func (r *RelayEntry) String() string {
-	return r.URL.String()
-}
-
-func (r *RelayEntry) GetID() string {
-	if r.ID != "" {
-		return r.ID
-	}
 	return r.URL.String()
 }
 
@@ -98,7 +90,6 @@ func RelayEntriesToStrings(relays []RelayEntry) []string {
 // Copy returns a deep copy of the relay entry.
 func (r *RelayEntry) Copy() (ret RelayEntry) {
 	ret.PublicKey = r.PublicKey
-	ret.ID = r.ID
 	ret.SupportsSSZ = r.SupportsSSZ
 	if r.URL != nil {
 		urlCopy := *r.URL
