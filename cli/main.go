@@ -113,13 +113,17 @@ func start(_ context.Context, cmd *cli.Command) error {
 		watcher, err := NewConfigWatcher(configPath, relaySetup.CLIRelays, log)
 		if err != nil {
 			log.WithError(err).Warn("failed to set up config watcher")
-		} else {
-			// register a callback which gets invoked when config file changes
-			watcher.Watch(func(newConfig *ConfigResult) {
-				mergedConfigs := MergeRelayConfigs(relaySetup.CLIRelays, newConfig.RelayConfigs)
-				service.UpdateConfig(mergedConfigs, newConfig.TimeoutGetHeaderMs, newConfig.LateInSlotTimeMs)
-			})
+			return err
 		}
+		// register a callback which gets invoked when config file changes
+		watcher.Watch(func(newConfig *ConfigResult) {
+			mergedConfigs := MergeRelayConfigs(relaySetup.CLIRelays, newConfig.RelayConfigs)
+			if len(mergedConfigs) == 0 {
+				log.Error("merged config has no relays (neither from CLI nor config file), keeping old config")
+				return
+			}
+			service.UpdateConfig(mergedConfigs, newConfig.TimeoutGetHeaderMs, newConfig.LateInSlotTimeMs)
+		})
 	}
 
 	if metricsEnabled {

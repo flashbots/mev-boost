@@ -84,8 +84,17 @@ func (cw *ConfigWatcher) Watch(onConfigChange func(*ConfigResult)) {
 
 	cw.v.OnConfigChange(func(_ fsnotify.Event) {
 		cw.log.Info("config file changed, reloading...")
+
+		// explicitly read the file to get the latest content since viper
+		// may cache the old value and not read the file immediately.
+		data, err := os.ReadFile(cw.configPath)
+		if err != nil {
+			cw.log.WithError(err).Error("failed to read new config file, keeping old config")
+			return
+		}
+
 		var config Config
-		if err := cw.v.Unmarshal(&config); err != nil {
+		if err := yaml.Unmarshal(data, &config); err != nil {
 			cw.log.WithError(err).Error("failed to unmarshal new config, keeping old config")
 			return
 		}
@@ -95,7 +104,7 @@ func (cw *ConfigWatcher) Watch(onConfigChange func(*ConfigResult)) {
 			return
 		}
 
-		cw.log.Infof("successfully loaded new config")
+		cw.log.Infof("successfully loaded new config with %d relays from config file", len(newConfig.RelayConfigs))
 
 		if cw.onConfigChange != nil {
 			cw.onConfigChange(newConfig)
