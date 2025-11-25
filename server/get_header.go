@@ -116,7 +116,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 			if relayConfig.EnableTimingGames {
 				bid, contentType = m.handleTimingGamesGetHeader(log, relayConfig, url, slotUID, userAgent, proposerAcceptContentTypes, msIntoSlot, maxTimeoutMs)
 			} else {
-				bid, contentType = m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes)
+				bid, contentType = m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, maxTimeoutMs)
 			}
 
 			if bid != nil {
@@ -199,7 +199,7 @@ func (m *BoostService) handleTimingGamesGetHeader(
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				bid, contentType := m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes)
+				bid, contentType := m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutLeftMs)
 				if bid != nil {
 					mu.Lock()
 					bidResults = append(bidResults, bidResult{
@@ -240,7 +240,7 @@ func (m *BoostService) handleTimingGamesGetHeader(
 	}
 
 	// in the case if frequency is not set, send only one getHeader request
-	return m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes)
+	return m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutLeftMs)
 }
 
 // sendGetHeaderRequest sends a single getHeader request to a relay and returns the bid and content type
@@ -251,6 +251,7 @@ func (m *BoostService) sendGetHeaderRequest(
 	slotUID uuid.UUID,
 	userAgent string,
 	proposerAcceptContentTypes string,
+	timeoutMs uint64,
 ) (*builderSpec.VersionedSignedBuilderBid, string) {
 	// Make a new request
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
@@ -264,11 +265,13 @@ func (m *BoostService) sendGetHeaderRequest(
 	req.Header.Set(HeaderKeySlotUID, slotUID.String())
 	req.Header.Set(HeaderUserAgent, userAgent)
 	req.Header.Set(HeaderDateMilliseconds, fmt.Sprintf("%d", time.Now().UTC().UnixMilli()))
-	req.Header.Set(HeaderTimeoutMs, strconv.FormatInt(m.httpClientGetHeader.Timeout.Milliseconds(), 10))
+	req.Header.Set(HeaderTimeoutMs, strconv.FormatUint(timeoutMs, 10))
 
 	// Send the request
 	log.Debug("requesting header")
 	start := time.Now()
+
+	m.httpClientGetHeader.Timeout = time.Duration(timeoutMs) * time.Millisecond
 	resp, err := m.httpClientGetHeader.Do(req)
 	RecordRelayLatency(params.PathGetHeader, relay.URL.Hostname(), float64(time.Since(start).Microseconds()))
 	if err != nil {
