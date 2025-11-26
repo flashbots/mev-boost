@@ -325,7 +325,7 @@ To enable timing games, you must provide a YAML configuration file using the `-c
 ```bash
 ./mev-boost -config config.yaml
 ```
-**Notice:** This feature is strictly meant for advanced users and extra care should be taking when setting up timing game associated parameters
+**Notice:** This feature is strictly meant for advanced users and extra care should be taken when setting up timing game associated parameters
 
 #### 1. Global Timeouts
 These settings apply to all relays and define the hard boundaries for the `getHeader` operation.
