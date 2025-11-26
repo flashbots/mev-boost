@@ -24,7 +24,7 @@ relays:
   - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.example.com
     enable_timing_games: true
     target_first_request_ms: 200
-    frequency_getheader_ms: 100
+    frequency_get_header_ms: 100
 `
 		err := os.WriteFile(configPath, []byte(configYAML), 0o644)
 		require.NoError(t, err)
@@ -99,7 +99,7 @@ relays:
   - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay2.example.com
     enable_timing_games: true
     target_first_request_ms: 300
-    frequency_getheader_ms: 150
+    frequency_get_header_ms: 150
 `
 		err = os.WriteFile(configPath, []byte(updatedConfig), 0o644)
 		require.NoError(t, err)
@@ -366,7 +366,7 @@ relays:
   - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@config-relay.example.com
     enable_timing_games: true
     target_first_request_ms: 200
-    frequency_getheader_ms: 100
+    frequency_get_header_ms: 100
 `
 		err = os.WriteFile(configPath, []byte(configYAML), 0o644)
 		require.NoError(t, err)

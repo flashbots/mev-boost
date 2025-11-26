@@ -14,11 +14,11 @@ relays:
     # time in ms from slot start for the first getHeader request
     target_first_request_ms: 200
     # time in ms between subsequent getHeader requests
-    frequency_getheader_ms: 100
+    frequency_get_header_ms: 100
 
   # relay with timing games disabled (standard behavior)
   - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer2.com
     id: relay.relayer2.com
     enable_timing_games: false
     target_first_request_ms: 0
-    frequency_getheader_ms: 0
+    frequency_get_header_ms: 0

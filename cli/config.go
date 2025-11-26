@@ -16,7 +16,7 @@ type RelayConfigYAML struct {
 	URL                  string `yaml:"url"`
 	EnableTimingGames    bool   `yaml:"enable_timing_games"`
 	TargetFirstRequestMs uint64 `yaml:"target_first_request_ms"`
-	FrequencyGetHeaderMs uint64 `yaml:"frequency_getheader_ms"`
+	FrequencyGetHeaderMs uint64 `yaml:"frequency_get_header_ms"`
 }
 
 // Config holds all configuration settings from the config file
