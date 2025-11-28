@@ -1,6 +1,6 @@
 module github.com/flashbots/mev-boost
 
-go 1.24.0
+go 1.25
 
 require (
 	github.com/VictoriaMetrics/metrics v1.40.1
@@ -40,7 +40,7 @@ require (
 
 require (
 	github.com/attestantio/go-builder-client v0.7.2
-	github.com/attestantio/go-eth2-client v0.27.1
+	github.com/attestantio/go-eth2-client v0.27.2
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/ferranbt/fastssz v0.1.4 // indirect
