@@ -252,6 +252,8 @@ Usage of mev-boost:
         use Hoodi
   -json
         log in JSON format instead of text
+  -color
+        enable colored output for text log format
   -log-no-version
         disables adding the version to every log entry
   -log-service string

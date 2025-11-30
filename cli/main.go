@@ -184,7 +184,7 @@ func setupLogging(cmd *cli.Command) error {
 		log.Logger.SetFormatter(&logrus.TextFormatter{
 			FullTimestamp:   true,
 			TimestampFormat: config.RFC3339Milli,
-			ForceColors:     true,
+			ForceColors:     cmd.Bool(colorFlag.Name),
 		})
 	}
 
