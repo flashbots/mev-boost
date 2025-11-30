@@ -1,24 +1,51 @@
 # Example configuration for mev-boost
+# This file can be passed to mev-boost using the -config flag: ./mev-boost -config config.yaml
+# the configuration supports hot-reloading, changes to this file will be automatically applied without restarts
 
-# timeout settings for get_header requests
-timeout_get_header_ms: 900 # timeout for get_header request in milliseconds
-late_in_slot_time_ms: 1000 # threshold that defines when in a slot is considered "too late"
+# Timeout in milliseconds for get_header requests to relays.
+# This value should be less then the timeout on the CL.
+# Default: 900ms
+timeout_get_header_ms: 900
 
-# Relay configurations
+# Threshold in milliseconds that marks when in a slot is considered "too late".
+# If a getHeader request arrives after this threshold, mev-boost skips all relay requests
+# and forces local block building.
+# Default: 1000ms
+late_in_slot_time_ms: 1000
+
+# Relay Configurations
+# Each relay can be configured individually. Relays can also be provided via cli using
+# the -relay flag. Cli provided relays will be merged with config file relays.
+
 relays:
-  # relay with timing games enabled
+  # Relay with timing games enabled
+  # Timing games allow mev-boost to send multiple requests at strategic intervals
+  # to capture the latest, most valuable bids right before the proposal deadline.
   - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer1.net
-    # id for identifying the relay. if not provided, the url will be used as the id
-    id: relay.relayer1.net
+    # Enable timing games strategy for this relay.
+    # When enabled, mev-boost will delay the first request and send multiple follow up requests.
+    # Default: false
     enable_timing_games: true
-    # time in ms from slot start for the first getHeader request
+    
+    # Target time in milliseconds when the first getHeader request should be sent.
+    # Only used when enable_timing_games is true.
+    # Example: 200 means wait until 200ms before sending the first request.
     target_first_request_ms: 200
-    # time in ms between subsequent getHeader requests
+    
+    # Interval in milliseconds between subsequent getHeader requests to the same relay.
+    # After the first request, mev-boost will keep sending new requests every frequency_get_header_ms
+    # until the global timeout budget (maxTimeout) is exhausted.
+    # Only used when enable_timing_games is true.
+    # Example: 100 means send a new request every 100ms.
     frequency_get_header_ms: 100
 
-  # relay with timing games disabled (standard behavior)
+  # Relay with timing games disabled (standard behavior)
+  # This relay will receive a single getHeader request immediately when the CL
+  # calls mev-boost, following the standard mev-boost behavior.
   - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer2.com
-    id: relay.relayer2.com
+    # Disable timing games - use standard single-request behavior
     enable_timing_games: false
+    
+    # These values are ignored when enable_timing_games is false
     target_first_request_ms: 0
     frequency_get_header_ms: 0
