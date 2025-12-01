@@ -253,7 +253,7 @@ Usage of mev-boost:
   -json
         log in JSON format instead of text
   -color
-        enable colored output for text log format
+        enable colored output for text log format; has no effect if JSON logging is enabled via -json
   -log-no-version
         disables adding the version to every log entry
   -log-service string
