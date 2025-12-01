@@ -16,6 +16,7 @@ var flags = []cli.Flag{
 	versionFlag,
 	// logging
 	jsonFlag,
+	colorFlag,
 	debugFlag,
 	logLevelFlag,
 	logServiceFlag,
@@ -61,6 +62,12 @@ var (
 		Name:     "json",
 		Sources:  cli.EnvVars("LOG_JSON"),
 		Usage:    "log in JSON format instead of text",
+		Category: LoggingCategory,
+	}
+	colorFlag = &cli.BoolFlag{
+		Name:     "color",
+		Sources:  cli.EnvVars("LOG_COLOR"),
+		Usage:    "enable colored output for text log format",
 		Category: LoggingCategory,
 	}
 	debugFlag = &cli.BoolFlag{
