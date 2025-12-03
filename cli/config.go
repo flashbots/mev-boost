@@ -142,12 +142,12 @@ func MergeRelayConfigs(relays []types.RelayEntry, configMap map[string]types.Rel
 func parseConfig(config Config) (*ConfigResult, error) {
 	timeoutGetHeaderMs := config.TimeoutGetHeaderMs
 	if timeoutGetHeaderMs == 0 {
-		timeoutGetHeaderMs = 900
+		timeoutGetHeaderMs = 950
 	}
 
 	lateInSlotTimeMs := config.LateInSlotTimeMs
 	if lateInSlotTimeMs == 0 {
-		lateInSlotTimeMs = 1000
+		lateInSlotTimeMs = 2000
 	}
 
 	configMap := make(map[string]types.RelayConfig)

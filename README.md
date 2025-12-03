@@ -330,10 +330,10 @@ To enable timing games, you must provide a YAML configuration file using the `-c
 #### 1. Global Timeouts
 These settings apply to all relays and define the hard boundaries for the `getHeader` operation.
 
-*   **`timeout_get_header_ms`** (optional, default: 900ms)
+*   **`timeout_get_header_ms`** (optional, default: 950ms)
     * It is the maximum timeout in milliseconds for get_header requests to relays.
 
-*   **`late_in_slot_time_ms`** (optional, default: 1000ms)
+*   **`late_in_slot_time_ms`** (optional, default: 2000ms)
     *   It is a safety threshold in milliseconds that marks when in a slot we consider it "too late" to fetch headers from relays. If the request arrives after the threshold, it skips all relay requests and forces local block building.
         ```
 

@@ -82,6 +82,15 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 	lateInSlotTimeMs := m.lateInSlotTimeMs
 	m.relayConfigsLock.RUnlock()
 
+	// check to see if we are already past the late-in-slot deadline
+	if msIntoSlot >= lateInSlotTimeMs {
+		log.WithFields(logrus.Fields{
+			"msIntoSlot":       msIntoSlot,
+			"lateInSlotTimeMs": lateInSlotTimeMs,
+		}).Warn("getHeader request skipped because we are already past the lateInSlotTimeMs deadline")
+		return bidResp{}, nil
+	}
+
 	if timeoutGetHeaderMs < lateInSlotTimeMs-msIntoSlot {
 		maxTimeoutMs = timeoutGetHeaderMs
 	} else {
@@ -196,10 +205,11 @@ func (m *BoostService) handleTimingGamesGetHeader(
 		// keep sending requests until time runs out
 		var wg sync.WaitGroup
 		for timeoutLeftMs > 0 {
+			currentTimeoutMs := timeoutLeftMs
 			wg.Add(1)
-			go func() {
+			go func(timeoutMs uint64) {
 				defer wg.Done()
-				bid, contentType := m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutLeftMs)
+				bid, contentType := m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutMs)
 				if bid != nil {
 					mu.Lock()
 					bidResults = append(bidResults, bidResult{
@@ -209,7 +219,7 @@ func (m *BoostService) handleTimingGamesGetHeader(
 					})
 					mu.Unlock()
 				}
-			}()
+			}(currentTimeoutMs)
 
 			if timeoutLeftMs > relayConfig.FrequencyGetHeaderMs {
 				timeoutLeftMs -= relayConfig.FrequencyGetHeaderMs
@@ -253,8 +263,11 @@ func (m *BoostService) sendGetHeaderRequest(
 	proposerAcceptContentTypes string,
 	timeoutMs uint64,
 ) (*builderSpec.VersionedSignedBuilderBid, string) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMs)*time.Millisecond)
+	defer cancel()
+
 	// Make a new request
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		log.WithError(err).Warn("error creating new request")
 		return nil, ""
@@ -271,7 +284,6 @@ func (m *BoostService) sendGetHeaderRequest(
 	log.Debug("requesting header")
 	start := time.Now()
 
-	m.httpClientGetHeader.Timeout = time.Duration(timeoutMs) * time.Millisecond
 	resp, err := m.httpClientGetHeader.Do(req)
 	RecordRelayLatency(params.PathGetHeader, relay.URL.Hostname(), float64(time.Since(start).Microseconds()))
 	if err != nil {

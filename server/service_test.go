@@ -62,19 +62,25 @@ func newTestBackend(t *testing.T, numRelays int, relayTimeout time.Duration) *te
 		relayConfigs[i] = types.NewRelayConfig(backend.relays[i].RelayEntry)
 	}
 
+	// setting genesisTime so slot 1 appears to be now (msIntoSlot ≈ 0)
+	// most tests use slot 1. Tests using other slots (e.g. for timing games)
+	// override genesisTime appropriately.
+	genesisTime := uint64(time.Now().Unix()) - 12
+
 	opts := BoostServiceOpts{
 		Log:                      mock.TestLog,
 		ListenAddr:               "localhost:12345",
 		RelayConfigs:             relayConfigs,
 		GenesisForkVersionHex:    "0x00000000",
+		GenesisTime:              genesisTime,
 		RelayCheck:               true,
 		RelayMinBid:              types.IntToU256(12345),
 		RequestTimeoutGetHeader:  relayTimeout,
 		RequestTimeoutGetPayload: relayTimeout,
 		RequestTimeoutRegVal:     relayTimeout,
 		RequestMaxRetries:        5,
-		TimeoutGetHeaderMs:       900,
-		LateInSlotTimeMs:         1000,
+		TimeoutGetHeaderMs:       950,
+		LateInSlotTimeMs:         2000, // Realistic production default
 	}
 	service, err := NewBoostService(opts)
 	require.NoError(t, err)
@@ -604,6 +610,8 @@ func TestGetHeaderBids(t *testing.T) {
 
 		// Create backend and register 3 relays.
 		backend := newTestBackend(t, 3, time.Second)
+		// setting genesisTime to make slot 2 appear now
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 24
 
 		// First relay will return signed response with value 12345.
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
@@ -657,6 +665,8 @@ func TestGetHeaderBids(t *testing.T) {
 
 		// Create backend and register 3 relays.
 		backend := newTestBackend(t, 3, time.Second)
+		// setting genesisTime to make slot 2 appear now
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 24
 
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
 			12345,
@@ -711,6 +721,8 @@ func TestGetHeaderBids(t *testing.T) {
 
 		// Create backend and register relay.
 		backend := newTestBackend(t, 1, time.Second)
+		// setting genesisTime to make slot 2 appear now
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 24
 
 		// Relay will return signed response with value 12344.
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
@@ -737,6 +749,8 @@ func TestGetHeaderBids(t *testing.T) {
 
 		// Create backend and register relay.
 		backend := newTestBackend(t, 1, time.Second)
+		// setting genesisTime to make slot 2 appear now
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 24
 
 		// First relay will return signed response with value 12345.
 		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
@@ -775,6 +789,9 @@ func TestGetHeaderTimingGames(t *testing.T) {
 
 		backend := newTestBackend(t, 1, time.Second)
 
+		// setting genesis time so slot 3 appears to be now (msIntoSlot ≈ 0)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
+
 		backend.boost.relayConfigs[0].EnableTimingGames = true
 		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
 		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 50 // request every 50ms
@@ -792,6 +809,7 @@ func TestGetHeaderTimingGames(t *testing.T) {
 		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
 
 		backend.boost.relayConfigs[0].EnableTimingGames = true
 		backend.boost.relayConfigs[0].TargetFirstRequestMs = 100 // wait 100ms from slot start
@@ -809,6 +827,7 @@ func TestGetHeaderTimingGames(t *testing.T) {
 		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 3, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
 
 		// timing games enabled for only first relay
 		backend.boost.relayConfigs[0].EnableTimingGames = true
@@ -855,6 +874,7 @@ func TestGetHeaderTimingGames(t *testing.T) {
 		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 2, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
 
 		// relay1: timing games with higher bid
 		backend.boost.relayConfigs[0].EnableTimingGames = true
@@ -895,6 +915,7 @@ func TestGetHeaderTimingGames(t *testing.T) {
 		header.Set(HeaderAccept, MediaTypeOctetStream)
 
 		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
 		backend.boost.relayConfigs[0].EnableTimingGames = true
 		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
 		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 50
@@ -923,6 +944,7 @@ func TestGetHeaderTimingGames(t *testing.T) {
 		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
 
 		backend.boost.timeoutGetHeaderMs = 100
 		backend.boost.lateInSlotTimeMs = 1000
@@ -948,6 +970,7 @@ func TestGetHeaderTimingGames(t *testing.T) {
 		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 2, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
 
 		// both relays use timing games
 		backend.boost.relayConfigs[0].EnableTimingGames = true
@@ -991,6 +1014,7 @@ func TestGetHeaderTimingGames(t *testing.T) {
 		header.Set(HeaderAccept, MediaTypeJSON)
 
 		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
 
 		// enable timing games for relay1
 		backend.boost.relayConfigs[0].EnableTimingGames = true
@@ -1051,6 +1075,166 @@ func TestGetHeaderTimingGames(t *testing.T) {
 		value, err := bidResp.Value()
 		require.NoError(t, err)
 		require.Equal(t, uint256.NewInt(12500), value)
+	})
+
+	t.Run("Timing games with delayed first request and frequency", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
+
+		// expected: 200ms / 50ms = 4 requests
+		backend.boost.timeoutGetHeaderMs = 200
+		backend.boost.lateInSlotTimeMs = 2000
+
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 50
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		requestCount := backend.relays[0].GetRequestCount(path)
+		require.Equal(t, 4, requestCount)
+	})
+
+	t.Run("Timing games disabled sends single request", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
+
+		backend.boost.relayConfigs[0].EnableTimingGames = false
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 200 // ignored
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 100 // ignored
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Timing games with zero frequency sends single request", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
+
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 50
+		// no repeated requests
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 0
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Timing games budget limited by lateInSlotTimeMs", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
+
+		backend.boost.timeoutGetHeaderMs = 2000
+		backend.boost.lateInSlotTimeMs = 1500
+
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 100
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Greater(t, backend.relays[0].GetRequestCount(path), 1)
+	})
+}
+
+func TestGetHeaderSlotTiming(t *testing.T) {
+	hash := mock.HexToHash("0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7")
+	pubkey := mock.HexToPubkey(
+		"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249")
+	path := getHeaderPath(1, hash, pubkey)
+
+	t.Run("Request early in slot succeeds (msIntoSlot < lateInSlotTimeMs)", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		// set genesisTime so slot 1 is now
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 12
+		backend.boost.lateInSlotTimeMs = 2000
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Request late in slot returns no content (msIntoSlot >= lateInSlotTimeMs)", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		// set genesisTime so slot 1 started 5 seconds ago (msIntoSlot ≈ 5000ms)
+		// genesisTime = currentTimeSec - 12 - 5 = makes slot 1 start 5 seconds ago
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 12 - 5
+		backend.boost.lateInSlotTimeMs = 2000
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+
+		require.Equal(t, http.StatusNoContent, rr.Code)
+		// no requests should be sent to relays because we return early
+		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Request at lateInSlotTimeMs boundary returns no content", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		// setting genesisTime so slot 1 started exactly 2 seconds ago
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 12 - 2
+		backend.boost.lateInSlotTimeMs = 2000
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusNoContent, rr.Code)
+		require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Request just before lateInSlotTimeMs threshold succeeds", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		// setting genesisTime so slot 1 started 1 second ago (msIntoSlot ≈ 1000ms)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 12 - 1
+		backend.boost.lateInSlotTimeMs = 2000
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+	})
+
+	t.Run("Different lateInSlotTimeMs values work correctly", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		// setting genesisTime so slot 1 started 1 second ago (msIntoSlot ≈ 1000ms)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 12 - 1
+		backend.boost.lateInSlotTimeMs = 500
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+
+		// should return 204 because msIntoSlot (≈1000ms) >= lateInSlotTimeMs (500ms)
+		require.Equal(t, http.StatusNoContent, rr.Code)
 	})
 }
 
@@ -1929,6 +2113,9 @@ func TestGetPayloadToAllRelays(t *testing.T) {
 
 	// Create a test backend with 2 relays
 	backend := newTestBackend(t, 2, time.Second)
+
+	// overriding genesisTime so slot 12345 appears to be now
+	backend.boost.genesisTime = uint64(time.Now().Unix()) - 12345*12
 
 	// Add the bid to the service
 	bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}

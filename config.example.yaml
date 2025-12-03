@@ -4,14 +4,14 @@
 
 # Timeout in milliseconds for get_header requests to relays.
 # This value should be less then the timeout on the CL.
-# Default: 900ms
-timeout_get_header_ms: 900
+# Default: 950ms
+timeout_get_header_ms: 950
 
 # Threshold in milliseconds that marks when in a slot is considered "too late".
 # If a getHeader request arrives after this threshold, mev-boost skips all relay requests
 # and forces local block building.
-# Default: 1000ms
-late_in_slot_time_ms: 1000
+# Default: 2000ms
+late_in_slot_time_ms: 2000
 
 # Relay Configurations
 # Each relay can be configured individually. Relays can also be provided via cli using

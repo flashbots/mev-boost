@@ -159,8 +159,8 @@ func setupRelays(cmd *cli.Command) RelaySetupResult {
 
 	// load configuration via config file
 	var configMap map[string]serverTypes.RelayConfig
-	var timeoutGetHeaderMs uint64 = 900
-	var lateInSlotTimeMs uint64 = 1000
+	var timeoutGetHeaderMs uint64 = 950
+	var lateInSlotTimeMs uint64 = 2000
 	if cmd.IsSet(relayConfigFlag.Name) {
 		configPath := cmd.String(relayConfigFlag.Name)
 		log.Infof("loading config from: %s", configPath)
