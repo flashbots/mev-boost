@@ -176,11 +176,10 @@ func setupRelays(cmd *cli.Command) (*RelaySetupResult, error) {
 		if err != nil {
 			log.WithError(err).Fatal("failed to load config file")
 			return nil, err
-		} else {
-			configMap = configResult.RelayConfigs
-			timeoutGetHeaderMs = configResult.TimeoutGetHeaderMs
-			lateInSlotTimeMs = configResult.LateInSlotTimeMs
 		}
+		configMap = configResult.RelayConfigs
+		timeoutGetHeaderMs = configResult.TimeoutGetHeaderMs
+		lateInSlotTimeMs = configResult.LateInSlotTimeMs
 	}
 	relayConfigs, err := MergeRelayConfigs(relays, configMap)
 	if err != nil {

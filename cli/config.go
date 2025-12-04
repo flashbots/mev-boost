@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,8 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )
+
+var errRelayConfiguredTwice = errors.New("relay is specified in both cli flags and config file")
 
 type RelayConfigYAML struct {
 	URL                  string `yaml:"url"`
@@ -124,7 +127,7 @@ func MergeRelayConfigs(relays []types.RelayEntry, configMap map[string]types.Rel
 	for _, entry := range relays {
 		urlStr := entry.String()
 		if _, exists := configMap[urlStr]; exists {
-			return nil, fmt.Errorf("relay %q is specified in both CLI flags and config file, please specify each relay in only one place", urlStr)
+			return nil, fmt.Errorf("%w: %s", errRelayConfiguredTwice, urlStr)
 		}
 		configs = append(configs, types.NewRelayConfig(entry))
 	}

@@ -306,19 +306,22 @@ relays:
 		watcher, err := NewConfigWatcher(configPath, []types.RelayEntry{cliRelay}, log)
 		require.NoError(t, err)
 
-		var callbackCalled sync.WaitGroup
-		callbackCalled.Add(1)
-
-		var receivedConfig *ConfigResult
-		var mergedConfigs []types.RelayConfig
-		var callbackMutex sync.Mutex
+		var (
+			receivedConfig *ConfigResult
+			mergedConfigs  []types.RelayConfig
+			callbackMutex  sync.Mutex
+			once           sync.Once
+			done           = make(chan struct{})
+		)
 
 		watcher.Watch(func(newConfig *ConfigResult) {
 			callbackMutex.Lock()
 			receivedConfig = newConfig
 			mergedConfigs, _ = MergeRelayConfigs([]types.RelayEntry{cliRelay}, newConfig.RelayConfigs)
 			callbackMutex.Unlock()
-			callbackCalled.Done()
+			once.Do(func() {
+				close(done)
+			})
 		})
 
 		time.Sleep(100 * time.Millisecond)
@@ -331,12 +334,6 @@ relays: []
 `
 		err = os.WriteFile(configPath, []byte(emptyConfig), 0o644)
 		require.NoError(t, err)
-
-		done := make(chan struct{})
-		go func() {
-			callbackCalled.Wait()
-			close(done)
-		}()
 
 		select {
 		case <-done:
@@ -439,7 +436,7 @@ func TestMergeRelayConfigs_DuplicateDetection(t *testing.T) {
 		}
 		_, err := MergeRelayConfigs([]types.RelayEntry{cliRelay}, configMap)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "is specified in both CLI flags and config file")
+		require.Contains(t, err.Error(), "relay is specified in both cli flags and config file")
 	})
 
 	t.Run("Success when relays are different", func(t *testing.T) {
