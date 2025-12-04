@@ -77,17 +77,20 @@ relays:
 		watcher, err := NewConfigWatcher(configPath, []types.RelayEntry{}, log)
 		require.NoError(t, err)
 
-		var callbackCalled sync.WaitGroup
-		callbackCalled.Add(1)
-
-		var receivedConfig *ConfigResult
-		var callbackMutex sync.Mutex
+		var (
+			receivedConfig *ConfigResult
+			callbackMutex  sync.Mutex
+			once           sync.Once
+			done           = make(chan struct{})
+		)
 
 		watcher.Watch(func(newConfig *ConfigResult) {
 			callbackMutex.Lock()
 			receivedConfig = newConfig
 			callbackMutex.Unlock()
-			callbackCalled.Done()
+			once.Do(func() {
+				close(done)
+			})
 		})
 
 		time.Sleep(100 * time.Millisecond)
@@ -104,17 +107,8 @@ relays:
 		err = os.WriteFile(configPath, []byte(updatedConfig), 0o644)
 		require.NoError(t, err)
 
-		time.Sleep(50 * time.Millisecond)
-
-		done := make(chan struct{})
-		go func() {
-			callbackCalled.Wait()
-			close(done)
-		}()
-
 		select {
 		case <-done:
-			// callback was called
 			callbackMutex.Lock()
 			require.NotNil(t, receivedConfig)
 			require.Equal(t, uint64(1200), receivedConfig.TimeoutGetHeaderMs)
@@ -372,18 +366,22 @@ relays:
 		watcher, err := NewConfigWatcher(configPath, []types.RelayEntry{cliRelay}, log)
 		require.NoError(t, err)
 
-		var receivedConfig *ConfigResult
-		var mergedConfigs []types.RelayConfig
-		var callbackMutex sync.Mutex
-		var callbackCalled sync.WaitGroup
-		callbackCalled.Add(1)
+		var (
+			receivedConfig *ConfigResult
+			mergedConfigs  []types.RelayConfig
+			callbackMutex  sync.Mutex
+			once           sync.Once
+			done           = make(chan struct{})
+		)
 
 		watcher.Watch(func(newConfig *ConfigResult) {
 			callbackMutex.Lock()
 			receivedConfig = newConfig
 			mergedConfigs, _ = MergeRelayConfigs([]types.RelayEntry{cliRelay}, newConfig.RelayConfigs)
 			callbackMutex.Unlock()
-			callbackCalled.Done()
+			once.Do(func() {
+				close(done)
+			})
 		})
 
 		time.Sleep(100 * time.Millisecond)
@@ -401,12 +399,6 @@ relays:
 `
 		err = os.WriteFile(configPath, []byte(updatedConfig), 0o644)
 		require.NoError(t, err)
-
-		done := make(chan struct{})
-		go func() {
-			callbackCalled.Wait()
-			close(done)
-		}()
 
 		select {
 		case <-done:
