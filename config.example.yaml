@@ -3,13 +3,14 @@
 # the configuration supports hot-reloading, changes to this file will be automatically applied without restarts
 
 # Timeout in milliseconds for get_header requests to relays.
-# This value should be less then the timeout on the CL.
+# This value should be less then the timeout on the CL, since 
+# CL's has their own get_header deadline.
 # Default: 950ms
 timeout_get_header_ms: 950
 
 # Threshold in milliseconds that marks when in a slot is considered "too late".
 # If a getHeader request arrives after this threshold, mev-boost skips all relay requests
-# and forces local block building.
+# and forces local block building, to reduce the risk of missed slot.
 # Default: 2000ms
 late_in_slot_time_ms: 2000
 
