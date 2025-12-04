@@ -205,79 +205,86 @@ func (m *BoostService) handleTimingGamesGetHeader(
 		}
 	}
 
+	if relayConfig.FrequencyGetHeaderMs == 0 {
+		// in the case if frequency is not set, send only one getHeader request
+		return m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutLeftMs)
+	}
+
 	// send multiple requests at frequency intervals
-	if relayConfig.FrequencyGetHeaderMs > 0 { //nolint:nestif
-		log.WithFields(logrus.Fields{
-			"frequencyMs":   relayConfig.FrequencyGetHeaderMs,
-			"timeoutLeftMs": timeoutLeftMs,
-		}).Debug("sending multiple header requests via timing games")
+	log.WithFields(logrus.Fields{
+		"frequencyMs":   relayConfig.FrequencyGetHeaderMs,
+		"timeoutLeftMs": timeoutLeftMs,
+	}).Debug("sending multiple header requests via timing games")
 
-		var bidResults []bidResult
-		var mu sync.Mutex
-		var wg sync.WaitGroup
+	var (
+		bidResults []bidResult
+		mu         sync.Mutex
+		wg         sync.WaitGroup
+	)
 
-		// helper to send a request with the remaining timeout budget
-		sendTimedRequest := func(timeoutMs uint64) {
-			defer wg.Done()
-			bid, contentType := m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutMs)
-			if bid != nil {
-				mu.Lock()
-				bidResults = append(bidResults, bidResult{
-					bid:         bid,
-					contentType: contentType,
-					timestamp:   time.Now(),
-				})
-				mu.Unlock()
-			}
+	// helper to send a request with the remaining timeout budget
+	sendTimedRequest := func(timeoutMs uint64) {
+		defer wg.Done()
+		bid, contentType := m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutMs)
+		if bid != nil {
+			mu.Lock()
+			bidResults = append(bidResults, bidResult{
+				bid:         bid,
+				contentType: contentType,
+				timestamp:   time.Now(),
+			})
+			mu.Unlock()
 		}
+	}
 
-		// send first request asap
-		wg.Add(1)
-		go sendTimedRequest(timeoutLeftMs)
+	// send first request asap
+	wg.Add(1)
+	go sendTimedRequest(timeoutLeftMs)
 
-		ticker := time.NewTicker(time.Duration(relayConfig.FrequencyGetHeaderMs) * time.Millisecond)
-		defer ticker.Stop()
-		timeoutCh := time.After(time.Duration(timeoutLeftMs) * time.Millisecond)
+	ticker := time.NewTicker(time.Duration(relayConfig.FrequencyGetHeaderMs) * time.Millisecond)
+	defer ticker.Stop()
+	timeoutCh := time.After(time.Duration(timeoutLeftMs) * time.Millisecond)
 
-		// send subsequent requests at regular intervals until timeout
-	loop:
-		for {
-			select {
-			case <-ticker.C:
-				// dec the remaining timeout budget and send request
-				if timeoutLeftMs > relayConfig.FrequencyGetHeaderMs {
-					timeoutLeftMs -= relayConfig.FrequencyGetHeaderMs
-					wg.Add(1)
-					go sendTimedRequest(timeoutLeftMs)
-				}
-			case <-timeoutCh:
-				break loop
+	// send subsequent requests at regular intervals until timeout
+loop:
+	for {
+		select {
+		case <-ticker.C:
+			// dec the remaining timeout budget and send request
+			if timeoutLeftMs > relayConfig.FrequencyGetHeaderMs {
+				timeoutLeftMs -= relayConfig.FrequencyGetHeaderMs
+				wg.Add(1)
+				go sendTimedRequest(timeoutLeftMs)
 			}
+		case <-timeoutCh:
+			break loop
 		}
+	}
 
-		wg.Wait()
+	wg.Wait()
 
-		// select only the bid which was most recently received
-		if len(bidResults) > 0 {
-			log.WithField("totalBids", len(bidResults)).Debug("received headers from relay via timing games")
-			var latestBid *builderSpec.VersionedSignedBuilderBid
-			var latestContentType string
-			var latestTime time.Time
-			for _, br := range bidResults {
-				if latestBid == nil || br.timestamp.After(latestTime) {
-					latestBid = br.bid
-					latestContentType = br.contentType
-					latestTime = br.timestamp
-				}
-			}
-			return latestBid, latestContentType
-		}
+	// if no bids were received return an empty bid
+	if len(bidResults) == 0 {
 		log.Warn("no headers received via timing games")
 		return nil, ""
 	}
 
-	// in the case if frequency is not set, send only one getHeader request
-	return m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutLeftMs)
+	var (
+		latestBid         *builderSpec.VersionedSignedBuilderBid
+		latestContentType string
+		latestTime        time.Time
+	)
+	// select only the bid which was most recently received and return it
+	log.WithField("totalBids", len(bidResults)).Debug("received headers from relay via timing games")
+
+	for _, br := range bidResults {
+		if latestBid == nil || br.timestamp.After(latestTime) {
+			latestBid = br.bid
+			latestContentType = br.contentType
+			latestTime = br.timestamp
+		}
+	}
+	return latestBid, latestContentType
 }
 
 // sendGetHeaderRequest sends a single getHeader request to a relay and returns the bid and content type
