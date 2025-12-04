@@ -260,6 +260,10 @@ Usage of mev-boost:
         check relay status on startup and on the status API call
   -relays string
         relay urls - single entry or comma-separated list (scheme://pubkey@host)
+  -config string
+        path to YAML configuration file for enabling advanced features
+  -watch-config
+        enable hot reloading of config file (requires -config)
   -request-timeout-getheader int
         timeout for getHeader requests to the relay [ms] (default 950)
   -request-timeout-getpayload int
@@ -325,6 +329,13 @@ To enable timing games, you must provide a YAML configuration file using the `-c
 ```bash
 ./mev-boost -config config.yaml
 ```
+
+To enable hot reloading of the configuration file, add the `-watch-config` flag:
+
+```bash
+./mev-boost -config config.yaml -watch-config
+```
+
 **Notice:** This feature is strictly meant for advanced users and extra care should be taken when setting up timing game associated parameters
 
 #### 1. Global Timeouts

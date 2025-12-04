@@ -107,8 +107,8 @@ func start(_ context.Context, cmd *cli.Command) error {
 		log.Error("no relay passed the health-check!")
 	}
 
-	// set up config file watcher if a config file is provided
-	if cmd.IsSet(relayConfigFlag.Name) {
+	// enable hot reloading only if both --config and --watch-config flags are set
+	if cmd.IsSet(relayConfigFlag.Name) && cmd.Bool(watchConfigFlag.Name) {
 		configPath := cmd.String(relayConfigFlag.Name)
 		watcher, err := NewConfigWatcher(configPath, relaySetup.CLIRelays, log)
 		if err != nil {

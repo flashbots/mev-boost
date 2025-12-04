@@ -91,6 +91,19 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 		return bidResp{}, nil
 	}
 
+	// calc the maximum timeout budget for getHeader requests.
+	// the budget is constrained by two factors:
+	// 1. timeoutGetHeaderMs: configured maximum timeout for getHeader requests
+	// 2. lateInSlotTimeMs - msIntoSlot: remaining time before we hit the late in slot deadline
+	// we use the minimum of these two values to ensure we:
+	// - don't exceed the configured timeout limit
+	// - don't continue requesting headers after the late-in-slot deadline
+	// example: if timeoutGetHeaderMs=950ms, lateInSlotTimeMs=2000ms, and msIntoSlot=500ms:
+	//   - remaining slot time = 2000 - 500 = 1500ms
+	//   - maxTimeoutMs = min(950, 1500) = 950ms
+	// example: if timeoutGetHeaderMs=2000ms, lateInSlotTimeMs=2000ms, and msIntoSlot=1500ms:
+	//   - remaining slot time = 2000 - 1500 = 500ms
+	//   - maxTimeoutMs = min(2000, 500) = 500ms
 	if timeoutGetHeaderMs < lateInSlotTimeMs-msIntoSlot {
 		maxTimeoutMs = timeoutGetHeaderMs
 	} else {
@@ -201,33 +214,47 @@ func (m *BoostService) handleTimingGamesGetHeader(
 
 		var bidResults []bidResult
 		var mu sync.Mutex
-
-		// keep sending requests until time runs out
 		var wg sync.WaitGroup
-		for timeoutLeftMs > 0 {
-			currentTimeoutMs := timeoutLeftMs
-			wg.Add(1)
-			go func(timeoutMs uint64) {
-				defer wg.Done()
-				bid, contentType := m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutMs)
-				if bid != nil {
-					mu.Lock()
-					bidResults = append(bidResults, bidResult{
-						bid:         bid,
-						contentType: contentType,
-						timestamp:   time.Now(),
-					})
-					mu.Unlock()
-				}
-			}(currentTimeoutMs)
 
-			if timeoutLeftMs > relayConfig.FrequencyGetHeaderMs {
-				timeoutLeftMs -= relayConfig.FrequencyGetHeaderMs
-				time.Sleep(time.Duration(relayConfig.FrequencyGetHeaderMs) * time.Millisecond)
-			} else {
-				break
+		// helper to send a request with the remaining timeout budget
+		sendTimedRequest := func(timeoutMs uint64) {
+			defer wg.Done()
+			bid, contentType := m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutMs)
+			if bid != nil {
+				mu.Lock()
+				bidResults = append(bidResults, bidResult{
+					bid:         bid,
+					contentType: contentType,
+					timestamp:   time.Now(),
+				})
+				mu.Unlock()
 			}
 		}
+
+		// send first request asap
+		wg.Add(1)
+		go sendTimedRequest(timeoutLeftMs)
+
+		ticker := time.NewTicker(time.Duration(relayConfig.FrequencyGetHeaderMs) * time.Millisecond)
+		defer ticker.Stop()
+		timeoutCh := time.After(time.Duration(timeoutLeftMs) * time.Millisecond)
+
+		// send subsequent requests at regular intervals until timeout
+	loop:
+		for {
+			select {
+			case <-ticker.C:
+				// dec the remaining timeout budget and send request
+				if timeoutLeftMs > relayConfig.FrequencyGetHeaderMs {
+					timeoutLeftMs -= relayConfig.FrequencyGetHeaderMs
+					wg.Add(1)
+					go sendTimedRequest(timeoutLeftMs)
+				}
+			case <-timeoutCh:
+				break loop
+			}
+		}
+
 		wg.Wait()
 
 		// select only the bid which was most recently received

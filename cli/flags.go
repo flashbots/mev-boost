@@ -30,6 +30,7 @@ var flags = []cli.Flag{
 	// relay
 	relaysFlag,
 	relayConfigFlag,
+	watchConfigFlag,
 	deprecatedRelayMonitorFlag,
 	minBidFlag,
 	relayCheckFlag,
@@ -140,6 +141,12 @@ var (
 		Name:     "config",
 		Sources:  cli.EnvVars("CONFIG_FILE"),
 		Usage:    "path to YAML configuration file",
+		Category: RelayCategory,
+	}
+	watchConfigFlag = &cli.BoolFlag{
+		Name:     "watch-config",
+		Sources:  cli.EnvVars("WATCH_CONFIG"),
+		Usage:    "enable hot reloading of config file (requires --config)",
 		Category: RelayCategory,
 	}
 	deprecatedRelayMonitorFlag = &cli.StringSliceFlag{
