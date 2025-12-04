@@ -76,11 +76,15 @@ func start(_ context.Context, cmd *cli.Command) error {
 
 	var (
 		genesisForkVersion, genesisTime = setupGenesis(cmd)
-		relaySetup                      = setupRelays(cmd)
 		listenAddr                      = cmd.String(addrFlag.Name)
 		metricsEnabled                  = cmd.Bool(metricsFlag.Name)
 		metricsAddr                     = cmd.String(metricsAddrFlag.Name)
 	)
+
+	relaySetup, err := setupRelays(cmd)
+	if err != nil {
+		return err
+	}
 
 	opts := server.BoostServiceOpts{
 		Log:                      log,
@@ -117,7 +121,11 @@ func start(_ context.Context, cmd *cli.Command) error {
 		}
 		// register a callback which gets invoked when config file changes
 		watcher.Watch(func(newConfig *ConfigResult) {
-			mergedConfigs := MergeRelayConfigs(relaySetup.CLIRelays, newConfig.RelayConfigs)
+			mergedConfigs, err := MergeRelayConfigs(relaySetup.CLIRelays, newConfig.RelayConfigs)
+			if err != nil {
+				log.WithError(err).Error("failed to merge relay configs, keeping old config")
+				return
+			}
 			if len(mergedConfigs) == 0 {
 				log.Error("merged config has no relays (neither from CLI nor config file), keeping old config")
 				return
@@ -139,7 +147,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 	return service.StartHTTPServer()
 }
 
-func setupRelays(cmd *cli.Command) RelaySetupResult {
+func setupRelays(cmd *cli.Command) (*RelaySetupResult, error) {
 	// For backwards compatibility with the -relays flag.
 	var relays relayList
 	if cmd.IsSet(relaysFlag.Name) {
@@ -167,13 +175,18 @@ func setupRelays(cmd *cli.Command) RelaySetupResult {
 		configResult, err := LoadConfigFile(configPath)
 		if err != nil {
 			log.WithError(err).Fatal("failed to load config file")
+			return nil, err
 		} else {
 			configMap = configResult.RelayConfigs
 			timeoutGetHeaderMs = configResult.TimeoutGetHeaderMs
 			lateInSlotTimeMs = configResult.LateInSlotTimeMs
 		}
 	}
-	relayConfigs := MergeRelayConfigs(relays, configMap)
+	relayConfigs, err := MergeRelayConfigs(relays, configMap)
+	if err != nil {
+		log.WithError(err).Fatal("failed to merge relay configs")
+		return nil, err
+	}
 
 	log.Infof("using %d relays", len(relayConfigs))
 	for index, config := range relayConfigs {
@@ -191,14 +204,14 @@ func setupRelays(cmd *cli.Command) RelaySetupResult {
 	if relayMinBidWei.BigInt().Sign() > 0 {
 		log.Infof("min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
-	return RelaySetupResult{
+	return &RelaySetupResult{
 		RelayConfigs:       relayConfigs,
 		MinBid:             *relayMinBidWei,
 		RelayCheck:         cmd.Bool(relayCheckFlag.Name),
 		TimeoutGetHeaderMs: timeoutGetHeaderMs,
 		LateInSlotTimeMs:   lateInSlotTimeMs,
 		CLIRelays:          []serverTypes.RelayEntry(relays),
-	}
+	}, nil
 }
 
 func setupGenesis(cmd *cli.Command) (string, uint64) {

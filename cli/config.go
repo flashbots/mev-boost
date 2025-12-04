@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,29 +115,25 @@ func (cw *ConfigWatcher) Watch(onConfigChange func(*ConfigResult)) {
 	cw.v.WatchConfig()
 }
 
-// MergeRelayConfigs merges relays passed via --relays with config file settings.
-// this allows the users to still use --relays if they dont want to provide a config file
-func MergeRelayConfigs(relays []types.RelayEntry, configMap map[string]types.RelayConfig) []types.RelayConfig {
+// MergeRelayConfigs merges relays passed via --relay with relays from config file.
+// Returns an error if the same relay appears in both places.
+// Users should specify each relay in exactly one place either cli or config file.
+func MergeRelayConfigs(relays []types.RelayEntry, configMap map[string]types.RelayConfig) ([]types.RelayConfig, error) {
 	configs := make([]types.RelayConfig, 0)
-	processedURLs := make(map[string]bool)
 
 	for _, entry := range relays {
 		urlStr := entry.String()
-		if config, exists := configMap[urlStr]; exists {
-			config.RelayEntry = entry
-			configs = append(configs, config)
-		} else {
-			configs = append(configs, types.NewRelayConfig(entry))
+		if _, exists := configMap[urlStr]; exists {
+			return nil, fmt.Errorf("relay %q is specified in both CLI flags and config file, please specify each relay in only one place", urlStr)
 		}
-		processedURLs[urlStr] = true
+		configs = append(configs, types.NewRelayConfig(entry))
 	}
 
-	for urlStr, config := range configMap {
-		if !processedURLs[urlStr] {
-			configs = append(configs, config)
-		}
+	for _, config := range configMap {
+		configs = append(configs, config)
 	}
-	return configs
+
+	return configs, nil
 }
 
 func parseConfig(config Config) (*ConfigResult, error) {
