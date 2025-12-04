@@ -252,6 +252,8 @@ loop:
 		case <-ticker.C:
 			// dec the remaining timeout budget and send request
 			if timeoutLeftMs > relayConfig.FrequencyGetHeaderMs {
+				// decreasing the remaining timeout budget, so subsequent get_header
+				// requests get less and less time from the overall budget
 				timeoutLeftMs -= relayConfig.FrequencyGetHeaderMs
 				wg.Add(1)
 				go sendTimedRequest(timeoutLeftMs)
