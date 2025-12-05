@@ -15,6 +15,19 @@ type RelayEntry struct {
 	SupportsSSZ bool
 }
 
+type RelayConfig struct {
+	RelayEntry           RelayEntry
+	EnableTimingGames    bool
+	TargetFirstRequestMs uint64
+	FrequencyGetHeaderMs uint64
+}
+
+func NewRelayConfig(entry RelayEntry) RelayConfig {
+	return RelayConfig{
+		RelayEntry: entry,
+	}
+}
+
 func (r *RelayEntry) String() string {
 	return r.URL.String()
 }

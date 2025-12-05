@@ -23,7 +23,7 @@ func TestHandleRegisterValidator_EmptyList(t *testing.T) {
 	defer relay.Server.Close()
 
 	m := &BoostService{
-		relays:           []types.RelayEntry{relay.RelayEntry},
+		relayConfigs:     []types.RelayConfig{types.NewRelayConfig(relay.RelayEntry)},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
 	}
@@ -47,7 +47,7 @@ func TestHandleRegisterValidator_NotEmptyList(t *testing.T) {
 	defer relay.Server.Close()
 
 	m := &BoostService{
-		relays:           []types.RelayEntry{relay.RelayEntry},
+		relayConfigs:     []types.RelayConfig{types.NewRelayConfig(relay.RelayEntry)},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
 	}
@@ -87,7 +87,7 @@ func TestHandleRegisterValidator_InvalidJSON(t *testing.T) {
 	defer relay.Server.Close()
 
 	m := &BoostService{
-		relays:           []types.RelayEntry{relay.RelayEntry},
+		relayConfigs:     []types.RelayConfig{types.NewRelayConfig(relay.RelayEntry)},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
 	}
@@ -111,7 +111,7 @@ func TestHandleRegisterValidator_ValidSSZ(t *testing.T) {
 	defer relay.Server.Close()
 
 	m := &BoostService{
-		relays:           []types.RelayEntry{relay.RelayEntry},
+		relayConfigs:     []types.RelayConfig{types.NewRelayConfig(relay.RelayEntry)},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
 	}
@@ -153,7 +153,7 @@ func TestHandleRegisterValidator_InvalidSSZ(t *testing.T) {
 	defer relay.Server.Close()
 
 	m := &BoostService{
-		relays:           []types.RelayEntry{relay.RelayEntry},
+		relayConfigs:     []types.RelayConfig{types.NewRelayConfig(relay.RelayEntry)},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
 	}
@@ -183,7 +183,7 @@ func TestHandleRegisterValidator_MultipleRelaysOneSuccess(t *testing.T) {
 	defer relaySuccess.Server.Close()
 
 	m := &BoostService{
-		relays:           []types.RelayEntry{badRelay.RelayEntry, relaySuccess.RelayEntry},
+		relayConfigs:     []types.RelayConfig{types.NewRelayConfig(badRelay.RelayEntry), types.NewRelayConfig(relaySuccess.RelayEntry)},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
 	}
@@ -218,7 +218,7 @@ func TestHandleRegisterValidator_AllFail(t *testing.T) {
 	})
 
 	m := &BoostService{
-		relays:           []types.RelayEntry{badRelay1.RelayEntry, badRelay2.RelayEntry},
+		relayConfigs:     []types.RelayConfig{types.NewRelayConfig(badRelay1.RelayEntry), types.NewRelayConfig(badRelay2.RelayEntry)},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
 	}
@@ -244,7 +244,7 @@ func TestHandleRegisterValidator_RelayNetworkError(t *testing.T) {
 	relay.Server.Close() // simulate network error
 
 	m := &BoostService{
-		relays:           []types.RelayEntry{relay.RelayEntry},
+		relayConfigs:     []types.RelayConfig{types.NewRelayConfig(relay.RelayEntry)},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
 	}
@@ -272,7 +272,7 @@ func TestHandleRegisterValidator_HeaderPropagation(t *testing.T) {
 	})
 
 	m := &BoostService{
-		relays:           []types.RelayEntry{relay.RelayEntry},
+		relayConfigs:     []types.RelayConfig{types.NewRelayConfig(relay.RelayEntry)},
 		httpClientRegVal: *http.DefaultClient,
 		log:              logrus.NewEntry(logrus.New()),
 	}

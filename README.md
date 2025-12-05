@@ -270,6 +270,10 @@ Usage of mev-boost:
         check relay status on startup and on the status API call
   -relays string
         relay urls - single entry or comma-separated list (scheme://pubkey@host)
+  -config string
+        path to YAML configuration file for enabling advanced features
+  -watch-config
+        enable hot reloading of config file (requires -config)
   -request-timeout-getheader int
         timeout for getHeader requests to the relay [ms] (default 950)
   -request-timeout-getpayload int
@@ -326,6 +330,14 @@ Example for setting a minimum bid value of 0.06 ETH:
 ### Enabling metrics
 
 Optionally, the `-metrics` flag can be provided to expose a prometheus metrics server. The metrics server address/port can be changed with the `-metrics-addr` (e.g., `-metrics-addr localhost:9009`) flag.
+
+### Enable timing games 
+
+The **Timing Games** feature allows `mev-boost` to optimize block proposal by strategically timing `getHeader` requests to relays. Instead of sending a single request immediately, it can delay the initial request and send multiple follow-up requests to capture the latest, most valuable bids before the proposal deadline.
+
+**Notice:** This feature is strictly meant for advanced users and extra care should be taken when setting up timing game associated parameters.
+
+For detailed configuration options, parameters, and visual diagrams, see [docs/timing-games.md](docs/timing-games.md).
 
 ---
 

@@ -14,16 +14,20 @@ import (
 )
 
 func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, header http.Header) error {
-	respErrCh := make(chan error, len(m.relays))
+	m.relayConfigsLock.RLock()
+	relayConfigs := m.relayConfigs
+	m.relayConfigsLock.RUnlock()
+
+	respErrCh := make(chan error, len(relayConfigs))
 
 	log.WithFields(logrus.Fields{
 		"timeout":   m.httpClientRegVal.Timeout,
-		"numRelays": len(m.relays),
+		"numRelays": len(relayConfigs),
 		"regBytes":  len(regBytes),
 	}).Info("calling registerValidator on relays")
 
 	// Forward request to each relay
-	for _, relay := range m.relays {
+	for _, relayConfig := range relayConfigs {
 		go func(relay types.RelayEntry) {
 			// Get the URL for this relay
 			requestURL := relay.GetURI(params.PathRegisterValidator)
@@ -49,7 +53,7 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 			// Send the request
 			start := time.Now()
 			resp, err := m.httpClientRegVal.Do(req)
-			RecordRelayLatency(params.PathRegisterValidator, relay.String(), float64(time.Since(start).Microseconds()))
+			RecordRelayLatency(params.PathRegisterValidator, relay.URL.Hostname(), float64(time.Since(start).Microseconds()))
 			if err != nil {
 				log.WithError(err).Warn("error calling registerValidator on relay")
 				respErrCh <- err
@@ -57,7 +61,7 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 			}
 			resp.Body.Close()
 
-			RecordRelayStatusCode(strconv.Itoa(resp.StatusCode), params.PathRegisterValidator, relay.String())
+			RecordRelayStatusCode(strconv.Itoa(resp.StatusCode), params.PathRegisterValidator, relay.URL.Hostname())
 			// Check if response is successful
 			if resp.StatusCode == http.StatusOK {
 				log.Debug("relay accepted registrations")
@@ -68,11 +72,11 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 				}).Debug("received an error response from relay")
 				respErrCh <- fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
 			}
-		}(relay)
+		}(relayConfig.RelayEntry)
 	}
 
 	// Return OK if any relay responds OK
-	for range m.relays {
+	for range relayConfigs {
 		respErr := <-respErrCh
 		if respErr == nil {
 			// Goroutines are independent, so if there are a lot of configured

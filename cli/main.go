@@ -13,6 +13,7 @@ import (
 	"github.com/flashbots/mev-boost/common"
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server"
+	serverTypes "github.com/flashbots/mev-boost/server/types"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 )
@@ -28,6 +29,15 @@ const (
 	genesisTimeHolesky = 1695902400
 	genesisTimeHoodi   = 1742213400
 )
+
+type RelaySetupResult struct {
+	RelayConfigs       []serverTypes.RelayConfig
+	MinBid             types.U256Str
+	RelayCheck         bool
+	TimeoutGetHeaderMs uint64
+	LateInSlotTimeMs   uint64
+	CLIRelays          []serverTypes.RelayEntry // CLI-provided relays for hot-reload merging
+}
 
 var (
 	// errors
@@ -66,33 +76,62 @@ func start(_ context.Context, cmd *cli.Command) error {
 
 	var (
 		genesisForkVersion, genesisTime = setupGenesis(cmd)
-		relays, minBid, relayCheck      = setupRelays(cmd)
 		listenAddr                      = cmd.String(addrFlag.Name)
 		metricsEnabled                  = cmd.Bool(metricsFlag.Name)
 		metricsAddr                     = cmd.String(metricsAddrFlag.Name)
 	)
 
+	relaySetup, err := setupRelays(cmd)
+	if err != nil {
+		return err
+	}
+
 	opts := server.BoostServiceOpts{
 		Log:                      log,
 		ListenAddr:               listenAddr,
-		Relays:                   relays,
+		RelayConfigs:             relaySetup.RelayConfigs,
 		GenesisForkVersionHex:    genesisForkVersion,
 		GenesisTime:              genesisTime,
-		RelayCheck:               relayCheck,
-		RelayMinBid:              minBid,
+		RelayCheck:               relaySetup.RelayCheck,
+		RelayMinBid:              relaySetup.MinBid,
 		RequestTimeoutGetHeader:  time.Duration(cmd.Int(timeoutGetHeaderFlag.Name)) * time.Millisecond,
 		RequestTimeoutGetPayload: time.Duration(cmd.Int(timeoutGetPayloadFlag.Name)) * time.Millisecond,
 		RequestTimeoutRegVal:     time.Duration(cmd.Int(timeoutRegValFlag.Name)) * time.Millisecond,
 		RequestMaxRetries:        cmd.Int(maxRetriesFlag.Name),
 		MetricsAddr:              metricsAddr,
+		TimeoutGetHeaderMs:       relaySetup.TimeoutGetHeaderMs,
+		LateInSlotTimeMs:         relaySetup.LateInSlotTimeMs,
 	}
 	service, err := server.NewBoostService(opts)
 	if err != nil {
 		log.WithError(err).Fatal("failed creating the server")
 	}
 
-	if relayCheck && service.CheckRelays() == 0 {
+	if relaySetup.RelayCheck && service.CheckRelays() == 0 {
 		log.Error("no relay passed the health-check!")
+	}
+
+	// enable hot reloading only if both --config and --watch-config flags are set
+	if cmd.IsSet(relayConfigFlag.Name) && cmd.Bool(watchConfigFlag.Name) {
+		configPath := cmd.String(relayConfigFlag.Name)
+		watcher, err := NewConfigWatcher(configPath, relaySetup.CLIRelays, log)
+		if err != nil {
+			log.WithError(err).Warn("failed to set up config watcher")
+			return err
+		}
+		// register a callback which gets invoked when config file changes
+		watcher.Watch(func(newConfig *ConfigResult) {
+			mergedConfigs, err := MergeRelayConfigs(relaySetup.CLIRelays, newConfig.RelayConfigs)
+			if err != nil {
+				log.WithError(err).Error("failed to merge relay configs, keeping old config")
+				return
+			}
+			if len(mergedConfigs) == 0 {
+				log.Error("merged config has no relays (neither from CLI nor config file), keeping old config")
+				return
+			}
+			service.UpdateConfig(mergedConfigs, newConfig.TimeoutGetHeaderMs, newConfig.LateInSlotTimeMs)
+		})
 	}
 
 	if metricsEnabled {
@@ -108,7 +147,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 	return service.StartHTTPServer()
 }
 
-func setupRelays(cmd *cli.Command) (relayList, types.U256Str, bool) {
+func setupRelays(cmd *cli.Command) (*RelaySetupResult, error) {
 	// For backwards compatibility with the -relays flag.
 	var relays relayList
 	if cmd.IsSet(relaysFlag.Name) {
@@ -125,9 +164,36 @@ func setupRelays(cmd *cli.Command) (relayList, types.U256Str, bool) {
 	if len(relays) == 0 {
 		log.Fatal("no relays specified")
 	}
-	log.Infof("using %d relays", len(relays))
-	for index, relay := range relays {
-		log.Infof("relay #%d: %s", index+1, relay.String())
+
+	// load configuration via config file
+	var configMap map[string]serverTypes.RelayConfig
+	var timeoutGetHeaderMs uint64 = 950
+	var lateInSlotTimeMs uint64 = 2000
+	if cmd.IsSet(relayConfigFlag.Name) {
+		configPath := cmd.String(relayConfigFlag.Name)
+		log.Infof("loading config from: %s", configPath)
+		configResult, err := LoadConfigFile(configPath)
+		if err != nil {
+			log.WithError(err).Fatal("failed to load config file")
+			return nil, err
+		}
+		configMap = configResult.RelayConfigs
+		timeoutGetHeaderMs = configResult.TimeoutGetHeaderMs
+		lateInSlotTimeMs = configResult.LateInSlotTimeMs
+	}
+	relayConfigs, err := MergeRelayConfigs(relays, configMap)
+	if err != nil {
+		log.WithError(err).Fatal("failed to merge relay configs")
+		return nil, err
+	}
+
+	log.Infof("using %d relays", len(relayConfigs))
+	for index, config := range relayConfigs {
+		if config.EnableTimingGames {
+			log.Infof("relay #%d: %s timing games: enabled", index+1, config.RelayEntry.String())
+		} else {
+			log.Infof("relay #%d: %s", index+1, config.RelayEntry.String())
+		}
 	}
 
 	relayMinBidWei, err := sanitizeMinBid(cmd.Float(minBidFlag.Name))
@@ -137,7 +203,14 @@ func setupRelays(cmd *cli.Command) (relayList, types.U256Str, bool) {
 	if relayMinBidWei.BigInt().Sign() > 0 {
 		log.Infof("min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
-	return relays, *relayMinBidWei, cmd.Bool(relayCheckFlag.Name)
+	return &RelaySetupResult{
+		RelayConfigs:       relayConfigs,
+		MinBid:             *relayMinBidWei,
+		RelayCheck:         cmd.Bool(relayCheckFlag.Name),
+		TimeoutGetHeaderMs: timeoutGetHeaderMs,
+		LateInSlotTimeMs:   lateInSlotTimeMs,
+		CLIRelays:          []serverTypes.RelayEntry(relays),
+	}, nil
 }
 
 func setupGenesis(cmd *cli.Command) (string, uint64) {

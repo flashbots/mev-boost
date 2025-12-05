@@ -143,7 +143,11 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 	}
 
 	// Prepare for requests
-	resultCh := make(chan payloadResult, len(m.relays))
+	m.relayConfigsLock.RLock()
+	relayConfigs := m.relayConfigs
+	m.relayConfigsLock.RUnlock()
+
+	resultCh := make(chan payloadResult, len(relayConfigs))
 	var received atomic.Bool
 	go func() {
 		// Make sure we receive a response within the timeout
@@ -155,7 +159,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), m.httpClientGetPayload.Timeout)
 	defer requestCtxCancel()
 
-	for _, relay := range m.relays {
+	for _, relayConfig := range m.relayConfigs {
 		go func(relay types.RelayEntry, versionToUse GetPayloadVersion) {
 			var url string
 			if versionToUse == GetPayloadV1 {
@@ -227,13 +231,13 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				innerLog.Debug("submitting signed blinded block")
 				start := time.Now()
 				resp, err := m.httpClientGetPayload.Do(req)
-				RecordRelayLatency(endpoint, relay.String(), float64(time.Since(start).Microseconds()))
+				RecordRelayLatency(endpoint, relay.URL.Hostname(), float64(time.Since(start).Microseconds()))
 				if err != nil {
 					innerLog.WithError(err).Warnf("error calling getPayload%s on relay", versionToUse)
 					return nil, err
 				}
 
-				RecordRelayStatusCode(strconv.Itoa(statusCode), endpoint, relay.String())
+				RecordRelayStatusCode(strconv.Itoa(statusCode), endpoint, relay.URL.Hostname())
 				// Check that the response was successful
 
 				// If the response status code doesn't match expected, read error body once
@@ -320,7 +324,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 			} else {
 				log.Trace("discarding response, already received a correct response")
 			}
-		}(relay, version)
+		}(relayConfig.RelayEntry, version)
 	}
 
 	// Wait for the first request to complete

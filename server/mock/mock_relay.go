@@ -488,6 +488,13 @@ func (m *Relay) OverrideHandleRegisterValidator(method func(w http.ResponseWrite
 	m.handlerOverrideRegisterValidator = method
 }
 
+func (m *Relay) OverrideHandleGetHeader(method func(w http.ResponseWriter, req *http.Request)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.handlerOverrideGetHeader = method
+}
+
 func (m *Relay) OverrideHandleGetPayload(method func(w http.ResponseWriter, req *http.Request)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
