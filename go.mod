@@ -16,7 +16,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/timewasted/go-accept-headers v0.0.0-20130320203746-c78f304b1b09
-	github.com/urfave/cli/v3 v3.2.0
+	github.com/urfave/cli/v3 v3.6.1
 )
 
 require (
