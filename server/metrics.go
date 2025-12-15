@@ -6,7 +6,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var winningBidValue = metrics.NewHistogram("mev_boost_winning_bid_value")
+var winningBidValue = metrics.NewPrometheusHistogram("mev_boost_winning_bid_value")
 
 const (
 	beaconNodeStatusLabel = `mev_boost_beacon_node_status_code_total{http_status_code="%s",endpoint="%s"}`
@@ -25,7 +25,7 @@ func IncrementBeaconNodeStatus(status, endpoint string) {
 
 func RecordBidValue(relay string, value float64) {
 	l := fmt.Sprintf(bidValuesLabel, relay)
-	metrics.GetOrCreateHistogram(l).Update(value)
+	metrics.GetOrCreatePrometheusHistogram(l).Update(value)
 }
 
 func IncrementBidBelowMinBid(relay string) {
@@ -39,7 +39,7 @@ func RecordWinningBidValue(value float64) {
 
 func RecordRelayLatency(endpoint, relay string, latency float64) {
 	l := fmt.Sprintf(relayLatencyLabel, endpoint, relay)
-	metrics.GetOrCreateHistogram(l).Update(latency)
+	metrics.GetOrCreatePrometheusHistogram(l).Update(latency)
 }
 
 func RecordRelayStatusCode(httpStatus, endpoint, relay string) {
@@ -54,5 +54,5 @@ func RecordRelayLastSlot(relay string, slot uint64) {
 
 func RecordMsIntoSlot(endpoint string, ms float64) {
 	l := fmt.Sprintf(msIntoSlotLabel, endpoint)
-	metrics.GetOrCreateHistogram(l).Update(ms)
+	metrics.GetOrCreatePrometheusHistogram(l).Update(ms)
 }
