@@ -132,6 +132,8 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 		"msIntoSlot":  msIntoSlot,
 	}).Infof("submitBlindedBlock request start - %d milliseconds into slot %d", msIntoSlot, slot)
 
+	// storing via function to not run into too many decision paths
+	recordGetPayloadMsIntoSlot(version, msIntoSlot)
 	// Get the bid!
 	m.bidsLock.Lock()
 	originalBid := m.bids[bidKey(slot, blockHash)]
@@ -231,7 +233,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				innerLog.Debug("submitting signed blinded block")
 				start := time.Now()
 				resp, err := m.httpClientGetPayload.Do(req)
-				RecordRelayLatency(endpoint, relay.URL.Hostname(), float64(time.Since(start).Microseconds()))
+				RecordRelayLatency(endpoint, relay.URL.Hostname(), float64(time.Since(start).Milliseconds()))
 				if err != nil {
 					innerLog.WithError(err).Warnf("error calling getPayload%s on relay", versionToUse)
 					return nil, err
@@ -695,6 +697,14 @@ func (m *BoostService) respondGetPayloadSSZ(w http.ResponseWriter, result *build
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Other Functions
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func recordGetPayloadMsIntoSlot(version GetPayloadVersion, msIntoSlot uint64) {
+	endpoint := params.PathGetPayload
+	if version == GetPayloadV2 {
+		endpoint = params.PathGetPayloadV2
+	}
+	RecordMsIntoSlot(endpoint, float64(msIntoSlot))
+}
 
 // bidKey makes a map key for a specific bid
 func bidKey(slot phase0.Slot, blockHash phase0.Hash32) string {

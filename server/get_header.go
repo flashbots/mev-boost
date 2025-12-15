@@ -69,6 +69,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 		"msIntoSlot":  msIntoSlot,
 	}).Infof("getHeader request start - %d milliseconds into slot %d", msIntoSlot, slot)
 
+	RecordMsIntoSlot(params.PathGetHeader, float64(msIntoSlot))
 	var (
 		mu           sync.Mutex
 		wg           sync.WaitGroup
@@ -321,7 +322,7 @@ func (m *BoostService) sendGetHeaderRequest(
 	start := time.Now()
 
 	resp, err := m.httpClientGetHeader.Do(req)
-	RecordRelayLatency(params.PathGetHeader, relay.URL.Hostname(), float64(time.Since(start).Microseconds()))
+	RecordRelayLatency(params.PathGetHeader, relay.URL.Hostname(), float64(time.Since(start).Milliseconds()))
 	if err != nil {
 		log.WithError(err).Warn("error calling getHeader on relay")
 		return nil, ""
