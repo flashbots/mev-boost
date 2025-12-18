@@ -416,17 +416,41 @@ relays:
 }
 
 func TestMergeRelayConfigs_DuplicateDetection(t *testing.T) {
-	cliRelay, err := types.NewRelayEntry("https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.example.com")
+	relay, err := types.NewRelayEntry("https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.example.com")
 	require.NoError(t, err)
 
-	t.Run("Error when same relay in both CLI and config", func(t *testing.T) {
+	t.Run("Error when no relays in cli or config", func(t *testing.T) {
+		_, err := MergeRelayConfigs([]types.RelayEntry{}, map[string]types.RelayConfig{})
+		require.Error(t, err)
+		require.ErrorIs(t, err, errNoRelaysSpecified)
+	})
+
+	t.Run("Success with config only and empty cli relays", func(t *testing.T) {
 		configMap := map[string]types.RelayConfig{
-			cliRelay.String(): {
-				RelayEntry:        cliRelay,
+			relay.String(): {
+				RelayEntry:        relay,
 				EnableTimingGames: true,
 			},
 		}
-		_, err := MergeRelayConfigs([]types.RelayEntry{cliRelay}, configMap)
+		configs, err := MergeRelayConfigs([]types.RelayEntry{}, configMap)
+		require.NoError(t, err)
+		require.Len(t, configs, 1)
+	})
+
+	t.Run("Success with cli relays only and empty config map", func(t *testing.T) {
+		configs, err := MergeRelayConfigs([]types.RelayEntry{relay}, map[string]types.RelayConfig{})
+		require.NoError(t, err)
+		require.Len(t, configs, 1)
+	})
+
+	t.Run("Error when same relay in both CLI and config", func(t *testing.T) {
+		configMap := map[string]types.RelayConfig{
+			relay.String(): {
+				RelayEntry:        relay,
+				EnableTimingGames: true,
+			},
+		}
+		_, err := MergeRelayConfigs([]types.RelayEntry{relay}, configMap)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "relay is specified in both cli flags and config file")
 	})
@@ -442,21 +466,21 @@ func TestMergeRelayConfigs_DuplicateDetection(t *testing.T) {
 			},
 		}
 
-		configs, err := MergeRelayConfigs([]types.RelayEntry{cliRelay}, configMap)
+		configs, err := MergeRelayConfigs([]types.RelayEntry{relay}, configMap)
 		require.NoError(t, err)
 		require.Len(t, configs, 2)
 	})
 
 	t.Run("Success with CLI only", func(t *testing.T) {
-		configs, err := MergeRelayConfigs([]types.RelayEntry{cliRelay}, map[string]types.RelayConfig{})
+		configs, err := MergeRelayConfigs([]types.RelayEntry{relay}, map[string]types.RelayConfig{})
 		require.NoError(t, err)
 		require.Len(t, configs, 1)
 	})
 
 	t.Run("Success with config only", func(t *testing.T) {
 		configMap := map[string]types.RelayConfig{
-			cliRelay.String(): {
-				RelayEntry:        cliRelay,
+			relay.String(): {
+				RelayEntry:        relay,
 				EnableTimingGames: true,
 			},
 		}
