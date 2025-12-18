@@ -161,10 +161,6 @@ func setupRelays(cmd *cli.Command) (*RelaySetupResult, error) {
 		}
 	}
 
-	if len(relays) == 0 {
-		log.Fatal("no relays specified")
-	}
-
 	// load configuration via config file
 	var configMap map[string]serverTypes.RelayConfig
 	var timeoutGetHeaderMs uint64 = 950

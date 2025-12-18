@@ -14,7 +14,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var errRelayConfiguredTwice = errors.New("relay is specified in both cli flags and config file")
+var (
+	errRelayConfiguredTwice = errors.New("relay is specified in both cli flags and config file")
+	errNoRelaysSpecified    = errors.New("no relays specified, provide via --relays and/or --config")
+)
 
 type RelayConfigYAML struct {
 	URL                  string `yaml:"url"`
@@ -134,6 +137,10 @@ func MergeRelayConfigs(relays []types.RelayEntry, configMap map[string]types.Rel
 
 	for _, config := range configMap {
 		configs = append(configs, config)
+	}
+
+	if len(configs) == 0 {
+		return nil, errNoRelaysSpecified
 	}
 
 	return configs, nil
