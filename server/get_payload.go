@@ -9,7 +9,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"slices"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -56,6 +55,7 @@ const (
 type payloadResult struct {
 	success  bool
 	response *builderApi.VersionedSubmitBlindedBlockResponse
+	relay    types.RelayEntry
 }
 
 // Deprecated: For reference: https://github.com/ethereum/builder-specs/issues/119
@@ -163,6 +163,9 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 	for _, relayConfig := range m.relayConfigs {
 		go func(relay types.RelayEntry, versionToUse GetPayloadVersion) {
+			matchedRelay, relayShouldDeliver := findRelayForPayload(relay, originalBid.relays)
+			delivered := false
+
 			var url string
 			if versionToUse == GetPayloadV1 {
 				url = relay.GetURI(params.PathGetPayload)
@@ -170,6 +173,18 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				url = relay.GetURI(params.PathGetPayloadV2)
 			}
 			innerLog := log.WithField("url", url)
+
+			defer func() {
+				if !relayShouldDeliver {
+					return
+				}
+				if delivered {
+					m.clearRelayFailure(relay)
+					return
+				}
+				innerLog.Warn("temporarily blacklisting relay after payload withholding")
+				m.markRelayFailure(relay)
+			}()
 
 			// If the request fails, try again a few times with 100ms between tries
 			resp, err := retry(requestCtx, m.requestMaxRetries, 100*time.Millisecond, func() (*http.Response, error) {
@@ -179,13 +194,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				requestBytes := signedBlindedBeaconBlockBytes
 
 				// Check if the relay supports SSZ
-				relaySupportsSSZ := false
-				for _, originalBidRelay := range originalBid.relays {
-					if relay.URL == originalBidRelay.URL {
-						relaySupportsSSZ = originalBidRelay.SupportsSSZ
-						break
-					}
-				}
+				relaySupportsSSZ := matchedRelay.SupportsSSZ
 				innerLog.WithField("relaySupportsSSZ", relaySupportsSSZ).Debug("encoding preference")
 
 				// If the relay provided the bid in JSON or did not provide a bid for this payload,
@@ -199,7 +208,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 						return nil, err
 					}
 					innerLog.WithFields(logrus.Fields{
-						"relayProvidedBid": slices.Contains(originalBid.relays, relay),
+						"relayProvidedBid": relayShouldDeliver,
 						"conversionTime":   time.Since(startTime),
 					}).Info("Converted request from SSZ to JSON for relay")
 				}
@@ -278,6 +287,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 			var result payloadResult
 			result.success = true
+			result.relay = relay
 
 			if versionToUse == GetPayloadV1 {
 				// Get the resp body content
@@ -316,6 +326,8 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 				result.response = response
 			}
+
+			delivered = true
 
 			// We have received a valid response, return the first one.
 			// The other requests will be running in the background to provide redundancy
@@ -709,6 +721,22 @@ func recordGetPayloadMsIntoSlot(version GetPayloadVersion, msIntoSlot uint64) {
 // bidKey makes a map key for a specific bid
 func bidKey(slot phase0.Slot, blockHash phase0.Hash32) string {
 	return fmt.Sprintf("%v%v", slot, blockHash)
+}
+
+func findRelayForPayload(relay types.RelayEntry, relays []types.RelayEntry) (types.RelayEntry, bool) {
+	for _, candidate := range relays {
+		if relayEntriesEqual(relay, candidate) {
+			return candidate, true
+		}
+	}
+	return types.RelayEntry{}, false
+}
+
+func relayEntriesEqual(a, b types.RelayEntry) bool {
+	if a.URL != nil && b.URL != nil {
+		return a.URL.String() == b.URL.String()
+	}
+	return a.PublicKey == b.PublicKey
 }
 
 // retry executes the provided function until it succeeds, the context is done, or

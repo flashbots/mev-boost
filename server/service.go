@@ -41,6 +41,8 @@ var (
 	nilResponse = struct{}{}
 )
 
+const relayBlacklistDuration = 30 * time.Second
+
 type httpErrorResp struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -100,6 +102,9 @@ type BoostService struct {
 	relayConfigsLock sync.RWMutex
 
 	metricsAddr string
+
+	relayBlacklist     map[string]time.Time
+	relayBlacklistLock sync.Mutex
 }
 
 // NewBoostService created a new BoostService
@@ -140,6 +145,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		requestMaxRetries:  opts.RequestMaxRetries,
 		timeoutGetHeaderMs: opts.TimeoutGetHeaderMs,
 		lateInSlotTimeMs:   opts.LateInSlotTimeMs,
+		relayBlacklist:     make(map[string]time.Time),
 	}, nil
 }
 
@@ -175,6 +181,48 @@ func (m *BoostService) getRouter() http.Handler {
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
 	return loggedRouter
+}
+
+func (m *BoostService) relayIsBlacklisted(relay types.RelayEntry) bool {
+	if relay.URL == nil {
+		return false
+	}
+
+	key := relay.URL.String()
+	m.relayBlacklistLock.Lock()
+	defer m.relayBlacklistLock.Unlock()
+
+	lastFailure, ok := m.relayBlacklist[key]
+	if !ok {
+		return false
+	}
+
+	if time.Since(lastFailure) > relayBlacklistDuration {
+		delete(m.relayBlacklist, key)
+		return false
+	}
+
+	return true
+}
+
+func (m *BoostService) markRelayFailure(relay types.RelayEntry) {
+	if relay.URL == nil {
+		return
+	}
+
+	m.relayBlacklistLock.Lock()
+	m.relayBlacklist[relay.URL.String()] = time.Now()
+	m.relayBlacklistLock.Unlock()
+}
+
+func (m *BoostService) clearRelayFailure(relay types.RelayEntry) {
+	if relay.URL == nil {
+		return
+	}
+
+	m.relayBlacklistLock.Lock()
+	delete(m.relayBlacklist, relay.URL.String())
+	m.relayBlacklistLock.Unlock()
 }
 
 // StartHTTPServer starts the HTTP server for this boost service instance
