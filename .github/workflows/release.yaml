@@ -89,6 +89,26 @@ jobs:
             dist/mev-boost*.tar.gz
             dist/mev-boost*.txt
 
+  test-binaries:
+    name: Test Release Binaries
+    needs: build-all
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Make directories
+        run: |
+          mkdir -p ./build
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: mev-boost-build
+          path: ./build
+      - name: Test Linux AMD64 binary
+        run: |
+          cd ./build
+          tar -xf mev-boost_*_linux_amd64.tar.gz
+          chmod +x mev-boost
+          ./mev-boost -version
+
   release:
     name: Prepare Github Release
     needs: build-all
