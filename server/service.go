@@ -333,7 +333,7 @@ func (m *BoostService) handleGetHeader(w http.ResponseWriter, req *http.Request)
 
 	// Bail if none of the relays returned a bid
 	if result.response.IsEmpty() {
-		log.Info("no bid received")
+		log.Info("no acceptable bid received")
 		IncrementBeaconNodeStatus(strconv.Itoa(http.StatusNoContent), params.PathGetHeader)
 		w.WriteHeader(http.StatusNoContent)
 		return
