@@ -7,7 +7,11 @@ import (
 )
 
 var (
-	// Version is set at build time (must be a var, not a const!)
+	// Version is set at build time (must be a var, not a const!).
+	//
+	// When installed via `go install ...@<version>`, ldflags are not applied, but Go
+	// still embeds the module version in build metadata. We use that as a fallback
+	// so `mev-boost --version` remains meaningful.
 	Version = "dev"
 
 	// RFC3339Milli is a time format string based on time.RFC3339 but with millisecond precision
