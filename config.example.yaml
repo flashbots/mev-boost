@@ -50,3 +50,30 @@ relays:
     # These values are ignored when enable_timing_games is false
     target_first_request_ms: 0
     frequency_get_header_ms: 0
+
+# Relay Muxing Configuration (optional)
+# Allows different validators to use different relay sets for getHeader requests.
+# each validator pubkey must belong to at most one mux group.
+
+mux:
+  # Unique identifier for this mux group
+  - id: "lido"
+    # List of validator pubkeys that belong to this group
+    validator_pubkeys:
+      - "0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"
+      - "0x8b1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca250"
+    # optional, per mux override falls back to global default
+    timeout_get_header_ms: 900
+    # optional, per mux override falls back to global default
+    late_in_slot_time_ms: 1500
+    # relay configurations specific to this group (supports timing games)
+    relays:
+      - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@lido-relay.example.com
+        enable_timing_games: true
+        target_first_request_ms: 200
+        frequency_get_header_ms: 100
+  - id: "rocket-pool"
+    validator_pubkeys:
+      - "0x8d1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca252"
+    relays:
+      - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@rocketpool-relay.example.com
