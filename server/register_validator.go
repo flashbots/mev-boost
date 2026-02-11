@@ -3,50 +3,22 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"mime"
 	"net/http"
 	"strconv"
 	"time"
 
-	builderApiV1 "github.com/attestantio/go-builder-client/api/v1"
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/sirupsen/logrus"
 )
 
-var ErrUnsupportedContentType = errors.New("unsupported content type")
-
 func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, header http.Header) error {
 	m.relayConfigsLock.RLock()
-	relayConfigs := m.relayConfigs
+	allConfigs := m.AllRelayConfigs()
 	m.relayConfigsLock.RUnlock()
 
-	respErrCh := make(chan error, len(relayConfigs))
-
-	log.WithFields(logrus.Fields{
-		"timeout":   m.httpClientRegVal.Timeout,
-		"numRelays": len(relayConfigs),
-	if m.muxConfig == nil {
-		return m.sendRegistrationsToRelays(log, regBytes, header, m.relays)
-	}
-	pubkeys, err := m.extractValidatorPubkeys(regBytes, header)
-	if err != nil {
-		return m.sendRegistrationsToRelays(log, regBytes, header, m.relays)
-	}
-	relaysToUse := m.getRelaysForValidators(pubkeys)
-
-	log.WithFields(logrus.Fields{
-		"numValidators": len(pubkeys),
-		"numRelays":     len(relaysToUse),
-	}).Debug("sending validator registrations to relevant relays")
-
-	return m.sendRegistrationsToRelays(log, regBytes, header, relaysToUse)
-}
-
-func (m *BoostService) sendRegistrationsToRelays(log *logrus.Entry, regBytes []byte, header http.Header, relays []types.RelayEntry) error {
+	relays := relayEntries(allConfigs)
 	respErrCh := make(chan error, len(relays))
 
 	log.WithFields(logrus.Fields{
@@ -56,7 +28,6 @@ func (m *BoostService) sendRegistrationsToRelays(log *logrus.Entry, regBytes []b
 	}).Info("calling registerValidator on relays")
 
 	// Forward request to each relay
-	for _, relayConfig := range relayConfigs {
 	for _, relay := range relays {
 		go func(relay types.RelayEntry) {
 			// Get the URL for this relay
@@ -102,11 +73,10 @@ func (m *BoostService) sendRegistrationsToRelays(log *logrus.Entry, regBytes []b
 				}).Debug("received an error response from relay")
 				respErrCh <- fmt.Errorf("%w: %d", errHTTPErrorResponse, resp.StatusCode)
 			}
-		}(relayConfig.RelayEntry)
+		}(relay)
 	}
 
 	// Return OK if any relay responds OK
-	for range relayConfigs {
 	for range relays {
 		respErr := <-respErrCh
 		if respErr == nil {
@@ -121,52 +91,4 @@ func (m *BoostService) sendRegistrationsToRelays(log *logrus.Entry, regBytes []b
 	// None of the relays responded OK
 	log.Debug("no relays accepted the registrations")
 	return errNoSuccessfulRelayResponse
-}
-
-func (m *BoostService) extractValidatorPubkeys(regBytes []byte, header http.Header) ([]string, error) {
-	contentType := header.Get("Content-Type")
-	parsedContentType, _, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		parsedContentType = "application/json"
-	}
-
-	var registrations []*builderApiV1.SignedValidatorRegistration
-
-	switch parsedContentType {
-	case "application/json":
-		if err := json.Unmarshal(regBytes, &registrations); err != nil {
-			return nil, err
-		}
-	case "application/octet-stream":
-		var sszRegistrations builderApiV1.SignedValidatorRegistrations
-		if err := sszRegistrations.UnmarshalSSZ(regBytes); err != nil {
-			return nil, err
-		}
-		registrations = sszRegistrations.Registrations
-	default:
-		return nil, ErrUnsupportedContentType
-	}
-	pubkeys := make([]string, len(registrations))
-	for i, reg := range registrations {
-		pubkeys[i] = reg.Message.Pubkey.String()
-	}
-
-	return pubkeys, nil
-}
-
-func (m *BoostService) getRelaysForValidators(pubkeys []string) []types.RelayEntry {
-	relayMap := make(map[string]types.RelayEntry)
-
-	for _, pubkey := range pubkeys {
-		validatorRelays := m.getRelaysForValidator(pubkey)
-		for _, relay := range validatorRelays {
-			relayMap[relay.URL.String()] = relay
-		}
-	}
-	relays := make([]types.RelayEntry, 0, len(relayMap))
-	for _, relay := range relayMap {
-		relays = append(relays, relay)
-	}
-
-	return relays
 }
