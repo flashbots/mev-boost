@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
@@ -26,17 +27,27 @@ type RelayConfigYAML struct {
 	FrequencyGetHeaderMs uint64 `yaml:"frequency_get_header_ms"`
 }
 
+type MuxEntryYAML struct {
+	ID                 string            `yaml:"id"`
+	ValidatorPubkeys   []string          `yaml:"validator_pubkeys"`
+	Relays             []RelayConfigYAML `yaml:"relays"`
+	TimeoutGetHeaderMs uint64            `yaml:"timeout_get_header_ms,omitempty"`
+	LateInSlotTimeMs   uint64            `yaml:"late_in_slot_time_ms,omitempty"`
+}
+
 // Config holds all configuration settings from the config file
 type Config struct {
 	TimeoutGetHeaderMs uint64            `yaml:"timeout_get_header_ms"`
 	LateInSlotTimeMs   uint64            `yaml:"late_in_slot_time_ms"`
 	Relays             []RelayConfigYAML `yaml:"relays"`
+	Mux                []MuxEntryYAML    `yaml:"mux"`
 }
 
 type ConfigResult struct {
 	RelayConfigs       map[string]types.RelayConfig
 	TimeoutGetHeaderMs uint64
 	LateInSlotTimeMs   uint64
+	MuxMap             config.MuxMap
 }
 
 // ConfigWatcher provides hot reloading of config files
@@ -146,19 +157,19 @@ func MergeRelayConfigs(relays []types.RelayEntry, configMap map[string]types.Rel
 	return configs, nil
 }
 
-func parseConfig(config Config) (*ConfigResult, error) {
-	timeoutGetHeaderMs := config.TimeoutGetHeaderMs
+func parseConfig(cfg Config) (*ConfigResult, error) {
+	timeoutGetHeaderMs := cfg.TimeoutGetHeaderMs
 	if timeoutGetHeaderMs == 0 {
 		timeoutGetHeaderMs = 950
 	}
 
-	lateInSlotTimeMs := config.LateInSlotTimeMs
+	lateInSlotTimeMs := cfg.LateInSlotTimeMs
 	if lateInSlotTimeMs == 0 {
 		lateInSlotTimeMs = 2000
 	}
 
 	configMap := make(map[string]types.RelayConfig)
-	for _, relay := range config.Relays {
+	for _, relay := range cfg.Relays {
 		relayEntry, err := types.NewRelayEntry(strings.TrimSpace(relay.URL))
 		if err != nil {
 			return nil, err
@@ -172,9 +183,55 @@ func parseConfig(config Config) (*ConfigResult, error) {
 		configMap[relayEntry.String()] = relayConfig
 	}
 
+	// parse mux entries
+	var muxMap config.MuxMap
+	if len(cfg.Mux) > 0 {
+		entries := make([]config.MuxEntryInput, 0, len(cfg.Mux))
+		for _, muxYAML := range cfg.Mux {
+			relayConfigs := make([]types.RelayConfig, 0, len(muxYAML.Relays))
+			for _, relay := range muxYAML.Relays {
+				relayEntry, err := types.NewRelayEntry(strings.TrimSpace(relay.URL))
+				if err != nil {
+					return nil, err
+				}
+				relayConfigs = append(relayConfigs, types.RelayConfig{
+					RelayEntry:           relayEntry,
+					EnableTimingGames:    relay.EnableTimingGames,
+					TargetFirstRequestMs: relay.TargetFirstRequestMs,
+					FrequencyGetHeaderMs: relay.FrequencyGetHeaderMs,
+				})
+			}
+
+			// per mux timeouts if provieded otherwsie fall back to global defaults
+			muxTimeout := muxYAML.TimeoutGetHeaderMs
+			if muxTimeout == 0 {
+				muxTimeout = timeoutGetHeaderMs
+			}
+			muxLateInSlot := muxYAML.LateInSlotTimeMs
+			if muxLateInSlot == 0 {
+				muxLateInSlot = lateInSlotTimeMs
+			}
+
+			entries = append(entries, config.MuxEntryInput{
+				ID:                 muxYAML.ID,
+				ValidatorPubkeys:   muxYAML.ValidatorPubkeys,
+				RelayConfigs:       relayConfigs,
+				TimeoutGetHeaderMs: muxTimeout,
+				LateInSlotTimeMs:   muxLateInSlot,
+			})
+		}
+
+		var err error
+		muxMap, err = config.ValidateMuxEntries(entries)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &ConfigResult{
 		RelayConfigs:       configMap,
 		TimeoutGetHeaderMs: timeoutGetHeaderMs,
 		LateInSlotTimeMs:   lateInSlotTimeMs,
+		MuxMap:             muxMap,
 	}, nil
 }
