@@ -77,10 +77,9 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 		maxTimeoutMs uint64
 	)
 
+	// retrieves config for this validator, this call is mux aware
 	m.relayConfigsLock.RLock()
-	relayConfigs := m.relayConfigs
-	timeoutGetHeaderMs := m.timeoutGetHeaderMs
-	lateInSlotTimeMs := m.lateInSlotTimeMs
+	relayConfigs, timeoutGetHeaderMs, lateInSlotTimeMs := m.GetConfigForValidator(pubkey)
 	m.relayConfigsLock.RUnlock()
 
 	// check to see if we are already past the late-in-slot deadline
@@ -123,10 +122,6 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 	// Request a bid from each relay
 	for _, relayConfig := range relayConfigs {
-	relaysForValidator := m.getRelaysForValidator(pubkey)
-
-	// Request a bid from each relay
-	for _, relay := range relaysForValidator {
 		wg.Add(1)
 		go func(relayConfig types.RelayConfig) {
 			relay := relayConfig.RelayEntry
