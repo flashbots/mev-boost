@@ -8,7 +8,6 @@ const (
 	RelayCategory   = "RELAYS"
 	GeneralCategory = "GENERAL"
 	Metrics         = "METRICS"
-	MuxCategory     = "RELAY MUXING"
 )
 
 var flags = []cli.Flag{
@@ -43,8 +42,6 @@ var flags = []cli.Flag{
 	// metrics
 	metricsFlag,
 	metricsAddrFlag,
-	// mux
-	muxConfigFlag,
 }
 
 var (
@@ -219,12 +216,5 @@ var (
 		Value:    "localhost:18551",
 		Usage:    "listening address for the metrics server",
 		Category: Metrics,
-	}
-	// Mux
-	muxConfigFlag = &cli.StringFlag{
-		Name:     "mux-config",
-		Sources:  cli.EnvVars("MUX_CONFIG_FILE"),
-		Usage:    "path to YAML configuration file for relay muxing (policies and validator mappings)",
-		Category: MuxCategory,
 	}
 )
