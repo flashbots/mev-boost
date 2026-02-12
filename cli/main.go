@@ -32,6 +32,7 @@ const (
 
 type RelaySetupResult struct {
 	RelayConfigs       []serverTypes.RelayConfig
+	MuxMap             config.MuxMap
 	MinBid             types.U256Str
 	RelayCheck         bool
 	TimeoutGetHeaderMs uint64
@@ -90,6 +91,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 		Log:                      log,
 		ListenAddr:               listenAddr,
 		RelayConfigs:             relaySetup.RelayConfigs,
+		MuxMap:                   relaySetup.MuxMap,
 		GenesisForkVersionHex:    genesisForkVersion,
 		GenesisTime:              genesisTime,
 		RelayCheck:               relaySetup.RelayCheck,
@@ -130,7 +132,7 @@ func start(_ context.Context, cmd *cli.Command) error {
 				log.Error("merged config has no relays (neither from CLI nor config file), keeping old config")
 				return
 			}
-			service.UpdateConfig(mergedConfigs, newConfig.TimeoutGetHeaderMs, newConfig.LateInSlotTimeMs)
+			service.UpdateConfig(mergedConfigs, newConfig.TimeoutGetHeaderMs, newConfig.LateInSlotTimeMs, newConfig.MuxMap)
 		})
 	}
 
@@ -163,6 +165,7 @@ func setupRelays(cmd *cli.Command) (*RelaySetupResult, error) {
 
 	// load configuration via config file
 	var configMap map[string]serverTypes.RelayConfig
+	var muxMap config.MuxMap
 	var timeoutGetHeaderMs uint64 = 950
 	var lateInSlotTimeMs uint64 = 2000
 	if cmd.IsSet(relayConfigFlag.Name) {
@@ -176,6 +179,7 @@ func setupRelays(cmd *cli.Command) (*RelaySetupResult, error) {
 		configMap = configResult.RelayConfigs
 		timeoutGetHeaderMs = configResult.TimeoutGetHeaderMs
 		lateInSlotTimeMs = configResult.LateInSlotTimeMs
+		muxMap = configResult.MuxMap
 	}
 	relayConfigs, err := MergeRelayConfigs(relays, configMap)
 	if err != nil {
@@ -199,8 +203,13 @@ func setupRelays(cmd *cli.Command) (*RelaySetupResult, error) {
 	if relayMinBidWei.BigInt().Sign() > 0 {
 		log.Infof("min bid set to %v eth (%v wei)", cmd.Float(minBidFlag.Name), relayMinBidWei)
 	}
+	if muxMap != nil {
+		log.Infof("mux config loaded with %d validator pubkey mappings", len(muxMap))
+	}
+
 	return &RelaySetupResult{
 		RelayConfigs:       relayConfigs,
+		MuxMap:             muxMap,
 		MinBid:             *relayMinBidWei,
 		RelayCheck:         cmd.Bool(relayCheckFlag.Name),
 		TimeoutGetHeaderMs: timeoutGetHeaderMs,
