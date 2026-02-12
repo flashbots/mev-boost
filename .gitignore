@@ -32,4 +32,3 @@
 # Environemnt variable files
 .env*
 !.env.example
-

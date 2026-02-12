@@ -56,6 +56,7 @@ type BoostServiceOpts struct {
 	Log                   *logrus.Entry
 	ListenAddr            string
 	RelayConfigs          []types.RelayConfig
+	MuxMap                config.MuxMap
 	GenesisForkVersionHex string
 	GenesisTime           uint64
 	RelayCheck            bool
@@ -76,6 +77,7 @@ type BoostServiceOpts struct {
 type BoostService struct {
 	listenAddr   string
 	relayConfigs []types.RelayConfig
+	muxMap       config.MuxMap
 	log          *logrus.Entry
 	srv          *http.Server
 	relayCheck   bool
@@ -116,6 +118,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	return &BoostService{
 		listenAddr:   opts.ListenAddr,
 		relayConfigs: opts.RelayConfigs,
+		muxMap:       opts.MuxMap,
 		log:          opts.Log,
 		relayCheck:   opts.RelayCheck,
 		relayMinBid:  opts.RelayMinBid,
@@ -509,10 +512,10 @@ func (m *BoostService) CheckRelays() int {
 	var numSuccessRequestsToRelay uint32
 
 	m.relayConfigsLock.RLock()
-	relayConfigs := m.relayConfigs
+	allConfigs := m.AllRelayConfigs()
 	m.relayConfigsLock.RUnlock()
 
-	for _, relayConfig := range relayConfigs {
+	for _, relayConfig := range allConfigs {
 		wg.Add(1)
 
 		go func(relay types.RelayEntry) {
@@ -546,12 +549,64 @@ func (m *BoostService) CheckRelays() int {
 	return int(numSuccessRequestsToRelay)
 }
 
-// UpdateConfig updates the relay configs and timeout settings
-func (m *BoostService) UpdateConfig(relayConfigs []types.RelayConfig, timeoutGetHeaderMs, lateInSlotTimeMs uint64) {
+// UpdateConfig updates the relay configs, mux map, and timeout settings
+func (m *BoostService) UpdateConfig(relayConfigs []types.RelayConfig, timeoutGetHeaderMs, lateInSlotTimeMs uint64, muxMap config.MuxMap) {
 	m.relayConfigsLock.Lock()
 	defer m.relayConfigsLock.Unlock()
 
 	m.relayConfigs = relayConfigs
 	m.timeoutGetHeaderMs = timeoutGetHeaderMs
 	m.lateInSlotTimeMs = lateInSlotTimeMs
+	m.muxMap = muxMap
+}
+
+// GetConfigForValidator returns the relay configs and timeouts for a given validator pubkey.
+// If muxing is configured and the pubkey has a mux entry, returns the mux-specific config.
+// Otherwise returns the default relay configs and timeouts.
+func (m *BoostService) GetConfigForValidator(pubkey string) ([]types.RelayConfig, uint64, uint64) {
+	if m.muxMap != nil {
+		if mux, ok := m.muxMap[pubkey]; ok {
+			return mux.RelayConfigs, mux.TimeoutGetHeaderMs, mux.LateInSlotTimeMs
+		}
+	}
+	return m.relayConfigs, m.timeoutGetHeaderMs, m.lateInSlotTimeMs
+}
+
+// AllRelayConfigs returns the union of default plus all mux relay configs.
+func (m *BoostService) AllRelayConfigs() []types.RelayConfig {
+	if m.muxMap == nil {
+		return m.relayConfigs
+	}
+
+	seen := make(map[string]bool)
+	var all []types.RelayConfig
+
+	for _, rc := range m.relayConfigs {
+		key := rc.RelayEntry.String()
+		if !seen[key] {
+			seen[key] = true
+			all = append(all, rc)
+		}
+	}
+
+	for _, mux := range m.muxMap {
+		for _, rc := range mux.RelayConfigs {
+			key := rc.RelayEntry.String()
+			if !seen[key] {
+				seen[key] = true
+				all = append(all, rc)
+			}
+		}
+	}
+
+	return all
+}
+
+// this helper function allows to  query relay entries from the given relay configs.
+func relayEntries(configs []types.RelayConfig) []types.RelayEntry {
+	entries := make([]types.RelayEntry, len(configs))
+	for i, c := range configs {
+		entries[i] = c.RelayEntry
+	}
+	return entries
 }

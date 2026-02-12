@@ -489,3 +489,123 @@ func TestMergeRelayConfigs_DuplicateDetection(t *testing.T) {
 		require.Len(t, configs, 1)
 	})
 }
+
+func TestParseConfigWithMux(t *testing.T) {
+	t.Run("Valid mux config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "config.yaml")
+
+		configYAML := `
+timeout_get_header_ms: 950
+late_in_slot_time_ms: 2000
+relays:
+  - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.example.com
+mux:
+  - id: "lido"
+    validator_pubkeys:
+      - "0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"
+    timeout_get_header_ms: 900
+    late_in_slot_time_ms: 1500
+    relays:
+      - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@lido-relay.example.com
+        enable_timing_games: true
+        target_first_request_ms: 200
+        frequency_get_header_ms: 100
+  - id: "rocket-pool"
+    validator_pubkeys:
+      - "0x8d1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca252"
+    relays:
+      - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@rocketpool-relay.example.com
+`
+		err := os.WriteFile(configPath, []byte(configYAML), 0o644)
+		require.NoError(t, err)
+
+		result, err := LoadConfigFile(configPath)
+		require.NoError(t, err)
+		require.NotNil(t, result.MuxMap)
+		require.Len(t, result.MuxMap, 2) // 2 val pubkeys
+
+		// check lido mux config
+		lidoMux := result.MuxMap["0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"]
+		require.NotNil(t, lidoMux)
+		require.Equal(t, "lido", lidoMux.ID)
+		require.Len(t, lidoMux.RelayConfigs, 1)
+		require.Equal(t, uint64(900), lidoMux.TimeoutGetHeaderMs)
+		require.Equal(t, uint64(1500), lidoMux.LateInSlotTimeMs)
+		require.True(t, lidoMux.RelayConfigs[0].EnableTimingGames)
+
+		// check rocket pool mux config
+		rocketMux := result.MuxMap["0x8d1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca252"]
+		require.NotNil(t, rocketMux)
+		require.Equal(t, "rocket-pool", rocketMux.ID)
+		require.Len(t, rocketMux.RelayConfigs, 1)
+		require.Equal(t, uint64(950), rocketMux.TimeoutGetHeaderMs) // use global vals since not set per mux
+		require.Equal(t, uint64(2000), rocketMux.LateInSlotTimeMs)  // same
+		require.False(t, rocketMux.RelayConfigs[0].EnableTimingGames)
+	})
+
+	t.Run("No mux config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "config.yaml")
+
+		configYAML := `
+timeout_get_header_ms: 950
+relays:
+  - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.example.com
+`
+		err := os.WriteFile(configPath, []byte(configYAML), 0o644)
+		require.NoError(t, err)
+
+		result, err := LoadConfigFile(configPath)
+		require.NoError(t, err)
+		require.Nil(t, result.MuxMap)
+	})
+
+	t.Run("Duplicate validator pubkey across mux entries", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "config.yaml")
+
+		configYAML := `
+relays:
+  - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.example.com
+mux:
+  - id: "lido"
+    validator_pubkeys:
+      - "0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"
+    relays:
+      - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay1.example.com
+  - id: "rocket-pool"
+    validator_pubkeys:
+      - "0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"
+    relays:
+      - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay2.example.com
+`
+		err := os.WriteFile(configPath, []byte(configYAML), 0o644)
+		require.NoError(t, err)
+
+		_, err = LoadConfigFile(configPath)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "validator pubkey appears in multiple mux entries")
+	})
+
+	t.Run("Mux entry with no relays", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "config.yaml")
+
+		configYAML := `
+relays:
+  - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.example.com
+mux:
+  - id: "empty"
+    validator_pubkeys:
+      - "0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"
+    relays: []
+`
+		err := os.WriteFile(configPath, []byte(configYAML), 0o644)
+		require.NoError(t, err)
+
+		_, err = LoadConfigFile(configPath)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "must have at least one relay")
+	})
+}

@@ -39,7 +39,6 @@ var flags = []cli.Flag{
 	timeoutGetPayloadFlag,
 	timeoutRegValFlag,
 	maxRetriesFlag,
-
 	// metrics
 	metricsFlag,
 	metricsAddrFlag,
@@ -204,7 +203,6 @@ var (
 		Value:    5,
 		Category: RelayCategory,
 	}
-
 	// metrics
 	metricsFlag = &cli.BoolFlag{
 		Name:     "metrics",
