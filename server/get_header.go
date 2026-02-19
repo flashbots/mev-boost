@@ -158,7 +158,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 	wg.Wait()
 
 	var (
-		result = bidResp{}
+		result = bidResp{bidsReceived: len(relayBids)}
 		relays = make(map[BlockHashHex][]types.RelayEntry)
 	)
 

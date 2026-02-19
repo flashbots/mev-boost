@@ -120,10 +120,11 @@ func DecodeJSON(r io.Reader, dst any) error {
 
 // bidResp are entries in the bids cache
 type bidResp struct {
-	t        time.Time
-	response builderSpec.VersionedSignedBuilderBid
-	bidInfo  bidInfo
-	relays   []types.RelayEntry
+	t            time.Time
+	response     builderSpec.VersionedSignedBuilderBid
+	bidInfo      bidInfo
+	relays       []types.RelayEntry
+	bidsReceived int // number of bids received from relays (including those filtered out)
 }
 
 // bidInfo is used to store bid response fields for logging and validation

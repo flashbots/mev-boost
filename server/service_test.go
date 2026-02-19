@@ -743,6 +743,46 @@ func TestGetHeaderBids(t *testing.T) {
 		require.Equal(t, http.StatusNoContent, rr.Code)
 	})
 
+	t.Run("Bid below min-bid tracks bidsReceived", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 24
+
+		// Relay returns a bid below min-bid (12344 < 12345)
+		backend.relays[0].GetHeaderResponse = backend.relays[0].MakeGetHeaderResponse(
+			12344,
+			"0xa28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+			"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+			spec.DataVersionDeneb,
+		)
+
+		log := backend.boost.log.WithField("method", "getHeader")
+		result, err := backend.boost.getHeader(log, 2, pubkey.String(), hash.String(), "", "application/json", 0)
+		require.NoError(t, err)
+
+		// Response should be empty (bid was below min-bid)
+		require.True(t, result.response.IsEmpty())
+		// But bidsReceived should reflect that a bid was received
+		require.Equal(t, 1, result.bidsReceived)
+	})
+
+	t.Run("No relay response tracks zero bidsReceived", func(t *testing.T) {
+		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 24
+
+		// Relay returns no content (no bid available)
+		backend.relays[0].OverrideHandleGetHeader(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
+
+		log := backend.boost.log.WithField("method", "getHeader")
+		result, err := backend.boost.getHeader(log, 2, pubkey.String(), hash.String(), "", "application/json", 0)
+		require.NoError(t, err)
+
+		require.True(t, result.response.IsEmpty())
+		require.Equal(t, 0, result.bidsReceived)
+	})
+
 	t.Run("Allow bids which meet minimum bid cutoff", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
