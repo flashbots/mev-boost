@@ -164,7 +164,7 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 	// process the bids and select the one with the best value
 	for _, rb := range relayBids {
-		m.processBid(log, rb.relay, rb.bid, rb.contentType, parentHashHex, &result, relays, slot)
+		m.processBid(log, rb.relay, rb.bid, rb.contentType, parentHashHex, &result, pubkey, relays, slot)
 	}
 
 	// Set the winning relays before returning
@@ -387,10 +387,11 @@ func (m *BoostService) processBid(
 	respContentType string,
 	parentHashHex string,
 	result *bidResp,
+	pubkey string,
 	relays map[BlockHashHex][]types.RelayEntry,
 	slot phase0.Slot,
 ) {
-	log = log.WithField("url", relay.URL.String())
+	log = log.WithField("url", relay.GetURI(fmt.Sprintf("/eth/v1/builder/header/%d/%s/%s", slot, parentHashHex, pubkey)))
 
 	// Getting the bid info will check if there are missing fields in the response
 	bidInfo, err := parseBidInfo(bid)
