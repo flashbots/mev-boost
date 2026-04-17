@@ -390,6 +390,8 @@ func (m *BoostService) processBid(
 	relays map[BlockHashHex][]types.RelayEntry,
 	slot phase0.Slot,
 ) {
+	log = log.WithField("url", relay.URL.String())
+
 	// Getting the bid info will check if there are missing fields in the response
 	bidInfo, err := parseBidInfo(bid)
 	if err != nil {
