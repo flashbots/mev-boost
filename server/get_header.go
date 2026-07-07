@@ -62,7 +62,15 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 	// Log how late into the slot the request starts
 	slotStartTimestamp := m.genesisTime + uint64(slot)*config.SlotTimeSec
-	msIntoSlot := uint64(time.Now().UTC().UnixMilli()) - slotStartTimestamp*1000
+	// The request can arrive before the slot start (e.g. scheduling jitter
+	// between VC and BN), which would underflow the unsigned subtraction and
+	// trip the late-in-slot guard below. Clamp negative values to zero, i.e.
+	// treat an early request as arriving exactly at slot start.
+	msIntoSlotSigned := time.Now().UTC().UnixMilli() - int64(slotStartTimestamp*1000)
+	var msIntoSlot uint64
+	if msIntoSlotSigned > 0 {
+		msIntoSlot = uint64(msIntoSlotSigned)
+	}
 	log.WithFields(logrus.Fields{
 		"genesisTime": m.genesisTime,
 		"slotTimeSec": config.SlotTimeSec,
