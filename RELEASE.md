@@ -4,6 +4,18 @@ This is a guide on how to release a new version of mev-boost.
 
 The best days to release a new version are Monday to Wednesday. Never release on a Friday. Release preferred with another person present (four eyes principle).
 
+## Versioning
+
+We follow [Semantic Versioning (semver)](https://semver.org/) for all releases. This is important for compatibility with deployment tools like Helm and Ansible.
+
+**Version format:** `vMAJOR.MINOR.PATCH[-PRERELEASE]`
+
+Pre-release versions must include a dot before the number:
+- Correct: `v1.10.0-alpha.1`, `v1.10.0-rc.1`, `v1.10.0-beta.2`
+- Incorrect: `v1.10-alpha1`, `v1.10-rc1` (missing patch version and dot before number)
+
+This ensures Docker tags follow semver format (e.g., `1.10.0-alpha.1`) instead of PEP 440 format (e.g., `1.10a1`).
+
 Process:
 1. Double-check the current build
 2. Create a release candidate (RC)
@@ -38,10 +50,11 @@ curl localhost:18550/eth/v1/builder/status
 
 ## Make a release
 
-Let's release `v1.9`:
+Let's release `v1.9.0`:
 
 1. Create a GitHub issue about the upcoming release ([example](https://github.com/flashbots/mev-boost/issues/524))
-1. Tag a release candidate (RC), or alpha version: `v1.9-rc1`, and push the new tag to GitHub.
+1. Tag a release candidate (RC), or alpha version using **valid semver format**: `v1.9.0-rc.1`, and push the new tag to GitHub.
+    - **Important**: Use a dot before the pre-release number (e.g., `-rc.1` not `-rc1`)
     - The [release CI](https://github.com/flashbots/mev-boost/actions) starts
 building the binaries and the Docker image (which is then pushed to [Docker Hub](https://hub.docker.com/r/flashbots/mev-boost/tags)).
     - Binaries can be downloaded from the release CI summary website.
@@ -49,23 +62,22 @@ building the binaries and the Docker image (which is then pushed to [Docker Hub]
 2. When tests are complete, create the release: tag, GitHub release, `stable` branch update.
 
 ```bash
-# Create the RC tag
-git tag -s v1.9-rc1
+# Create the RC tag (note: use semver format with dot before number)
+git tag -s v1.9.0-rc.1
 
 # Push to Github, which kicks off the release CI
-git push origin tags/v1.9-rc1
+git push origin tags/v1.9.0-rc.1
 
-# When CI is done, the Docker image can be used
-docker pull flashbots/mev-boost:v1.9a1
+# When CI is done, the Docker image can be used (semver format)
+docker pull flashbots/mev-boost:1.9.0-rc.1
 
 # Once testing is done, tag the full release
-git tag -s v1.9
 git tag -s v1.9.0
 
 # Push to Github, which kicks off the release CI
-git push origin tags/v1.9 tags/v1.9.0
+git push origin tags/v1.9.0
 
 # Finally, update the stable branch
 git checkout stable
-git merge tags/v1.9 --ff-only
+git merge tags/v1.9.0 --ff-only
 ```
