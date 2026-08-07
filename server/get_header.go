@@ -192,17 +192,25 @@ func (m *BoostService) handleTimingGamesGetHeader(
 	relay := relayConfig.RelayEntry
 
 	// wait til target time is configured
-	if relayConfig.TargetFirstRequestMs > 0 {
+	if relayConfig.TargetFirstRequestMs > 0 && msIntoSlot < relayConfig.TargetFirstRequestMs {
+		// Both operands are uint64: only subtract after establishing
+		// msIntoSlot < target, otherwise delayMs wraps to ~2^64 and the
+		// unguarded subtraction below INCREASES the remaining budget by
+		// (msIntoSlot - target), defeating the late-in-slot deadline the
+		// budget was computed against.
 		delayMs := relayConfig.TargetFirstRequestMs - msIntoSlot
-		if delayMs > 0 {
-			log.WithFields(logrus.Fields{
-				"targetMs":   relayConfig.TargetFirstRequestMs,
-				"msIntoSlot": msIntoSlot,
-				"delayMs":    delayMs,
-			}).Debug("waiting to send header request via timing games")
+		log.WithFields(logrus.Fields{
+			"targetMs":   relayConfig.TargetFirstRequestMs,
+			"msIntoSlot": msIntoSlot,
+			"delayMs":    delayMs,
+		}).Debug("waiting to send header request via timing games")
+		if delayMs < timeoutLeftMs {
 			timeoutLeftMs -= delayMs
-			time.Sleep(time.Duration(delayMs) * time.Millisecond)
+		} else {
+			// The target time is already at/past the budget end: nothing left.
+			timeoutLeftMs = 0
 		}
+		time.Sleep(time.Duration(delayMs) * time.Millisecond)
 	}
 
 	if relayConfig.FrequencyGetHeaderMs == 0 {
