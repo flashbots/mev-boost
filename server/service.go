@@ -565,7 +565,12 @@ func (m *BoostService) UpdateConfig(relayConfigs []types.RelayConfig, timeoutGet
 // Otherwise returns the default relay configs and timeouts.
 func (m *BoostService) GetConfigForValidator(pubkey string) ([]types.RelayConfig, uint64, uint64) {
 	if m.muxMap != nil {
-		if mux, ok := m.muxMap[pubkey]; ok {
+		// Mux keys are canonical lowercase pubkeys. The pubkey here comes
+		// straight from the request URL, and hex is case-insensitive, so fold
+		// it rather than trusting the case the beacon node happened to use.
+		// A plain fold keeps this off the getHeader hot path; the config side
+		// has already validated that every key is a well-formed pubkey.
+		if mux, ok := m.muxMap[strings.ToLower(pubkey)]; ok {
 			return mux.RelayConfigs, mux.TimeoutGetHeaderMs, mux.LateInSlotTimeMs
 		}
 	}
