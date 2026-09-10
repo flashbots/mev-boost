@@ -294,3 +294,30 @@ func TestHandleRegisterValidator_HeaderPropagation(t *testing.T) {
 		t.Fatal("timed out waiting for header capture")
 	}
 }
+
+// TestHandleRegisterValidator_JSONFormatter verifies that logging under JSONFormatter does not error or panic
+func TestHandleRegisterValidator_JSONFormatter(t *testing.T) {
+	relay := mock.NewRelay(t)
+	defer relay.Server.Close()
+
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.JSONFormatter{})
+	logger.SetLevel(logrus.DebugLevel)
+
+	m := &BoostService{
+		relayConfigs:     []types.RelayConfig{types.NewRelayConfig(relay.RelayEntry)},
+		httpClientRegVal: *http.DefaultClient,
+		log:              logrus.NewEntry(logger),
+	}
+
+	reqBody := bytes.NewBufferString("[]")
+	req := httptest.NewRequest(http.MethodPost, "https://example.com"+params.PathRegisterValidator, reqBody)
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	require.NotPanics(t, func() {
+		m.handleRegisterValidator(rr, req)
+	})
+	require.Equal(t, http.StatusOK, rr.Code)
+}
+
