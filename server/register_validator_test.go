@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -295,12 +296,15 @@ func TestHandleRegisterValidator_HeaderPropagation(t *testing.T) {
 	}
 }
 
-// TestHandleRegisterValidator_JSONFormatter verifies that logging under JSONFormatter does not error or panic
+// TestHandleRegisterValidator_JSONFormatter verifies that log entries are emitted as valid JSON under JSONFormatter,
+// i.e. all logged fields are JSON-marshalable (logrus silently drops entries that fail to marshal)
 func TestHandleRegisterValidator_JSONFormatter(t *testing.T) {
 	relay := mock.NewRelay(t)
 	defer relay.Server.Close()
 
+	logBuf := new(bytes.Buffer)
 	logger := logrus.New()
+	logger.SetOutput(logBuf)
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.SetLevel(logrus.DebugLevel)
 
@@ -315,9 +319,24 @@ func TestHandleRegisterValidator_JSONFormatter(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
-	require.NotPanics(t, func() {
-		m.handleRegisterValidator(rr, req)
-	})
+	m.handleRegisterValidator(rr, req)
+
 	require.Equal(t, http.StatusOK, rr.Code)
+
+	// Every emitted line must be valid JSON, and the debug entry for the relay
+	// request must be present with its discrete fields
+	var logEntry map[string]any
+	found := false
+	for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal([]byte(line), &entry), "log line is not valid JSON: %s", line)
+		if entry["msg"] == "sending the registerValidator request" {
+			logEntry = entry
+			found = true
+		}
+	}
+	require.True(t, found, "expected the 'sending the registerValidator request' debug entry to be emitted")
+	require.Equal(t, http.MethodPost, logEntry["httpMethod"])
+	require.InDelta(t, float64(2), logEntry["contentLength"], 0)
 }
 
