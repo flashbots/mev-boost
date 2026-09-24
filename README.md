@@ -58,7 +58,7 @@ See also:
   - [Hoodi testnet](#hoodi-testnet)
   - [`test-cli`](#test-cli)
   - [mev-boost cli arguments](#mev-boost-cli-arguments)
-    - [`-relays` vs `-relay`](#-relays-vs--relay)
+    - [`--relay` / `--relays`](#-relay--relays)
     - [Setting a minimum bid value with `-min-bid`](#setting-a-minimum-bid-value-with--min-bid)
     - [Enabling metrics](#enabling-metrics)
 - [API](#api)
@@ -96,7 +96,7 @@ https://github.com/flashbots/mev-boost/releases
 
 ## From source
 
-Requires [Go 1.18+](https://go.dev/doc/install).
+Requires [Go 1.24+](https://go.dev/doc/install).
 
 ### `go install`
 
@@ -187,12 +187,12 @@ Aside from running MEV-Boost on your local network, you must configure:
 * individual **validators** to configure a preferred relay selection. Note: validators should take precautions to only connect to trusted relays. Read more about [the role of relays here](https://docs.flashbots.net/flashbots-mev-boost/relay).
 
 Lists of available relays are maintained by
-* [Ethstaker](https://github.com/remyroy/ethstaker/blob/main/MEV-relay-list.md) [[2]](https://ethstaker.cc/mev-relay-list/)
+* [Ethstaker](https://ethstaker.cc/mev-relay-list/)
 * [Lido](https://research.lido.fi/t/lido-on-ethereum-call-for-relay-providers/2844)
 
 ## Note on usage documentation
 
-The documentation in this README reflects the latest state of the `main` branch, which may have cli flags or functionality not present in the latest release.
+The documentation in this README reflects the latest state of the `develop` branch, which may have cli flags or functionality not present in the latest release.
 
 Please take a look at the specific release documentation about the available command line flags: https://github.com/flashbots/mev-boost/releases
 
@@ -239,63 +239,61 @@ These are the CLI arguments for the develop branch. For arguments available in a
 
 ```
 $ ./mev-boost -help
-Usage of mev-boost:
-  -addr string
-        listen-address for mev-boost server (default "localhost:18550")
-  -debug
-        shorthand for '-loglevel debug'
-  -genesis-fork-version string
-        use a custom genesis fork version
-  -holesky
-        use Holesky
-  -hoodi
-        use Hoodi
-  -json
-        log in JSON format instead of text
-  -color
-        enable colored output for text log format; has no effect if JSON logging is enabled via -json
-  -log-no-version
-        disables adding the version to every log entry
-  -log-service string
-        add a 'service=...' tag to all log messages
-  -loglevel string
-        minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic (default "info")
-  -mainnet
-        use Mainnet (default true)
-  -min-bid float
-        minimum bid to accept from a relay [eth]
-  -relay value
-        a single relay, can be specified multiple times
-  -relay-check
-        check relay status on startup and on the status API call
-  -relays string
-        relay urls - single entry or comma-separated list (scheme://pubkey@host)
-  -config string
-        path to YAML configuration file for enabling advanced features
-  -watch-config
-        enable hot reloading of config file (requires -config)
-  -request-timeout-getheader int
-        timeout for getHeader requests to the relay [ms] (default 950)
-  -request-timeout-getpayload int
-        timeout for getPayload requests to the relay [ms] (default 4000)
-  -request-timeout-regval int
-        timeout for registerValidator requests [ms] (default 3000)
-  -sepolia
-        use Sepolia
-  -version
-        only print version
-  -metrics
-        enables a metrics server (default: false)
-  -metrics-addr string
-        listening address for the metrics server (default: "localhost:18551")
+NAME:
+   mev-boost - mev-boost implementation, see help for more info
+
+USAGE:
+   mev-boost [global options]
+
+GLOBAL OPTIONS:
+   --help, -h  show help
+
+   GENERAL
+
+   --addr string  listen-address for mev-boost server (default: "localhost:18550") [$BOOST_LISTEN_ADDR]
+   --version      print version (default: false)
+
+   GENESIS
+
+   --genesis-fork-version string  use a custom genesis fork version [$GENESIS_FORK_VERSION]
+   --genesis-timestamp uint       use a custom genesis timestamp (unix seconds) (default: 0) [$GENESIS_TIMESTAMP]
+   --holesky                      use Holesky (default: false) [$HOLESKY]
+   --hoodi                        use Hoodi (default: false) [$HOODI]
+   --mainnet                      use Mainnet (default: true) [$MAINNET]
+   --sepolia                      use Sepolia (default: false) [$SEPOLIA]
+
+   LOGGING AND DEBUGGING
+
+   --color               enable colored output for text log format (default: false) [$LOG_COLOR]
+   --debug               shorthand for '--loglevel debug' (default: false) [$DEBUG]
+   --json                log in JSON format instead of text (default: false) [$LOG_JSON]
+   --log-no-version      disables adding the version to every log entry (default: false) [$DISABLE_LOG_VERSION]
+   --log-service string  add a 'service=...' tag to all log messages [$LOG_SERVICE_TAG]
+   --loglevel string     minimum loglevel: trace, debug, info, warn/warning, error, fatal, panic (default: "info") [$LOG_LEVEL]
+
+   METRICS
+
+   --metrics              enables a metrics server (default: false) [$METRICS_ENABLED]
+   --metrics-addr string  listening address for the metrics server (default: "localhost:18551") [$METRICS_ADDR]
+
+   RELAYS
+
+   --config string                                                      path to YAML configuration file [$CONFIG_FILE]
+   --min-bid float                                                      minimum bid to accept from a relay [eth] (default: 0) [$MIN_BID_ETH]
+   --relay string, --relays string [ --relay string, --relays string ]  relay urls - single entry or comma-separated list (scheme://pubkey@host) [$RELAYS]
+   --relay-check                                                        check relay status on startup and on the status API call (default: false) [$RELAY_STARTUP_CHECK]
+   --request-max-retries int                                            maximum number of retries for a relay get payload request (default: 5) [$REQUEST_MAX_RETRIES]
+   --request-timeout-getheader int                                      timeout for getHeader requests to the relay [ms] (default: 950) [$RELAY_TIMEOUT_MS_GETHEADER]
+   --request-timeout-getpayload int                                     timeout for getPayload requests to the relay [ms] (default: 4000) [$RELAY_TIMEOUT_MS_GETPAYLOAD]
+   --request-timeout-regval int                                         timeout for registerValidator requests [ms] (default: 3000) [$RELAY_TIMEOUT_MS_REGVAL]
+   --watch-config                                                       enable hot reloading of config file (requires --config) (default: false) [$WATCH_CONFIG]
 ```
 
-### `-relays` vs `-relay`
+### `--relay` / `--relays`
 
-There are two different flags for specifying relays: `-relays` and `-relay`.
-The `-relays` flag is a comma separated string of relays. On the other hand,
-the `-relay` flag is used to specify a single relay, but can be used multiple
-times for multiple relays. Use whichever method suits your preferences.
+`--relay` and `--relays` are aliases for the same flag: a string slice of relay URLs
+(single entry or comma-separated list, `scheme://pubkey@host`). You can pass the flag
+once with a comma-separated list, or multiple times.
 
 These two MEV-Boost commands are equivalent:
 
