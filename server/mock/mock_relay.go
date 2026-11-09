@@ -38,7 +38,8 @@ import (
 )
 
 const (
-	mockRelaySecretKeyHex = "0x4e343a647c5a5c44d76c2c58b63f02cdf3a9a0ec40f102ebc26363b4b1b95033"
+	mockRelaySecretKeyHex    = "0x4e343a647c5a5c44d76c2c58b63f02cdf3a9a0ec40f102ebc26363b4b1b95033"
+	EthConsensusVersionGloas = "gloas"
 )
 
 var (
@@ -576,7 +577,7 @@ func (m *Relay) defaultHandleGetExecutionPayloadBid(w http.ResponseWriter, req *
 		http.Error(w, "missing request auth", http.StatusBadRequest)
 		return
 	}
-	if req.Header.Get("Eth-Consensus-Version") != "gloas" {
+	if req.Header.Get("Eth-Consensus-Version") != EthConsensusVersionGloas {
 		http.Error(w, "missing consensus version", http.StatusBadRequest)
 		return
 	}
@@ -593,7 +594,7 @@ func (m *Relay) defaultHandleGetExecutionPayloadBid(w http.ResponseWriter, req *
 			"0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46")
 	}
 
-	w.Header().Set("Eth-Consensus-Version", "gloas")
+	w.Header().Set("Eth-Consensus-Version", EthConsensusVersionGloas)
 	if !m.ForceJSON && (m.ForceSSZ || strings.Contains(req.Header.Get("Accept"), "application/octet-stream")) {
 		sszData, err := response.MarshalSSZ()
 		if err != nil {
@@ -607,7 +608,7 @@ func (m *Relay) defaultHandleGetExecutionPayloadBid(w http.ResponseWriter, req *
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(gloasAPI.ExecutionPayloadBidResponse{Version: "gloas", Data: response}); err != nil {
+	if err := json.NewEncoder(w).Encode(gloasAPI.ExecutionPayloadBidResponse{Version: EthConsensusVersionGloas, Data: response}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

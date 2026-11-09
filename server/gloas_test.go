@@ -443,6 +443,24 @@ func TestSubmitSignedBeaconBlock(t *testing.T) {
 	})
 }
 
+func TestGloasRequestBodyTooLarge(t *testing.T) {
+	proposer := newTestProposer(t)
+	body := make([]byte, maxGloasBodySize+1)
+	for name, path := range map[string]string{
+		"bid":         bidPath(1, proposer.pubkey),
+		"preferences": "/eth/v1/builder/builder_preferences/" + proposer.pubkey,
+		"block":       params.PathSubmitSignedBeaconBlock,
+	} {
+		t.Run(name, func(t *testing.T) {
+			backend := newTestBackend(t, 1, time.Second)
+			rr := backend.requestBytes(t, http.MethodPost, path, gloasHeader(MediaTypeOctetStream, "", 500), body)
+			require.Equal(t, http.StatusBadRequest, rr.Code)
+			require.Contains(t, rr.Body.String(), errBodyTooLarge.Error())
+			require.Equal(t, 0, backend.relays[0].GetRequestCount(path))
+		})
+	}
+}
+
 func TestValidateGloasRequest(t *testing.T) {
 	auth := &builderApiGloas.SignedBuilderRequestAuth{Message: &builderApiGloas.BuilderRequestAuth{Data: []byte("x"), Slot: 1}}
 	require.NoError(t, validateAuth(auth))

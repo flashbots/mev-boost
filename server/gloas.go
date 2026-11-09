@@ -33,10 +33,15 @@ import (
 // response still reaches the beacon node in time.
 const bidDeadlineMargin = 50 * time.Millisecond
 
+// maxGloasBodySize caps request bodies at 10 MiB, so an oversized request can't
+// exhaust memory.
+const maxGloasBodySize = 10_485_760 // 10 MiB = 10 * 1024 * 1024 bytes
+
 var (
 	errGloasConsensusVersion = errors.New("Eth-Consensus-Version header must be gloas")
 	errMissingTimingHeaders  = errors.New("missing or invalid Date-Milliseconds or X-Timeout-Ms header")
 	errMissingBody           = errors.New("missing request body")
+	errBodyTooLarge          = fmt.Errorf("request body exceeds %d bytes", maxGloasBodySize)
 	errAuthDataMismatch      = errors.New("auth data does not match any configured relay")
 	errAuthSlotMismatch      = errors.New("auth slot does not match the request slot")
 	errAuthSlotPassed        = errors.New("auth slot has already passed")
@@ -91,7 +96,7 @@ func (m *BoostService) handleGetExecutionPayloadBid(w http.ResponseWriter, req *
 	}
 
 	auth := new(builderApiGloas.SignedBuilderRequestAuth)
-	body, contentType, code, err := decodeGloasRequest(req, auth)
+	body, contentType, code, err := decodeGloasRequest(w, req, auth)
 	if err != nil {
 		m.respondGloasError(w, log, params.PathGetExecutionPayloadBid, code, err)
 		return
@@ -166,7 +171,7 @@ func (m *BoostService) handleSubmitBuilderPreferences(w http.ResponseWriter, req
 	log.Debug("handling request")
 
 	prefs := new(builderApiGloas.BuilderPreferencesRequest)
-	body, contentType, code, err := decodeGloasRequest(req, prefs)
+	body, contentType, code, err := decodeGloasRequest(w, req, prefs)
 	if err != nil {
 		m.respondGloasError(w, log, params.PathSubmitBuilderPreferences, code, err)
 		return
@@ -214,22 +219,9 @@ func (m *BoostService) handleSubmitSignedBeaconBlock(w http.ResponseWriter, req 
 	})
 	log.Debug("handling request")
 
-	if req.Header.Get(HeaderEthConsensusVersion) != EthConsensusVersionGloas {
-		m.respondGloasError(w, log, params.PathSubmitSignedBeaconBlock, http.StatusBadRequest, errGloasConsensusVersion)
-		return
-	}
-	contentType, err := requestContentType(req.Header)
+	body, contentType, code, err := readGloasRequest(w, req)
 	if err != nil {
-		m.respondGloasError(w, log, params.PathSubmitSignedBeaconBlock, http.StatusUnsupportedMediaType, err)
-		return
-	}
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		m.respondGloasError(w, log, params.PathSubmitSignedBeaconBlock, http.StatusBadRequest, err)
-		return
-	}
-	if len(body) == 0 {
-		m.respondGloasError(w, log, params.PathSubmitSignedBeaconBlock, http.StatusBadRequest, errMissingBody)
+		m.respondGloasError(w, log, params.PathSubmitSignedBeaconBlock, code, err)
 		return
 	}
 
@@ -269,8 +261,8 @@ func (m *BoostService) handleSubmitSignedBeaconBlock(w http.ResponseWriter, req 
 	m.respondGloasError(w, log, params.PathSubmitSignedBeaconBlock, http.StatusInternalServerError, errNoSuccessfulRelayResponse)
 }
 
-// decodeGloasRequest checks the consensus version header and decodes the body.
-func decodeGloasRequest(req *http.Request, dst gloasBody) (body []byte, contentType string, code int, err error) {
+// readGloasRequest checks the consensus version and content type headers and reads the body.
+func readGloasRequest(w http.ResponseWriter, req *http.Request) (body []byte, contentType string, code int, err error) {
 	if req.Header.Get(HeaderEthConsensusVersion) != EthConsensusVersionGloas {
 		return nil, "", http.StatusBadRequest, errGloasConsensusVersion
 	}
@@ -278,12 +270,25 @@ func decodeGloasRequest(req *http.Request, dst gloasBody) (body []byte, contentT
 	if err != nil {
 		return nil, "", http.StatusUnsupportedMediaType, err
 	}
-	body, err = io.ReadAll(req.Body)
+	body, err = io.ReadAll(http.MaxBytesReader(w, req.Body, maxGloasBodySize))
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			return nil, "", http.StatusBadRequest, errBodyTooLarge
+		}
 		return nil, "", http.StatusBadRequest, err
 	}
 	if len(body) == 0 {
 		return nil, "", http.StatusBadRequest, errMissingBody
+	}
+	return body, contentType, 0, nil
+}
+
+// decodeGloasRequest reads the request and decodes the body into dst.
+func decodeGloasRequest(w http.ResponseWriter, req *http.Request, dst gloasBody) (body []byte, contentType string, code int, err error) {
+	body, contentType, code, err = readGloasRequest(w, req)
+	if err != nil {
+		return nil, "", code, err
 	}
 	if contentType == MediaTypeOctetStream {
 		err = dst.UnmarshalSSZ(body)
