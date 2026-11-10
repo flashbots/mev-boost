@@ -61,6 +61,7 @@ See also:
     - [`-relays` vs `-relay`](#-relays-vs--relay)
     - [Setting a minimum bid value with `-min-bid`](#setting-a-minimum-bid-value-with--min-bid)
     - [Enabling metrics](#enabling-metrics)
+    - [Gloas builder API](#gloas-epbs-builder-api)
 - [API](#api)
 - [Maintainers](#maintainers)
 - [Contributing](#contributing)
@@ -338,6 +339,20 @@ The **Timing Games** feature allows `mev-boost` to optimize block proposal by st
 **Notice:** This feature is strictly meant for advanced users and extra care should be taken when setting up timing game associated parameters.
 
 For detailed configuration options, parameters, and visual diagrams, see [docs/timing-games.md](docs/timing-games.md).
+
+### Gloas (ePBS) builder API
+
+From the Gloas fork the beacon node calls `getExecutionPayloadBid`, `submitBuilderPreferences` and `submitSignedBeaconBlock` instead of `getHeader`, `getPayload` and `registerValidator`. `mev-boost` serves both sets side by side; the legacy endpoints are unchanged.
+
+Each bid and preferences request carries a `SignedBuilderRequestAuth` whose `data` names the relay it is meant for. `mev-boost` checks the proposer's signature and forwards the request unchanged to the one relay whose `auth_data` matches, then returns that relay's answer. The signed beacon block is forwarded to every configured relay, since only the relay whose bid won can use it.
+
+A relay's `auth_data` defaults to its hostname, the [builder-specs default](https://github.com/ethereum/builder-specs/blob/main/specs/gloas/validator.md#default-auth-data). To send a validator's bid requests through `mev-boost`, add a builder entry to the validator client for each relay, with `url` set to the `mev-boost` address and `auth_data` set to the hex of the relay hostname:
+
+```bash
+printf '0x%s\n' "$(printf '%s' boost-relay.flashbots.net | od -An -tx1 | tr -d ' \n')"
+```
+
+A different value agreed with a relay is set per relay in the YAML config with `auth_data`, as a string or `0x`-prefixed hex. Every relay in a relay set needs a distinct `auth_data`. See [config.example.yaml](config.example.yaml).
 
 ---
 

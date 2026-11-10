@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -23,19 +24,22 @@ import (
 	"github.com/attestantio/go-eth2-client/spec/capella"
 	"github.com/attestantio/go-eth2-client/spec/deneb"
 	"github.com/attestantio/go-eth2-client/spec/electra"
+	"github.com/attestantio/go-eth2-client/spec/gloas"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/flashbots/go-boost-utils/bls"
 	"github.com/flashbots/go-boost-utils/ssz"
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
+	gloasAPI "github.com/flashbots/mev-boost/server/types/gloas"
 	"github.com/gorilla/mux"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	mockRelaySecretKeyHex = "0x4e343a647c5a5c44d76c2c58b63f02cdf3a9a0ec40f102ebc26363b4b1b95033"
+	mockRelaySecretKeyHex    = "0x4e343a647c5a5c44d76c2c58b63f02cdf3a9a0ec40f102ebc26363b4b1b95033"
+	EthConsensusVersionGloas = "gloas"
 )
 
 var (
@@ -66,9 +70,14 @@ type Relay struct {
 	handlerOverrideGetPayload        func(w http.ResponseWriter, req *http.Request)
 	handlerOverrideGetPayloadV2      func(w http.ResponseWriter, req *http.Request)
 
+	handlerOverrideGetExecutionPayloadBid   func(w http.ResponseWriter, req *http.Request)
+	handlerOverrideSubmitBuilderPreferences func(w http.ResponseWriter, req *http.Request)
+	handlerOverrideSubmitSignedBeaconBlock  func(w http.ResponseWriter, req *http.Request)
+
 	// Default responses placeholders, used if overrider does not exist
-	GetHeaderResponse  *builderSpec.VersionedSignedBuilderBid
-	GetPayloadResponse *builderApi.VersionedSubmitBlindedBlockResponse
+	GetHeaderResponse           *builderSpec.VersionedSignedBuilderBid
+	GetPayloadResponse          *builderApi.VersionedSubmitBlindedBlockResponse
+	ExecutionPayloadBidResponse *gloas.SignedExecutionPayloadBid
 
 	// Server section
 	Server        *httptest.Server
@@ -129,6 +138,9 @@ func (m *Relay) getRouter() http.Handler {
 	r.HandleFunc(params.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	r.HandleFunc(params.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 	r.HandleFunc(params.PathGetPayloadV2, m.handleGetPayloadV2).Methods(http.MethodPost)
+	r.HandleFunc(params.PathGetExecutionPayloadBid, m.handleGetExecutionPayloadBid).Methods(http.MethodPost)
+	r.HandleFunc(params.PathSubmitBuilderPreferences, m.handleSubmitBuilderPreferences).Methods(http.MethodPost)
+	r.HandleFunc(params.PathSubmitSignedBeaconBlock, m.handleSubmitSignedBeaconBlock).Methods(http.MethodPost)
 
 	return m.newTestMiddleware(r)
 }
@@ -299,7 +311,7 @@ func (m *Relay) MakeGetHeaderResponse(value uint64, blockHash, parentHash, publi
 				Signature: signature,
 			},
 		}
-	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix:
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionBellatrix, spec.DataVersionGloas:
 		return nil
 	}
 	return nil
@@ -507,4 +519,126 @@ func (m *Relay) OverrideHandleGetPayloadV2(method func(w http.ResponseWriter, re
 	defer m.mu.Unlock()
 
 	m.handlerOverrideGetPayloadV2 = method
+}
+
+func (m *Relay) OverrideHandleGetExecutionPayloadBid(method func(w http.ResponseWriter, req *http.Request)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.handlerOverrideGetExecutionPayloadBid = method
+}
+
+func (m *Relay) OverrideHandleSubmitBuilderPreferences(method func(w http.ResponseWriter, req *http.Request)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.handlerOverrideSubmitBuilderPreferences = method
+}
+
+func (m *Relay) OverrideHandleSubmitSignedBeaconBlock(method func(w http.ResponseWriter, req *http.Request)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.handlerOverrideSubmitSignedBeaconBlock = method
+}
+
+// MakeExecutionPayloadBid creates a Gloas bid for the given slot and parents, signed with the mock key.
+func (m *Relay) MakeExecutionPayloadBid(value, executionPayment, slot uint64, parentHash, parentRoot, blockHash string) *gloas.SignedExecutionPayloadBid {
+	message := &gloas.ExecutionPayloadBid{
+		ParentBlockHash:    HexToHash(parentHash),
+		ParentBlockRoot:    phase0.Root(HexToHash(parentRoot)),
+		BlockHash:          HexToHash(blockHash),
+		FeeRecipient:       HexToAddress("0xdb65fEd33dc262Fe09D9a2Ba8F80b329BA25f941"),
+		GasLimit:           30_000_000,
+		BuilderIndex:       1,
+		Slot:               phase0.Slot(slot),
+		Value:              phase0.Gwei(value),
+		ExecutionPayment:   phase0.Gwei(executionPayment),
+		BlobKZGCommitments: []deneb.KZGCommitment{},
+	}
+	signature, err := ssz.SignMessage(message, ssz.DomainBuilder, m.secretKey)
+	require.NoError(m.t, err)
+	return &gloas.SignedExecutionPayloadBid{Message: message, Signature: signature}
+}
+
+func (m *Relay) handleGetExecutionPayloadBid(w http.ResponseWriter, req *http.Request) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.handlerOverrideGetExecutionPayloadBid != nil {
+		m.handlerOverrideGetExecutionPayloadBid(w, req)
+		return
+	}
+	m.defaultHandleGetExecutionPayloadBid(w, req)
+}
+
+func (m *Relay) defaultHandleGetExecutionPayloadBid(w http.ResponseWriter, req *http.Request) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil || len(body) == 0 {
+		http.Error(w, "missing request auth", http.StatusBadRequest)
+		return
+	}
+	if req.Header.Get("Eth-Consensus-Version") != EthConsensusVersionGloas {
+		http.Error(w, "missing consensus version", http.StatusBadRequest)
+		return
+	}
+
+	vars := mux.Vars(req)
+	slot, err := strconv.ParseUint(vars["slot"], 10, 64)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	response := m.ExecutionPayloadBidResponse
+	if response == nil {
+		response = m.MakeExecutionPayloadBid(12345, 0, slot, vars["parent_hash"], vars["parent_root"],
+			"0x534809bd2b6832edff8d8ce4cb0e50068804fd1ef432c8362ad708a74fdc0e46")
+	}
+
+	w.Header().Set("Eth-Consensus-Version", EthConsensusVersionGloas)
+	if !m.ForceJSON && (m.ForceSSZ || strings.Contains(req.Header.Get("Accept"), "application/octet-stream")) {
+		sszData, err := response.MarshalSSZ()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(sszData)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(gloasAPI.ExecutionPayloadBidResponse{Version: EthConsensusVersionGloas, Data: response}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (m *Relay) handleSubmitBuilderPreferences(w http.ResponseWriter, req *http.Request) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.handlerOverrideSubmitBuilderPreferences != nil {
+		m.handlerOverrideSubmitBuilderPreferences(w, req)
+		return
+	}
+	body, err := io.ReadAll(req.Body)
+	if err != nil || len(body) == 0 {
+		http.Error(w, "missing preferences", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (m *Relay) handleSubmitSignedBeaconBlock(w http.ResponseWriter, req *http.Request) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.handlerOverrideSubmitSignedBeaconBlock != nil {
+		m.handlerOverrideSubmitSignedBeaconBlock(w, req)
+		return
+	}
+	body, err := io.ReadAll(req.Body)
+	if err != nil || len(body) == 0 {
+		http.Error(w, "missing block", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
 }

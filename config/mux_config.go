@@ -54,6 +54,9 @@ func ValidateMuxEntries(entries []MuxEntryInput) (MuxMap, error) {
 		if len(entry.RelayConfigs) == 0 {
 			return nil, fmt.Errorf("mux %s: %w", entry.ID, ErrMuxNoRelays)
 		}
+		if err := types.ValidateUniqueAuthData(entry.RelayConfigs); err != nil {
+			return nil, fmt.Errorf("mux %s: %w", entry.ID, err)
+		}
 		if len(entry.ValidatorPubkeys) == 0 {
 			return nil, fmt.Errorf("mux %s: %w", entry.ID, ErrMuxNoPubkeys)
 		}
