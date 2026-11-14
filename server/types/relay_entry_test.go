@@ -109,3 +109,16 @@ func TestParseRelaysURLs(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateUniqueAuthData(t *testing.T) {
+	const testRelayPubkey = "0x82f6e7cc57a2ce68ec41321bebc55bcb31945fe66a8e67eb8251425fab4c6a38c10c53210aea9796dd0ba0441b46762a"
+
+	a, err := NewRelayEntry("https://" + testRelayPubkey + "@relay.example.com")
+	require.NoError(t, err)
+	b, err := NewRelayEntry("https://" + testRelayPubkey + "@relay.example.com:9000")
+	require.NoError(t, err)
+	require.ErrorIs(t, ValidateUniqueAuthData([]RelayConfig{NewRelayConfig(a), NewRelayConfig(b)}), ErrDuplicateAuthData)
+
+	b.AuthData = "relay-b"
+	require.NoError(t, ValidateUniqueAuthData([]RelayConfig{NewRelayConfig(a), NewRelayConfig(b)}))
+}

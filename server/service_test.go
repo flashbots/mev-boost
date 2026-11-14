@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/OffchainLabs/go-bitfield"
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	builderApiFulu "github.com/attestantio/go-builder-client/api/fulu"
@@ -39,7 +40,6 @@ import (
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/holiman/uint256"
-	"github.com/prysmaticlabs/go-bitfield"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1939,7 +1939,7 @@ func blindedBlockToBlockResponse(signedBlock any, version spec.DataVersion) *bui
 			Version: spec.DataVersionFulu,
 			Fulu:    fuluExecutionPayloadAndBlobsBundle(header, commitments),
 		}
-	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionGloas:
 		panic("unknown data version")
 	}
 	return nil
@@ -2079,7 +2079,7 @@ func TestGetPayloadForks(t *testing.T) {
 				payload = block.Electra
 			case spec.DataVersionFulu:
 				payload = block.Fulu
-			case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+			case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionGloas:
 				require.Fail(t, "unsupported version")
 			}
 

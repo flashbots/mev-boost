@@ -676,7 +676,7 @@ func (m *BoostService) respondGetPayloadSSZ(w http.ResponseWriter, result *build
 	case spec.DataVersionFulu:
 		w.Header().Set(HeaderEthConsensusVersion, EthConsensusVersionFulu)
 		sszData, err = result.Fulu.MarshalSSZ()
-	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair:
+	case spec.DataVersionUnknown, spec.DataVersionPhase0, spec.DataVersionAltair, spec.DataVersionGloas:
 		err = errInvalidForkVersion
 	}
 	if err != nil {

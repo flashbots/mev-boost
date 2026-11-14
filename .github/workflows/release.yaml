@@ -72,7 +72,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ^1.24
+          go-version: ^1.25
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
@@ -103,7 +103,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ^1.24
+          go-version: ^1.25
       - name: Make directories
         run: |
           mkdir -p ./build

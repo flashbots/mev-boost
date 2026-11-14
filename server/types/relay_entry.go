@@ -1,11 +1,13 @@
 package types
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
 	"github.com/flashbots/go-boost-utils/utils"
+	"github.com/flashbots/mev-boost/server/types/gloas"
 )
 
 // RelayEntry represents a relay that mev-boost connects to.
@@ -13,6 +15,7 @@ type RelayEntry struct {
 	PublicKey   phase0.BLSPubKey
 	URL         *url.URL
 	SupportsSSZ bool
+	AuthData    string
 }
 
 type RelayConfig struct {
@@ -75,6 +78,14 @@ func NewRelayEntry(relayURL string) (entry RelayEntry, err error) {
 		return entry, ErrPointAtInfinityPubkey
 	}
 
+	// The relay hostname is used as the default auth_data. This is overridden by a
+	// value agreed with the relay and set in the YAML config.
+	authData, err := gloas.DefaultAuthData(entry.URL.String())
+	if err != nil {
+		return entry, err
+	}
+	entry.AuthData = string(authData)
+
 	return entry, nil
 }
 
@@ -91,9 +102,24 @@ func RelayEntriesToStrings(relays []RelayEntry) []string {
 func (r *RelayEntry) Copy() (ret RelayEntry) {
 	ret.PublicKey = r.PublicKey
 	ret.SupportsSSZ = r.SupportsSSZ
+	ret.AuthData = r.AuthData
 	if r.URL != nil {
 		urlCopy := *r.URL
 		ret.URL = &urlCopy
 	}
 	return
+}
+
+// ValidateUniqueAuthData returns an error if two relays in the set
+// expect the same auth data.
+func ValidateUniqueAuthData(configs []RelayConfig) error {
+	exists := make(map[string]string, len(configs))
+	for _, c := range configs {
+		key := c.RelayEntry.AuthData
+		if other, ok := exists[key]; ok {
+			return fmt.Errorf("%w: %s and %s (%q)", ErrDuplicateAuthData, other, c.RelayEntry.String(), key)
+		}
+		exists[key] = c.RelayEntry.String()
+	}
+	return nil
 }

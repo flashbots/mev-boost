@@ -23,6 +23,11 @@ relays:
   # Timing games allow mev-boost to send multiple requests at strategic intervals
   # to capture the latest, most valuable bids right before the proposal deadline.
   - url: https://0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@relay.relayer1.net
+    # Auth data this relay expects on Gloas (ePBS) bid and preferences requests, as a
+    # string or 0x-prefixed hex. Only set it when a different value is agreed with the
+    # relay; the default is the relay hostname, here "relay.relayer1.net".
+    # Every relay in a relay set needs a distinct auth_data.
+    # auth_data: "relayer1-mev-boost"
     # Enable timing games strategy for this relay.
     # When enabled, mev-boost will delay the first request and send multiple follow up requests.
     # Default: false

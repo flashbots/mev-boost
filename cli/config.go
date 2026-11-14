@@ -9,6 +9,7 @@ import (
 
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server/types"
+	"github.com/flashbots/mev-boost/server/types/gloas"
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -22,6 +23,7 @@ var (
 
 type RelayConfigYAML struct {
 	URL                  string `yaml:"url"`
+	AuthData             string `yaml:"auth_data"`
 	EnableTimingGames    bool   `yaml:"enable_timing_games"`
 	TargetFirstRequestMs uint64 `yaml:"target_first_request_ms"`
 	FrequencyGetHeaderMs uint64 `yaml:"frequency_get_header_ms"`
@@ -154,7 +156,31 @@ func MergeRelayConfigs(relays []types.RelayEntry, configMap map[string]types.Rel
 		return nil, errNoRelaysSpecified
 	}
 
+	if err := types.ValidateUniqueAuthData(configs); err != nil {
+		return nil, err
+	}
+
 	return configs, nil
+}
+
+func relayConfigFromYAML(relay RelayConfigYAML) (*types.RelayConfig, error) {
+	relayEntry, err := types.NewRelayEntry(strings.TrimSpace(relay.URL))
+	if err != nil {
+		return nil, err
+	}
+	if relay.AuthData != "" {
+		authData, err := gloas.ParseAuthData(relay.AuthData)
+		if err != nil {
+			return nil, fmt.Errorf("relay %s: invalid auth_data: %w", relayEntry.String(), err)
+		}
+		relayEntry.AuthData = string(authData)
+	}
+	return &types.RelayConfig{
+		RelayEntry:           relayEntry,
+		EnableTimingGames:    relay.EnableTimingGames,
+		TargetFirstRequestMs: relay.TargetFirstRequestMs,
+		FrequencyGetHeaderMs: relay.FrequencyGetHeaderMs,
+	}, nil
 }
 
 func parseConfig(cfg Config) (*ConfigResult, error) {
@@ -170,17 +196,11 @@ func parseConfig(cfg Config) (*ConfigResult, error) {
 
 	configMap := make(map[string]types.RelayConfig)
 	for _, relay := range cfg.Relays {
-		relayEntry, err := types.NewRelayEntry(strings.TrimSpace(relay.URL))
+		relayConfig, err := relayConfigFromYAML(relay)
 		if err != nil {
 			return nil, err
 		}
-		relayConfig := types.RelayConfig{
-			RelayEntry:           relayEntry,
-			EnableTimingGames:    relay.EnableTimingGames,
-			TargetFirstRequestMs: relay.TargetFirstRequestMs,
-			FrequencyGetHeaderMs: relay.FrequencyGetHeaderMs,
-		}
-		configMap[relayEntry.String()] = relayConfig
+		configMap[relayConfig.RelayEntry.String()] = *relayConfig
 	}
 
 	// parse mux entries
@@ -190,16 +210,11 @@ func parseConfig(cfg Config) (*ConfigResult, error) {
 		for _, muxYAML := range cfg.Mux {
 			relayConfigs := make([]types.RelayConfig, 0, len(muxYAML.Relays))
 			for _, relay := range muxYAML.Relays {
-				relayEntry, err := types.NewRelayEntry(strings.TrimSpace(relay.URL))
+				relayConfig, err := relayConfigFromYAML(relay)
 				if err != nil {
 					return nil, err
 				}
-				relayConfigs = append(relayConfigs, types.RelayConfig{
-					RelayEntry:           relayEntry,
-					EnableTimingGames:    relay.EnableTimingGames,
-					TargetFirstRequestMs: relay.TargetFirstRequestMs,
-					FrequencyGetHeaderMs: relay.FrequencyGetHeaderMs,
-				})
+				relayConfigs = append(relayConfigs, *relayConfig)
 			}
 
 			// per mux timeouts if provieded otherwsie fall back to global defaults

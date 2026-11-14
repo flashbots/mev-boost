@@ -10,6 +10,7 @@ import (
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestNewConfigWatcher(t *testing.T) {
@@ -608,4 +609,80 @@ mux:
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "must have at least one relay")
 	})
+}
+
+func TestParseConfigAuthData(t *testing.T) {
+	const testConfigPubkey = "0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246"
+
+	t.Run("auth_data per relay, default is the hostname", func(t *testing.T) {
+		var cfg Config
+		require.NoError(t, yaml.Unmarshal([]byte(`
+relays:
+  - url: https://`+testConfigPubkey+`@relay-a.example.com
+  - url: https://`+testConfigPubkey+`@relay-b.example.com
+    auth_data: relay-b
+  - url: https://`+testConfigPubkey+`@relay-c.example.com
+    auth_data: "0x0a0b"
+`), &cfg))
+		result, err := parseConfig(cfg)
+		require.NoError(t, err)
+		require.Equal(t, "relay-a.example.com", result.RelayConfigs["https://"+testConfigPubkey+"@relay-a.example.com"].RelayEntry.AuthData)
+		require.Equal(t, "relay-b", result.RelayConfigs["https://"+testConfigPubkey+"@relay-b.example.com"].RelayEntry.AuthData)
+		require.Equal(t, "\x0a\x0b", result.RelayConfigs["https://"+testConfigPubkey+"@relay-c.example.com"].RelayEntry.AuthData)
+	})
+
+	t.Run("duplicate auth data is rejected", func(t *testing.T) {
+		var cfg Config
+		require.NoError(t, yaml.Unmarshal([]byte(`
+relays:
+  - url: https://`+testConfigPubkey+`@relay.example.com
+  - url: https://`+testConfigPubkey+`@relay.example.com:9000
+`), &cfg))
+		result, err := parseConfig(cfg)
+		require.NoError(t, err)
+		_, err = MergeRelayConfigs(nil, result.RelayConfigs)
+		require.ErrorIs(t, err, types.ErrDuplicateAuthData)
+
+		cfg = Config{}
+		require.NoError(t, yaml.Unmarshal([]byte(`
+mux:
+  - id: m
+    validator_pubkeys: ["`+testConfigPubkey+`"]
+    relays:
+      - url: https://`+testConfigPubkey+`@relay.example.com
+      - url: https://`+testConfigPubkey+`@relay.example.com:9000
+`), &cfg))
+		_, err = parseConfig(cfg)
+		require.ErrorIs(t, err, types.ErrDuplicateAuthData)
+	})
+}
+
+func TestRelayConfigFromYAML(t *testing.T) {
+	const testConfigPubkey = "0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246"
+
+	url := "https://" + testConfigPubkey + "@relay.example.com"
+
+	cfg, err := relayConfigFromYAML(RelayConfigYAML{URL: url, EnableTimingGames: true, TargetFirstRequestMs: 200, FrequencyGetHeaderMs: 100})
+	require.NoError(t, err)
+	require.Equal(t, url, cfg.RelayEntry.String())
+	require.Equal(t, "relay.example.com", cfg.RelayEntry.AuthData, "defaults to the relay hostname")
+	require.True(t, cfg.EnableTimingGames)
+	require.Equal(t, uint64(200), cfg.TargetFirstRequestMs)
+	require.Equal(t, uint64(100), cfg.FrequencyGetHeaderMs)
+
+	cfg, err = relayConfigFromYAML(RelayConfigYAML{URL: " " + url + " ", AuthData: "relay-a"})
+	require.NoError(t, err)
+	require.Equal(t, "relay-a", cfg.RelayEntry.AuthData, "auth_data overrides the default")
+
+	cfg, err = relayConfigFromYAML(RelayConfigYAML{URL: url, AuthData: "0x0a0b"})
+	require.NoError(t, err)
+	require.Equal(t, "\x0a\x0b", cfg.RelayEntry.AuthData, "hex auth_data is decoded")
+
+	cfg, err = relayConfigFromYAML(RelayConfigYAML{URL: "https://relay.example.com"})
+	require.ErrorIs(t, err, types.ErrMissingRelayPubkey)
+	require.Nil(t, cfg)
+
+	cfg, err = relayConfigFromYAML(RelayConfigYAML{URL: url, AuthData: "0xzz"})
+	require.Error(t, err)
+	require.Nil(t, cfg)
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/flashbots/mev-boost/config"
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
+	gloasAPI "github.com/flashbots/mev-boost/server/types/gloas"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -85,6 +86,7 @@ type BoostService struct {
 	genesisTime  uint64
 
 	builderSigningDomain phase0.Domain
+	requestAuthDomain    phase0.Domain
 	httpClientGetHeader  http.Client
 	httpClientGetPayload http.Client
 	httpClientRegVal     http.Client
@@ -114,6 +116,10 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 	if err != nil {
 		return nil, err
 	}
+	requestAuthDomain, err := ComputeDomain(gloasAPI.DomainTypeBuilderRequestAuth, opts.GenesisForkVersionHex, phase0.Root{}.String())
+	if err != nil {
+		return nil, err
+	}
 
 	return &BoostService{
 		listenAddr:   opts.ListenAddr,
@@ -128,6 +134,7 @@ func NewBoostService(opts BoostServiceOpts) (*BoostService, error) {
 		metricsAddr:  opts.MetricsAddr,
 
 		builderSigningDomain: builderSigningDomain,
+		requestAuthDomain:    requestAuthDomain,
 		httpClientGetHeader: http.Client{
 			Timeout:       opts.RequestTimeoutGetHeader,
 			CheckRedirect: httpClientDisallowRedirects,
@@ -174,6 +181,11 @@ func (m *BoostService) getRouter() http.Handler {
 	r.HandleFunc(params.PathGetHeader, m.handleGetHeader).Methods(http.MethodGet)
 	r.HandleFunc(params.PathGetPayload, m.handleGetPayload).Methods(http.MethodPost)
 	r.HandleFunc(params.PathGetPayloadV2, m.handleGetPayloadV2).Methods(http.MethodPost)
+
+	// Gloas (ePBS) builder API handlers.
+	r.HandleFunc(params.PathGetExecutionPayloadBid, m.handleGetExecutionPayloadBid).Methods(http.MethodPost)
+	r.HandleFunc(params.PathSubmitBuilderPreferences, m.handleSubmitBuilderPreferences).Methods(http.MethodPost)
+	r.HandleFunc(params.PathSubmitSignedBeaconBlock, m.handleSubmitSignedBeaconBlock).Methods(http.MethodPost)
 
 	r.Use(mux.CORSMethodMiddleware(r))
 	loggedRouter := httplogger.LoggingMiddlewareLogrus(m.log, r)
