@@ -22,6 +22,7 @@ import (
 	"github.com/flashbots/mev-boost/server/params"
 	"github.com/flashbots/mev-boost/server/types"
 	"github.com/google/uuid"
+	"github.com/holiman/uint256"
 	"github.com/sirupsen/logrus"
 )
 
@@ -34,6 +35,7 @@ type relayBid struct {
 type bidResult struct {
 	bid         *builderSpec.VersionedSignedBuilderBid
 	contentType string
+	value       *uint256.Int
 	timestamp   time.Time
 }
 
@@ -227,10 +229,16 @@ func (m *BoostService) handleTimingGamesGetHeader(
 		defer wg.Done()
 		bid, contentType := m.sendGetHeaderRequest(log, relay, url, slotUID, userAgent, proposerAcceptContentTypes, timeoutMs)
 		if bid != nil {
+			info, err := parseBidInfo(bid)
+			if err != nil {
+				log.WithError(err).Warn("error parsing bid info via timing games")
+				return
+			}
 			mu.Lock()
 			bidResults = append(bidResults, bidResult{
 				bid:         bid,
 				contentType: contentType,
+				value:       info.value,
 				timestamp:   time.Now(),
 			})
 			mu.Unlock()
@@ -272,21 +280,26 @@ loop:
 	}
 
 	var (
-		latestBid         *builderSpec.VersionedSignedBuilderBid
-		latestContentType string
-		latestTime        time.Time
+		bestBid         *builderSpec.VersionedSignedBuilderBid
+		bestContentType string
+		bestValue       *uint256.Int
+		bestTime        time.Time
 	)
-	// select only the bid which was most recently received and return it
+	// select the most profitable bid received across all polls of this relay.
+	// picking by recency alone (instead of value) would let a later, lower bid
+	// displace an earlier, higher one due to nothing more than network jitter.
 	log.WithField("totalBids", len(bidResults)).Debug("received headers from relay via timing games")
 
 	for _, br := range bidResults {
-		if latestBid == nil || br.timestamp.After(latestTime) {
-			latestBid = br.bid
-			latestContentType = br.contentType
-			latestTime = br.timestamp
+		if bestBid == nil || br.value.Cmp(bestValue) > 0 ||
+			(br.value.Cmp(bestValue) == 0 && br.timestamp.After(bestTime)) {
+			bestBid = br.bid
+			bestContentType = br.contentType
+			bestValue = br.value
+			bestTime = br.timestamp
 		}
 	}
-	return latestBid, latestContentType
+	return bestBid, bestContentType
 }
 
 // sendGetHeaderRequest sends a single getHeader request to a relay and returns the bid and content type

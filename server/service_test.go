@@ -909,6 +909,51 @@ func TestGetHeaderTimingGames(t *testing.T) {
 		require.Equal(t, uint256.NewInt(12350), value)
 	})
 
+	t.Run("Timing games keeps highest bid even if a later poll returns a lower one", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 36
+
+		backend.boost.relayConfigs[0].EnableTimingGames = true
+		backend.boost.relayConfigs[0].TargetFirstRequestMs = 0
+		backend.boost.relayConfigs[0].FrequencyGetHeaderMs = 30
+
+		// simulate a builder whose bid value goes up and then drops on the
+		// last poll, e.g. due to network jitter or a re-issued lower bid
+		values := []uint64{12345, 99999, 12345}
+		var callCount int
+		backend.relays[0].OverrideHandleGetHeader(func(w http.ResponseWriter, _ *http.Request) {
+			idx := callCount
+			if idx >= len(values) {
+				idx = len(values) - 1
+			}
+			callCount++
+			response := backend.relays[0].MakeGetHeaderResponse(
+				values[idx],
+				"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+				"0xe28385e7bd68df656cd0042b74b69c3104b5356ed1f20eb69f1f925df47a3ab7",
+				"0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249",
+				spec.DataVersionDeneb,
+			)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, json.NewEncoder(w).Encode(response))
+		})
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+
+		resp := new(builderSpec.VersionedSignedBuilderBid)
+		err := json.Unmarshal(rr.Body.Bytes(), resp)
+		require.NoError(t, err)
+		value, err := resp.Value()
+		require.NoError(t, err)
+		// the highest bid (99999) must win, not the one from the last poll (12345)
+		require.Equal(t, uint256.NewInt(99999), value)
+	})
+
 	t.Run("Timing games with SSZ encoding", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderEthConsensusVersion, "deneb")

@@ -77,7 +77,7 @@ sequenceDiagram
 
     Note right of MB: max_timeout Reached or<br/>Replies Finished
 
-    Note right of MB: 1. Select best from Relay:<br/>Bid C (Latest Received)
+    Note right of MB: 1. Select best from Relay:<br/>Bid C (Highest Value)
 
     Note right of MB: 2. Compare with other relays<br/>(Highest Value Wins)
 
@@ -93,4 +93,4 @@ sequenceDiagram
 
 3. **Delay multiple subsequent requests**: With timing games enabled, if `frequency_get_header_ms` is set, mev-boost sends multiple requests at intervals of `frequency_get_header_ms` until the budget is exhausted.
 
-4. **Best Bid Selection**: From all responses received, mev-boost selects the most recently received bid from each relay, then compares across relays to return the highest value bid.
+4. **Best Bid Selection**: From all responses received, mev-boost selects the highest-value bid from each relay (ties broken by recency), then compares across relays to return the highest value bid overall.
