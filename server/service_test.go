@@ -326,6 +326,22 @@ func TestGetHeader(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
+	t.Run("Request arriving before slot start still queries relays", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+
+		backend := newTestBackend(t, 1, time.Second)
+		// setting genesisTime so slot 1 starts several seconds in the future,
+		// making msIntoSlot reliably negative regardless of the Unix()
+		// second-truncation. Without clamping, the unsigned subtraction wraps
+		// and the late-in-slot guard skips all relays.
+		backend.boost.genesisTime = uint64(time.Now().Unix()) - 7
+
+		rr := backend.request(t, http.MethodGet, path, header, nil)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
+	})
+
 	t.Run("Okay response from relay deneb", func(t *testing.T) {
 		header := make(http.Header)
 		header.Set(HeaderAccept, MediaTypeJSON)
