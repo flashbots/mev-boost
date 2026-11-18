@@ -18,10 +18,17 @@ To enable hot reloading of the configuration file, add the `-watch-config` flag:
 
 ## Global Timeouts
 
-These settings apply to all relays and define the hard boundaries for the `getHeader` operation.
+These settings apply to all relays and define the time budget for outbound
+`getHeader` requests. They do not impose a hard deadline on the complete HTTP
+request handled by `mev-boost`.
 
 *   **`timeout_get_header_ms`** (optional, default: 950ms)
-    * It is the maximum timeout in milliseconds for get_header requests to relays.
+    * It is the maximum timeout in milliseconds for `getHeader` requests to relays.
+      The duration in the HTTP access log also includes local work such as bid
+      decoding and validation, best-bid selection, and response serialization,
+      so it can exceed this value. Configure enough margin below the consensus
+      client's builder timeout for that work and the network round trip from
+      `mev-boost` back to the client.
 
 *   **`late_in_slot_time_ms`** (optional, default: 2000ms)
     *   It is a safety threshold in milliseconds that marks when in a slot we consider it "too late" to fetch headers from relays. If the request arrives after the threshold, it skips all relay requests and forces local block building.
@@ -87,7 +94,10 @@ sequenceDiagram
 
 ## How It Works
 
-1. **Calculate budget**: When a `getHeader` request arrives, mev-boost calculates the maximum time budget as `min(timeout_get_header_ms, late_in_slot_time_ms - ms_into_slot)`.
+1. **Calculate budget**: When a `getHeader` request arrives, mev-boost calculates
+   the maximum relay-request budget as
+   `min(timeout_get_header_ms, late_in_slot_time_ms - ms_into_slot)`. Processing
+   the bids and writing the response happen outside this budget.
 
 2. **Delay first request**: With timing games enabled, If `target_first_request_ms` is set, mev-boost waits until that target time before sending the first request.
 
