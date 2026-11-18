@@ -122,6 +122,11 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 
 	// Request a bid from each relay
 	for _, relayConfig := range relayConfigs {
+		if m.relayIsBlacklisted(relayConfig.RelayEntry) {
+			log.WithField("relay", relayConfig.RelayEntry.String()).Warn("skipping temporarily blacklisted relay")
+			continue
+		}
+
 		wg.Add(1)
 		go func(relayConfig types.RelayConfig) {
 			relay := relayConfig.RelayEntry
