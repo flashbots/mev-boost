@@ -47,9 +47,7 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 				req.Header[key] = values
 			}
 
-			log.WithFields(logrus.Fields{
-				"request": req,
-			}).Debug("sending the registerValidator request")
+			log.Debug("sending the registerValidator request")
 
 			// Send the request
 			start := time.Now()
