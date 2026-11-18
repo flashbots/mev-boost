@@ -9,7 +9,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"slices"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -180,11 +179,15 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 				requestContentType := parsedProposerContentType
 				requestBytes := signedBlindedBeaconBlockBytes
 
-				// Check if the relay supports SSZ
+				// Check if the relay supports SSZ.
+				// Match by URL string: processBid stores RelayEntry.Copy() which allocates a new *url.URL,
+				// so pointer equality would never match the live relay config entry.
 				relaySupportsSSZ := false
+				relayProvidedBid := false
 				for _, originalBidRelay := range originalBid.relays {
-					if relay.URL == originalBidRelay.URL {
+					if relay.String() == originalBidRelay.String() {
 						relaySupportsSSZ = originalBidRelay.SupportsSSZ
+						relayProvidedBid = true
 						break
 					}
 				}
@@ -201,7 +204,7 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 						return nil, err
 					}
 					innerLog.WithFields(logrus.Fields{
-						"relayProvidedBid": slices.Contains(originalBid.relays, relay),
+						"relayProvidedBid": relayProvidedBid,
 						"conversionTime":   time.Since(startTime),
 					}).Info("Converted request from SSZ to JSON for relay")
 				}

@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1453,6 +1454,36 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 
 		require.Equal(t, MediaTypeOctetStream, rr.Header().Get(HeaderContentType))
+	})
+
+	t.Run("SSZ preference survives RelayEntry.Copy used by processBid", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set("Eth-Consensus-Version", "deneb")
+		header.Set("Accept", "application/octet-stream")
+		header.Set("Content-Type", "application/octet-stream")
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		// Simulate processBid: store a Copy() with SupportsSSZ set (new *url.URL pointer).
+		relayCopy := backend.relays[0].RelayEntry.Copy()
+		relayCopy.SupportsSSZ = true
+		bid := bidResp{relays: []types.RelayEntry{relayCopy}}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		var sawSSZ atomic.Bool
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, req *http.Request) {
+			if req.Header.Get(HeaderContentType) == MediaTypeOctetStream {
+				sawSSZ.Store(true)
+			}
+			backend.relays[0].DefaultHandleGetPayload(w, req)
+		})
+
+		payloadBytes, err := payload.MarshalSSZ()
+		require.NoError(t, err)
+		rr := backend.requestBytes(t, http.MethodPost, path, header, payloadBytes)
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		require.True(t, sawSSZ.Load(), "winning SSZ relay must receive SSZ after Copy()-based bid cache entry")
+		require.Equal(t, 1, backend.relays[0].GetRequestCount(path))
 	})
 
 	t.Run("A relay which does not provide the bid gets a JSON request", func(t *testing.T) {
