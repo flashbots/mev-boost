@@ -1,6 +1,7 @@
 package server
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/flashbots/mev-boost/config"
@@ -140,4 +141,38 @@ func TestAllRelayConfigs(t *testing.T) {
 		all := service.AllRelayConfigs()
 		require.Len(t, all, 3)
 	})
+}
+
+// The pubkey in a getHeader URL is supplied by the beacon node and hex is
+// case-insensitive, so the mux lookup must not depend on the case the CL
+// happens to use. Missing the mux is silent: the validator falls back to the
+// default relay set with no error.
+func TestGetConfigForValidatorIsCaseInsensitive(t *testing.T) {
+	muxRelay := newTestRelayConfig("0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@mux.example.com")
+	defaultRelay := newTestRelayConfig("0x9000009807ed12c1f08bf4e81c6da3ba8e3fc3d953898ce0102433094e5f22f21102ec057841fcb81978ed1ea0fa8246@default.example.com")
+
+	pubkey := "0x8a1d7b8dd64e0aafe7ea7b6c95065c9364cf99d38470c12ee807d55f7de1529ad29ce2c422e0b65e3d5a05c02caca249"
+	muxConfig := &config.RuntimeMuxConfig{
+		ID:                 "lido",
+		RelayConfigs:       []types.RelayConfig{muxRelay},
+		TimeoutGetHeaderMs: 900,
+		LateInSlotTimeMs:   1500,
+	}
+
+	service := &BoostService{
+		relayConfigs:       []types.RelayConfig{defaultRelay},
+		muxMap:             config.MuxMap{pubkey: muxConfig},
+		timeoutGetHeaderMs: 950,
+		lateInSlotTimeMs:   2000,
+		log:                logrus.NewEntry(logrus.New()),
+	}
+
+	for _, requested := range []string{pubkey, strings.ToUpper(pubkey)} {
+		relayConfigs, timeoutMs, lateMs := service.GetConfigForValidator(requested)
+		require.Len(t, relayConfigs, 1)
+		require.Equal(t, "mux.example.com", relayConfigs[0].RelayEntry.URL.Host,
+			"expected the mux relay for pubkey %q, got the default set", requested)
+		require.Equal(t, uint64(900), timeoutMs)
+		require.Equal(t, uint64(1500), lateMs)
+	}
 }
