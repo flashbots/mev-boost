@@ -60,9 +60,17 @@ func (m *BoostService) getHeader(log *logrus.Entry, slot phase0.Slot, pubkey, pa
 	// Compute these once, instead of for each relay
 	userAgent := wrapUserAgent(ua)
 
-	// Log how late into the slot the request starts
+	// Log how late into the slot the request starts.
+	// Use signed math so a request arriving slightly before slot start (CL/BN
+	// scheduling jitter) does not underflow uint64 and look "impossibly late".
 	slotStartTimestamp := m.genesisTime + uint64(slot)*config.SlotTimeSec
-	msIntoSlot := uint64(time.Now().UTC().UnixMilli()) - slotStartTimestamp*1000
+	nowMs := time.Now().UTC().UnixMilli()
+	slotStartMs := int64(slotStartTimestamp) * 1000
+	msIntoSlotSigned := nowMs - slotStartMs
+	if msIntoSlotSigned < 0 {
+		msIntoSlotSigned = 0
+	}
+	msIntoSlot := uint64(msIntoSlotSigned)
 	log.WithFields(logrus.Fields{
 		"genesisTime": m.genesisTime,
 		"slotTimeSec": config.SlotTimeSec,
