@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	// Version is set at build time (must be a var, not a const!)
+	// Version can be set at build time, otherwise the module version is used when available.
+	// It must be a var, not a const, to support linker overrides.
 	Version = "dev"
 
 	// RFC3339Milli is a time format string based on time.RFC3339 but with millisecond precision
