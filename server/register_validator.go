@@ -48,7 +48,8 @@ func (m *BoostService) registerValidator(log *logrus.Entry, regBytes []byte, hea
 			}
 
 			log.WithFields(logrus.Fields{
-				"request": req,
+				"httpMethod":    req.Method,
+				"contentLength": req.ContentLength,
 			}).Debug("sending the registerValidator request")
 
 			// Send the request
