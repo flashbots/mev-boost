@@ -125,7 +125,12 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 
 	// Log how late into the slot the request starts
 	slotStartTimestamp := m.genesisTime + uint64(slot)*config.SlotTimeSec
-	msIntoSlot := uint64(time.Now().UTC().UnixMilli()) - slotStartTimestamp*1000
+	slotStartMs := slotStartTimestamp * 1000
+	nowMs := uint64(time.Now().UTC().UnixMilli())
+	var msIntoSlot uint64
+	if nowMs > slotStartMs {
+		msIntoSlot = nowMs - slotStartMs
+	}
 	log.WithFields(logrus.Fields{
 		"genesisTime": m.genesisTime,
 		"slotTimeSec": config.SlotTimeSec,
@@ -241,12 +246,13 @@ func (m *BoostService) innerGetPayload(log *logrus.Entry, signedBlindedBeaconBlo
 					return nil, err
 				}
 
-				RecordRelayStatusCode(strconv.Itoa(statusCode), endpoint, relay.URL.Hostname())
+				RecordRelayStatusCode(strconv.Itoa(resp.StatusCode), endpoint, relay.URL.Hostname())
 				// Check that the response was successful
 
 				// If the response status code doesn't match expected, read error body once
 				if resp.StatusCode != statusCode {
 					errorBody, err := io.ReadAll(resp.Body)
+					resp.Body.Close()
 					if err != nil {
 						innerLog.WithError(err).Warn("error reading error body")
 						return nil, err

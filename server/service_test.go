@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/OffchainLabs/go-bitfield"
+	"github.com/VictoriaMetrics/metrics"
 	builderApi "github.com/attestantio/go-builder-client/api"
 	builderApiDeneb "github.com/attestantio/go-builder-client/api/deneb"
 	builderApiFulu "github.com/attestantio/go-builder-client/api/fulu"
@@ -1611,6 +1612,40 @@ func TestGetPayload(t *testing.T) {
 		require.Equal(t, 5, backend.relays[0].GetRequestCount(path))
 		require.JSONEq(t, `{"code":502,"message":"no successful relay response"}`+"\n", rr.Body.String())
 		require.Equal(t, http.StatusBadGateway, rr.Code, rr.Body.String())
+	})
+
+	t.Run("Records actual relay error status code in metrics", func(t *testing.T) {
+		header := make(http.Header)
+		header.Set(HeaderAccept, MediaTypeJSON)
+		header.Set("Eth-Consensus-Version", "deneb")
+
+		backend := newTestBackend(t, 1, time.Second)
+
+		bid := bidResp{relays: make([]types.RelayEntry, len(backend.relays))}
+		for i, relay := range backend.relays {
+			bid.relays[i] = relay.RelayEntry
+		}
+		backend.boost.bids[bidKey(payload.Message.Slot, payload.Message.Body.ExecutionPayloadHeader.BlockHash)] = bid
+
+		backend.relays[0].OverrideHandleGetPayload(func(w http.ResponseWriter, req *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, err := w.Write([]byte(`{"code":500,"message":"internal server error"}`))
+			require.NoError(t, err)
+		})
+
+		metricLabel500 := fmt.Sprintf(relayStatusCodeLabel, "500", params.PathGetPayload, backend.relays[0].RelayEntry.URL.Hostname())
+		metricLabel200 := fmt.Sprintf(relayStatusCodeLabel, "200", params.PathGetPayload, backend.relays[0].RelayEntry.URL.Hostname())
+		before500 := metrics.GetOrCreateCounter(metricLabel500).Get()
+		before200 := metrics.GetOrCreateCounter(metricLabel200).Get()
+
+		rr := backend.request(t, http.MethodPost, path, header, payload)
+		require.Equal(t, http.StatusBadGateway, rr.Code)
+
+		after500 := metrics.GetOrCreateCounter(metricLabel500).Get()
+		after200 := metrics.GetOrCreateCounter(metricLabel200).Get()
+
+		require.Greater(t, after500, before500)
+		require.Equal(t, before200, after200)
 	})
 }
 
